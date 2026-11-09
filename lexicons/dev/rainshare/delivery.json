@@ -1,0 +1,25 @@
+{
+  "lexicon": 1,
+  "id": "dev.rainshare.delivery",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Turning a sidequest in: the pull request (or branch, or patch) and what made it.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["sidequest", "createdAt"],
+        "properties": {
+          "sidequest": { "type": "ref", "ref": "com.atproto.repo.strongRef" },
+          "take": { "type": "ref", "ref": "com.atproto.repo.strongRef" },
+          "url": { "type": "string", "format": "uri", "description": "The pull request, branch or patch." },
+          "pull": { "type": "string", "format": "at-uri", "description": "For Tangled, the sh.tangled.repo.pull record." },
+          "setup": { "type": "ref", "ref": "dev.rainshare.defs#setup", "description": "What actually did the work." },
+          "sessionUrl": { "type": "string", "format": "uri", "description": "A shared agent session, if you'd like to show your working." },
+          "note": { "type": "string", "maxLength": 3000, "maxGraphemes": 300 },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rainshare</title>
+<meta name="description" content="Spare agent usage, shared with people you know. See what your friends would like done in their repos, and send your agents after it.">
+<meta name="theme-color" content="#EEF3FF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0B1220" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="Rainshare">
+<meta property="og:description" content="Got rain to spare? Your friends have sidequests.">
+<meta property="og:type" content="website">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Inter:wght@400;500;600;700&display=swap">
+</head>
+<body>
+<header class="rd-bar">
+  <a class="rd-logo" href="/" data-nav><svg viewBox="0 0 32 32" aria-hidden="true"><path class="rd-drop" d="M16 3.5c4.6 5.9 8.6 10.6 8.6 15.2a8.6 8.6 0 0 1-17.2 0c0-4.6 4-9.3 8.6-15.2z"/><path class="rd-spark" d="M24.5 4l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/></svg>Rainshare</a>
+  <nav class="rd-nav" aria-label="Rainshare">
+    <a href="/" data-nav data-tab="circle">Your circle</a>
+    <a href="/example" data-nav data-tab="example">Example</a>
+    <a href="/agents" data-nav data-tab="agents">Agents</a>
+  </nav>
+  <div class="rd-me" id="rdMe"></div>
+</header>
+
+<main class="rd-main">
+  <!-- Signed out, at /: what Rainshare is, then everything open to everyone below it -->
+  <section class="rd-landing" id="landing" hidden>
+    <div class="rd-hero">
+      <span class="rd-eyebrow">Built on atproto · works with Bluesky, Tangled and GitHub</span>
+      <h1>Got rain to spare? Your friends have sidequests.</h1>
+      <p>Your AI plan resets whether you use it or not. Rainshare shows you what the people you follow would like done in their repos, so the agent usage you have left over lands somewhere useful.</p>
+      <form class="rd-signin" id="rdSignIn">
+        <input name="handle" placeholder="you.bsky.social" autocomplete="username" autocapitalize="none" spellcheck="false" inputmode="url" required aria-label="Your handle">
+        <button type="submit">Sign in with your handle</button>
+      </form>
+      <p class="rd-err" id="rdErr" hidden></p>
+      <a class="rd-try" href="/example" data-nav>Or look around an example circle →</a>
+    </div>
+    <ol class="rd-how">
+      <li><b>Post a sidequest</b><span>Point at a Tangled or GitHub issue, say what done looks like, and which models you’d like used. Public for your mutuals, or private to a group.</span></li>
+      <li><b>Forecast your rain</b><span>Say what you run, how much you have to spare, and who you’d like to help first: people without big plans, students, projects that share your values.</span></li>
+      <li><b>Send your agent</b><span>One click tells your friend you’re on it and copies a command that starts Claude Code, Codex or any MCP agent with a careful brief. Turn in the pull request when it’s up.</span></li>
+    </ol>
+  </section>
+
+  <div id="circle"></div>
+  <div id="example" hidden></div>
+</main>
+
+<footer class="rd-foot">
+  <p>Every sidequest, take and profile is a record in its owner’s own account (<code>dev.rainshare.*</code>). Your circle comes from who you follow on Bluesky. Rainshare also lives on <a href="https://atmosphere.online/live/rainshare">atmosphere.online</a>.</p>
+</footer>
+<div class="rd-toast" id="toast" role="status" aria-live="polite" hidden></div>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

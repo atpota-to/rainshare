@@ -1,0 +1,68 @@
+{
+  "lexicon": 1,
+  "id": "dev.rainshare.profile",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Your Rainshare profile: what you run, how much you have to spare, and who you'd like to help first. The public copy lives in your repo. A fuller copy (with fields you keep private) can live in your repo inside each group's Rainshare space, where only its members can read it.",
+      "key": "literal:self",
+      "record": {
+        "type": "object",
+        "required": ["createdAt"],
+        "properties": {
+          "bio": { "type": "string", "maxLength": 3000, "maxGraphemes": 300, "description": "A line or two about you and what you're building." },
+          "setups": {
+            "type": "array",
+            "maxLength": 6,
+            "items": { "type": "ref", "ref": "dev.rainshare.defs#setup" },
+            "description": "The agent setups you run."
+          },
+          "budget": {
+            "type": "string",
+            "maxLength": 320,
+            "maxGraphemes": 32,
+            "knownValues": ["none", "free", "low", "medium", "high", "sponsored"],
+            "description": "Roughly what you spend on AI each month. none: no paid AI. free: free tiers only. low: under $25. medium: $25 to $99. high: $100 or more. sponsored: an employer, school or grant pays."
+          },
+          "forecast": { "type": "ref", "ref": "dev.rainshare.defs#forecast" },
+          "circumstances": {
+            "type": "array",
+            "maxLength": 8,
+            "items": {
+              "type": "string",
+              "maxLength": 320,
+              "maxGraphemes": 32,
+              "knownValues": ["student", "learning", "low-income", "between-jobs", "oss-maintainer", "nonprofit", "educator", "caregiver"]
+            },
+            "description": "Self-described, and only what you choose to share. Helpers can choose to put people in these situations first."
+          },
+          "values": {
+            "type": "array",
+            "maxLength": 12,
+            "items": { "type": "string", "maxLength": 320, "maxGraphemes": 32 },
+            "description": "What you care about (for example accessibility, climate, privacy, local-first)."
+          },
+          "priorities": {
+            "type": "array",
+            "maxLength": 8,
+            "items": {
+              "type": "string",
+              "maxLength": 320,
+              "maxGraphemes": 32,
+              "knownValues": ["low-budget", "students", "low-income", "newcomers", "values-aligned", "nonprofits", "maintainers", "friends-first"]
+            },
+            "description": "Whose sidequests you'd like to see first when you have rain to spare."
+          },
+          "offering": {
+            "type": "array",
+            "maxLength": 12,
+            "items": { "type": "string", "maxLength": 320, "maxGraphemes": 32 },
+            "description": "Kinds of work you're happy to take on (languages, frameworks, areas)."
+          },
+          "createdAt": { "type": "string", "format": "datetime" },
+          "updatedAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

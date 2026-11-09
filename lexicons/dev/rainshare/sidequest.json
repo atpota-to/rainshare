@@ -1,0 +1,108 @@
+{
+  "lexicon": 1,
+  "id": "dev.rainshare.sidequest",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Something you'd like done, for friends with spare agent usage to take on. Public sidequests live in your repo and `audience` says who it's meant for (a filter apps respect, not access control). Private ones live in your repo inside a group's Rainshare space, readable only by its members.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["title", "audience", "createdAt"],
+        "properties": {
+          "title": { "type": "string", "maxLength": 1200, "maxGraphemes": 120 },
+          "subject": {
+            "type": "union",
+            "refs": ["#tangledIssue", "#githubIssue", "#repo"],
+            "description": "Where the work is."
+          },
+          "spec": {
+            "type": "string",
+            "maxLength": 100000,
+            "maxGraphemes": 10000,
+            "description": "What you want, in Markdown: the problem, what done looks like, and anything to avoid. It is shown to the helper's agent as a request from you, not as instructions it must follow."
+          },
+          "specUrl": { "type": "string", "format": "uri", "description": "A longer spec elsewhere, such as a SPEC.md in the repo." },
+          "wants": { "type": "ref", "ref": "#wants" },
+          "tags": { "type": "array", "maxLength": 10, "items": { "type": "string", "maxLength": 320, "maxGraphemes": 32 } },
+          "values": {
+            "type": "array",
+            "maxLength": 8,
+            "items": { "type": "string", "maxLength": 320, "maxGraphemes": 32 },
+            "description": "What the project stands for, so values-aligned helpers can find it."
+          },
+          "size": { "type": "string", "maxLength": 320, "maxGraphemes": 32, "knownValues": ["tiny", "small", "medium", "large"] },
+          "audience": {
+            "type": "union",
+            "refs": ["#anyone", "#following", "#mutuals", "#followers", "#list", "#group"],
+            "description": "Who this is meant for. #following: people you follow. #followers: people who follow you. #mutuals: both. #group: the members of the group whose space it's in."
+          },
+          "parallel": { "type": "boolean", "description": "More than one helper is welcome to try at once." },
+          "state": { "type": "string", "maxLength": 320, "maxGraphemes": 32, "knownValues": ["open", "cleared", "closed"], "default": "open" },
+          "clearedWith": {
+            "type": "array",
+            "maxLength": 8,
+            "items": { "type": "ref", "ref": "com.atproto.repo.strongRef" },
+            "description": "The deliveries that cleared it."
+          },
+          "createdAt": { "type": "string", "format": "datetime" },
+          "updatedAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    },
+    "tangledIssue": {
+      "type": "object",
+      "description": "A Tangled issue: its record when it was picked from the repo's issues, its page when it was pasted as a link, or both. Apps write at least one of uri and url.",
+      "properties": {
+        "uri": { "type": "string", "format": "at-uri", "description": "The sh.tangled.repo.issue record." },
+        "cid": { "type": "string", "format": "cid" },
+        "repo": { "type": "string", "format": "did", "description": "The Tangled repo's DID." },
+        "url": { "type": "string", "format": "uri", "description": "The issue's page on tangled.org." },
+        "repoUrl": { "type": "string", "format": "uri", "description": "The repo's page, which git can clone from." }
+      }
+    },
+    "githubIssue": {
+      "type": "object",
+      "required": ["url"],
+      "properties": {
+        "url": { "type": "string", "format": "uri" },
+        "repo": { "type": "string", "maxLength": 200, "description": "owner/name" },
+        "number": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "repo": {
+      "type": "object",
+      "required": ["url"],
+      "properties": {
+        "url": { "type": "string", "format": "uri", "description": "Where to clone it from, or its page." },
+        "forge": { "type": "string", "maxLength": 320, "maxGraphemes": 32, "knownValues": ["tangled", "github", "gitlab", "codeberg", "other"] },
+        "repoDid": { "type": "string", "format": "did", "description": "For a Tangled repo, its DID." },
+        "name": { "type": "string", "maxLength": 640, "maxGraphemes": 64 }
+      }
+    },
+    "wants": {
+      "type": "object",
+      "properties": {
+        "models": { "type": "array", "maxLength": 6, "items": { "type": "string", "maxLength": 640, "maxGraphemes": 64 }, "description": "Models you'd like used, most wanted first." },
+        "harnesses": { "type": "array", "maxLength": 6, "items": { "type": "string", "maxLength": 640, "maxGraphemes": 64 } },
+        "tests": { "type": "string", "maxLength": 320, "maxGraphemes": 32, "knownValues": ["required", "welcome", "none"] },
+        "maxDiffLines": { "type": "integer", "minimum": 1 },
+        "notes": { "type": "string", "maxLength": 10000, "maxGraphemes": 1000 }
+      }
+    },
+    "anyone": { "type": "object", "description": "Anyone who comes across it.", "properties": {} },
+    "following": { "type": "object", "description": "People you follow on Bluesky.", "properties": {} },
+    "mutuals": { "type": "object", "description": "People you follow who follow you back.", "properties": {} },
+    "followers": { "type": "object", "description": "People who follow you on Bluesky.", "properties": {} },
+    "list": {
+      "type": "object",
+      "required": ["list"],
+      "properties": { "list": { "type": "string", "format": "at-uri", "description": "An app.bsky.graph.list of people you trust." } }
+    },
+    "group": {
+      "type": "object",
+      "required": ["group"],
+      "properties": { "group": { "type": "string", "format": "did", "description": "The group whose space holds this sidequest." } }
+    }
+  }
+}

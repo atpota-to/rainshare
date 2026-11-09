@@ -1,0 +1,21 @@
+{
+  "lexicon": 1,
+  "id": "dev.rainshare.take",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "\"My agent is on this.\" Written by the helper, next to the sidequest (in their repo, or their repo in the same group space). Deleting it drops the sidequest.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["sidequest", "createdAt"],
+        "properties": {
+          "sidequest": { "type": "ref", "ref": "com.atproto.repo.strongRef" },
+          "setup": { "type": "ref", "ref": "dev.rainshare.defs#setup" },
+          "note": { "type": "string", "maxLength": 3000, "maxGraphemes": 300 },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

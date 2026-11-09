@@ -1,0 +1,56 @@
+{
+  "lexicon": 1,
+  "id": "dev.rainshare.defs",
+  "description": "Shared types for Rainshare: friends' sidequests, taken on with spare agent usage.",
+  "defs": {
+    "setup": {
+      "type": "object",
+      "description": "One agent setup: the harness that runs it and the models it uses.",
+      "required": ["harness"],
+      "properties": {
+        "harness": {
+          "type": "string",
+          "maxLength": 640,
+          "maxGraphemes": 64,
+          "knownValues": ["claude-code", "codex", "cursor", "gemini-cli", "copilot", "opencode", "aider", "amp", "goose", "windsurf", "other"]
+        },
+        "models": {
+          "type": "array",
+          "maxLength": 8,
+          "items": { "type": "string", "maxLength": 640, "maxGraphemes": 64 },
+          "description": "Model identifiers, as the harness names them (for example claude-opus-5-5)."
+        },
+        "plan": {
+          "type": "string",
+          "maxLength": 640,
+          "maxGraphemes": 64,
+          "description": "The plan or account behind it, in your words (for example \"Claude Max 20x\" or \"API, pay as I go\")."
+        },
+        "runsOn": {
+          "type": "string",
+          "maxLength": 320,
+          "maxGraphemes": 32,
+          "knownValues": ["cloud", "local", "self-hosted", "hybrid"]
+        },
+        "note": { "type": "string", "maxLength": 3000, "maxGraphemes": 300 }
+      }
+    },
+    "forecast": {
+      "type": "object",
+      "description": "How much spare usage you have right now, and until when.",
+      "required": ["level"],
+      "properties": {
+        "level": {
+          "type": "string",
+          "maxLength": 320,
+          "maxGraphemes": 32,
+          "knownValues": ["dry", "drizzle", "showers", "downpour"],
+          "description": "dry: nothing to spare. drizzle: a small task or two. showers: a few sessions. downpour: lots, and it resets soon."
+        },
+        "models": { "type": "array", "maxLength": 8, "items": { "type": "string", "maxLength": 640, "maxGraphemes": 64 } },
+        "until": { "type": "string", "format": "datetime", "description": "When this forecast runs out, often when your plan's usage resets." },
+        "note": { "type": "string", "maxLength": 3000, "maxGraphemes": 300 }
+      }
+    }
+  }
+}
