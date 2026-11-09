@@ -1,10 +1,10 @@
 // rainshare.dev's OAuth scope and client metadata. Plain and dependency-free, because the
-// Vercel function behind /oauth-client-metadata.json imports it too (api/oauth-client-metadata.js,
-// when APP=rainshare): a hosted client whose document declares less than the app asks for
-// fails every sign-in, so both come from here.
+// Vercel function behind /oauth-client-metadata.json imports it too
+// (api/oauth-client-metadata.js): a hosted client whose document declares less than the app
+// asks for fails every sign-in, so both come from here.
 const env = import.meta.env || {};
 
-// The group host, for private sidequests in groups (the same Open Social host as atmosphere.online).
+// The group host, for private sidequests in groups: an Open Social host.
 export const HOST = env.VITE_GROUP_HOST || 'https://opensocial.fyi';
 export const HOST_DID = env.VITE_GROUP_HOST_DID || 'did:web:opensocial.fyi';
 export const AUD = HOST_DID + '#opensocial';

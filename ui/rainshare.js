@@ -1,5 +1,5 @@
-// Rainshare's screens, for any host: atmosphere.online (an app on either disc) or the
-// standalone site at rainshare.dev. The host hands in a data source (source.js for real
+// Rainshare's screens, for any host: rainshare.dev (../src/main.js), or another site that
+// wants Rainshare inside it. The host hands in a data source (source.js for real
 // accounts, demo.js for the example circle) and a few hooks, and calls show(subpath)
 // whenever the address changes:
 //
@@ -175,7 +175,12 @@ export function createRainshare({ root, base = '/', host }){
     const tabs = [['foryou', signedIn() ? 'For you' : 'Open'], ['everyone', 'Everyone'], ...(signedIn() ? [['yours', 'Yours']] : [])];
     return `
       <header class="rs-head">
-        <div class="rs-brand">${host.brand !== 'rainshare' ? `<span class="rs-logo">${ico('drop')}</span>` : ''}<div><h1>${host.brand === 'rainshare' ? 'Your circle’s sidequests' : 'Rainshare'}</h1><p>${host.brand === 'rainshare' ? 'Things your friends would like done, for whoever has rain to spare.' : 'Your friends’ sidequests, for whoever has rain to spare.'}</p></div></div>
+        <div class="rs-brand">${host.brand !== 'rainshare' ? `<span class="rs-logo">${ico('drop')}</span>` : ''}<div>${
+          // On rainshare.dev a signed-out board sits under the landing, which has the page's h1.
+          host.brand !== 'rainshare' ? '<h1>Rainshare</h1><p>Your friends’ sidequests, for whoever has rain to spare.</p>'
+            : signedIn() ? '<h1>Your circle’s sidequests</h1><p>Things your friends would like done, for whoever has rain to spare.</p>'
+              : '<h2>Open sidequests</h2><p>Things people would like done that anyone can take on. Sign in to see your own circle’s.</p>'
+        }</div></div>
         <div class="rs-head-actions">
           ${signedIn() ? a('me', `${ico('drop')}${fc ? esc(fc[1]) : 'Your forecast'}`, 'rs-btn rs-quiet rs-fc' + (fc ? ' rs-fc-' + fc[0] : '')) : ''}
           ${signedIn() ? a('new', `${ico('plus')}Post a sidequest`, 'rs-btn rs-primary') : host.signIn ? `<button class="rs-btn rs-primary" type="button" data-rs-act="signin">Sign in</button>` : ''}

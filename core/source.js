@@ -7,7 +7,7 @@
 //             (listReposByCollection); the records come from each person's own PDS; who
 //             they're for is checked against the Bluesky graph (getRelationships, lists).
 //   private   records in a group's Rainshare space, through `spaces` and `groups`, which
-//             the browser host supplies (src/live/atp.js and the group host). Members only.
+//             the site supplies (src/spaces.js and the group host). Members only.
 import { PROFILE, SIDEQUEST, TAKE, DELIVERY } from './ns.js';
 import * as net from './net.js';
 import * as R from './records.js';

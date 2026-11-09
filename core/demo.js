@@ -1,5 +1,5 @@
 // An example circle: pretend friends, their profiles and sidequests, for trying Rainshare
-// without signing in (atmosphere.online's demo disc, and "See an example" on rainshare.dev).
+// without signing in (the Example tab on rainshare.dev).
 // It answers the same calls as the real source (source.js); what you do is kept in this
 // browser through `store`, and nothing is written anywhere.
 import { PROFILE, SIDEQUEST, TAKE, DELIVERY } from './ns.js';

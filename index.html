@@ -10,14 +10,17 @@
 <meta property="og:title" content="Rainshare">
 <meta property="og:description" content="Got rain to spare? Your friends have sidequests.">
 <meta property="og:type" content="website">
+<meta property="og:url" content="https://rainshare.dev/">
+<meta property="og:image" content="https://rainshare.dev/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Rainshare. Got rain to spare? Your friends have sidequests. Beside the words, a small model of the water cycle: a sea, clouds, rain on hills and a river.">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Inter:wght@400;500;600;700&display=swap">
 </head>
 <body>
 <header class="rd-bar">
-  <a class="rd-logo" href="/" data-nav><svg viewBox="0 0 32 32" aria-hidden="true"><path class="rd-drop" d="M16 3.5c4.6 5.9 8.6 10.6 8.6 15.2a8.6 8.6 0 0 1-17.2 0c0-4.6 4-9.3 8.6-15.2z"/><path class="rd-spark" d="M24.5 4l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/></svg>Rainshare</a>
+  <a class="rd-logo" href="/" data-nav aria-label="Rainshare, home"><svg viewBox="0 0 32 32" aria-hidden="true"><path class="rd-drop" d="M16 3.5c4.6 5.9 8.6 10.6 8.6 15.2a8.6 8.6 0 0 1-17.2 0c0-4.6 4-9.3 8.6-15.2z"/><path class="rd-spark" d="M24.5 4l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/></svg><span class="rd-word" aria-hidden="true">R<span class="rd-ai">ai</span>nshare</span></a>
   <nav class="rd-nav" aria-label="Rainshare">
     <a href="/" data-nav data-tab="circle">Your circle</a>
     <a href="/example" data-nav data-tab="example">Example</a>
@@ -27,24 +30,86 @@
 </header>
 
 <main class="rd-main">
-  <!-- Signed out, at /: what Rainshare is, then everything open to everyone below it -->
+  <!-- Signed out, at /: what Rainshare is, the water cycle, then everything open to everyone -->
   <section class="rd-landing" id="landing" hidden>
     <div class="rd-hero">
-      <span class="rd-eyebrow">Built on atproto · works with Bluesky, Tangled and GitHub</span>
-      <h1>Got rain to spare? Your friends have sidequests.</h1>
-      <p>Your AI plan resets whether you use it or not. Rainshare shows you what the people you follow would like done in their repos, so the agent usage you have left over lands somewhere useful.</p>
-      <form class="rd-signin" id="rdSignIn">
-        <input name="handle" placeholder="you.bsky.social" autocomplete="username" autocapitalize="none" spellcheck="false" inputmode="url" required aria-label="Your handle">
-        <button type="submit">Sign in with your handle</button>
-      </form>
-      <p class="rd-err" id="rdErr" hidden></p>
-      <a class="rd-try" href="/example" data-nav>Or look around an example circle →</a>
+      <div class="rd-pitch">
+        <span class="rd-eyebrow">On the Atmosphere · works with Bluesky, Tangled and GitHub</span>
+        <h1>Got rain to spare? Your friends have sidequests.</h1>
+        <p>Your AI plan resets whether you use it or not. Rainshare shows you what the people you follow would like done in their repos, so the agent usage you have left over lands somewhere useful.</p>
+        <form class="rd-signin" id="rdSignIn">
+          <input name="handle" placeholder="you.bsky.social" autocomplete="username" autocapitalize="none" spellcheck="false" inputmode="url" required aria-label="Your handle">
+          <button type="submit">Sign in with your handle</button>
+        </form>
+        <p class="rd-err" id="rdErr" role="alert" hidden></p>
+        <a class="rd-try" href="/example" data-nav>Or look around an example circle →</a>
+      </div>
+
+      <figure class="rd-scene" id="scene">
+        <figcaption class="rd-sr">An animated model of the water cycle. Vapour rises off a sea, gathers into clouds, falls as rain on hills and a small village, and runs back to the sea down a river. The four stages are described below.</figcaption>
+        <svg class="rd-still" viewBox="0 0 400 360" aria-hidden="true">
+          <circle class="s-sun" cx="84" cy="72" r="26"/>
+          <path class="s-cloud" d="M186 128a24 24 0 0 1 2-48 32 32 0 0 1 60-8 27 27 0 0 1 30 56z"/>
+          <path class="s-rain" d="M204 146l-6 20M228 146l-6 20M252 146l-6 20M216 176l-5 16M240 176l-5 16"/>
+          <path class="s-hill" d="M172 264c34-46 66-82 112-112 22 26 48 62 78 112z"/>
+          <path class="s-sea" d="M38 252c24-8 46 8 70 0s46-8 70 0v14H38z"/>
+          <path class="s-soil" d="M38 264h324v42a8 8 0 0 1-8 8H46a8 8 0 0 1-8-8z"/>
+          <path class="s-vapour" d="M72 228c-8-12 8-18 0-30M106 228c-8-12 8-18 0-30M140 228c-8-12 8-18 0-30"/>
+        </svg>
+        <canvas aria-hidden="true"></canvas>
+        <div class="rd-pins" aria-hidden="true">
+          <button type="button" class="rd-pin" tabindex="-1"><b>1</b><span>Evaporation</span></button>
+          <button type="button" class="rd-pin" tabindex="-1"><b>2</b><span>Condensation</span></button>
+          <button type="button" class="rd-pin" tabindex="-1"><b>3</b><span>Precipitation</span></button>
+          <button type="button" class="rd-pin" tabindex="-1"><b>4</b><span>Collection</span></button>
+        </div>
+        <button type="button" class="rd-pause" id="scenePause" aria-pressed="false" aria-label="Pause the animation">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" d="M8.5 6v12M15.5 6v12"/><path class="i-play" d="M8 5.5v13l11-6.5z"/></svg>
+        </button>
+      </figure>
     </div>
-    <ol class="rd-how">
-      <li><b>Post a sidequest</b><span>Point at a Tangled or GitHub issue, say what done looks like, and which models you’d like used. Public for your mutuals, or private to a group.</span></li>
-      <li><b>Forecast your rain</b><span>Say what you run, how much you have to spare, and who you’d like to help first: people without big plans, students, projects that share your values.</span></li>
-      <li><b>Send your agent</b><span>One click tells your friend you’re on it and copies a command that starts Claude Code, Codex or any MCP agent with a careful brief. Turn in the pull request when it’s up.</span></li>
-    </ol>
+
+    <section class="rd-cycle" id="cycle" aria-labelledby="cycleTitle">
+      <header>
+        <h2 id="cycleTitle">How rain moves through the Atmosphere</h2>
+        <p>The Atmosphere is the open network Bluesky runs on. Spare AI usage can travel across it the way water does: up from whoever has more than they need, and down where a friend can use it.</p>
+      </header>
+      <ol class="rd-stages">
+        <li class="rd-stage">
+          <button type="button" aria-pressed="true" aria-label="Show evaporation in the scene">1</button>
+          <small>Evaporation</small>
+          <h3>Unused usage lifts off</h3>
+          <p>Your AI plan resets on a schedule. Whatever you haven’t used by then is gone, so that’s the part worth sharing.</p>
+        </li>
+        <li class="rd-stage">
+          <button type="button" aria-pressed="false" aria-label="Show condensation in the scene">2</button>
+          <small>Condensation</small>
+          <h3>It gathers in your circle</h3>
+          <p>Post a forecast: what you run and how much you have to spare. It sits with the people you already follow.</p>
+        </li>
+        <li class="rd-stage">
+          <button type="button" aria-pressed="false" aria-label="Show precipitation in the scene">3</button>
+          <small>Precipitation</small>
+          <h3>It falls on a sidequest</h3>
+          <p>Pick something a friend would like done in their repo, and send your agent after it with a careful brief.</p>
+        </li>
+        <li class="rd-stage">
+          <button type="button" aria-pressed="false" aria-label="Show collection in the scene">4</button>
+          <small>Collection</small>
+          <h3>It runs back as work</h3>
+          <p>A pull request lands, your friend marks it cleared, and their project grows a little. Next reset, it goes around again.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="rd-do" aria-labelledby="doTitle">
+      <h2 id="doTitle">What you do here</h2>
+      <ol class="rd-how">
+        <li><b>Post a sidequest</b><span>Point at a Tangled or GitHub issue, say what done looks like, and which models you’d like used. Public for your mutuals, or private to a group.</span></li>
+        <li><b>Forecast your rain</b><span>Say what you run, how much you have to spare, and who you’d like to help first: people without big plans, students, projects that share your values.</span></li>
+        <li><b>Send your agent</b><span>One click tells your friend you’re on it and copies a command that starts Claude Code, Codex or any MCP agent with a careful brief. Turn in the pull request when it’s up.</span></li>
+      </ol>
+    </section>
   </section>
 
   <div id="circle"></div>
@@ -52,9 +117,9 @@
 </main>
 
 <footer class="rd-foot">
-  <p>Every sidequest, take and profile is a record in its owner’s own account (<code>dev.rainshare.*</code>). Your circle comes from who you follow on Bluesky. Rainshare also lives on <a href="https://atmosphere.online/live/rainshare">atmosphere.online</a>.</p>
+  <p>Every sidequest, take and profile is a record in its owner’s own account (<code>dev.rainshare.*</code>). Your circle comes from who you follow on Bluesky.</p>
 </footer>
 <div class="rd-toast" id="toast" role="status" aria-live="polite" hidden></div>
-<script type="module" src="./main.js"></script>
+<script type="module" src="/src/main.js"></script>
 </body>
 </html>

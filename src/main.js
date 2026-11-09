@@ -1,10 +1,12 @@
-// rainshare.dev: Rainshare on its own. The screens and the data are the same ones
-// atmosphere.online uses (../ui, ../core); this file is the site around them:
+// rainshare.dev. The screens are in ../ui and the data in ../core; this file is the site
+// around them:
 //
-//   /               your circle (signed out: what Rainshare is, and everything open to everyone)
+//   /               your circle (signed out: the landing, and everything open to everyone)
 //   /example/…      the example circle, kept in this browser
 //   /q/…, /new, /me, /u/…, /agents   Rainshare's own screens (see ../ui/rainshare.js)
 //   /signed-in      where your server sends you back after signing in
+import '@fontsource-variable/bricolage-grotesque/opsz.css';
+import '@fontsource-variable/inter';
 import '../ui/rainshare.css';
 import './theme.css';
 import { createRainshare } from '../ui/rainshare.js';
@@ -13,9 +15,10 @@ import { createDemoSource } from '../core/demo.js';
 import { BOARD } from '../core/ns.js';
 import { profiles } from '../core/net.js';
 // The spaces alpha's plumbing (credentials, signed reads, writes into a space) and the group
-// host's methods, shared with atmosphere.online.
-import * as atp from '../../src/live/atp.js';
+// host's methods, for private sidequests.
+import * as atp from './spaces.js';
 import * as oauth from './oauth.js';
+import { showLanding, hideLanding } from './landing/landing.js';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -89,7 +92,9 @@ function route(){
   const path = location.pathname, kind = isExample(path) ? 'example' : 'real', sub = subOf(path);
   $('#example').hidden = kind !== 'example';
   $('#circle').hidden = kind !== 'real';
-  $('#landing').hidden = !(ready && kind === 'real' && !session && !sub);
+  const landing = ready && kind === 'real' && !session && !sub;
+  $('#landing').hidden = !landing;
+  landing ? showLanding() : hideLanding();
   document.querySelectorAll('[data-tab]').forEach(a => a.setAttribute('aria-current', String(a.dataset.tab === (kind === 'example' ? 'example' : sub === 'agents' ? 'agents' : 'circle'))));
   app(kind).show(sub);
 }
@@ -116,6 +121,7 @@ function renderMe(){
 }
 async function signOut(){
   const s = session; session = null; me = null;
+  atp.forgetCredentials();
   await oauth.signOut(s);
   renderMe(); await app('real').setSource(sourceNow()); toast('Signed out'); navigate('/');
 }
@@ -143,6 +149,7 @@ async function boot(){
   if (oauth.isCallback() || location.pathname === '/signed-in') history.replaceState(null, '', r?.to && r.to !== '/signed-in' ? r.to : '/');
   ready = true;
   renderMe();
+  route();
   await app('real').setSource(sourceNow());
   route();
 }

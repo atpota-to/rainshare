@@ -1,4 +1,4 @@
-// Run with: npm run test:rainshare (node --test, no dependencies)
+// Run with: npm test (node --test, no dependencies)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { SIDEQUEST } from '../core/ns.js';

@@ -4,7 +4,7 @@
 //   2. each schema as a com.atproto.lexicon.schema record in that account's repo, keyed by its NSID
 //
 // This does step 2 and prints step 1. Run it as the account that will own the schemas:
-//   RAINSHARE_HANDLE=you.bsky.social RAINSHARE_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx node rainshare/lexicons/publish.mjs
+//   RAINSHARE_HANDLE=you.bsky.social RAINSHARE_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx node lexicons/publish.mjs
 import { readFile, readdir } from 'node:fs/promises';
 import { resolveHandle, pdsOf } from '../core/net.js';
 
