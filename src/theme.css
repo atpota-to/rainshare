@@ -1,4 +1,4 @@
-/* rainshare.dev's own look: a rain-washed sky, Bricolage Grotesque over Inter, light and dark.
+/* rainshare.dev's own look: a rain-washed sky, one rounded typeface, light and dark.
    The screens themselves come from ../ui/rainshare.css and read the --rs-* variables set here.
    The landing's own styles are in ./landing/landing.css. */
 :root{
@@ -7,7 +7,8 @@
   --accent:#2F63F0; --accent-soft:rgba(47,99,240,.1);
   /* the colour the "ai" in Rainshare is lit in */
   --lit:#2F63F0; --lit-glow:none;
-  --display:'Bricolage Grotesque Variable','Bricolage Grotesque',system-ui,-apple-system,sans-serif; --body:'Inter Variable',Inter,system-ui,-apple-system,'Segoe UI',sans-serif
+  /* one typeface for everything; the screens ask for a display and a body face, and get the same one */
+  --body:'Zen Maru Gothic',system-ui,-apple-system,'Segoe UI',sans-serif; --display:var(--body)
 }
 @media (prefers-color-scheme:dark){
   :root{color-scheme:dark;--bg:#0B1220;--bg-top:#15244A;--ink:#E7EDF8;--muted:#9AA7BD;--line:rgba(255,255,255,.1);--card:#131C2E;--accent:#6E95FF;--accent-soft:rgba(110,149,255,.16);--lit:#86A8FF;--lit-glow:0 0 16px rgba(110,149,255,.55)}
@@ -34,7 +35,7 @@ a{color:inherit}
 
 /* the bar */
 .rd-bar{display:flex;align-items:center;gap:20px;flex-wrap:wrap;max-width:1112px;width:100%;margin:0 auto;padding:18px 16px}
-.rd-logo{display:inline-flex;align-items:center;gap:10px;font:800 22px var(--display);letter-spacing:-.03em;text-decoration:none}
+.rd-logo{display:inline-flex;align-items:center;gap:10px;font:900 22px var(--display);letter-spacing:-.01em;text-decoration:none}
 .rd-logo svg{width:32px;height:32px}
 .rd-ai{color:var(--lit);text-shadow:var(--lit-glow)}
 .rd-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
@@ -65,5 +66,7 @@ a{color:inherit}
   .rd-nav{order:3;flex-basis:100%}
   .rd-me{margin-left:auto}
 }
+/* under the landing, the board's heading is one of the page's h2s, and sized like them */
+.rs-brand h2{font-size:clamp(24px,3vw,32px);font-weight:700;letter-spacing:-.02em}
 /* the landing has its own sign-in, so the board under it doesn't need another */
 body:has(#landing:not([hidden])) #circle .rs-head [data-rs-act="signin"]{display:none}

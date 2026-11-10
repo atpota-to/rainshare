@@ -28,30 +28,39 @@ It runs in two places, both from this repo:
 
 ## The landing
 
-Signed out, the home page explains Rainshare with the water cycle, drawn in 3D
-(`src/landing/`). It's the same loop the app runs on:
+Signed out, the home page explains Rainshare with the water cycle: a stretch of coast, drawn
+in 3D (`src/landing/`). It's the same loop the app runs on:
 
 | In the scene | In Rainshare |
 | --- | --- |
-| **Evaporation**: vapour lifts off the sea | Usage you won't get to before your plan resets |
+| **Evaporation**: mist lifts off the sea | Usage you won't get to before your plan resets |
 | **Condensation**: it gathers into clouds | Forecasts, sitting with the people you follow |
-| **Precipitation**: the clouds rain on the hills | Agents sent after a friend's sidequest |
+| **Precipitation**: a cloud breaks over the hills | Agents sent after a friend's sidequest |
 | **Collection**: a river runs back to the sea | Pull requests coming home, and the next reset |
 
-About one drop in ten is gold, the spark from the logo. You can follow those up from the sea,
-down in the rain and back along the river.
+The clouds are the ones atmosphere.online's sky is made of: each is a few hundred soft, lit
+"puffs" with noisy edges (`puffs.js`, brought over from that repo's `src/puff3d.js` and
+`src/sky.js`), under the same Morning and Night colours. A cloud here has a life. It starts
+small over the sea, takes on puffs as it drifts inland, towers into a thunderhead over the
+hills, rains, and thins out past the mountains. About one drop in ten is gold, the spark from
+the logo: it rises with the mist, falls in the rain and rides the river home.
 
-The scene is generated in code from a seed (`scene.js`), so there are no models or textures
-to download. It follows the system's light or dark setting as day or night. It's three.js,
-about 145 kB gzipped, and the page asks for it only when the landing is on screen, so
-someone who's signed in never downloads it. It holds still when it's scrolled out of view,
-when the tab is hidden, when someone presses pause, and from the start for anyone who has
-asked their system to reduce motion (the play button still works for them). A browser that
-can't do WebGL gets a flat drawing instead, and the four stages under the scene read the same
-either way.
+The land, sea, river and woods are generated in code from a seed (`scene.js`), so there are
+no models or textures to download. The scene follows the system's light or dark setting as
+day or night, and has no frame: its edges fade into the page.
+
+It's three.js, about 150 kB gzipped, and the page asks for it only when the landing is on
+screen, so someone who's signed in never downloads it. It holds still when it's scrolled out
+of view, when the tab is hidden, when someone presses pause, and from the start for anyone
+who has asked their system to reduce motion (the play button still works for them). A browser
+that can't do WebGL gets a flat drawing instead, and the four stages under the scene read the
+same either way.
 
 The "ai" inside the name is lit in its own colour wherever the wordmark appears. It's one
 variable, `--lit`, in `src/theme.css`, with a second value for dark.
+
+The site is set in one typeface, Zen Maru Gothic, the same one atmosphere.online uses
+(`--body` in `src/theme.css`).
 
 ## The records
 
@@ -141,8 +150,8 @@ now: private ones are taken on in the app.
 | Path | What it is |
 | --- | --- |
 | `index.html`, `src/main.js` | The site: the page, its routes, and who's signed in |
-| `src/landing/` | The signed-out landing: `scene.js` (the water cycle), `landing.js` (the stages, pins and pause), `landing.css` |
-| `src/theme.css` | The site's look: colours, type, the bar, light and dark |
+| `src/landing/` | The signed-out landing: `scene.js` (the coast and its weather), `puffs.js` (how a cloud is drawn), `landing.js` (the stages, pins and pause), `landing.css` |
+| `src/theme.css`, `src/fonts.css` | The site's look: colours, the bar, light and dark, and its typeface |
 | `src/oauth.js`, `src/scope.js` | Signing in, and the OAuth scope and client metadata |
 | `src/spaces.js` | Private sidequests: reading and writing a group's space, and the group host's methods |
 | `api/oauth-client-metadata.js` | The OAuth client document, served at `/oauth-client-metadata.json` |
@@ -177,8 +186,9 @@ npm run build:cli   # just the CLI, at dist-cli/rainshare.mjs
 Sign-in in dev uses atproto's loopback client, so open the dev server at `http://127.0.0.1:<port>`
 rather than `localhost`.
 
-The fonts (Bricolage Grotesque and Inter) are bundled with the site, so the page makes no
-requests to a font host.
+The typeface is bundled with the site (`src/fonts.css`), so the page makes no requests to a
+font host. Only its Latin ranges are included; names in other scripts fall back to the
+reader's own fonts.
 
 ## Deploying rainshare.dev
 

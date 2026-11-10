@@ -5,8 +5,7 @@
 //   /example/…      the example circle, kept in this browser
 //   /q/…, /new, /me, /u/…, /agents   Rainshare's own screens (see ../ui/rainshare.js)
 //   /signed-in      where your server sends you back after signing in
-import '@fontsource-variable/bricolage-grotesque/opsz.css';
-import '@fontsource-variable/inter';
+import './fonts.css';
 import '../ui/rainshare.css';
 import './theme.css';
 import { createRainshare } from '../ui/rainshare.js';

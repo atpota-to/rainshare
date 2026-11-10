@@ -15,8 +15,9 @@ export const bundleCli = outDir => build({
 });
 
 export default defineConfig({
-  // The landing's scene (three.js) is one chunk of about 570 kB, 145 kB gzipped, fetched only
-  // when the landing is on screen.
-  build: { chunkSizeWarningLimit: 650 },
+  // The landing's scene (three.js) is one chunk of about 575 kB, 150 kB gzipped, fetched only
+  // when the landing is on screen. Nothing is inlined, so the smaller font files stay files
+  // the browser can skip instead of riding along inside the stylesheet.
+  build: { chunkSizeWarningLimit: 650, assetsInlineLimit: 0 },
   plugins: [{ name: 'rainshare-cli', apply: 'build', closeBundle: () => bundleCli(here('./dist')) }]
 });

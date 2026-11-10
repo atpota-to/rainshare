@@ -35,9 +35,9 @@ function sync(){
 function onFrame({ dt, pins: at }){
   const w = figure.clientWidth;
   pins.forEach((p, k) => {
-    const x = at[k * 2], flip = x > w * .6;
+    const x = at[k * 2], flip = x > w * .56;
     p.classList.toggle('flip', flip);
-    p.style.transform = `translate(${x.toFixed(1)}px,${at[k * 2 + 1].toFixed(1)}px)${flip ? ' translateX(calc(30px - 100%))' : ''}`;
+    p.style.transform = `translate(${x.toFixed(1)}px,${at[k * 2 + 1].toFixed(1)}px)${flip ? ' translateX(calc(28px - 100%))' : ''}`;
   });
   if (!auto || !dt) return;
   elapsed += dt * 1000;
