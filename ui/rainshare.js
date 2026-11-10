@@ -20,7 +20,7 @@ import { renderMarkdown } from '../core/markdown.js';
 import { brief, launchers, pageOf, sh, INSTALL, MCP_ADD, CLI_HOME } from '../core/brief.js';
 import { strongRef, HARNESS_NAMES } from '../core/records.js';
 import { resolveHandle, knownPerson } from '../core/net.js';
-import { esc, unb64url, ago, until, nameOf, firstName, ico, face, drops, pathOf } from './bits.js';
+import { esc, unb64url, ago, until, nameOf, firstName, ico, skyIco, lifeIco, lifeOf, face, drops, pathOf } from './bits.js';
 import { createPoster } from './post.js';
 
 export { pathOf };
@@ -112,7 +112,7 @@ export function createRainshare({ root, base = '/', host }){
     const sq = it.value || {}, p = it.author || {}, mine = it.repo === viewer(), on = !nav && it.uri === S.pick;
     const rel = mine ? '' : relationText(it, viewer());
     let line;
-    if (!isOpen(it)) line = `<span class="rs-state${sq.state === 'sprouted' ? ' rs-ok' : ''}">${sq.state === 'sprouted' ? ico('check') : ''}${esc(stateText(sq))}</span>`;
+    if (!isOpen(it)) line = `<span class="rs-state${sq.state === 'sprouted' ? ' rs-ok' : ''}">${sq.state === 'sprouted' ? lifeIco('sprouted') : ''}${esc(stateText(sq))}</span>`;
     else if (mine) line = `<span>Yours${(it.deliveries || []).length ? ` · ${it.deliveries.length} turned in` : ''}</span>`;
     else if (it.fit) line = `${drops(it.fit.level)}<span class="rs-fit-l">${esc(it.fit.label)}</span>`;
     else line = `<span>${esc([shortWhere(sq), jobShort(sq)].filter(Boolean).join(' · '))}</span>`;
@@ -120,7 +120,7 @@ export function createRainshare({ root, base = '/', host }){
     return `<li><a class="rs-item${on ? ' on' : ''}" href="${esc(href(pathOf(it)))}" ${nav ? `data-rs-go="${esc(pathOf(it))}"` : `data-rs-pick="${esc(it.uri)}"`}${on ? ' aria-current="true"' : ''}>
       <span class="rs-item-top">${face(p, 'xs')}<span class="rs-item-who"><b>${esc(mine ? 'You' : nameOf(p))}</b>${rel ? `<span> · ${it.space ? ico('lock') : ''}${esc(rel)}</span>` : ''}</span><time>${esc(ago(sq.createdAt))}</time></span>
       <span class="rs-item-title">${esc(sq.title)}</span>
-      <span class="rs-item-line">${line}${taken ? `<span class="rs-item-taken">${esc(taken)}</span>` : ''}</span>
+      <span class="rs-item-line">${line}${taken ? `<span class="rs-item-taken">${lifeIco(lifeOf(it))}${esc(taken)}</span>` : ''}</span>
     </a></li>`;
   }
   // Where, the job, what they'd like and who's on it, each as a plain line.
@@ -150,11 +150,19 @@ export function createRainshare({ root, base = '/', host }){
       <div class="rs-detail-top">${a('u/' + it.repo, face(p) + `<b>${esc(mine ? 'You' : nameOf(p))}</b>`, 'rs-who')}<span class="rs-muted">${rel ? ' · ' + (it.space ? ico('lock') : '') + esc(rel) : ''} · ${esc(ago(sq.createdAt))}</span>
         <button class="rs-sheet-close" type="button" data-rs-close-sheet aria-label="Close">${ico('close')}</button></div>
       <h2 tabindex="-1">${esc(sq.title)}</h2>
-      ${f ? fitBox(f) : !open ? `<p class="rs-state${sq.state === 'sprouted' ? ' rs-ok' : ''}">${sq.state === 'sprouted' ? `${ico('check')}Sprouted. Thanks, everyone.` : 'Closed.'}</p>` : !signedIn() ? `<p class="rs-muted">${esc(audienceLine(sq, { authorName: firstName(p), groupName: it.group?.name }))}.</p>` : ''}
+      ${f ? fitBox(f) : !open ? `<p class="rs-state${sq.state === 'sprouted' ? ' rs-ok' : ''}">${sq.state === 'sprouted' ? `${lifeIco('sprouted')}Sprouted. Thanks, everyone.` : 'Closed.'}</p>` : !signedIn() ? `<p class="rs-muted">${esc(audienceLine(sq, { authorName: firstName(p), groupName: it.group?.name }))}.</p>` : ''}
       ${facts(it)}
       <div class="rs-ask"><span class="rs-label">The ask</span><p>${esc(askExcerpt(sq.spec) || 'No details beyond the title.')}</p>${a(page, 'Read all of it', 'rs-link')}</div>
       <div class="rs-row rs-detail-actions">${buttons}</div>
     </article>`;
+  }
+  // What's growing, at a glance: how many seeds are in the ground, being rained on, turned in and sprouted.
+  function growing(){
+    const all = S.board?.items || [], n = { seed: 0, rain: 0, up: 0, sprouted: 0 };
+    for (const it of all) if (it.value?.state !== 'closed') n[lifeOf(it)]++;
+    const said = { seed: 'in the ground', rain: 'being rained on', up: 'turned in', sprouted: 'sprouted' };
+    const parts = Object.keys(n).filter(k => n[k]).map(k => `<li>${lifeIco(k)}<b>${n[k]}</b> ${said[k]}</li>`);
+    return signedIn() && parts.length ? `<ul class="rs-growing" aria-label="Your circle’s seeds, by where they are">${parts.join('')}</ul>` : '';
   }
   function renderBoard(){
     const items = S.board ? boardItems() : [];
@@ -182,12 +190,13 @@ export function createRainshare({ root, base = '/', host }){
               : '<h2>Seeds anyone can water</h2><p>Things people would like done that anyone can take on. Sign in to see your own circle’s.</p>'
         }</div></div>
         <div class="rs-head-actions">
-          ${signedIn() ? a('me', `${ico('drop')}${fc ? esc(fc[1]) : 'Your forecast'}`, 'rs-btn rs-quiet rs-fc' + (fc ? ' rs-fc-' + fc[0] : '')) : ''}
+          ${signedIn() ? a('me', `${skyIco(fc?.[0])}${fc ? esc(fc[1]) : 'Your forecast'}`, 'rs-btn rs-quiet rs-fc' + (fc ? ' rs-fc-' + fc[0] : '')) : ''}
           ${signedIn() ? a('new', `${ico('plus')}Plant a seed`, 'rs-btn rs-primary') : host.signIn ? `<button class="rs-btn rs-primary" type="button" data-rs-act="signin">Sign in</button>` : ''}
         </div>
       </header>
       ${S.source?.demo ? `<p class="rs-note rs-demo">${ico('sky')}<span>This is an example circle: pretend friends, real ideas. Anything you do here stays in this browser.</span>${host.exitDemo ? `<button class="rs-link" type="button" data-rs-act="exit-demo">${host.exitDemo}</button>` : ''}</p>` : ''}
       ${signedIn() && S.mine && !S.mine.merged ? `<p class="rs-note">${ico('person')}<span>Tell your circle what you run and who you’d like to help, so the right seeds rise to the top.</span>${a('me', 'Set up your profile', 'rs-link')}</p>` : ''}
+      ${growing()}
       <div class="rs-board-head">
         <nav class="rs-tabs" aria-label="Seeds">${tabs.map(([k, l]) => `<button type="button" data-rs-tab="${k}" aria-pressed="${S.tab === k}">${l}</button>`).join('')}
           <button type="button" class="rs-link rs-refresh" data-rs-act="refresh">${S.loading ? 'Checking…' : 'Refresh'}</button></nav>
@@ -296,7 +305,7 @@ export function createRainshare({ root, base = '/', host }){
         ['Takes on', p.offering?.length && join(p.offering)]
       ])
     ].filter(r => r[1]);
-    return `${p.bio ? `<p class="rs-bio">${esc(p.bio)}</p>` : ''}${rows.length ? `<dl class="rs-facts rs-facts-sm">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${k === 'Forecast' ? `<span class="rs-fc-${fc[0]}">${ico('drop')}</span>` : ''}${esc(v)}</dd>`).join('')}</dl>` : p.bio ? '' : '<p class="rs-muted">Nothing shared yet.</p>'}`;
+    return `${p.bio ? `<p class="rs-bio">${esc(p.bio)}</p>` : ''}${rows.length ? `<dl class="rs-facts rs-facts-sm">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${k === 'Forecast' ? `<span class="rs-fc-${fc[0]}">${skyIco(fc[0])}</span>` : ''}${esc(v)}</dd>`).join('')}</dl>` : p.bio ? '' : '<p class="rs-muted">Nothing shared yet.</p>'}`;
   }
   function renderLaunch(it){
     const ls = launchers(it);
@@ -336,9 +345,9 @@ export function createRainshare({ root, base = '/', host }){
     const sprouted = new Set((sq.sproutedWith || []).map(r => r.uri));
     const deliveries = (it.deliveries || []).map(dl => {
       const v = dl.value || {}, setup = setupText(v.setup), url = safeHttp(v.url);
-      const status = sprouted.has(dl.uri) ? `<span class="rs-status rs-ok">${ico('check')}Made it sprout</span>` : { merged: '<span class="rs-status rs-ok">Merged</span>', open: '<span class="rs-status">Open</span>', closed: '<span class="rs-status rs-dim">Closed</span>' }[dl.state] || '';
+      const status = sprouted.has(dl.uri) ? `<span class="rs-status rs-ok">${lifeIco('sprouted')}Made it sprout</span>` : { merged: '<span class="rs-status rs-ok">Merged</span>', open: '<span class="rs-status">Open</span>', closed: '<span class="rs-status rs-dim">Closed</span>' }[dl.state] || '';
       const thank = mine && !it.example && dl.author?.handle ? `<a class="rs-link" target="_blank" rel="noopener" href="https://bsky.app/intent/compose?text=${encodeURIComponent(`Thank you @${dl.author.handle} for taking on my seed “${sq.title}”${setup ? ` (${setup})` : ''} ${url || page || ''}`)}">Thank them on Bluesky</a>` : '';
-      const sprout = mine && open ? `<button class="rs-btn rs-quiet rs-sm" type="button" data-rs-sprout="${esc(dl.uri)}">${ico('check')}This made it sprout</button>` : '';
+      const sprout = mine && open ? `<button class="rs-btn rs-quiet rs-sm" type="button" data-rs-sprout="${esc(dl.uri)}">${lifeIco('up')}This made it sprout</button>` : '';
       const shown = String(v.url || '').replace(/^https?:\/\//, '').slice(0, 70);
       return `<li>${face(dl.author)}<div><span><b>${esc(dl.repo === viewer() ? 'You' : nameOf(dl.author))}</b> turned it in${status ? ' · ' + status : ''}</span>
         <small>${setup ? esc(setup) + ' · ' : ''}${esc(ago(v.createdAt))}</small>
@@ -378,7 +387,7 @@ export function createRainshare({ root, base = '/', host }){
         <div class="rs-seed-main">
           <div class="rs-detail-top">${a('u/' + it.repo, face(p) + `<b>${esc(mine ? 'You' : nameOf(p))}</b>`, 'rs-who')}<span class="rs-muted">${mine ? '' : ' · ' + (it.space ? ico('lock') : '') + esc(relationText(it, viewer()) || 'open to everyone')} · ${esc(ago(sq.createdAt))}</span></div>
           <h1>${esc(sq.title)}</h1>
-          ${!open ? `<p class="rs-state${sq.state === 'sprouted' ? ' rs-ok' : ''}">${sq.state === 'sprouted' ? `${ico('check')}Sprouted` : 'Closed'}</p>` : ''}
+          ${!open ? `<p class="rs-state${sq.state === 'sprouted' ? ' rs-ok' : ''}">${sq.state === 'sprouted' ? `${lifeIco('sprouted')}Sprouted` : 'Closed'}</p>` : ''}
           ${f ? fitBox(f) : ''}
           <dl class="rs-facts">${facts.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
           <section class="rs-ask-full"><h2>The ask</h2>
@@ -503,23 +512,48 @@ export function createRainshare({ root, base = '/', host }){
 
   /* ---------- agents: the CLI and MCP server ---------- */
   function renderAgents(){
-    const block = (cmd, id) => `<div class="rs-cmd"><pre><code>${esc(cmd)}</code></pre><button class="rs-btn rs-quiet rs-sm" type="button" data-rs-copy-text="${esc(cmd)}">${ico('copy')}Copy</button></div>`;
+    const copyBtn = text => `<button class="rs-btn rs-quiet rs-sm" type="button" data-rs-copy-text="${esc(text)}">${ico('copy')}Copy</button>`;
+    const block = cmd => `<div class="rs-cmd"><pre><code>${esc(cmd)}</code></pre>${copyBtn(cmd)}</div>`;
+    const say = text => `<div class="rs-cmd rs-say"><p>“${esc(text)}”</p>${copyBtn(text)}</div>`;
     const json = JSON.stringify({ mcpServers: { rainshare: { command: 'node', args: [CLI_HOME.replace('~', '/Users/you'), 'mcp'], env: { RAINSHARE_HANDLE: 'you.bsky.social', RAINSHARE_APP_PASSWORD: 'xxxx-xxxx-xxxx-xxxx' } } } }, null, 2);
-    title('Send agents');
-    return `${a('', `${ico('back')}All seeds`, 'rs-back')}
-      <section class="rs-agents">
-        <h1>Send agents from your terminal</h1>
-        <p class="rs-muted">The Rainshare CLI and MCP server read your circle’s board and write takes and deliveries as you, so an agent can find a seed, take it on, do it and turn it in. It’s one file with no dependencies, and it needs Node 18 or later.</p>
-        <ol class="rs-steps">
-          <li><h3>Get it</h3>${block(INSTALL, 'install')}</li>
-          <li><h3>Sign in with an app password</h3><p class="rs-muted">Make one in Bluesky under Settings → Privacy and security → App passwords (or wherever your server offers them). It’s kept in <code>~/.config/rainshare</code>, and you can revoke it any time.</p>${block(`node ${CLI_HOME} login you.bsky.social`)}</li>
-          <li><h3>Find something to do</h3>${block(`node ${CLI_HOME} board`)}<p class="rs-muted">Then <code>show</code>, <code>take</code>, <code>run</code> (takes it on, clones the repo and starts your agent with the brief), and <code>turn-in</code>. <code>node ${CLI_HOME} help</code> lists everything.</p></li>
-          <li><h3>Or hand it to your agent</h3><p class="rs-muted">The same file is an MCP server. In Claude Code:</p>${block(MCP_ADD)}
-            <p class="rs-muted">In other MCP clients:</p><div class="rs-cmd"><pre><code>${esc(json)}</code></pre></div>
-            <p class="rs-muted">Then ask: “What seeds does my circle have that suit my setup?” or “Take on this Rainshare seed and turn it in when the PR is up.”</p></li>
-        </ol>
+    title('Agents');
+    // A host with its own tabs (rainshare.dev) doesn't need a way back to the board.
+    return `${host.brand === 'rainshare' ? '' : a('', `${ico('back')}All seeds`, 'rs-back')}
+      <div class="rs-agents">
+        <header class="rs-agents-head">
+          <h1>Send agents from your terminal</h1>
+          <p>One small file is both a command-line tool and an MCP server. It reads your circle’s seeds and writes your takes and deliveries, so an agent can find a seed, take it on and turn it in. It needs Node 18 or later.</p>
+        </header>
+        <section class="rs-panel" aria-labelledby="rsSetup">
+          <h2 id="rsSetup">Set up, once</h2>
+          <ol class="rs-steps">
+            <li><h3>Get the file</h3>${block(INSTALL)}</li>
+            <li><h3>Sign in with an app password</h3>${block(`node ${CLI_HOME} login you.bsky.social`)}
+              <p class="rs-muted">Make one in Bluesky under Settings, then Privacy and security, then App passwords (or wherever your server offers them). It’s kept in <code>~/.config/rainshare</code>, and you can revoke it any time.</p></li>
+          </ol>
+        </section>
+        <div class="rs-agents-ways">
+          <section class="rs-panel" aria-labelledby="rsWayCli">
+            <h2 id="rsWayCli">${ico('term')}From a terminal</h2>
+            <ol class="rs-steps">
+              <li><h3>See what’s planted</h3>${block(`node ${CLI_HOME} board`)}</li>
+              <li><h3>Take one on</h3>${block(`node ${CLI_HOME} run <seed>`)}
+                <p class="rs-muted">This tells your friend you’re on it, clones the repo and starts your agent with the brief. <code>&lt;seed&gt;</code> is the seed’s link.</p></li>
+              <li><h3>Turn it in</h3>${block(`node ${CLI_HOME} turn-in <seed> --url <pull request>`)}</li>
+            </ol>
+            <p class="rs-muted"><code>node ${CLI_HOME} help</code> lists the rest: planting a seed, setting your forecast and more.</p>
+          </section>
+          <section class="rs-panel" aria-labelledby="rsWayMcp">
+            <h2 id="rsWayMcp">${ico('sky')}From inside your agent</h2>
+            <ol class="rs-steps">
+              <li><h3>Add Rainshare to it</h3><p class="rs-muted">In Claude Code:</p>${block(MCP_ADD)}
+                <details class="rs-more"><summary>In another MCP client</summary>${block(json)}</details></li>
+              <li><h3>Ask it</h3>${say('What seeds does my circle have that suit my setup?')}${say('Take on this Rainshare seed and turn it in when the PR is up.')}</li>
+            </ol>
+          </section>
+        </div>
         <p class="rs-note">${ico('lock')}<span>For now the CLI and MCP server reach public seeds only. Private, group-only ones are taken on from here, in the app.</span></p>
-      </section>`;
+      </div>`;
   }
 
   /* ---------- signing in (the host does the OAuth) ---------- */

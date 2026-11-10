@@ -1,17 +1,14 @@
-/* The signed-out landing: the pitch beside the water cycle, the cycle's four stages, and what
-   you do here. Colours and the typeface come from ../theme.css. */
-:root{--pin:rgba(255,255,255,.82);--pin-edge:rgba(18,32,58,.1)}
-@media (prefers-color-scheme:dark){:root{--pin:rgba(19,28,46,.78);--pin-edge:rgba(255,255,255,.14)}}
+/* The signed-out landing: the pitch, beside the water cycle to look around in. Colours and the
+   typeface come from ../theme.css. */
+:root{--pin:rgba(255,255,255,.84);--pin-edge:rgba(18,32,58,.1)}
+@media (prefers-color-scheme:dark){:root{--pin:rgba(19,28,46,.8);--pin-edge:rgba(255,255,255,.14)}}
 
-.rd-landing{display:flex;flex-direction:column;gap:56px;padding:8px 0 12px}
-.rd-landing h2{margin:0;font:700 clamp(24px,3vw,32px)/1.2 var(--display);letter-spacing:-.02em;text-wrap:balance}
-.rd-landing h3{margin:0;font:700 19px/1.25 var(--display)}
+.rd-landing{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:8px 12px;align-items:center;padding:8px 0 20px}
 
-/* the pitch and the scene */
-.rd-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:8px 12px;align-items:center}
+/* the pitch */
 .rd-pitch{position:relative;z-index:1;display:flex;flex-direction:column;gap:18px;min-width:0}
 .rd-pitch h1{margin:0;font:900 clamp(34px,4.2vw,50px)/1.1 var(--display);letter-spacing:-.025em;text-wrap:balance}
-.rd-pitch>p{margin:0;font-size:18px;line-height:1.6;color:var(--muted);max-width:50ch}
+.rd-pitch>p{margin:0;font-size:18px;line-height:1.6;color:var(--muted);max-width:46ch}
 .rd-signin{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
 .rd-signin input{flex:1 1 220px;min-width:0;min-height:52px;border:0;border-radius:16px;padding:12px 16px;font:500 17px var(--body);color:var(--ink);background:var(--card);box-shadow:inset 0 0 0 1.5px var(--line)}
 .rd-signin input:focus{outline:none;box-shadow:inset 0 0 0 2px var(--accent)}
@@ -21,19 +18,21 @@
 .rd-pitch>.rd-err{font-size:15px;color:#B3261E;font-weight:700}
 @media (prefers-color-scheme:dark){.rd-pitch>.rd-err{color:#FF8A80}}
 .rd-pitch>.rd-also{font-size:15px}
-.rd-also a{color:var(--accent);font-weight:700;text-underline-offset:3px}
+.rd-also a,.rd-note a{color:var(--accent);font-weight:700;text-underline-offset:3px}
 
 /* The scene has no frame: its edges melt into the page. On a wide screen it runs out past
    the page's column, toward the window's edge. */
-.rd-scene{position:relative;margin:-28px min(0px,max(-130px,calc((1112px - 100vw) / 2))) -28px -36px;aspect-ratio:1/.84;min-width:0;container-type:inline-size}
-.rd-scene canvas,.rd-still{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .9s ease}
-.rd-scene canvas{
+.rd-scene{position:relative;margin:-24px min(0px,max(-130px,calc((1112px - 100vw) / 2))) -24px -40px;min-width:0;container-type:inline-size}
+.rd-view{position:relative;aspect-ratio:1/.84;cursor:pointer}
+.rd-view canvas,.rd-still{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .9s ease}
+.rd-view canvas{
   -webkit-mask-image:linear-gradient(to right,transparent,#000 15%,#000 90%,transparent),linear-gradient(to bottom,transparent,#000 13%,#000 84%,transparent);
   -webkit-mask-composite:source-in;
   mask-image:linear-gradient(to right,transparent,#000 15%,#000 90%,transparent),linear-gradient(to bottom,transparent,#000 13%,#000 84%,transparent);
   mask-composite:intersect
 }
 .rd-scene.live canvas,.rd-scene.flat .rd-still{opacity:1}
+.rd-scene.flat .rd-view{cursor:default}
 /* the still: what's drawn instead when the browser can't do the scene */
 .rd-still{padding:8% 10%;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .rd-still .s-sun{fill:#FFD98A}
@@ -45,6 +44,7 @@
 .rd-still .s-vapour{stroke:#fff;stroke-width:4;opacity:.8}
 @media (prefers-color-scheme:dark){.rd-still .s-sun{fill:#D5DEFF}.rd-still .s-cloud{fill:#8C97CC}.rd-still .s-far{fill:#3A4078}.rd-still .s-hill{fill:#2F4F5E}.rd-still .s-sea{fill:#27357A}.rd-still .s-vapour{stroke:#8C97CC}}
 
+/* the four parts: a dot and a name, sitting where each is in the scene */
 .rd-pins{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .6s ease .5s}
 .rd-scene.live .rd-pins{opacity:1}
 .rd-pin{position:absolute;left:0;top:0;margin:-14px 0 0 -14px;display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px 0 8px;border:0;border-radius:999px;background:var(--pin);color:var(--ink);font:700 13px var(--body);white-space:nowrap;cursor:pointer;pointer-events:auto;box-shadow:0 0 0 1px var(--pin-edge);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);transition:background .25s,color .25s;will-change:transform}
@@ -68,31 +68,38 @@
 .rd-pause[aria-pressed="true"] .i-play{display:block}
 .rd-pause[aria-pressed="true"] .i-pause{display:none}
 
-/* the four stages: plain columns under a rule, the rule filling as the active one's time runs */
-.rd-cycle,.rd-do{display:flex;flex-direction:column;gap:14px}
-.rd-lede{margin:0;font-size:17px;line-height:1.6;color:var(--muted);max-width:68ch}
-.rd-stages,.rd-how{list-style:none;margin:14px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:28px 32px}
-.rd-stage,.rd-how li{position:relative;display:flex;flex-direction:column;gap:8px;padding-top:16px;border-top:2px solid var(--line)}
-.rd-stage p,.rd-how p{margin:0;color:var(--muted);font-size:15px;line-height:1.6}
-.rd-stage button{padding:0;border:0;background:none;color:inherit;font:inherit;letter-spacing:inherit;text-align:left;cursor:pointer}
-.rd-stage button::after{content:"";position:absolute;inset:-2px 0 0}
-.rd-stage button:focus-visible{outline:none}
-.rd-stage:has(button:focus-visible){outline:3px solid var(--accent);outline-offset:6px;border-radius:4px}
-.rd-stage:hover h3,.rd-stage.on h3{color:var(--accent)}
-.rd-stage::before{content:"";position:absolute;left:0;top:-2px;height:2px;width:100%;background:var(--accent);transform-origin:left;transform:scaleX(0);transition:transform .3s ease}
-.rd-stage.on::before{transform:scaleX(1)}
-/* while the stages are still advancing on their own, the active one's rule is its timer */
-.rd-cycle.auto .rd-stage.on::before{transform:scaleX(var(--p,0));transition:none}
+/* what the part you're looking at stands for: over the scene's lower left */
+.rd-notes{position:absolute;left:11%;bottom:10%;width:min(320px,48%);display:none}
+.rd-scene.live .rd-notes{display:block}
+.rd-hint{margin:0;width:fit-content;padding:7px 12px;border-radius:999px;background:var(--pin);color:var(--muted);font-size:13px;font-weight:500;box-shadow:0 0 0 1px var(--pin-edge);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.rd-note,.rd-tour{background:var(--pin);box-shadow:0 0 0 1px var(--pin-edge);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.rd-note{display:flex;flex-direction:column;gap:6px;padding:16px 18px 14px;border-radius:18px 18px 0 0}
+.rd-note h2{margin:0;font:700 19px/1.2 var(--display)}
+.rd-note p{margin:0;font-size:15px;line-height:1.5;color:var(--muted)}
+.rd-note a{font-size:15px;width:fit-content}
+.rd-tour{display:flex;gap:6px;padding:0 12px 12px;border-radius:0 0 18px 18px;clip-path:inset(0 -2px -2px -2px)}
+.rd-tour button{flex:1;min-height:36px;padding:6px 10px;border:0;border-radius:10px;background:var(--accent-soft);color:var(--ink);font:700 13px var(--body);cursor:pointer;white-space:nowrap}
+.rd-tour button:hover{background:var(--accent);color:#fff}
+@media (prefers-color-scheme:dark){.rd-tour button:hover{color:#0B1220}}
+
+/* with no scene to move through, all four are set out under the still */
+.rd-scene.flat .rd-notes{position:static;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:20px 24px;width:auto;margin:0 40px}
+.rd-scene.flat .rd-note{display:flex!important;padding:0;background:none;box-shadow:none;border-radius:0}
+.rd-scene.flat .rd-hint,.rd-scene.flat .rd-tour{display:none}
 
 @media (max-width:880px){
-  .rd-landing{gap:44px}
-  .rd-hero{grid-template-columns:1fr;gap:0}
-  .rd-scene{margin:-8px -16px -20px;aspect-ratio:1/.9}
-  .rd-scene canvas{
+  .rd-landing{grid-template-columns:1fr;gap:0}
+  .rd-scene{margin:-4px -16px 0}
+  .rd-view{aspect-ratio:1/.9}
+  .rd-view canvas{
     -webkit-mask-image:linear-gradient(to bottom,transparent,#000 13%,#000 86%,transparent);-webkit-mask-composite:source-over;
     mask-image:linear-gradient(to bottom,transparent,#000 13%,#000 86%,transparent);mask-composite:add
   }
+  /* the note goes under the scene, where it isn't in the way of it */
+  .rd-notes{position:static;width:auto;margin:-18px 16px 0}
+  .rd-hint{margin:0 auto}
+  .rd-scene.flat .rd-notes{margin:0 16px}
 }
 @media (prefers-reduced-motion:reduce){
-  .rd-scene canvas,.rd-still,.rd-pins,.rd-stage::before{transition:none}
+  .rd-view canvas,.rd-still,.rd-pins{transition:none}
 }

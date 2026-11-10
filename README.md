@@ -32,33 +32,47 @@ It runs in two places, both from this repo:
 
 ## The landing
 
-Signed out, the home page explains Rainshare with the water cycle: a stretch of coast, drawn
-in 3D (`src/landing/`). It's the same loop the app runs on:
+Signed out, the home page is the pitch beside the water cycle: a stretch of coast, drawn in 3D
+(`src/landing/`), to look around in. It's the same loop the app runs on:
 
-| In the scene | In Rainshare |
-| --- | --- |
-| **Evaporation**: mist lifts off the sea | Usage you won't get to before your plan resets |
-| **Condensation**: it gathers into clouds | Forecasts, sitting with the people you follow |
-| **Precipitation**: a cloud breaks over the hills | Agents sent after a friend's seed |
-| **Collection**: a river runs back to the sea | Pull requests coming home, and the next reset |
+| In the scene | In Rainshare | Its note links to |
+| --- | --- | --- |
+| **Evaporation**: mist lifts off the sea | Usage you won't get to before your plan resets | a forecast, in the example circle |
+| **Condensation**: it gathers into clouds | Forecasts, sitting with the people you follow | the example circle's board |
+| **Precipitation**: rain falls on seeds planted by the river | Agents sent after a friend's seed | a seed to send an agent after |
+| **Collection**: the river runs back to the sea | Pull requests coming home, and the next reset | a seed that sprouted |
+
+Picking a part (its pin, or anywhere near it in the scene) flies the camera in for a closer
+look and shows a short note: what that part stands for, and a link to the screen where it
+happens. "Next" walks round the cycle, and "Whole view" or Escape backs out. That's all the
+explaining the page does; the rest is the scene and the board of open seeds under it.
 
 The clouds are the ones atmosphere.online's sky is made of: each is a few hundred soft, lit
 "puffs" with noisy edges (`puffs.js`, brought over from that repo's `src/puff3d.js` and
 `src/sky.js`), under the same Morning and Night colours. A cloud here has a life. It starts
 small over the sea, takes on puffs as it drifts inland, towers into a thunderhead over the
-hills, rains, and thins out past the mountains. About one drop in ten is gold, the spark from
-the logo: it rises with the mist, falls in the rain and rides the river home.
+hills, rains, and thins out past the mountains.
+
+There are seeds in the ground too: rows of them in plots beside the river. Rain brings one
+up; once it has sprouted it holds a gold bud for a while, and then a new seed goes in. The
+gold is the spark from the logo. It also rises with the mist, falls in the rain and rides the
+river home.
 
 The land, sea, river and woods are generated in code from one fixed number (`scene.js`), so
-there are no models or textures to download. The scene follows the system's light or dark setting as
-day or night, and has no frame: its edges fade into the page.
+there are no models or textures to download. The scene follows the system's light or dark
+setting as day or night, and has no frame: its edges fade into the page.
 
 It's three.js, about 150 kB gzipped, and the page asks for it only when the landing is on
 screen, so someone who's signed in never downloads it. It holds still when it's scrolled out
 of view, when the tab is hidden, when someone presses pause, and from the start for anyone
-who has asked their system to reduce motion (the play button still works for them). A browser
-that can't do WebGL gets a flat drawing instead, and the four stages under the scene read the
-same either way.
+who has asked their system to reduce motion (looking closer still works for them, as a cut
+rather than a flight). A browser that can't do WebGL gets a flat drawing with all four notes
+set out under it.
+
+**The same pictures in the app.** A forecast is drawn as its sky: clear, then a cloud with
+more and more rain (`skyIco` in `ui/bits.js`). A seed is drawn where it is in its life: in the
+ground, being rained on once someone's on it, up once it's turned in, and sprouted (`lifeIco`).
+The board counts them the same way under its heading.
 
 The "ai" inside the name is lit in its own colour wherever the wordmark appears. It's one
 variable, `--lit`, in `src/theme.css`, with a second value for dark.
@@ -154,7 +168,7 @@ now: private ones are taken on in the app.
 | Path | What it is |
 | --- | --- |
 | `index.html`, `src/main.js` | The site: the page, its routes, and who's signed in |
-| `src/landing/` | The signed-out landing: `scene.js` (the coast and its weather), `puffs.js` (how a cloud is drawn), `landing.js` (the stages, pins and pause), `landing.css` |
+| `src/landing/` | The signed-out landing: `scene.js` (the coast and its weather), `puffs.js` (how a cloud is drawn), `landing.js` (looking closer, the notes and pause), `landing.css` |
 | `src/theme.css`, `src/fonts.css` | The site's look: colours, the bar, light and dark, and its typeface |
 | `src/oauth.js`, `src/scope.js` | Signing in, and the OAuth scope and client metadata |
 | `src/spaces.js` | Private seeds: reading and writing a group's space, and the group host's methods |
@@ -173,7 +187,7 @@ now: private ones are taken on in the app.
 | `core/demo.js` | The example circle, answering the same calls from fixtures and your browser's storage |
 | `ui/rainshare.js`, `ui/rainshare.css` | The screens: the board (a list with the details beside it), a seed, your profile, someone's profile, agents |
 | `ui/post.js` | Planting a seed: five steps, a live preview and a confirmation |
-| `ui/bits.js` | Small shared pieces: escaping, times, icons, faces |
+| `ui/bits.js` | Small shared pieces: escaping, times, icons, faces, and the glyphs for a forecast's sky and a seed's life |
 | `cli/rainshare.mjs` | The CLI and MCP server |
 | `test/` | `npm test`: the core, the data source against a fake network, and the MCP server |
 
@@ -214,9 +228,9 @@ writes against a fake network; the MCP server's handshake and tools; the product
 its bundled CLI. The records the app builds (`core/records.js`: seeds for every audience,
 profiles, takes and deliveries) validate against the lexicons with `@atproto/lexicon`. That
 was a one-off check and isn't part of `npm test` yet. In a headless browser: the
-landing in light and dark from 360 to 1680 pixels wide with no sideways scrolling, the stages
-advancing on their own and by hand, pause, reduced motion, the fallback without WebGL, and the
-example circle.
+landing in light and dark from 360 to 1680 pixels wide with no sideways scrolling; looking
+closer at each part by its pin, by tapping the scene and from the keyboard; Next, Whole view
+and Escape; pause, reduced motion, the fallback without WebGL; and the example circle.
 
 Not yet checked:
 

@@ -77,11 +77,36 @@ function riverNear(x, z){
   for (let i = 0; i <= RN; i++) { const d = (x - riverPts[i].x) ** 2 + (z - riverPts[i].z) ** 2; if (d < best) { best = d; bi = i; } }
   return [Math.sqrt(best), bi];
 }
-function height(x, z){
+function baseHeight(x, z){
   let h = rawHeight(x, z);
   if (x > -3 && x < 16 && z > -16 && z < 12) {
     const [d, bi] = riverNear(x, z), half = riverWidth(bi / RN) * .5, bank = half + .8;
     if (d < bank) h = Math.min(h, lerp(riverY[bi] - .14, h, smooth(half, bank, d)));
+  }
+  return h;
+}
+
+// Plots where seeds go in: the gentlest ground in the valley, on the sea side of the river,
+// under the path the rain takes. The ground is levelled a little under each one.
+const PLOTS = [], PLOT_W = .95, PLOT_D = .6;
+{
+  const r = mulberry(4407), found = [];
+  for (let tries = 0; tries < 2500; tries++) {
+    const x = lerp(2.6, 8.2, r()), z = lerp(-7.8, -2.2, r()), h = baseHeight(x, z), turn = r() * Math.PI;
+    if (h < .3 || h > 2.2) continue;
+    const [d, bi] = riverNear(x, z);
+    if (d < riverWidth(bi / RN) * .5 + 1.25) continue;
+    found.push({ x, z, h, cos: Math.cos(turn), sin: Math.sin(turn), wet: 0, slope: Math.abs(baseHeight(x + .7, z) - h) + Math.abs(baseHeight(x - .7, z) - h) + Math.abs(baseHeight(x, z + .7) - h) + Math.abs(baseHeight(x, z - .7) - h) });
+  }
+  for (const c of found.sort((a, b) => a.slope - b.slope)) if (PLOTS.length < 5 && c.slope < 1 && !PLOTS.some(p => (p.x - c.x) ** 2 + (p.z - c.z) ** 2 < 5.8)) PLOTS.push(c);
+}
+// A point in a plot's own frame: along its rows, and across them.
+const inPlot = (p, x, z) => [(x - p.x) * p.cos + (z - p.z) * p.sin, (z - p.z) * p.cos - (x - p.x) * p.sin];
+function height(x, z){
+  let h = baseHeight(x, z);
+  for (const p of PLOTS) if (Math.abs(x - p.x) < 2.2 && Math.abs(z - p.z) < 2.2) {
+    const [u, v] = inPlot(p, x, z);
+    h = lerp(h, p.h, (1 - smooth(PLOT_W + .1, PLOT_W + .7, Math.abs(u))) * (1 - smooth(PLOT_D + .1, PLOT_D + .7, Math.abs(v))));
   }
   return h;
 }
@@ -95,7 +120,7 @@ function warp(n, lo, hi, mid, k){
 
 const LAND = {
   bedShallow: '#CFC9AC', bedDeep: '#6E8CAE', sand: '#E4DAC0',
-  meadow: '#A9C383', lush: '#7FA96C', dry: '#BDBC8C', wood: '#5E8C61',
+  meadow: '#A9C383', lush: '#7FA96C', dry: '#BDBC8C', wood: '#5E8C61', soil: '#A98F72',
   rockA: '#9D9CAB', rockB: '#7B7C92', snow: '#F6F7FB'
 };
 
@@ -115,6 +140,7 @@ function landGeometry(){
       c.lerpColors(K.meadow, K.lush, smooth(.3, .7, big));
       c.lerp(K.dry, smooth(.55, .8, n) * .5);
       c.lerp(K.wood, smooth(.5, .62, fbm(x * .22 + 9, z * .22 + 3)) * .55);
+      for (const p of PLOTS) if (Math.abs(x - p.x) < 1.7 && Math.abs(z - p.z) < 1.7) { const [u, v] = inPlot(p, x, z); c.lerp(K.soil, (1 - smooth(PLOT_W, PLOT_W + .25, Math.abs(u))) * (1 - smooth(PLOT_D, PLOT_D + .25, Math.abs(v))) * .82); }
       c.lerp(K.sand, 1 - smooth(.1, .34, h + (n - .5) * .12));
       c.lerp(t.lerpColors(K.rockA, K.rockB, n), Math.max(smooth(.86, .66, up), smooth(3.4, 5, h + (n - .5))));
       c.lerp(K.snow, smooth(5.4, 6.4, h + (n - .5) * 1.4) * smooth(.4, .72, up));
@@ -149,7 +175,7 @@ const LOOKS = {
     rain: '#8C93C8', spark: '#F2B33C',
     hemiSky: '#DCE6FB', hemiGround: '#A49DBA', hemi: 1.7, light: '#FFEFD6', sun: 2.2,
     deep: '#4C78C2', shallow: '#A6D3D6', reflect: '#DDE5F8', glitter: '#FFF6E2', river: '#86AEE2',
-    leaf: '#8DB078', leafShade: '#3F6A50', shade: '#9AA0CC', windows: .1, mist: 1
+    leaf: '#8DB078', leafShade: '#3F6A50', sprout: '#BDE386', shade: '#9AA0CC', windows: .1, mist: 1
   },
   night: {
     top: '#0C1030', mid: '#181F52', low: '#2B3270', hor: '#41478A', sunCol: '#8FA2E6', stars: 1,
@@ -157,28 +183,31 @@ const LOOKS = {
     rain: '#6D76B0', spark: '#FFC857',
     hemiSky: '#4A5AA6', hemiGround: '#1A1F44', hemi: 1.5, light: '#AFC0FF', sun: 1.4,
     deep: '#182259', shallow: '#33488C', reflect: '#4A55A0', glitter: '#D5DEFF', river: '#5F74C6',
-    leaf: '#30495F', leafShade: '#141E3A', shade: '#5A5E96', windows: 2.6, mist: .5
+    leaf: '#30495F', leafShade: '#141E3A', sprout: '#5E86A6', shade: '#5A5E96', windows: 2.6, mist: .5
   }
 };
-const RAW = ['top', 'mid', 'low', 'hor', 'sunCol', 'lit', 'shadow', 'rim', 'storm', 'fog', 'spark', 'deep', 'shallow', 'reflect', 'glitter', 'river', 'leaf', 'leafShade', 'shade'];
+const RAW = ['top', 'mid', 'low', 'hor', 'sunCol', 'lit', 'shadow', 'rim', 'storm', 'fog', 'spark', 'deep', 'shallow', 'reflect', 'glitter', 'river', 'leaf', 'leafShade', 'sprout', 'shade'];
 // Where the sun is seen, low over the sea, and where the light comes from: the same side,
 // higher up, so a cloud's shadow falls near the rain under it.
 const SUN_SEEN = new Vector3(-.155, .148, -.977).normalize(), SUN_LIGHT = new Vector3(-.28, .79, -.55).normalize();
 const FOG_NEAR = 26, FOG_FAR = 118;
 
 /* ---------- the stages ---------- */
-// Where each stage's pin sits in the world, and how the camera leans toward it.
+// The whole view, then for each stage where its pin sits in the world, and where the camera
+// stands and looks when someone picks it.
+const WHOLE = { eye: [-1, 7.2, 30], aim: [2.6, 6.5, -6] };
 const STAGES = [
-  { anchor: new Vector3(-8.6, 3.4, -1), look: [-1.5, -.4], move: [-1.1, 0, 0] },
-  { anchor: new Vector3(-5.6, 11, -6), look: [-1.1, .8], move: [-.4, 0, 0] },
-  { anchor: new Vector3(8.2, 4.6, -6), look: [1.5, .2], move: [.9, 0, 0] },
-  { anchor: new Vector3(4.3, .7, 2.2), look: [.3, -1], move: [.2, .5, -2] }
+  { anchor: new Vector3(-8.6, 3.4, -1), eye: [-3.4, 3, 13.5], aim: [-9.6, 3.7, -5] },
+  { anchor: new Vector3(-5.6, 11, -6), eye: [2, 8.2, 12.5], aim: [-3, 9.9, -6] },
+  { anchor: new Vector3(8.2, 4.6, -6), eye: [3.2, 3.5, 9.5], aim: [5.6, 2.6, -5] },
+  { anchor: new Vector3(4.3, .7, 2.2), eye: [.3, 2.7, 15.5], aim: [4.8, 1, 1.2] }
 ];
 
 /**
  * Draw the water cycle into `canvas`. `onFrame({ dt, pins })` is called after each drawn
  * frame with the seconds since the last one (0 for a still) and where each stage's pin is,
- * in CSS pixels from the canvas's top left. Throws if the browser can't give a WebGL context.
+ * in CSS pixels from the canvas's top left (NaN for one that's out of view). Throws if the
+ * browser can't give a WebGL context.
  */
 export function createWaterCycle(canvas, { dark = false, onFrame } = {}){
   const renderer = new WebGLRenderer({ canvas, antialias: true, powerPreference: 'low-power' });
@@ -381,6 +410,55 @@ export function createWaterCycle(canvas, { dark = false, onFrame } = {}){
     scene.add(trees);
   }
 
+  /* seeds: rows of them in the plots along the river. Rain brings one up; once it has
+     sprouted it holds its gold bud a while, and then a new seed goes in. */
+  const SPROUTS = [];
+  PLOTS.forEach((p, k) => {
+    for (let row = 0; row < 4; row++) for (let col = 0; col < 7; col++) {
+      const u = lerp(-PLOT_W + .14, PLOT_W - .14, col / 6) + (rand() - .5) * .05, v = lerp(-PLOT_D + .13, PLOT_D - .13, row / 3) + (rand() - .5) * .05;
+      const x = p.x + u * p.cos - v * p.sin, z = p.z + u * p.sin + v * p.cos, up = rand() < .35;
+      SPROUTS.push({ plot: k, x, z, y: height(x, z), g: up ? 1 : rand() * .7, rest: up ? .5 + rand() * 20 : 0, hold: lerp(16, 30, rand()), rate: lerp(.1, .16, rand()) });
+    }
+  });
+  const sproutGeo = new BufferGeometry(), sproutPos = new BufferAttribute(new Float32Array(SPROUTS.length * 3), 3), sproutSize = new BufferAttribute(new Float32Array(SPROUTS.length), 1), sproutBloom = new BufferAttribute(new Float32Array(SPROUTS.length), 1);
+  for (const a of [sproutPos, sproutSize, sproutBloom]) a.setUsage(DynamicDrawUsage);
+  sproutGeo.setAttribute('position', sproutPos); sproutGeo.setAttribute('aSize', sproutSize); sproutGeo.setAttribute('aBloom', sproutBloom);
+  const sproutMat = new ShaderMaterial({
+    uniforms: { uScale: { value: 1 }, uSprout: { value: C.sprout }, uLeafShade: { value: C.leafShade }, uSpark: { value: C.spark }, uFog: { value: C.hor }, uFogNear, uFogFar },
+    vertexShader: `
+      attribute float aSize; attribute float aBloom; uniform float uScale, uFogNear, uFogFar; varying float vBloom; varying float vFog;
+      void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = aSize * uScale / -mv.z; vBloom = aBloom; vFog = smoothstep(uFogNear, uFogFar, -mv.z); }`,
+    fragmentShader: `
+      uniform vec3 uSprout, uLeafShade, uSpark, uFog; varying float vBloom; varying float vFog;
+      void main(){
+        // a seedling: a stem, a leaf to each side, and a gold bud once it has sprouted
+        vec2 p = (gl_PointCoord - 0.5) * vec2(2.0, -2.0);
+        float stem = step(abs(p.x), 0.075) * step(p.y, 0.15);
+        vec2 a = p - vec2(0.4, 0.2), b = p - vec2(-0.4, 0.2);
+        float leaf = max(step(length(vec2(a.x * 0.82 + a.y * 0.57, a.y * 0.82 - a.x * 0.57) / vec2(0.52, 0.25)), 1.0), step(length(vec2(b.x * 0.82 - b.y * 0.57, b.y * 0.82 + b.x * 0.57) / vec2(0.52, 0.25)), 1.0));
+        float bud = vBloom * step(length(p - vec2(0.0, 0.66)), 0.24);
+        if (max(max(stem, leaf), bud) < 0.5) discard;
+        vec3 c = mix(mix(uLeafShade, uSprout, 0.55 + 0.45 * p.y), uSpark, bud);
+        gl_FragColor = vec4(mix(c, uFog, vFog), 1.0);
+      }`
+  });
+  const sprouts = new Points(sproutGeo, sproutMat);
+  sprouts.frustumCulled = false;
+  scene.add(sprouts);
+  function moveSprouts(dt){
+    for (const p of PLOTS) {
+      p.wet = 0;
+      for (const c of CLOUDS) p.wet = Math.max(p.wet, c.rain * (1 - smooth(.55, 1.1, Math.hypot((p.x - c.x - .5) / (5.5 * c.size), (p.z - c.z) / (3.6 * c.size)))));
+    }
+    SPROUTS.forEach((s, i) => {
+      if (s.rest > 0) { s.rest -= dt; if (s.rest <= 0) s.g = 0; }
+      else { s.g = Math.min(1, s.g + dt * PLOTS[s.plot].wet * s.rate); if (s.g >= 1) s.rest = s.hold; }
+      const size = lerp(.08, .3, s.g * s.g * (3 - 2 * s.g));
+      sproutPos.setXYZ(i, s.x, s.y + size * .42, s.z); sproutSize.setX(i, size); sproutBloom.setX(i, s.g >= 1 ? 1 : 0);
+    });
+    sproutPos.needsUpdate = sproutSize.needsUpdate = sproutBloom.needsUpdate = true;
+  }
+
   /* puffs: every cloud, the mist off the sea and the shafts of rain, in one sorted batch */
   const MAX = 2600;
   const puffGeo = new InstancedBufferGeometry();
@@ -572,24 +650,25 @@ export function createWaterCycle(canvas, { dark = false, onFrame } = {}){
     rainCol.needsUpdate = true;
   }
 
-  /* camera: over the sea, looking up the coast. It leans toward the stage being talked
-     about, and drifts a little with the pointer. */
-  const CAM = new Vector3(-1, 7.2, 30), AIM = new Vector3(2.6, 6.5, -6);
-  const lean = { lx: 0, ly: 0, mx: 0, my: 0, mz: 0 }, pointer = { x: 0, y: 0, ex: 0, ey: 0 };
-  const weight = [1, 0, 0, 0], tmp = new Vector3();
-  let stage_ = 0, width = 1, height_ = 1;
+  /* camera: over the sea, looking up the coast, until someone picks a stage. Then it flies
+     in for a closer look at that part of the cycle. It drifts a little with the pointer. */
+  const eye = new Vector3(...WHOLE.eye), aim = new Vector3(...WHOLE.aim), pointer = { x: 0, y: 0, ex: 0, ey: 0 };
+  const weight = [0, 0, 0, 0], tmp = new Vector3();
+  let focus = -1, close = 0, width = 1, height_ = 1;       // close: 0 in the whole view, 1 right up to a stage
   function pose(t){
-    camera.position.set(CAM.x + lean.mx + Math.sin(t * .11) * .3 + pointer.ex * .9, CAM.y + lean.my - pointer.ey * .35, CAM.z + lean.mz);
-    camera.lookAt(AIM.x + lean.lx, AIM.y + lean.ly, AIM.z); camera.updateMatrixWorld();
+    const drift = 1 - .6 * close;
+    camera.position.set(eye.x + (Math.sin(t * .11) * .3 + pointer.ex * .9) * drift, eye.y - pointer.ey * .35 * drift, eye.z);
+    camera.lookAt(aim); camera.updateMatrixWorld();
     sky.position.copy(camera.position);
     camera.getWorldDirection(fwd);
     uSunView.value.copy(SUN_SEEN).transformDirection(camera.matrixWorldInverse);
   }
   function ease(dt, snap){
-    const k = snap ? 1 : 1 - Math.exp(-dt * 2.2), s = STAGES[stage_];
-    for (let i = 0; i < 4; i++) weight[i] += ((i === stage_ ? 1 : 0) - weight[i]) * k;
-    lean.lx += (s.look[0] - lean.lx) * k; lean.ly += (s.look[1] - lean.ly) * k;
-    lean.mx += (s.move[0] - lean.mx) * k; lean.my += (s.move[1] - lean.my) * k; lean.mz += (s.move[2] - lean.mz) * k;
+    const k = snap ? 1 : 1 - Math.exp(-dt * 2.4), to = focus < 0 ? WHOLE : STAGES[focus];
+    for (let i = 0; i < 4; i++) weight[i] += ((i === focus ? 1 : 0) - weight[i]) * k;
+    eye.x += (to.eye[0] - eye.x) * k; eye.y += (to.eye[1] - eye.y) * k; eye.z += (to.eye[2] - eye.z) * k;
+    aim.x += (to.aim[0] - aim.x) * k; aim.y += (to.aim[1] - aim.y) * k; aim.z += (to.aim[2] - aim.z) * k;
+    close += ((focus < 0 ? 0 : 1) - close) * k;
     pointer.ex += (pointer.x - pointer.ex) * k; pointer.ey += (pointer.y - pointer.ey) * k;
   }
 
@@ -603,13 +682,17 @@ export function createWaterCycle(canvas, { dark = false, onFrame } = {}){
     uTime.value = time; riverMat.uniforms.uGlow.value = weight[3]; rainMat.opacity = (look === LOOKS.night ? .62 : .5) + .2 * weight[2];
     staged = 0;
     moveClouds(time, dt, snap, weight[1]); moveMist(time, weight[0]); moveVeil(weight[2]); flush();
-    moveSparks(time, weight[0]); moveRain(dt);
+    moveSparks(time, weight[0]); moveRain(dt); moveSprouts(dt);
     renderer.render(scene, camera);
-    STAGES.forEach((s, i) => { tmp.copy(s.anchor).project(camera); pins[i * 2] = (tmp.x * .5 + .5) * width; pins[i * 2 + 1] = (-tmp.y * .5 + .5) * height_; });
+    STAGES.forEach((s, i) => {
+      tmp.copy(s.anchor).project(camera);
+      const seen = tmp.z < 1 && Math.abs(tmp.x) < 1 && Math.abs(tmp.y) < 1;
+      pins[i * 2] = seen ? (tmp.x * .5 + .5) * width : NaN; pins[i * 2 + 1] = seen ? (-tmp.y * .5 + .5) * height_ : NaN;
+    });
     onFrame?.({ dt: real, pins });
   }
   // The scene moves at most a fifteenth of a second per frame, so a slow device sees it
-  // slow down rather than jump; `real` is the time that actually passed, for the stage timer.
+  // slow down rather than jump; `real` is the time that actually passed.
   // A frame's timestamp can be earlier than the moment the loop was started, so the first
   // frame after a start counts as no time at all, and time never runs backwards.
   function frame(now){
@@ -627,7 +710,7 @@ export function createWaterCycle(canvas, { dark = false, onFrame } = {}){
     // keep the whole coast in view on a narrow screen by widening the lens
     camera.aspect = w / h; camera.fov = clamp(2 * Math.atan(Math.tan(22 * Math.PI / 180) * Math.max(1, 1.19 / camera.aspect)) * 180 / Math.PI, 44, 64);
     camera.updateProjectionMatrix();
-    sparkMat.uniforms.uScale.value = treeMat.uniforms.uScale.value = renderer.domElement.height / (2 * Math.tan(camera.fov * Math.PI / 360));
+    sparkMat.uniforms.uScale.value = treeMat.uniforms.uScale.value = sproutMat.uniforms.uScale.value = renderer.domElement.height / (2 * Math.tan(camera.fov * Math.PI / 360));
     if (!running) draw(0, true);
   }
 
@@ -642,8 +725,14 @@ export function createWaterCycle(canvas, { dark = false, onFrame } = {}){
   resize();
 
   return {
-    /** Which stage is being talked about: 0 evaporation, 1 condensation, 2 precipitation, 3 collection. */
-    setStage(i){ stage_ = clamp(i | 0, 0, 3); if (!running) draw(0, true); },
+    /** Fly in for a closer look at a stage (0 evaporation, 1 condensation, 2 precipitation, 3 collection), or back out to the whole view (-1). */
+    focus(i){ focus = clamp(i | 0, -1, 3); if (!running) draw(0, true); },
+    /** The stage whose pin is nearest a point on the canvas (CSS pixels), or -1 if none is near. */
+    stageAt(x, y){
+      let best = -1, d = (Math.min(width, height_) * .28) ** 2;
+      for (let i = 0; i < 4; i++) { const q = (pins[i * 2] - x) ** 2 + (pins[i * 2 + 1] - y) ** 2; if (q < d) { d = q; best = i; } }
+      return best;
+    },
     setDark(on){ look = LOOKS[on ? 'night' : 'day']; paint(); if (!running) draw(0, true); },
     /** Animate, or hold still on the current frame. */
     setRunning(on){

@@ -27,6 +27,28 @@ const ICON = {
   person: '<circle cx="12" cy="9" r="3.5"/><path d="M5.5 19.5a7 7 0 0 1 13 0"/>',
   sky: '<path d="M7 18h10a4 4 0 0 0 .6-7.96A5.5 5.5 0 0 0 7.1 9.2 4.4 4.4 0 0 0 7 18z"/>'
 };
+// The weather and the life of a seed, in the same pictures as the landing's scene: a forecast
+// is a sky (clear, then a cloud with more and more rain), and a seed is in the ground, being
+// rained on, up, or sprouted.
+const CLOUD = '<path d="M7 13.5h9.5a3.5 3.5 0 0 0 .5-6.96A4.8 4.8 0 0 0 7.3 6 3.8 3.8 0 0 0 7 13.5z"/>';
+const SKY = {
+  dry: '<circle cx="12" cy="12" r="3.6"/><path d="M12 3.6v2M12 18.4v2M3.6 12h2M18.4 12h2M6.1 6.1l1.4 1.4M16.5 16.5l1.4 1.4M6.1 17.9l1.4-1.4M16.5 7.5l1.4-1.4"/>',
+  drizzle: CLOUD + '<path d="M12 16.8l-.8 2.4"/>',
+  showers: CLOUD + '<path d="M9.5 16.8l-.8 2.4M14.5 16.8l-.8 2.4"/>',
+  downpour: CLOUD + '<path d="M8 16.6l-1.2 3.8M12 16.6l-1.2 3.8M16 16.6l-1.2 3.8"/>'
+};
+/** A forecast's sky: dry, drizzle, showers or downpour. */
+export const skyIco = level => `<svg class="rs-i rs-sky" viewBox="0 0 24 24" aria-hidden="true">${SKY[level] || SKY.dry}</svg>`;
+const GROUND = '<path d="M4 19.5h16"/>';
+const LIFE = {
+  seed: GROUND + '<path d="M12 19.5c-2 0-3.2-1.2-3.2-2.7 0-1.4 1.3-2.6 3.2-2.6s3.2 1.2 3.2 2.6c0 1.5-1.2 2.7-3.2 2.7z"/>',
+  rain: GROUND + '<path d="M12 19.5c-1.6 0-2.6-1-2.6-2.2s1-2.1 2.6-2.1 2.6.9 2.6 2.1-1 2.2-2.6 2.2z"/><path d="M8 5l-.9 3M12.4 4l-.9 3M16.8 5l-.9 3M10 9.6l-.6 2M14.6 9.6l-.6 2"/>',
+  up: GROUND + '<path d="M12 19.5v-7"/><path d="M12 14c0-2.6-1.8-4.2-4.6-4.2 0 2.7 1.8 4.2 4.6 4.2zM12 12.5c0-2.6 1.8-4.2 4.6-4.2 0 2.7-1.8 4.2-4.6 4.2z"/>',
+  sprouted: GROUND + '<path d="M12 19.5V11"/><path d="M12 16c0-2.3-1.6-3.7-4.1-3.7 0 2.4 1.6 3.7 4.1 3.7zM12 14.5c0-2.3 1.6-3.7 4.1-3.7 0 2.4-1.6 3.7-4.1 3.7z"/><path class="rs-bud" d="M12 2.8l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/>'
+};
+/** Where a seed is in its life: 'seed' (in the ground), 'rain' (someone's on it), 'up' (turned in), 'sprouted'. */
+export const lifeOf = item => item?.value?.state === 'sprouted' ? 'sprouted' : (item?.deliveries || []).length ? 'up' : (item?.takes || []).length ? 'rain' : 'seed';
+export const lifeIco = k => `<svg class="rs-i rs-life rs-life-${k}" viewBox="0 0 24 24" aria-hidden="true">${LIFE[k] || LIFE.seed}</svg>`;
 export const ico = (k, cls = '') => `<svg class="rs-i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg>`;
 const FORGE_ICON = {
   github: '<path d="M12 2.8a9.3 9.3 0 0 0-2.9 18.1c.5.1.6-.2.6-.4v-1.6c-2.6.6-3.1-1.1-3.1-1.1-.4-1.1-1-1.4-1-1.4-.9-.6 0-.6 0-.6 1 .1 1.5 1 1.5 1 .8 1.4 2.2 1 2.7.8.1-.6.3-1 .6-1.2-2-.2-4.2-1-4.2-4.6 0-1 .4-1.9 1-2.5-.1-.3-.4-1.2.1-2.5 0 0 .8-.2 2.6 1a8.9 8.9 0 0 1 4.7 0c1.8-1.2 2.6-1 2.6-1 .5 1.3.2 2.2.1 2.5.6.7 1 1.5 1 2.5 0 3.6-2.2 4.4-4.3 4.6.3.3.6.9.6 1.7v2.6c0 .2.2.5.6.4A9.3 9.3 0 0 0 12 2.8z"/>',

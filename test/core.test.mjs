@@ -11,6 +11,7 @@ import { renderMarkdown } from '../core/markdown.js';
 import { brief, launchers } from '../core/brief.js';
 import { createDemoSource } from '../core/demo.js';
 import { splitSpaceUri } from '../core/source.js';
+import { lifeOf } from '../ui/bits.js';
 
 test('parses GitHub, Tangled and other links into subjects', () => {
   const gi = parseSubject('https://github.com/dame-is/atmosphere-online/issues/42');
@@ -214,4 +215,11 @@ test('records from other people can’t smuggle links or shell into the page or 
   const tangled = { $type: SEED + '#tangledIssue', url: 'https://tangled.org/a/b/issues/2', repoUrl: 'https://tangled.org/a/b' };
   const cmd = launchers({ ...evil, value: { title: 't', subject: tangled } }).find(l => l.id === 'claude').command;
   assert.match(cmd, /^git clone 'https:\/\/tangled\.org\/a\/b' seed-/);
+});
+
+test('a seed’s life reads from who is on it, what was turned in, and whether it sprouted', () => {
+  assert.equal(lifeOf({ value: {} }), 'seed');
+  assert.equal(lifeOf({ value: {}, takes: [{}] }), 'rain');
+  assert.equal(lifeOf({ value: {}, takes: [{}], deliveries: [{}] }), 'up');
+  assert.equal(lifeOf({ value: { state: 'sprouted' }, deliveries: [{}] }), 'sprouted');
 });
