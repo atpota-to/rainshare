@@ -1,4 +1,4 @@
-// Private sidequests: the spaces alpha, from the browser, as the signed-in person.
+// Private seeds: the spaces alpha, from the browser, as the signed-in person.
 //
 //   reading   delegation token from your own PDS → space credential from the group's
 //             host → each writer's records from their own PDS, every request signed

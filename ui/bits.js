@@ -11,8 +11,8 @@ export const nameOf = p => p?.displayName || (p?.handle ? '@' + p.handle : 'Some
 export const firstName = p => String(p?.displayName || '').trim().split(/\s+/)[0] || (p?.handle ? '@' + p.handle : 'Someone');
 export const people = n => n == null ? '' : n === 1 ? '1 person' : `${Number(n).toLocaleString('en')} people`;
 
-/** A sidequest's own address under the app: public ones by repo and key, private ones by record URI. */
-export const pathOf = item => item.space ? 'q/s/' + b64url(item.uri) : `q/${item.repo}/${item.rkey}`;
+/** A seed's own address under the app: public ones by repo and key, private ones by record URI. */
+export const pathOf = item => item.space ? 'seed/s/' + b64url(item.uri) : `seed/${item.repo}/${item.rkey}`;
 
 const ICON = {
   drop: '<path d="M12 3.2c3.2 4.1 6 7.4 6 10.6a6 6 0 0 1-12 0c0-3.2 2.8-6.5 6-10.6z"/>',
@@ -40,5 +40,5 @@ export function face(p, cls = ''){
   const img = p?.avatar ? `<img src="${esc(p.avatar)}" alt="" referrerpolicy="no-referrer" loading="lazy" onerror="this.remove()">` : `<span>${esc((p?.displayName || p?.handle || '?').replace(/^@/, '')[0]?.toUpperCase() || '?')}</span>`;
   return `<span class="rs-face ${cls}" style="--c:${c}">${img}</span>`;
 }
-/** How well a sidequest suits you, as one to three filled drops. */
+/** How well a seed suits you, as one to three filled drops. */
 export const drops = level => `<span class="rs-drops" aria-hidden="true">${[1, 2, 3].map(n => `<svg viewBox="0 0 24 24"${n <= level ? ' class="on"' : ''}>${ICON.drop}</svg>`).join('')}</span>`;

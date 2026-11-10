@@ -20,7 +20,7 @@ export function modelsOf(profile){
 export const modelMatch = (want, have) => have.some(h => h === want || h.includes(want) || want.includes(h));
 
 /**
- * Score one item for a helper. `item` carries the sidequest (`value`), its author's profile
+ * Score one item for a helper. `item` carries the seed (`value`), its author's profile
  * (`profile`, the fullest copy the helper can read), how close they are (`closeness`), and
  * its takes. Returns { score, reasons: [{ text, say, tone, about }] }: `text` is a short
  * label, tone is 'up', 'match' or 'down', and `say` is how fit() words it: about 'them' (the
@@ -72,7 +72,7 @@ export function score(item, me){
 
 export const FIT = { 3: 'Strong fit', 2: 'Good fit', 1: 'Some fit' };
 /**
- * How well a sidequest suits a helper: a level from 1 to 3, its label, and a few short
+ * How well a seed suits a helper: a level from 1 to 3, its label, and a few short
  * sentences that say why ("Priya has no paid AI and is between jobs. It’d like Sonnet,
  * which you have. Heads up: someone’s already on it.").
  */

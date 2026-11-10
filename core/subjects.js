@@ -1,14 +1,14 @@
 // Where the work is: a Tangled issue or repo, a GitHub issue or repo, or any git URL.
 // Parsing what someone pasted, describing it, the URL to clone, and (where the forge has a
 // public API) the issue's title and whether a pull request has landed.
-import { SIDEQUEST } from './ns.js';
+import { SEED } from './ns.js';
 import { getJSON, xrpc, parseUri, handleOf } from './net.js';
 
 export const BOBBIN = 'https://api.tangled.org'; // Tangled's public, read-only API
 export const TANGLED = 'https://tangled.org';
 export const GITHUB_API = 'https://api.github.com';
 
-const T = kind => `${SIDEQUEST}#${kind}`;
+const T = kind => `${SEED}#${kind}`;
 export const kindOf = subject => String(subject?.$type || '').split('#')[1] || null;
 
 // Subjects come from other people's records, so anything used as a link or pasted into a
@@ -25,7 +25,7 @@ function url(raw){
 }
 const FORGES = { 'github.com': 'github', 'www.github.com': 'github', 'tangled.org': 'tangled', 'tangled.sh': 'tangled', 'gitlab.com': 'gitlab', 'codeberg.org': 'codeberg' };
 
-/** What someone pasted, as a sidequest subject, or null if it isn't a link we understand. */
+/** What someone pasted, as a seed subject, or null if it isn't a link we understand. */
 export function parseSubject(raw){
   const s = String(raw || '').trim();
   const at = parseUri(s);

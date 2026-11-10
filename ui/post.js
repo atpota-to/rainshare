@@ -1,10 +1,10 @@
-// Posting a sidequest, in five short steps with a preview beside them of how it will look:
+// Planting a seed, in five short steps with a preview beside them of how it will look:
 // where the work is, what you'd like done, how, who it's for, and a last look. Then a
 // confirmation that says who can see it and what happens next.
 //
 // rainshare.js owns the screen and hands in what this needs as `ui`; this keeps the draft
 // (so it survives leaving and coming back) and draws the steps.
-import { SIDEQUEST, MODEL_PICKS, modelName } from '../core/ns.js';
+import { SEED, MODEL_PICKS, modelName } from '../core/ns.js';
 import { parseSubject, describeSubject, kindOf, subjectInfo } from '../core/subjects.js';
 import { whereText, shortWhere, jobText, jobShort, wantsText, wantsShort, askExcerpt } from '../core/words.js';
 import { join } from '../core/rank.js';
@@ -69,7 +69,7 @@ export function createPoster(ui){
     if (P.step >= 4) ui.render();
   }
   const repoOf = did => Array.isArray(P.repos) ? P.repos.find(r => r.repoDid === did) : null;
-  const repoSubject = r => ({ $type: `${SIDEQUEST}#repo`, url: r.url, forge: 'tangled', repoDid: r.repoDid, name: r.url.replace('https://tangled.org/', '') });
+  const repoSubject = r => ({ $type: `${SEED}#repo`, url: r.url, forge: 'tangled', repoDid: r.repoDid, name: r.url.replace('https://tangled.org/', '') });
   async function loadRepos(){
     const mine = P; P.repos = 'loading'; ui.render();
     try { P.repos = await src().tangledRepos(); } catch (e) { P.repos = { error: e }; }
@@ -86,7 +86,7 @@ export function createPoster(ui){
   }
   function pickIssue(uri){
     const repo = repoOf(P.repo), issue = Array.isArray(P.issues) ? P.issues.find(i => i.uri === uri) : null;
-    P.subject = issue ? { $type: `${SIDEQUEST}#tangledIssue`, uri: issue.uri, cid: issue.cid, repo: P.repo, ...(repo?.url ? { repoUrl: repo.url } : {}) } : repo ? repoSubject(repo) : null;
+    P.subject = issue ? { $type: `${SEED}#tangledIssue`, uri: issue.uri, cid: issue.cid, repo: P.repo, ...(repo?.url ? { repoUrl: repo.url } : {}) } : repo ? repoSubject(repo) : null;
     P.info = issue ? { title: issue.title, body: issue.body } : null;
     P.link = '';
   }
@@ -202,7 +202,7 @@ export function createPoster(ui){
     P.busy = true; P.err = ''; ui.render();
     try {
       const g = P.vis === 'group' ? groupNow() : null;
-      const r = await src().post(input(), { group: g?.did });
+      const r = await src().plant(input(), { group: g?.did });
       const item = { uri: r.uri, space: r.space || null, repo: ui.viewer(), rkey: String(r.uri).split('/').pop(), author: ui.self() };
       P.done = { path: pathOf(item), page: item.space ? null : pageOf(item), group: g };
       P.busy = false;
@@ -301,7 +301,7 @@ export function createPoster(ui){
       const lists = P.lists;
       body = `<div class="rs-options" role="radiogroup" aria-label="Who it’s for">${AUDIENCE_PICKS.map(([k, t, n]) => row('data-rs-aud', k, P.audience === k, t, k === 'list' && listNow() ? listNow().name : n, people(countFor(k)))).join('')}</div>
         ${P.audience === 'list' ? (lists == null ? '<p class="rs-muted">Finding your lists…</p>' : lists.length ? `<label>Which list<select name="list">${lists.map(l => `<option value="${esc(l.uri)}"${P.list === l.uri ? ' selected' : ''}>${esc(l.name)} (${people(l.count)})</option>`).join('')}</select></label>` : '<p class="rs-muted">You don’t have any Bluesky lists yet. Make one at bsky.app, then come back.</p>') : ''}
-        <p class="rs-muted">Public sidequests are records anyone could look up. This says who it’s meant for: Rainshare shows it only to them and only offers it to them. For something truly private, post it in a group.</p>`;
+        <p class="rs-muted">Public seeds are records anyone could look up. This says who it’s meant for: Rainshare shows it only to them and only offers it to them. For something truly private, plant it in a group.</p>`;
     }
     return `<h1 tabindex="-1">Who’s it for?</h1>
       <p class="rs-lede">Only the people you pick see it on their board and can take it on.</p>
@@ -360,7 +360,7 @@ export function createPoster(ui){
     const intent = pub && P.bsky && d.page ? `https://bsky.app/intent/compose?text=${encodeURIComponent(`${bskyText()} ${d.page}`)}` : null;
     return `<section class="rs-post-done" aria-live="polite">
       <span class="rs-done-mark">${ico('check')}</span>
-      <h1 tabindex="-1">It’s out there.</h1>
+      <h1 tabindex="-1">It’s in the ground.</h1>
       <p class="rs-lede">${esc(doneText())}</p>
       <div class="rs-mini">
         <div class="rs-mini-top">${face(ui.self(), 'xs')}<b>You</b><span>· ${esc(whoFor())} · just now</span></div>
@@ -374,20 +374,20 @@ export function createPoster(ui){
       </div>` : ''}
       <div class="rs-next"><h2>What happens next</h2><ol>
         <li><b>A friend sends their agent.</b> <span>You’ll see who’s on it, and what they’re running.</span></li>
-        <li><b>They turn in a pull request.</b> <span>It shows up on your sidequest, with the model that did the work.</span></li>
-        <li><b>You mark it cleared.</b> <span>And thank them on Bluesky, if you like.</span></li>
+        <li><b>They turn in a pull request.</b> <span>It shows up on your seed, with the model that did the work.</span></li>
+        <li><b>You mark it sprouted.</b> <span>And thank them on Bluesky, if you like.</span></li>
       </ol></div>
-      <div class="rs-row">${ui.a(d.path, 'See your sidequest', 'rs-btn rs-primary')}<button class="rs-btn rs-quiet" type="button" data-rs-again>Post another</button></div>
+      <div class="rs-row">${ui.a(d.path, 'See your seed', 'rs-btn rs-primary')}<button class="rs-btn rs-quiet" type="button" data-rs-again>Plant another</button></div>
     </section>`;
   }
 
   function view(){
-    ui.title('Post a sidequest');
+    ui.title('Plant a seed');
     if (P.done) return `<div class="rs-post">${done()}</div>`;
     const body = [, stepWhere, stepWhat, stepHow, stepWho, stepLook][P.step]();
-    const next = { 1: 'Next: what you’d like done', 2: 'Next: how it should be done', 3: 'Next: who it’s for', 4: 'Next: look it over', 5: P.busy ? 'Posting…' : 'Post it' }[P.step];
+    const next = { 1: 'Next: what you’d like done', 2: 'Next: how it should be done', 3: 'Next: who it’s for', 4: 'Next: look it over', 5: P.busy ? 'Planting…' : 'Plant it' }[P.step];
     return `<div class="rs-post">
-      <header class="rs-post-head"><span>Post a sidequest</span><button class="rs-link" type="button" data-rs-post-cancel>Cancel</button></header>
+      <header class="rs-post-head"><span>Plant a seed</span><button class="rs-link" type="button" data-rs-post-cancel>Cancel</button></header>
       <ol class="rs-stepper" aria-label="Steps">${STEPS.map((l, i) => {
         const n = i + 1, state = n < P.step ? 'done' : n === P.step ? 'on' : '';
         return `<li class="${state}"><button type="button" data-rs-step="${n}"${n > P.reached ? ' disabled' : ''}${n === P.step ? ' aria-current="step"' : ''}><span class="rs-step-n" aria-hidden="true">${n < P.step ? ico('check') : n}</span><span>${l}</span></button></li>`;

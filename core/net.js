@@ -181,7 +181,7 @@ export async function mutualCount(did, { max = 600 } = {}){
   const rel = await relationships(did, follows);
   return [...rel.values()].filter(r => r.following && r.followedBy).length;
 }
-/** Someone's own Bluesky lists, for picking who a sidequest is for. */
+/** Someone's own Bluesky lists, for picking who a seed is for. */
 export async function listsOf(did){
   const r = await xrpc(APPVIEW, 'app.bsky.graph.getLists', { actor: did, limit: 50 });
   return (r.lists || []).filter(l => /curatelist$/.test(l.purpose || '')).map(l => ({ uri: l.uri, name: l.name, count: l.listItemCount || 0 }));

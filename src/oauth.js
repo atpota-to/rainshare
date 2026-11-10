@@ -3,7 +3,7 @@
 //   loopback  in dev, served from 127.0.0.1: the client_id is the config, scope and all
 //   hosted    everywhere else: the client_id is /oauth-client-metadata.json on this origin
 //
-// It asks for everything private sidequests need first; a server that doesn't know the
+// It asks for everything private seeds need first; a server that doesn't know the
 // spaces scopes refuses with invalid_scope, and is asked again for what any server grants.
 import { SCOPE, BASIC_SCOPE, REDIRECT_PATH, PLC } from './scope.js';
 

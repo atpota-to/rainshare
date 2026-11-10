@@ -1,14 +1,14 @@
-// An example circle: pretend friends, their profiles and sidequests, for trying Rainshare
+// An example circle: pretend friends, their profiles and seeds, for trying Rainshare
 // without signing in (the Example tab on rainshare.dev).
 // It answers the same calls as the real source (source.js); what you do is kept in this
 // browser through `store`, and nothing is written anywhere.
-import { PROFILE, SIDEQUEST, TAKE, DELIVERY } from './ns.js';
+import { PROFILE, SEED, TAKE, DELIVERY } from './ns.js';
 import * as R from './records.js';
 import { closeness } from './circle.js';
 
 const ME = 'did:example:you';
 const day = 864e5, ago = n => new Date(Date.now() - n).toISOString();
-const sq = kind => `${SIDEQUEST}#${kind}`;
+const sq = kind => `${SEED}#${kind}`;
 const GROUP = { did: 'did:example:spineclub', handle: 'spineclub.example', name: 'Spine Club', memberCount: 14, space: 'at://did:example:spineclub/space/dev.rainshare.board/rainshare' };
 // A second group of yours that has no Rainshare space yet, so "Add it" has something to do.
 const HACKERS = { did: 'did:example:hackers', handle: 'hackers.example', name: 'Weekend Hackers', memberCount: 38, space: 'at://did:example:hackers/space/dev.rainshare.board/rainshare' };
@@ -33,7 +33,7 @@ const PEOPLE = {
       setups: [{ harness: 'codex', models: ['gpt-5-codex'], plan: 'School pays', runsOn: 'cloud' }], forecast: { level: 'drizzle' } } }
 };
 
-const SIDEQUESTS = [
+const SEEDS = [
   { id: '3sq-juniper', by: 'did:example:juniper', at: 2 * 3600e3, value: {
     title: 'Keyboard navigation for the flashcard grid',
     subject: { $type: sq('githubIssue'), url: 'https://github.com/example/flashdeck/issues/14', repo: 'example/flashdeck', number: 14 },
@@ -68,7 +68,7 @@ const SIDEQUESTS = [
     subject: { $type: sq('repo'), url: 'https://github.com/example/spine-club-site', forge: 'github', name: 'example/spine-club-site' },
     spec: 'We keep our shelf in a Google Sheet and it’s a mess. Goodreads exports a CSV: a page where I upload it and it fills `books.json` would save me hours.\n\nI’m still learning, so please explain what you did in the PR.',
     wants: { tests: 'welcome' }, tags: ['javascript'], values: ['education'], size: 'small', audience: { $type: sq('group'), group: GROUP.did } } },
-  { id: '3sq-sam', by: 'did:example:sam', at: 8 * day, state: 'cleared', value: {
+  { id: '3sq-sam', by: 'did:example:sam', at: 8 * day, state: 'sprouted', value: {
     title: 'Give the quiz app a “show me a hint” button',
     subject: { $type: sq('githubIssue'), url: 'https://github.com/example/quizbowl/issues/3', repo: 'example/quizbowl', number: 3 },
     spec: 'Each question has a `hint` field we never show. A button that reveals it (and marks the answer as hinted) would help my students.',
@@ -99,15 +99,15 @@ export function createDemoSource({ store = null, me: meOverride = null } = {}){
   const rec = (x, coll) => ({ uri: uriOf(x.by, coll, x.id, groupOf(x)), cid: cidOf(x.id), repo: x.by, rkey: x.id, value: { $type: coll, createdAt: ago(x.at), ...x.value }, author: person(x.by) });
 
   function items(){
-    const all = [...SIDEQUESTS.map(x => ({ ...x, value: { ...x.value, ...(x.state ? { state: x.state } : {}) } })), ...state.mine]
+    const all = [...SEEDS.map(x => ({ ...x, value: { ...x.value, ...(x.state ? { state: x.state } : {}) } })), ...state.mine]
       .filter(x => !state.removed.includes(x.id))
       .map(x => ({ ...x, value: { ...x.value, ...(state.edits[x.id] || {}) } }));
-    // The example takes and deliveries point at their sidequest the way real ones do: a strong ref.
-    const on = x => { const s = SIDEQUESTS.find(q => q.id === x.on); return { ...x, value: { ...x.value, sidequest: { uri: uriOf(s.by, SIDEQUEST, s.id, groupOf(s)), cid: cidOf(s.id) } } }; };
+    // The example takes and deliveries point at their seed the way real ones do: a strong ref.
+    const on = x => { const s = SEEDS.find(q => q.id === x.on); return { ...x, value: { ...x.value, seed: { uri: uriOf(s.by, SEED, s.id, groupOf(s)), cid: cidOf(s.id) } } }; };
     const takes = [...TAKES.map(t => rec(on(t), TAKE)), ...state.takes.map(t => ({ ...t, author: me }))];
     const dels = [...DELIVERIES.map(d => rec(on(d), DELIVERY)), ...state.deliveries.map(d => ({ ...d, author: me }))];
     return all.map(x => {
-      const r = rec(x, SIDEQUEST);
+      const r = rec(x, SEED);
       const mine = x.by === ME, priv = !!x.private, g = groupOf(x);
       if (x.value.createdAt) r.value = x.value;
       const sqUri = r.uri;
@@ -115,8 +115,8 @@ export function createDemoSource({ store = null, me: meOverride = null } = {}){
         ...r, example: true, space: g?.space || null, group: g,
         closeness: mine ? 'self' : priv ? 'group' : closeness({ viewer: ME, author: x.by, rel: relOf(x.by) }),
         profile: mine ? state.profile : PEOPLE[x.by]?.profile || null,
-        takes: takes.filter(t => t.value.sidequest?.uri === sqUri),
-        deliveries: dels.filter(d => d.value.sidequest?.uri === sqUri)
+        takes: takes.filter(t => t.value.seed?.uri === sqUri),
+        deliveries: dels.filter(d => d.value.seed?.uri === sqUri)
       };
     }).sort((a, b) => String(b.value.createdAt).localeCompare(String(a.value.createdAt)));
   }
@@ -129,7 +129,7 @@ export function createDemoSource({ store = null, me: meOverride = null } = {}){
   return {
     viewer: ME, signedIn: true, canPrivate: true, demo: true, me,
     board: () => pause({ items: items(), notes: [] }),
-    sidequest: uri => pause(find(uri)),
+    seed: uri => pause(find(uri)),
     async profileOf(did){
       if (did === ME) return { person: me, public: R.publicProfile(state.profile, state.hidden), merged: state.profile, hidden: state.hidden, groups: state.share.includes(GROUP.did) ? [GROUP] : [] };
       const p = PEOPLE[did];
@@ -139,15 +139,15 @@ export function createDemoSource({ store = null, me: meOverride = null } = {}){
       state.profile = R.profile(input, state.profile); state.hidden = hidden; state.share = share; save();
       return pause(state.profile);
     },
-    async post(input, { group } = {}){
+    async plant(input, { group } = {}){
       const g = group ? GROUPS[group?.did || group] || GROUP : null;
-      const value = R.sidequest({ ...input, group: g?.did });
+      const value = R.seed({ ...input, group: g?.did });
       const x = { id: tid('sq'), by: ME, at: 0, private: !!g, group: g?.did, value };
       state.mine.unshift(x); save();
-      return pause({ uri: uriOf(ME, SIDEQUEST, x.id, g), cid: cidOf(x.id), space: g?.space || null });
+      return pause({ uri: uriOf(ME, SEED, x.id, g), cid: cidOf(x.id), space: g?.space || null });
     },
     async update(item, input){
-      const record = R.sidequest({ ...item.value, ...input, group: item.group?.did }, item.value);
+      const record = R.seed({ ...item.value, ...input, group: item.group?.did }, item.value);
       if (input.state === 'open') delete record.state;
       const own = state.mine.find(x => x.id === item.rkey);
       if (own) own.value = record; else state.edits[item.rkey] = record;
@@ -155,14 +155,14 @@ export function createDemoSource({ store = null, me: meOverride = null } = {}){
     },
     async remove(item){ state.mine = state.mine.filter(x => x.id !== item.rkey); state.removed.push(item.rkey); save(); return pause(); },
     async take(item, { setup, note } = {}){
-      const value = R.take({ sidequest: item, setup, note });
+      const value = R.take({ seed: item, setup, note });
       const id = tid('tk');
       const t = { uri: uriOf(ME, TAKE, id, item.group), cid: cidOf(id), repo: ME, rkey: id, value };
       state.takes.push(t); save(); return pause(t);
     },
-    async drop(item){ state.takes = state.takes.filter(t => t.value.sidequest?.uri !== item.uri); save(); return pause(); },
+    async drop(item){ state.takes = state.takes.filter(t => t.value.seed?.uri !== item.uri); save(); return pause(); },
     async turnIn(item, input){
-      const value = R.delivery({ ...input, sidequest: item, take: state.takes.find(t => t.value.sidequest?.uri === item.uri) });
+      const value = R.delivery({ ...input, seed: item, take: state.takes.find(t => t.value.seed?.uri === item.uri) });
       const id = tid('dl');
       const d = { uri: uriOf(ME, DELIVERY, id, item.group), cid: cidOf(id), repo: ME, rkey: id, value };
       state.deliveries.push(d); save(); return pause(d);

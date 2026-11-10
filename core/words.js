@@ -1,4 +1,4 @@
-// A sidequest in plain words, for the board's details and the sidequest's page: where the
+// A seed in plain words, for the board's details and the seed's page: where the
 // work is, how big the job is, what the asker would like, and who's on it. Each is a short
 // line of text, so nothing needs a coloured chip.
 import { labelOf, SIZES, HARNESSES, audienceOf, modelName } from './ns.js';
@@ -103,4 +103,4 @@ export function askExcerpt(spec, max = 260){
   return t.slice(0, max).replace(/\s+\S*$/, '') + '…';
 }
 
-export const stateText = sq => sq?.state === 'cleared' ? 'Cleared' : sq?.state === 'closed' ? 'Closed' : '';
+export const stateText = sq => sq?.state === 'sprouted' ? 'Sprouted' : sq?.state === 'closed' ? 'Closed' : '';

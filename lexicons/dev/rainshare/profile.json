@@ -51,7 +51,7 @@
               "maxGraphemes": 32,
               "knownValues": ["low-budget", "students", "low-income", "newcomers", "values-aligned", "nonprofits", "maintainers", "friends-first"]
             },
-            "description": "Whose sidequests you'd like to see first when you have rain to spare."
+            "description": "Whose seeds you'd like to see first when you have rain to spare."
           },
           "offering": {
             "type": "array",

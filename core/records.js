@@ -1,6 +1,6 @@
 // Building the four records from what people type, so every app writes the same shapes.
 // Each builder trims, clips to the lexicon's limits and leaves out what's empty.
-import { PROFILE, SIDEQUEST, TAKE, DELIVERY, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, HARNESSES, RUNS_ON, AUDIENCES, TESTS, SIZES } from './ns.js';
+import { PROFILE, SEED, TAKE, DELIVERY, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, HARNESSES, RUNS_ON, AUDIENCES, TESTS, SIZES } from './ns.js';
 import { parseUri } from './net.js';
 import { kindOf } from './subjects.js';
 
@@ -55,18 +55,18 @@ export function publicProfile(full, hidden = []){
   return out;
 }
 
-/** A sidequest. Throws with a plain message when something required is missing. */
-export function sidequest(input = {}, prev){
+/** A seed. Throws with a plain message when something required is missing. */
+export function seed(input = {}, prev){
   const title = clip(input.title || '', 120);
   if (!title) throw new Error('Give it a title.');
   const aud = input.group ? 'group' : known(AUDIENCES, input.audience) || 'mutuals';
   if (aud === 'list' && !parseUri(input.list)) throw new Error('Pick the list it’s for.');
-  const audience = { $type: `${SIDEQUEST}#${aud}`, ...(aud === 'list' ? { list: input.list } : {}), ...(aud === 'group' ? { group: input.group } : {}) };
+  const audience = { $type: `${SEED}#${aud}`, ...(aud === 'list' ? { list: input.list } : {}), ...(aud === 'group' ? { group: input.group } : {}) };
   const subject = input.subject && kindOf(input.subject) ? prune({ ...input.subject }) : undefined;
   const w = input.wants || {};
   const max = parseInt(w.maxDiffLines, 10);
   return prune({
-    $type: SIDEQUEST,
+    $type: SEED,
     title,
     subject,
     spec: clip(input.spec || '', 10000),
@@ -78,7 +78,7 @@ export function sidequest(input = {}, prev){
     audience,
     parallel: input.parallel ? true : undefined,
     state: input.state && input.state !== 'open' ? input.state : prev?.state && prev.state !== 'open' ? prev.state : undefined,
-    clearedWith: input.clearedWith || prev?.clearedWith,
+    sproutedWith: input.sproutedWith || prev?.sproutedWith,
     createdAt: prev?.createdAt || now(),
     updatedAt: prev ? now() : undefined
   });
@@ -86,17 +86,17 @@ export function sidequest(input = {}, prev){
 
 export const strongRef = item => ({ uri: item.uri, cid: item.cid });
 
-export function take({ sidequest: sq, setup: s, note }){
-  if (!sq?.uri || !sq?.cid) throw new Error('That sidequest can’t be found.');
-  return prune({ $type: TAKE, sidequest: strongRef(sq), setup: setup(s), note: clip(note || '', 300), createdAt: now() });
+export function take({ seed: sq, setup: s, note }){
+  if (!sq?.uri || !sq?.cid) throw new Error('That seed can’t be found.');
+  return prune({ $type: TAKE, seed: strongRef(sq), setup: setup(s), note: clip(note || '', 300), createdAt: now() });
 }
 
-export function delivery({ sidequest: sq, take: tk, url, pull, setup: s, sessionUrl, note }){
-  if (!sq?.uri || !sq?.cid) throw new Error('That sidequest can’t be found.');
+export function delivery({ seed: sq, take: tk, url, pull, setup: s, sessionUrl, note }){
+  if (!sq?.uri || !sq?.cid) throw new Error('That seed can’t be found.');
   const link = httpUrl(url), at = parseUri(pull) ? pull : undefined;
   if (!link && !at) throw new Error('Add the link to your pull request.');
   return prune({
-    $type: DELIVERY, sidequest: strongRef(sq), take: tk?.uri && tk?.cid ? strongRef(tk) : undefined,
+    $type: DELIVERY, seed: strongRef(sq), take: tk?.uri && tk?.cid ? strongRef(tk) : undefined,
     url: link, pull: at, setup: setup(s), sessionUrl: httpUrl(sessionUrl), note: clip(note || '', 300), createdAt: now()
   });
 }

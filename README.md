@@ -1,13 +1,13 @@
 # Rainshare
 
-*Got rain to spare? Your friends have sidequests.*
+*Got rain to spare? Your friends have seeds in the ground.*
 
-AI plans reset whether you use them or not. Rainshare shows you what the people you trust
-would like done in their repos, so the agent usage you have left over lands somewhere useful.
+AI plans reset whether you use them or not. On Rainshare, the people you trust plant seeds:
+things they'd like done in their repos. The agent usage you have left over is the rain.
 It's an atproto-native, social take on [Overflow](https://github.com/Nitjsefnie/Overflow):
 no ledger and no points, just your circle.
 
-- **Post a sidequest**, in five short steps with a preview beside them: where the work is (a
+- **Plant a seed**, in five short steps with a preview beside them: where the work is (a
   Tangled or GitHub issue, any git repo, or just an idea), what done looks like, how (models,
   tests, size), and who it's for: public for your mutuals (or people you follow, your
   followers, a Bluesky list, everyone), with a count of roughly who that reaches, or private
@@ -17,7 +17,11 @@ no ledger and no points, just your circle.
   students, people on low incomes, projects that share your values.
 - **Send your agent**: one click tells your friend you're on it and copies a command that
   starts Claude Code, Codex or any MCP agent with a careful brief. Turn the pull request in
-  when it's up, and your friend marks it cleared.
+  when it's up, and your friend marks it sprouted.
+
+**Why "seed".** It works two ways. Seeding a cloud is how you ask for rain in a particular
+place, and a seed in the ground is what rain grows. When the work is done, the seed has
+sprouted.
 
 It runs in two places, both from this repo:
 
@@ -35,7 +39,7 @@ in 3D (`src/landing/`). It's the same loop the app runs on:
 | --- | --- |
 | **Evaporation**: mist lifts off the sea | Usage you won't get to before your plan resets |
 | **Condensation**: it gathers into clouds | Forecasts, sitting with the people you follow |
-| **Precipitation**: a cloud breaks over the hills | Agents sent after a friend's sidequest |
+| **Precipitation**: a cloud breaks over the hills | Agents sent after a friend's seed |
 | **Collection**: a river runs back to the sea | Pull requests coming home, and the next reset |
 
 The clouds are the ones atmosphere.online's sky is made of: each is a few hundred soft, lit
@@ -45,8 +49,8 @@ small over the sea, takes on puffs as it drifts inland, towers into a thunderhea
 hills, rains, and thins out past the mountains. About one drop in ten is gold, the spark from
 the logo: it rises with the mist, falls in the rain and rides the river home.
 
-The land, sea, river and woods are generated in code from a seed (`scene.js`), so there are
-no models or textures to download. The scene follows the system's light or dark setting as
+The land, sea, river and woods are generated in code from one fixed number (`scene.js`), so
+there are no models or textures to download. The scene follows the system's light or dark setting as
 day or night, and has no frame: its edges fade into the page.
 
 It's three.js, about 150 kB gzipped, and the page asks for it only when the landing is on
@@ -70,16 +74,16 @@ the lexicon authority). The schemas are in `lexicons/dev/rainshare/`.
 | Record | Written by | Says |
 | --- | --- | --- |
 | `dev.rainshare.profile` (`self`) | everyone | bio, setups (harness, models, plan, where it runs), AI budget, forecast, circumstances, values, priorities, the kinds of work you take on |
-| `dev.rainshare.sidequest` | the requester | title, subject (Tangled issue, GitHub issue, or repo), spec in Markdown, wants, tags, values, size, audience, state (`open`, `cleared`, `closed`) |
-| `dev.rainshare.take` | a helper | "my agent is on this": a strong ref to the sidequest and the setup doing it. Deleting it drops the sidequest. |
+| `dev.rainshare.seed` | the requester | title, subject (Tangled issue, GitHub issue, or repo), spec in Markdown, wants, tags, values, size, audience, state (`open`, `sprouted`, `closed`) |
+| `dev.rainshare.take` | a helper | "my agent is on this": a strong ref to the seed and the setup doing it. Deleting it drops the seed. |
 | `dev.rainshare.delivery` | a helper | the pull request (URL, or a Tangled pull's at:// URI), what did the work, and an optional session link |
 
-**Public and private.** A public sidequest lives in your repo, and `audience` says who it's
+**Public and private.** A public seed lives in your repo, and `audience` says who it's
 for: apps show it only to those people and only offer it to them. That's a filter, not a lock,
-because anything in a public repo can be read by anyone. A private sidequest lives in your repo
+because anything in a public repo can be read by anyone. A private seed lives in your repo
 inside a group's Rainshare space (an Open Social space of type `dev.rainshare.board`, which a
 group admin adds), and only members can read it. Takes and deliveries go wherever their
-sidequest is.
+seed is.
 
 **Profiles, in two copies.** Your budget and circumstances can be marked "only my groups": the
 public profile leaves them out, and the full profile goes only into your groups' Rainshare
@@ -89,7 +93,7 @@ spaces. Helpers who can read a group copy see the fuller one.
 people who follow you and people you follow apart; lists come from `app.bsky.graph.getList`;
 anyone you block on Bluesky is left out.
 
-**Finding sidequests** needs no server of ours: a relay lists the repos that hold
+**Finding seeds** needs no server of ours: a relay lists the repos that hold
 `dev.rainshare.*` records (`com.atproto.sync.listReposByCollection`), and the records come from
 each person's own PDS. Your own writes are layered over that until the relay catches up.
 
@@ -98,7 +102,7 @@ setup can do (a wanted model you have, tags that match the work you take on), th
 Each card shows how well it suits you as one to three drops ("Strong fit", "Good fit", "Some
 fit"), and picking one says why in plain sentences beside the list: "Priya has no paid AI and
 is between jobs. It'd like Sonnet, which you have. Heads up: someone's already on it." The
-rest of a sidequest reads as short lines too (`core/words.js`): where the work is, the job, what
+rest of a seed reads as short lines too (`core/words.js`): where the work is, the job, what
 they'd like, and who's on it. On a phone the details come up as a sheet.
 
 ## Sending an agent
@@ -107,7 +111,7 @@ they'd like, and who's on it. On a phone the details come up as a sheet.
 terminal (`core/brief.js`):
 
 - **Rainshare CLI**: `run` takes it on, clones the repo, writes the brief to
-  `.rainshare/SIDEQUEST.md` (kept out of git) and starts Claude Code (or `--with codex`, or
+  `.rainshare/SEED.md` (kept out of git) and starts Claude Code (or `--with codex`, or
   `--with cloud` for a Claude Code cloud session on a fork).
 - **Claude Code** and **Codex**: `git clone … && claude "<brief>"`, with no install.
 - **Claude Code in the cloud** (GitHub): `gh repo fork … --clone && claude --cloud "<brief>"`.
@@ -123,15 +127,15 @@ it should stay inside the repository and check before anything that reaches outs
 curl -fsSL https://rainshare.dev/rainshare.mjs -o ~/.rainshare.mjs
 node ~/.rainshare.mjs login you.bsky.social      # with an app password
 node ~/.rainshare.mjs board                      # your circle, best first for you
-node ~/.rainshare.mjs run <sidequest>            # take, clone, start your agent
-node ~/.rainshare.mjs turn-in <sidequest> --url <pull request>
+node ~/.rainshare.mjs run <seed>            # take, clone, start your agent
+node ~/.rainshare.mjs turn-in <seed> --url <pull request>
 claude mcp add rainshare -- node ~/.rainshare.mjs mcp
 ```
 
 The MCP tools are `rainshare_board`, `rainshare_show` (with the brief), `rainshare_take`,
-`rainshare_drop`, `rainshare_turn_in`, `rainshare_post`, `rainshare_profile` and
+`rainshare_drop`, `rainshare_turn_in`, `rainshare_plant`, `rainshare_profile` and
 `rainshare_set_forecast`. It signs in with an app password (saved to `~/.config/rainshare`, or
-from `RAINSHARE_HANDLE` and `RAINSHARE_APP_PASSWORD`), and reaches public sidequests only for
+from `RAINSHARE_HANDLE` and `RAINSHARE_APP_PASSWORD`), and reaches public seeds only for
 now: private ones are taken on in the app.
 
 ## Bluesky, Tangled and GitHub
@@ -153,7 +157,7 @@ now: private ones are taken on in the app.
 | `src/landing/` | The signed-out landing: `scene.js` (the coast and its weather), `puffs.js` (how a cloud is drawn), `landing.js` (the stages, pins and pause), `landing.css` |
 | `src/theme.css`, `src/fonts.css` | The site's look: colours, the bar, light and dark, and its typeface |
 | `src/oauth.js`, `src/scope.js` | Signing in, and the OAuth scope and client metadata |
-| `src/spaces.js` | Private sidequests: reading and writing a group's space, and the group host's methods |
+| `src/spaces.js` | Private seeds: reading and writing a group's space, and the group host's methods |
 | `api/oauth-client-metadata.js` | The OAuth client document, served at `/oauth-client-metadata.json` |
 | `lexicons/dev/rainshare/` | The four record types and their shared defs. `publish.mjs` publishes them under rainshare.dev. |
 | `core/ns.js` | Collection names, and the words people see for every known value |
@@ -161,14 +165,14 @@ now: private ones are taken on in the app.
 | `core/net.js` | Public reads: identity, records from each PDS, the relay, the Bluesky graph |
 | `core/subjects.js` | Tangled and GitHub: parsing links, clone URLs, issue titles, pull request states |
 | `core/circle.js` | Audiences and closeness |
-| `core/rank.js` | A helper's board in order, and how well each sidequest fits them, with reasons |
-| `core/words.js` | A sidequest in plain lines: where, the job, what they'd like, who's on it |
+| `core/rank.js` | A helper's board in order, and how well each seed fits them, with reasons |
+| `core/words.js` | A seed in plain lines: where, the job, what they'd like, who's on it |
 | `core/brief.js` | The agent brief, and the one-paste launch commands |
 | `core/markdown.js` | A small, safe Markdown renderer for specs |
-| `core/source.js` | Rainshare over atproto: the board, a sidequest, profiles and every write, public and in group spaces |
+| `core/source.js` | Rainshare over atproto: the board, a seed, profiles and every write, public and in group spaces |
 | `core/demo.js` | The example circle, answering the same calls from fixtures and your browser's storage |
-| `ui/rainshare.js`, `ui/rainshare.css` | The screens: the board (a list with the details beside it), a sidequest, your profile, someone's profile, agents |
-| `ui/post.js` | Posting a sidequest: five steps, a live preview and a confirmation |
+| `ui/rainshare.js`, `ui/rainshare.css` | The screens: the board (a list with the details beside it), a seed, your profile, someone's profile, agents |
+| `ui/post.js` | Planting a seed: five steps, a live preview and a confirmation |
 | `ui/bits.js` | Small shared pieces: escaping, times, icons, faces |
 | `cli/rainshare.mjs` | The CLI and MCP server |
 | `test/` | `npm test`: the core, the data source against a fake network, and the MCP server |
@@ -207,7 +211,7 @@ previews show it once that domain is live.
 
 Checked: the core and the data source pass their tests, including every audience, blocks, and
 writes against a fake network; the MCP server's handshake and tools; the production build and
-its bundled CLI. The records the app builds (`core/records.js`: sidequests for every audience,
+its bundled CLI. The records the app builds (`core/records.js`: seeds for every audience,
 profiles, takes and deliveries) validate against the lexicons with `@atproto/lexicon`. That
 was a one-off check and isn't part of `npm test` yet. In a headless browser: the
 landing in light and dark from 360 to 1680 pixels wide with no sideways scrolling, the stages
@@ -216,9 +220,9 @@ example circle.
 
 Not yet checked:
 
-- Signing in with a real account, writing to a real PDS, and private sidequests in a real
+- Signing in with a real account, writing to a real PDS, and private seeds in a real
   group. Private ones depend on the spaces alpha and on opensocial.fyi accepting a
-  `dev.rainshare.board` space; if it doesn't yet, public sidequests still work.
+  `dev.rainshare.board` space; if it doesn't yet, public seeds still work.
 - The signed-out board against the live relay and AppView from this repo. The code that reads
   them is unchanged from the prototype, where it was checked.
 - How smoothly the scene runs on real phones and older laptops. It has only been run on a

@@ -3,7 +3,7 @@
 //
 //   /               your circle (signed out: the landing, and everything open to everyone)
 //   /example/…      the example circle, kept in this browser
-//   /q/…, /new, /me, /u/…, /agents   Rainshare's own screens (see ../ui/rainshare.js)
+//   /seed/…, /new, /me, /u/…, /agents   Rainshare's own screens (see ../ui/rainshare.js)
 //   /signed-in      where your server sends you back after signing in
 import './fonts.css';
 import '../ui/rainshare.css';
@@ -14,7 +14,7 @@ import { createDemoSource } from '../core/demo.js';
 import { BOARD } from '../core/ns.js';
 import { profiles } from '../core/net.js';
 // The spaces alpha's plumbing (credentials, signed reads, writes into a space) and the group
-// host's methods, for private sidequests.
+// host's methods, for private seeds.
 import * as atp from './spaces.js';
 import * as oauth from './oauth.js';
 import { showLanding, hideLanding } from './landing/landing.js';

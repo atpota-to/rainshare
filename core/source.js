@@ -1,4 +1,4 @@
-// Rainshare over atproto: the board, a sidequest, profiles, and the writes, for whoever is
+// Rainshare over atproto: the board, a seed, profiles, and the writes, for whoever is
 // signed in (or nobody). The same code runs in the browser (an OAuth session) and in the
 // CLI and MCP server (an app password session): both hand in an `agent` with the person's
 // DID and a fetchHandler that reaches their own PDS.
@@ -8,7 +8,7 @@
 //             they're for is checked against the Bluesky graph (getRelationships, lists).
 //   private   records in a group's Rainshare space, through `spaces` and `groups`, which
 //             the site supplies (src/spaces.js and the group host). Members only.
-import { PROFILE, SIDEQUEST, TAKE, DELIVERY } from './ns.js';
+import { PROFILE, SEED, TAKE, DELIVERY } from './ns.js';
 import * as net from './net.js';
 import * as R from './records.js';
 import { closeness, meantFor } from './circle.js';
@@ -87,12 +87,12 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     return Promise.all(gs.map(async g => ({ ...g, ...(await groups.board(g.did).catch(e => ({ space: null, error: e }))) })));
   });
   const groupRecords = g => memo('space:' + g.space, async () => {
-    const { records } = await spaces.read(g.space, [SIDEQUEST, TAKE, DELIVERY, PROFILE]);
+    const { records } = await spaces.read(g.space, [SEED, TAKE, DELIVERY, PROFILE]);
     return records;
   }, 20e3);
 
   function attach(items, takes, deliveries){
-    const by = (list, uri) => list.filter(r => r.value?.sidequest?.uri === uri);
+    const by = (list, uri) => list.filter(r => r.value?.seed?.uri === uri);
     for (const it of items) { it.takes = by(takes, it.uri); it.deliveries = by(deliveries, it.uri); }
     return items;
   }
@@ -113,13 +113,13 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
   async function board({ force } = {}){
     if (force) forget();
     const notes = [];
-    const [sqs, takes, deliveries] = await Promise.all([everyone(SIDEQUEST), everyone(TAKE).catch(() => []), everyone(DELIVERY).catch(() => [])])
-      .catch(e => { notes.push('The network didn’t answer, so public sidequests are missing. Try again in a moment.'); console.warn(e); return [[], [], []]; });
+    const [sqs, takes, deliveries] = await Promise.all([everyone(SEED), everyone(TAKE).catch(() => []), everyone(DELIVERY).catch(() => [])])
+      .catch(e => { notes.push('The network didn’t answer, so public seeds are missing. Try again in a moment.'); console.warn(e); return [[], [], []]; });
     const authors = [...new Set(sqs.map(r => r.repo))];
     let rels = new Map(), blocked = new Set();
     if (viewer) {
       [rels, blocked] = await Promise.all([
-        net.relationships(viewer, authors).catch(() => { notes.push('Bluesky didn’t say who you follow, so only sidequests open to everyone are showing.'); return new Map(); }),
+        net.relationships(viewer, authors).catch(() => { notes.push('Bluesky didn’t say who you follow, so only seeds open to everyone are showing.'); return new Map(); }),
         net.blocksOf(viewer).catch(() => new Set())
       ]);
     }
@@ -145,14 +145,14 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
         const recs = [...fetched, ...[...recent.values()].filter(r => r.space === g.space && !have.has(r.uri))].filter(r => !gone.has(r.uri));
         const of = c => recs.filter(r => r.collection === c);
         const profs = new Map(of(PROFILE).filter(r => r.rkey === 'self').map(r => [r.repo, r.value]));
-        const items = of(SIDEQUEST).map(r => ({ uri: r.uri, cid: r.cid, repo: r.repo, rkey: r.rkey, value: r.value, space: g.space, group: g, closeness: closeness({ viewer, author: r.repo, group: true }) }));
+        const items = of(SEED).map(r => ({ uri: r.uri, cid: r.cid, repo: r.repo, rkey: r.rkey, value: r.value, space: g.space, group: g, closeness: closeness({ viewer, author: r.repo, group: true }) }));
         attach(items, of(TAKE), of(DELIVERY));
         for (const it of items) it.profile = profs.get(it.repo) || null;
         // A group copy of someone's profile is fuller than their public one, so it wins everywhere.
         for (const v of visible) if (profs.has(v.repo)) v.profile = { ...(v.profile || {}), ...profs.get(v.repo) };
         visible.push(...items);
       } catch (e) {
-        notes.push(e.name === 'NoSpaces' ? `Your account’s server doesn’t support private spaces yet, so ${g.name}’s private sidequests stay closed to you.` : `${g.name}’s private sidequests didn’t load.`);
+        notes.push(e.name === 'NoSpaces' ? `Your account’s server doesn’t support private spaces yet, so ${g.name}’s private seeds stay closed to you.` : `${g.name}’s private seeds didn’t load.`);
         console.warn(e);
       }
     }
@@ -161,8 +161,8 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     return { items: visible, notes };
   }
 
-  /** One sidequest by its URI, with its takes, deliveries and author. Null if it's gone. */
-  async function sidequest(uri, { force } = {}){
+  /** One seed by its URI, with its takes, deliveries and author. Null if it's gone. */
+  async function seed(uri, { force } = {}){
     if (force) forget('all:' + TAKE, 'all:' + DELIVERY);
     const inSpace = splitSpaceUri(uri);
     if (inSpace) {
@@ -173,8 +173,8 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
       return items.find(i => i.uri === uri) || null;
     }
     const p = net.parseUri(uri);
-    if (!p || p.collection !== SIDEQUEST) return null;
-    const rec = await net.getRecordOrNull(p.repo, SIDEQUEST, p.rkey);
+    if (!p || p.collection !== SEED) return null;
+    const rec = await net.getRecordOrNull(p.repo, SEED, p.rkey);
     if (!rec) return null;
     const [takes, deliveries, prof] = await Promise.all([everyone(TAKE).catch(() => []), everyone(DELIVERY).catch(() => []), publicProfile(p.repo).catch(() => null)]);
     const rel = viewer && viewer !== p.repo ? (await net.relationships(viewer, [p.repo]).catch(() => new Map())).get(p.repo) : null;
@@ -214,35 +214,35 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     return full;
   }
 
-  async function post(input, { group } = {}){
+  async function plant(input, { group } = {}){
     const g = group ? (await myGroups()).find(x => x.did === group) : null;
     if (group && !g?.space) throw new SourceError('NoBoard', 'That group doesn’t have Rainshare yet.');
     const subject = input.subject ? await completeTangled(input.subject).catch(() => input.subject) : undefined;
-    const record = R.sidequest({ ...input, subject, group: g ? g.did : undefined });
-    const r = await into(g?.space).create(SIDEQUEST, record);
-    remember(SIDEQUEST, { uri: r.uri, cid: r.cid, repo: viewer, rkey: String(r.uri || '').split('/').pop(), value: record, space: g?.space || null });
-    forget('all:' + SIDEQUEST); if (g) forget('space:' + g.space);
+    const record = R.seed({ ...input, subject, group: g ? g.did : undefined });
+    const r = await into(g?.space).create(SEED, record);
+    remember(SEED, { uri: r.uri, cid: r.cid, repo: viewer, rkey: String(r.uri || '').split('/').pop(), value: record, space: g?.space || null });
+    forget('all:' + SEED); if (g) forget('space:' + g.space);
     return { uri: r.uri, cid: r.cid, space: g?.space || null };
   }
   async function update(item, input){
     if (item.repo !== viewer) throw new SourceError('NotYours', 'Only the person who asked can change it.');
-    const record = R.sidequest({ ...item.value, ...input, group: item.group?.did, subject: input.subject ?? item.value.subject }, item.value);
+    const record = R.seed({ ...item.value, ...input, group: item.group?.did, subject: input.subject ?? item.value.subject }, item.value);
     if (input.state === 'open') delete record.state;
-    const r = await into(item.space).put(SIDEQUEST, item.rkey, record);
-    remember(SIDEQUEST, { uri: item.uri, cid: r?.cid || item.cid, repo: viewer, rkey: item.rkey, value: record, space: item.space || null });
-    forget('all:' + SIDEQUEST); if (item.space) forget('space:' + item.space);
+    const r = await into(item.space).put(SEED, item.rkey, record);
+    remember(SEED, { uri: item.uri, cid: r?.cid || item.cid, repo: viewer, rkey: item.rkey, value: record, space: item.space || null });
+    forget('all:' + SEED); if (item.space) forget('space:' + item.space);
     return record;
   }
   async function remove(item){
     if (item.repo !== viewer) throw new SourceError('NotYours', 'Only the person who asked can delete it.');
-    await into(item.space).del(SIDEQUEST, item.rkey);
+    await into(item.space).del(SEED, item.rkey);
     forgetRecord(item.uri);
-    forget('all:' + SIDEQUEST); if (item.space) forget('space:' + item.space);
+    forget('all:' + SEED); if (item.space) forget('space:' + item.space);
   }
   const mine = list => (list || []).filter(r => r.repo === viewer);
   async function takeOn(item, { setup, note } = {}){
     if (mine(item.takes).length) return mine(item.takes)[0];
-    const record = R.take({ sidequest: item, setup, note });
+    const record = R.take({ seed: item, setup, note });
     const r = await into(item.space).create(TAKE, record);
     const rec = { uri: r.uri, cid: r.cid, repo: viewer, rkey: String(r.uri || '').split('/').pop(), value: record, space: item.space || null };
     remember(TAKE, rec);
@@ -254,7 +254,7 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     forget('all:' + TAKE); if (item.space) forget('space:' + item.space);
   }
   async function turnIn(item, input){
-    const record = R.delivery({ ...input, sidequest: item, take: mine(item.takes)[0] });
+    const record = R.delivery({ ...input, seed: item, take: mine(item.takes)[0] });
     const r = await into(item.space).create(DELIVERY, record);
     const rec = { uri: r.uri, cid: r.cid, repo: viewer, rkey: String(r.uri || '').split('/').pop(), value: record, space: item.space || null };
     remember(DELIVERY, rec);
@@ -264,7 +264,7 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
 
   return {
     viewer, signedIn: !!viewer, canPrivate: !!(spaces && groups),
-    board, sidequest, profileOf, saveProfile, post, update, remove, take: takeOn, drop, turnIn,
+    board, seed, profileOf, saveProfile, plant, update, remove, take: takeOn, drop, turnIn,
     forget: () => forget(),
     groups: () => myGroups(),
     addToGroup: async did => { const space = await groups.add(did); forget('groups'); return space; },

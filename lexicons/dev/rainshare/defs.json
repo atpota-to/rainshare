@@ -1,7 +1,7 @@
 {
   "lexicon": 1,
   "id": "dev.rainshare.defs",
-  "description": "Shared types for Rainshare: friends' sidequests, taken on with spare agent usage.",
+  "description": "Shared types for Rainshare: friends' seeds, taken on with spare agent usage.",
   "defs": {
     "setup": {
       "type": "object",

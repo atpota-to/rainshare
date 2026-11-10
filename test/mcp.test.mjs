@@ -30,9 +30,9 @@ test('speaks MCP over stdio', async () => {
     child.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) + '\n');
     const list = await call('tools/list', {});
     const names = list.result.tools.map(t => t.name);
-    assert.deepEqual(names, ['rainshare_board', 'rainshare_show', 'rainshare_take', 'rainshare_drop', 'rainshare_turn_in', 'rainshare_post', 'rainshare_profile', 'rainshare_set_forecast']);
+    assert.deepEqual(names, ['rainshare_board', 'rainshare_show', 'rainshare_take', 'rainshare_drop', 'rainshare_turn_in', 'rainshare_plant', 'rainshare_profile', 'rainshare_set_forecast']);
     assert.ok(list.result.tools.every(t => t.inputSchema?.type === 'object' && !('run' in t)));
-    const take = await call('tools/call', { name: 'rainshare_take', arguments: { ref: 'at://did:plc:abc/dev.rainshare.sidequest/3k2a4zxq5zs2a' } });
+    const take = await call('tools/call', { name: 'rainshare_take', arguments: { ref: 'at://did:plc:abc/dev.rainshare.seed/3k2a4zxq5zs2a' } });
     assert.equal(take.result.isError, true);
     assert.match(take.result.content[0].text, /Sign in first/);
     const bad = await call('tools/call', { name: 'nope', arguments: {} });

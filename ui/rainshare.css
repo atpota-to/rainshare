@@ -52,7 +52,7 @@
 .rs-face.lg{width:64px;height:64px;font-size:26px}
 
 /* surfaces */
-.rs-panel,.rs-quest-main,.rs-form,.rs-launch,.rs-person>header,.rs-agents,.rs-post-done{background:var(--rs-bg-card);border-radius:var(--rs-radius);box-shadow:var(--rs-shadow);outline:1px solid var(--rs-card-edge);outline-offset:-1px;-webkit-backdrop-filter:var(--rs-blur);backdrop-filter:var(--rs-blur)}
+.rs-panel,.rs-seed-main,.rs-form,.rs-launch,.rs-person>header,.rs-agents,.rs-post-done{background:var(--rs-bg-card);border-radius:var(--rs-radius);box-shadow:var(--rs-shadow);outline:1px solid var(--rs-card-edge);outline-offset:-1px;-webkit-backdrop-filter:var(--rs-blur);backdrop-filter:var(--rs-blur)}
 .rs-note{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;padding:12px 16px;border-radius:var(--rs-radius-sm);background:var(--rs-accent-soft);color:var(--rs-ink);font-size:14px}
 .rs-note>span{flex:1;min-width:180px}
 .rs-note .rs-i{color:var(--rs-accent-text);margin-top:2px}
@@ -149,11 +149,11 @@
   .rs-side .rs-detail-actions{position:sticky;bottom:calc(-20px - env(safe-area-inset-bottom,0px));margin:0 -20px calc(-20px - env(safe-area-inset-bottom,0px));padding:12px 20px calc(20px + env(safe-area-inset-bottom,0px));background:var(--rs-solid);box-shadow:0 -1px 0 var(--rs-line);flex-wrap:nowrap}
 }
 
-/* one sidequest, in full */
-.rs-quest{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,320px);gap:18px;align-items:start}
-.rs-quest-main{padding:28px;display:flex;flex-direction:column;gap:18px;min-width:0}
-.rs-quest-main h1{font-size:clamp(26px,3.4vw,36px);font-weight:800;overflow-wrap:anywhere}
-.rs-quest-main>h2,.rs-ask-full h2{font-size:14px;font-weight:600;color:var(--rs-muted);font-family:var(--rs-font);letter-spacing:0}
+/* one seed, in full */
+.rs-seed{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,320px);gap:18px;align-items:start}
+.rs-seed-main{padding:28px;display:flex;flex-direction:column;gap:18px;min-width:0}
+.rs-seed-main h1{font-size:clamp(26px,3.4vw,36px);font-weight:800;overflow-wrap:anywhere}
+.rs-seed-main>h2,.rs-ask-full h2{font-size:14px;font-weight:600;color:var(--rs-muted);font-family:var(--rs-font);letter-spacing:0}
 .rs-ask-full{display:flex;flex-direction:column;gap:8px;padding-top:16px;border-top:1px solid var(--rs-line)}
 .rs-who{display:inline-flex;align-items:center;gap:8px;text-decoration:none;min-width:0}
 .rs-who b{font-weight:650}
@@ -174,7 +174,7 @@
 .rs-people li>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
 .rs-people p{font-size:14px}
 .rs-people .rs-link .rs-i{width:15px;height:15px}
-.rs-quest-side{display:flex;flex-direction:column;gap:14px;min-width:0}
+.rs-seed-side{display:flex;flex-direction:column;gap:14px;min-width:0}
 .rs-panel{padding:18px;display:flex;flex-direction:column;gap:12px;min-width:0}
 .rs-panel>.rs-link{align-self:flex-start}
 .rs-bio{font-size:15px}
@@ -325,9 +325,9 @@
 .rs-cmd pre{flex:1;min-width:0}
 
 @media (max-width:820px){
-  .rs-quest{grid-template-columns:minmax(0,1fr)}
-  .rs-quest-main,.rs-form,.rs-agents{padding:18px}
-  .rs-quest-main .rs-facts{grid-template-columns:92px minmax(0,1fr);gap:8px 14px;font-size:14px}
+  .rs-seed{grid-template-columns:minmax(0,1fr)}
+  .rs-seed-main,.rs-form,.rs-agents{padding:18px}
+  .rs-seed-main .rs-facts{grid-template-columns:92px minmax(0,1fr);gap:8px 14px;font-size:14px}
   .rs-head-actions{width:100%}
   .rs-head-actions .rs-btn{flex:1}
   .rs-cmd{flex-direction:column}
@@ -336,6 +336,6 @@
 /* signing in, at the top of any screen */
 .rs-signin{max-width:none;border:2px solid var(--rs-accent-soft)}
 .rs-signin .rs-row input{flex:1 1 220px;width:auto}
-/* the turn-in form sits inside the sidequest's own card */
+/* the turn-in form sits inside the seed's own card */
 .rs-form.rs-turnin{padding:0;background:none;box-shadow:none;outline:0;-webkit-backdrop-filter:none;backdrop-filter:none;max-width:none}
 @media (prefers-reduced-motion:reduce){.rs *{transition:none!important}}

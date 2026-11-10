@@ -1,10 +1,10 @@
 {
   "lexicon": 1,
-  "id": "dev.rainshare.sidequest",
+  "id": "dev.rainshare.seed",
   "defs": {
     "main": {
       "type": "record",
-      "description": "Something you'd like done, for friends with spare agent usage to take on. Public sidequests live in your repo and `audience` says who it's meant for (a filter apps respect, not access control). Private ones live in your repo inside a group's Rainshare space, readable only by its members.",
+      "description": "Something you'd like done, for friends with spare agent usage to take on. Public seeds live in your repo and `audience` says who it's meant for (a filter apps respect, not access control). Private ones live in your repo inside a group's Rainshare space, readable only by its members.",
       "key": "tid",
       "record": {
         "type": "object",
@@ -38,8 +38,8 @@
             "description": "Who this is meant for. #following: people you follow. #followers: people who follow you. #mutuals: both. #group: the members of the group whose space it's in."
           },
           "parallel": { "type": "boolean", "description": "More than one helper is welcome to try at once." },
-          "state": { "type": "string", "maxLength": 320, "maxGraphemes": 32, "knownValues": ["open", "cleared", "closed"], "default": "open" },
-          "clearedWith": {
+          "state": { "type": "string", "maxLength": 320, "maxGraphemes": 32, "knownValues": ["open", "sprouted", "closed"], "default": "open" },
+          "sproutedWith": {
             "type": "array",
             "maxLength": 8,
             "items": { "type": "ref", "ref": "com.atproto.repo.strongRef" },
@@ -102,7 +102,7 @@
     "group": {
       "type": "object",
       "required": ["group"],
-      "properties": { "group": { "type": "string", "format": "did", "description": "The group whose space holds this sidequest." } }
+      "properties": { "group": { "type": "string", "format": "did", "description": "The group whose space holds this seed." } }
     }
   }
 }

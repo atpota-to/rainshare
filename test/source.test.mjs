@@ -2,7 +2,7 @@
 // for everyone, and Bluesky's AppView, all answered by a stubbed fetch.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { SIDEQUEST, TAKE, DELIVERY, PROFILE } from '../core/ns.js';
+import { SEED, TAKE, DELIVERY, PROFILE } from '../core/ns.js';
 import { createSource } from '../core/source.js';
 
 const PDS = 'https://pds.test';
@@ -11,19 +11,19 @@ const people = { me: 'did:plc:me', alice: 'did:plc:alice', bob: 'did:plc:bob', c
 const follows = [['me', 'alice'], ['alice', 'me'], ['bob', 'me'], ['me', 'carol']];
 let repos, n, lagging;
 
-const sq = (title, audience, extra = {}) => ({ $type: SIDEQUEST, title, audience: { $type: `${SIDEQUEST}#${audience}` }, createdAt: new Date(Date.now() - (n++) * 1000).toISOString(), ...extra });
+const sq = (title, audience, extra = {}) => ({ $type: SEED, title, audience: { $type: `${SEED}#${audience}` }, createdAt: new Date(Date.now() - (n++) * 1000).toISOString(), ...extra });
 function put(did, collection, rkey, value){ (repos[did] ||= {})[collection] ||= new Map(); repos[did][collection].set(rkey, { value, cid: 'bafy' + (n++) }); }
 beforeEach(() => {
   repos = {}; n = 1; lagging = new Set();
-  put(people.alice, SIDEQUEST, 'a1', sq('Alice, for mutuals', 'mutuals'));
+  put(people.alice, SEED, 'a1', sq('Alice, for mutuals', 'mutuals'));
   put(people.alice, PROFILE, 'self', { $type: PROFILE, budget: 'none', circumstances: ['student'], createdAt: new Date().toISOString() });
-  put(people.bob, SIDEQUEST, 'b1', sq('Bob, for people he follows', 'following'));
-  put(people.bob, SIDEQUEST, 'b2', sq('Bob, for mutuals', 'mutuals'));
-  put(people.carol, SIDEQUEST, 'c1', sq('Carol, for mutuals', 'mutuals'));
-  put(people.carol, SIDEQUEST, 'c2', sq('Carol, for her followers', 'followers'));
-  put(people.dave, SIDEQUEST, 'd1', sq('Dave, for everyone', 'anyone'));
-  put(people.dave, SIDEQUEST, 'd2', sq('Dave, closed', 'anyone', { state: 'closed' }));
-  put(people.eve, SIDEQUEST, 'e1', sq('Eve, for everyone', 'anyone'));
+  put(people.bob, SEED, 'b1', sq('Bob, for people he follows', 'following'));
+  put(people.bob, SEED, 'b2', sq('Bob, for mutuals', 'mutuals'));
+  put(people.carol, SEED, 'c1', sq('Carol, for mutuals', 'mutuals'));
+  put(people.carol, SEED, 'c2', sq('Carol, for her followers', 'followers'));
+  put(people.dave, SEED, 'd1', sq('Dave, for everyone', 'anyone'));
+  put(people.dave, SEED, 'd2', sq('Dave, closed', 'anyone', { state: 'closed' }));
+  put(people.eve, SEED, 'e1', sq('Eve, for everyone', 'anyone'));
   put(people.me, 'app.bsky.graph.block', 'x1', { subject: people.eve });
 });
 
@@ -93,38 +93,38 @@ test('signed in, each audience is respected, and blocks hide people', async () =
   assert.equal(items.find(i => i.rkey === 'c2').closeness, 'you-follow');
 });
 
-test('taking on, turning in and clearing, even while the relay lags', async () => {
+test('taking on, turning in and sprouting, even while the relay lags', async () => {
   const src = createSource({ agent: agent(people.me) });
   // The relay hasn't noticed the helper's first take or delivery yet.
   lagging.add(people.me + ' ' + TAKE); lagging.add(people.me + ' ' + DELIVERY);
-  let it = await src.sidequest(`at://${people.alice}/${SIDEQUEST}/a1`);
+  let it = await src.seed(`at://${people.alice}/${SEED}/a1`);
   assert.equal(it.takes.length, 0);
   await src.take(it, { setup: { harness: 'claude-code', models: ['claude-opus-5-5'] } });
-  it = await src.sidequest(it.uri, { force: true });
+  it = await src.seed(it.uri, { force: true });
   assert.equal(it.takes.length, 1);
   assert.equal(it.takes[0].value.setup.harness, 'claude-code');
   assert.equal((await src.take(it)).uri, it.takes[0].uri, 'taking twice keeps the one take');
   await src.turnIn(it, { url: 'https://github.com/o/r/pull/9', setup: { harness: 'claude-code' } });
-  it = await src.sidequest(it.uri, { force: true });
+  it = await src.seed(it.uri, { force: true });
   assert.equal(it.deliveries.length, 1);
   assert.equal(it.deliveries[0].value.take.uri, it.takes[0].uri);
-  await assert.rejects(src.update(it, { state: 'cleared' }), /Only the person who asked/);
-  // Alice marks it cleared with the delivery.
+  await assert.rejects(src.update(it, { state: 'sprouted' }), /Only the person who asked/);
+  // Alice marks it sprouted with the delivery.
   const alice = createSource({ agent: agent(people.alice) });
-  const hers = await alice.sidequest(it.uri);
-  await alice.update(hers, { state: 'cleared', clearedWith: [{ uri: it.deliveries[0].uri, cid: it.deliveries[0].cid }] });
-  const after = await src.sidequest(it.uri, { force: true });
-  assert.equal(after.value.state, 'cleared');
+  const hers = await alice.seed(it.uri);
+  await alice.update(hers, { state: 'sprouted', sproutedWith: [{ uri: it.deliveries[0].uri, cid: it.deliveries[0].cid }] });
+  const after = await src.seed(it.uri, { force: true });
+  assert.equal(after.value.state, 'sprouted');
   assert.equal(after.value.title, 'Alice, for mutuals');
   // Dropping deletes the take.
   await src.drop(after);
-  assert.equal((await src.sidequest(it.uri, { force: true })).takes.length, 0);
+  assert.equal((await src.seed(it.uri, { force: true })).takes.length, 0);
 });
 
 test('posting, closing and deleting your own', async () => {
   const src = createSource({ agent: agent(people.me) });
-  lagging.add(people.me + ' ' + SIDEQUEST);
-  const r = await src.post({ title: 'Mine', audience: 'mutuals', subject: { $type: `${SIDEQUEST}#repo`, url: 'https://codeberg.org/me/thing', forge: 'codeberg' } });
+  lagging.add(people.me + ' ' + SEED);
+  const r = await src.plant({ title: 'Mine', audience: 'mutuals', subject: { $type: `${SEED}#repo`, url: 'https://codeberg.org/me/thing', forge: 'codeberg' } });
   let mine = (await src.board()).items.find(i => i.uri === r.uri);
   assert.ok(mine, 'shows up before the relay lists the repo');
   assert.equal(mine.closeness, 'self');

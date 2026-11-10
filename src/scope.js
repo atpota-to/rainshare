@@ -4,14 +4,14 @@
 // asks for fails every sign-in, so both come from here.
 const env = import.meta.env || {};
 
-// The group host, for private sidequests in groups: an Open Social host.
+// The group host, for private seeds in groups: an Open Social host.
 export const HOST = env.VITE_GROUP_HOST || 'https://opensocial.fyi';
 export const HOST_DID = env.VITE_GROUP_HOST_DID || 'did:web:opensocial.fyi';
 export const AUD = HOST_DID + '#opensocial';
 export const NS = 'fyi.opensocial';
 export const PLC = env.VITE_PLC_URL || 'https://plc.directory';
 
-export const RAINSHARE = ['dev.rainshare.profile', 'dev.rainshare.sidequest', 'dev.rainshare.take', 'dev.rainshare.delivery'];
+export const RAINSHARE = ['dev.rainshare.profile', 'dev.rainshare.seed', 'dev.rainshare.take', 'dev.rainshare.delivery'];
 // The host methods Rainshare calls: your groups, a group's spaces, and adding Rainshare to one.
 export const METHODS = ['getActorGroups', 'getGroup', 'createSpace'];
 
@@ -19,7 +19,7 @@ const A = encodeURIComponent(AUD);
 const rpc = m => `rpc:${NS}.${m}?aud=${A}`;
 const repo = RAINSHARE.map(c => `repo:${c}`);
 
-// Any atproto account: your public sidequests, takes, deliveries and profile, and finding your groups.
+// Any atproto account: your public seeds, takes, deliveries and profile, and finding your groups.
 export const BASIC_SCOPE = ['atproto', ...repo, ...METHODS.map(rpc)].join(' ');
 // An account whose server does spaces: the same, plus reading your groups' spaces and writing
 // your own Rainshare records into them. `space:*` because nobody publishes the space type, and a
