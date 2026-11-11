@@ -73,10 +73,19 @@ export const plantPic = (stage, px = 40, { live = false, cls = '' } = {}) =>
   `<span class="rs-plant${cls ? ' ' + cls : ''}" style="--rs-plant:${px}px">${live ? `<canvas data-rs-plant="${esc(stage)}" aria-hidden="true"></canvas>` : ''}<img src="${esc(plantBase + stage + '.webp')}" width="${px}" height="${px}" alt="" decoding="async"></span>`;
 export const forgeIco = f => `<svg class="rs-i rs-forge" viewBox="0 0 24 24" aria-hidden="true">${FORGE_ICON[f] || FORGE_ICON.other}</svg>`;
 
+const initialOf = p => [...String(p?.displayName || p?.handle || '?').replace(/^@/, '').trim()][0]?.toUpperCase() || '?';
+// An avatar that doesn't load gives way to the person's initial (see avatarFallback).
 export function face(p, cls = ''){
-  const c = p?.color || `hsl(${hue(p?.did || p?.handle || '')} 70% 78%)`;
-  const img = p?.avatar ? `<img src="${esc(p.avatar)}" alt="" referrerpolicy="no-referrer" loading="lazy" onerror="this.remove()">` : `<span>${esc((p?.displayName || p?.handle || '?').replace(/^@/, '')[0]?.toUpperCase() || '?')}</span>`;
-  return `<span class="rs-face ${cls}" style="--c:${c}">${img}</span>`;
+  const c = /^(#[0-9a-f]{3,8}|hsl\([\d.% ]+\))$/i.test(p?.color || '') ? p.color : `hsl(${hue(p?.did || p?.handle || '')} 70% 78%)`;
+  const img = /^https:\/\//.test(p?.avatar || '') ? `<img src="${esc(p.avatar)}" alt="" referrerpolicy="no-referrer" loading="lazy" data-rs-initial="${esc(initialOf(p))}">` : `<span>${esc(initialOf(p))}</span>`;
+  return `<span class="rs-face ${cls}" style="--c:${esc(c)}">${img}</span>`;
+}
+/** Listen once, on a container, for avatars that fail to load. Errors don't bubble, so this listens on the way down. */
+export function avatarFallback(root){
+  root.addEventListener('error', e => {
+    const img = e.target;
+    if (img?.tagName === 'IMG' && img.dataset.rsInitial) { const s = document.createElement('span'); s.textContent = img.dataset.rsInitial; img.replaceWith(s); }
+  }, true);
 }
 /** How well a seed suits you, as one to three filled drops. */
 export const drops = level => `<span class="rs-drops" aria-hidden="true">${[1, 2, 3].map(n => `<svg viewBox="0 0 24 24"${n <= level ? ' class="on"' : ''}>${ICON.drop}</svg>`).join('')}</span>`;

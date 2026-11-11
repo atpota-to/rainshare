@@ -22,8 +22,8 @@ import { whereText, shortWhere, jobText, jobShort, wantsText, onItText, takenSho
 import { renderMarkdown } from '../core/markdown.js';
 import { brief, launchers, pageOf, readHandBack, sh, INSTALL, MCP_ADD, CLI_HOME } from '../core/brief.js';
 import { strongRef, HARNESS_NAMES } from '../core/records.js';
-import { resolveHandle, knownPerson } from '../core/net.js';
-import { esc, lit, unb64url, ago, until, nameOf, firstName, ico, skyIco, lifeIco, lifeOf, face, drops, pathOf, plantPic } from './bits.js';
+import { resolveHandle, knownPerson, parseUri } from '../core/net.js';
+import { esc, lit, unb64url, ago, until, nameOf, firstName, ico, skyIco, lifeIco, lifeOf, face, drops, pathOf, plantPic, avatarFallback } from './bits.js';
 import { createPoster } from './post.js';
 
 export { pathOf };
@@ -61,13 +61,17 @@ export function createRainshare({ root, base = '/', host }){
     return esc(say || e?.message || 'Something went wrong. Try again in a moment.');
   }
   const plainText = e => { const d = document.createElement('div'); d.innerHTML = plain(e); return d.textContent; };
-  function copy(text, what = 'Copied'){
+  const decode = s => { try { return decodeURIComponent(s); } catch (_) { return s; } };
+  // Browsers can refuse to copy once a moment has passed since the click (Safari, after the
+  // network has been asked something), so whoever calls this can say what to do instead.
+  function copy(text, what = 'Copied', instead = 'Couldn’t copy it. Select it and copy it yourself.'){
     const done = () => toast(what);
-    try { navigator.clipboard.writeText(text).then(done, () => toast('Select it and copy')); } catch (_) { toast('Select it and copy'); }
+    try { navigator.clipboard.writeText(text).then(done, () => toast(instead)); } catch (_) { toast(instead); }
   }
   // The whole seed as Markdown (the brief an agent gets), for pasting into any agent's session.
   const mdBtn = (it, cls = 'rs-quiet') => `<button class="rs-btn ${cls}" type="button" data-rs-md="${esc(it.uri)}">${ico('copy')}Copy as Markdown</button>`;
-  const forecastOf = p => p?.forecast?.level ? FORECAST.find(f => f[0] === p.forecast.level) : null;
+  // A forecast that ran out (its "until" has passed) isn't shown as if it were still true.
+  const forecastOf = p => p?.forecast?.level && !(Date.parse(p.forecast.until) < Date.now()) ? FORECAST.find(f => f[0] === p.forecast.level) : null;
   const isOpen = it => !it.value?.state || it.value.state === 'open';
   const myTake = it => (it.takes || []).find(t => t.repo === viewer());
   const mySetup = () => S.mine?.merged?.setups?.[0] || null;
@@ -124,7 +128,7 @@ export function createRainshare({ root, base = '/', host }){
     return `<div class="rs-panel">
       <p>${garden.length ? `${esc(whose)}${yours ? '’ve' : ' has'} helped with ${esc(wateredText(garden))}.` : yours ? 'Nothing here yet.' : `${esc(whose)} hasn’t helped with anything yet.`}</p>
       ${garden.length ? `<ul class="rs-garden">${garden.map(g => `<li><a href="${esc(href(pathOf(g)))}" data-rs-go="${esc(pathOf(g))}" title="${esc(g.title)}" aria-label="${esc(`${g.title}: ${nameOf(g.author)}’s ${g.stage === 'seed' ? 'idea' : 'project'}`)}">${plantPic(g.picture || g.stage, 76)}</a></li>`).join('')}</ul>` : ''}
-      <p class="rs-muted">${garden.length ? `A plant for each idea or project that got done with ${yours ? 'your' : 'their'} help, drawn as what it grew into. It’s worked out from the records, so there’s nothing to collect and nothing to spend.`
+      <p class="rs-muted">${garden.length ? `One plant for each idea or project finished with ${yours ? 'your' : 'their'} help, drawn as what it grew into.`
         : `${yours ? 'The first idea or project that gets done with your help shows up here.' : 'What gets done with their help shows up here.'}`}</p>
     </div>`;
   }
@@ -229,7 +233,7 @@ export function createRainshare({ root, base = '/', host }){
           ${signedIn() ? a('new', `${ico('plus')}Ask for rain`, 'rs-btn rs-primary') : host.signIn ? `<button class="rs-btn rs-primary" type="button" data-rs-act="signin">Sign in</button>` : ''}
         </div>
       </header>
-      ${S.source?.demo ? `<p class="rs-note rs-demo">${ico('sky')}<span>This is an example circle: pretend friends, real ideas. Anything you do here stays in this browser.</span>${host.exitDemo ? `<button class="rs-link" type="button" data-rs-act="exit-demo">${host.exitDemo}</button>` : ''}</p>` : ''}
+      ${S.source?.demo ? `<p class="rs-note rs-demo">${ico('sky')}<span>This is an example circle with made-up people. Anything you do here stays in this browser.</span>${host.exitDemo ? `<button class="rs-link" type="button" data-rs-act="exit-demo">${host.exitDemo}</button>` : ''}</p>` : ''}
       ${signedIn() && S.mine && !S.mine.merged ? `<p class="rs-note">${ico('person')}<span>Tell your circle what you run and who you’d like to help, so the right ones rise to the top.</span>${a('me', 'Set up your profile', 'rs-link')}</p>` : ''}
       <div class="rs-board-head">
         ${tabs.length ? `<nav class="rs-tabs" aria-label="Ideas and projects">${tabs.map(([k, l]) => `<button type="button" data-rs-tab="${k}" aria-pressed="${S.tab === k}">${l}</button>`).join('')}
@@ -245,7 +249,7 @@ export function createRainshare({ root, base = '/', host }){
           </div>`
         : `<p class="rs-empty">${empty}</p>`}
       ${(S.board?.notes || []).map(n => `<p class="rs-note">${esc(n)}</p>`).join('')}
-      <footer class="rs-foot">${a('agents', `${ico('term')}Send agents from your terminal`, 'rs-link')}<span class="rs-muted">Every ask is a record in its owner’s own account, on the open network.</span></footer>`;
+      <footer class="rs-foot">${a('agents', `${ico('term')}Send agents from your terminal`, 'rs-link')}${host.brand === 'rainshare' ? '' : '<span class="rs-muted">Every ask is a record in its owner’s own account, on the open network.</span>'}</footer>`;
   }
   // Picking a card fills the panel beside the list (or the sheet, on a phone) without
   // redrawing the list, so nothing else on the page moves.
@@ -284,8 +288,8 @@ export function createRainshare({ root, base = '/', host }){
       const fresh = carry(now, await S.source.seed(it.uri, { force: true }) || now);
       const l = pickLauncher(launchers(fresh, { viewer: viewer() }));
       S.board = null; loadBoard();
-      if (l) copy(l.command, `You’re on it. Copied the ${l.label} command: paste it in a terminal.`);
-      else copy(briefFor(fresh), 'You’re on it. Copied the brief: paste it into your agent.');
+      if (l) copy(l.command, `You’re on it. Copied the ${l.label} command: paste it in a terminal.`, 'You’re on it. Press Copy beside the command to copy it.');
+      else copy(briefFor(fresh), 'You’re on it. Copied the brief: paste it into your agent.', 'You’re on it. Press Copy beside the brief to copy it.');
       return { fresh, launch: l?.id || 'brief' };
     } catch (e) { console.warn('rainshare take', e); toast(plainText(e)); if (el) el.disabled = false; return null; }
   }
@@ -306,7 +310,7 @@ export function createRainshare({ root, base = '/', host }){
     else {
       const m = sub.match(/^seed\/([^/]+)\/([^/]+)$/);
       if (m) {
-        const who = decodeURIComponent(m[1]);
+        const who = decode(m[1]);
         const did = who.startsWith('did:') ? who : await resolveHandle(who).catch(() => null);
         uri = did ? `at://${did}/${SEED}/${m[2]}` : null;
       }
@@ -535,7 +539,7 @@ export function createRainshare({ root, base = '/', host }){
             ${setups.length > 1 ? `<button class="rs-link" type="button" data-rs-remove-setup="${i}">Remove</button>` : ''}</li>`).join('')}</ol>
           ${setups.length < 6 ? `<button class="rs-link" type="button" data-rs-act="add-setup">${ico('plus')}Add another setup</button>` : ''}
         </fieldset>
-        <fieldset><legend>Your forecast</legend><p class="rs-muted">How much spare usage you have right now. When it’s pouring, you rise to the top of your circle’s minds.</p>
+        <fieldset><legend>Your forecast</legend><p class="rs-muted">How much spare usage you have right now. It shows on your profile, so friends know when to ask.</p>
           ${seg('forecast', FORECAST.map(f => [f[0], f[1]]), fc.level || '')}
           <p class="rs-muted">${esc(FORECAST.find(f => f[0] === fc.level)?.[2] || 'Pick one when you have rain to spare.')}</p>
           ${raining ? `<div class="rs-two"><label>Until <small>(often when your plan resets)</small><input name="until" type="date" value="${esc(fc.until ? fc.until.slice(0, 10) : '')}"></label>
@@ -545,7 +549,7 @@ export function createRainshare({ root, base = '/', host }){
         <details class="rs-more rs-options-more" data-rs-keep="me-more"${S.open['me-more'] ? ' open' : ''}>
           <summary>Help the right people find you <small>optional</small></summary>
           <div class="rs-more-body">
-            <p class="rs-muted">Helpers can put people without big AI plans, students or projects they care about first. ${priv ? 'Anything marked “only my groups” goes only into your groups’ private spaces.' : 'Everyone can see what you share here. Sharing some of it with only your groups is coming.'}</p>
+            <p class="rs-muted">Some helpers look first for people without big AI plans, for students, or for projects they care about. ${priv ? 'Anything marked “only my groups” goes only into your groups’ private spaces.' : 'Everyone can see what you share here. Sharing some of it with only your groups is coming.'}</p>
             <fieldset><legend>Your AI budget</legend><p class="rs-muted">Roughly what you spend on AI a month.</p>
               ${seg('budget', BUDGETS.map(b => [b[0], b[1]]), p.budget || '')}
               ${visSel('budget')}
@@ -598,7 +602,7 @@ export function createRainshare({ root, base = '/', host }){
   /* ---------- someone's profile ---------- */
   async function loadPerson(sub){
     S.other = null;
-    const who = decodeURIComponent(sub.slice(2));
+    const who = decode(sub.slice(2));
     try {
       const did = who.startsWith('did:') ? who : await resolveHandle(who);
       S.other = await S.source.profileOf(did);
@@ -637,7 +641,7 @@ export function createRainshare({ root, base = '/', host }){
       <div class="rs-agents">
         <header class="rs-agents-head">
           <h1>Send your agent after an idea or a project</h1>
-          <p>There are two ways. Paste one into any agent with nothing set up, or install one small file so your agent can find ideas and projects, take them on and turn them in by itself.</p>
+          <p>Paste a brief into any agent, with nothing to install. Or add one small file, and your agent can find ideas and projects, take them on and turn them in itself.</p>
         </header>
         <section class="rs-panel" aria-labelledby="rsQuick">
           <h2 id="rsQuick">${ico('copy')}With nothing set up</h2>
@@ -809,6 +813,7 @@ export function createRainshare({ root, base = '/', host }){
     try {
       v.url = String(v.url || '').trim();
       const pullAt = /^at:\/\//.test(v.url) ? v.url : undefined, setup = { harness: v.harness, models: v.model ? [v.model] : [] };
+      if (!(pullAt ? parseUri(pullAt) : safeHttp(v.url))) throw new Error(stand(S.seed).idea ? 'That doesn’t look like a link. Paste the address where it lives.' : 'That doesn’t look like a link to a pull request. Paste its address.');
       // Turning in something you hadn't said you were on (an agent handed it back): say so first, so the two records agree.
       if (!myTake(S.seed)) { await S.source.take(S.seed, { setup }); S.seed = carry(S.seed, await S.source.seed(S.seed.uri, { force: true }) || S.seed); }
       await S.source.turnIn(S.seed, { url: pullAt ? undefined : v.url, pull: pullAt, sessionUrl: v.sessionUrl, note: v.note, setup });
@@ -820,6 +825,7 @@ export function createRainshare({ root, base = '/', host }){
     } catch (e) { toast(plainText(e)); btn.disabled = false; }
   }
 
+  avatarFallback(root);
   root.addEventListener('click', e => {
     const t = e.target, plainClick = !e.metaKey && !e.ctrlKey && !e.shiftKey && e.button === 0;
     const goEl = t.closest('[data-rs-go]');

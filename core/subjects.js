@@ -22,13 +22,20 @@ export const GITHUB_API = 'https://api.github.com';
 const T = kind => `${SEED}#${kind}`;
 export const kindOf = subject => String(subject?.$type || '').split('#')[1] || null;
 
-// Subjects come from other people's records, so anything used as a link or pasted into a
-// shell is checked first: http(s) only, and nothing a shell would read as more than a word.
+// Subjects come from other people's records, so anything used as a link is checked first:
+// http(s) only, with no spaces, quotes or angle brackets. A link can still carry characters a
+// shell treats specially (& ; | ( ) ?), so anything bound for a command line goes through
+// cloneUrlOf's stricter test, and is quoted as well.
 export function safeHttp(raw){
   const s = String(raw ?? '');
   if (!s || /[\s'"`$\\<>]/.test(s)) return null;
   try { const u = new URL(s); return /^https?:$/.test(u.protocol) ? u.href.replace(/\/$/, '') : null; } catch (_) { return null; }
 }
+// What git is pointed at: a host and a plain path, and nothing a shell would read as more than one word.
+const CLONEABLE = /^https?:\/\/[A-Za-z0-9.-]+(:\d{1,5})?(\/[A-Za-z0-9._~%+@:\/-]*)?$/;
+const cloneable = raw => { const u = safeHttp(raw); return u && CLONEABLE.test(u) ? u : null; };
+// A path segment, decoded where it can be: a stray % in a pasted link isn't worth a crash.
+const decode = s => { try { return decodeURIComponent(s); } catch (_) { return s; } };
 export const REPO_NAME = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 
 function url(raw){
@@ -43,7 +50,7 @@ export function parseSubject(raw){
   if (at && at.collection === TICKET) return { $type: T('tangledIssue'), uri: s, repo: at.repo };
   const u = url(s); if (!u) return null;
   const forge = FORGES[u.host] || 'other';
-  const parts = u.pathname.split('/').filter(Boolean).map(decodeURIComponent);
+  const parts = u.pathname.split('/').filter(Boolean).map(decode);
   if (forge === 'github' && parts.length >= 2) {
     const repo = `${parts[0]}/${parts[1].replace(/\.git$/, '')}`;
     if (parts[2] === 'issues' && /^\d+$/.test(parts[3] || '')) return { $type: T('githubIssue'), url: `https://github.com/${repo}/issues/${parts[3]}`, repo, number: +parts[3] };
@@ -97,8 +104,8 @@ export const repoPageOf = subject => safeHttp(kindOf(subject) === 'repo' ? subje
 export function cloneUrlOf(subject){
   const kind = kindOf(subject);
   if (kind === 'githubIssue') return REPO_NAME.test(subject.repo || '') ? `https://github.com/${subject.repo}.git` : null;
-  if (kind === 'tangledIssue' || kind === 'knotlessIssue') return safeHttp(subject.repoUrl);
-  if (kind === 'repo') { const u = safeHttp(subject.url); return u && subject.forge === 'github' && !u.endsWith('.git') ? u + '.git' : u; }
+  if (kind === 'tangledIssue' || kind === 'knotlessIssue') return cloneable(subject.repoUrl);
+  if (kind === 'repo') { const u = cloneable(subject.url); return u && subject.forge === 'github' && !u.endsWith('.git') ? u + '.git' : u; }
   return null;
 }
 
@@ -127,8 +134,8 @@ export async function tangledRepo(repoDid){
 export async function tangledRepoDid(page){
   const m = String(page || '').match(/^https:\/\/tangled\.(?:org|sh)\/@?([^/?#]+)\/([^/?#]+)/);
   if (!m) return null;
-  const owner = await resolveHandle(decodeURIComponent(m[1]));
-  return parseUri((await xrpc(BOBBIN, 'org.tangled.repo.getRepoByName', { owner, name: decodeURIComponent(m[2]).replace(/\.git$/, '') })).uri)?.repo || null;
+  const owner = await resolveHandle(decode(m[1]));
+  return parseUri((await xrpc(BOBBIN, 'org.tangled.repo.getRepoByName', { owner, name: decode(m[2]).replace(/\.git$/, '') })).uri)?.repo || null;
 }
 /** The record behind a Tangled issue or pull request, from its page address or its own URI. */
 export async function tangledTicket(link){
@@ -154,11 +161,11 @@ export async function completeTangled(subject){
 }
 
 /* ---------- knotless, through its public API ---------- */
-const knotlessRepo = page => { const m = String(page || '').match(/^https:\/\/knotless\.dev\/@?([^/?#]+)\/([^/?#]+)/); return m ? `at://${decodeURIComponent(m[1])}/${K_REPO}/${decodeURIComponent(m[2]).replace(/\.git$/, '')}` : null; };
+const knotlessRepo = page => { const m = String(page || '').match(/^https:\/\/knotless\.dev\/@?([^/?#]+)\/([^/?#]+)/); return m ? `at://${decode(m[1])}/${K_REPO}/${decode(m[2]).replace(/\.git$/, '')}` : null; };
 /** A knotless issue or pull, from its page address: the repo it's on and its own record. */
 function knotlessRef(link){
   const m = String(link || '').match(new RegExp(`^(https://knotless\\.dev/[^/?#]+/[^/?#]+)/(issue|pull)/(did(?::|%3A)[^/?#]+)/(${KEY})`, 'i'));
-  return m ? { page: m[1], repo: knotlessRepo(m[1]), uri: `at://${decodeURIComponent(m[3])}/dev.knotless.${m[2].toLowerCase()}/${m[4]}` } : null;
+  return m ? { page: m[1], repo: knotlessRepo(m[1]), uri: `at://${decode(m[3])}/dev.knotless.${m[2].toLowerCase()}/${m[4]}` } : null;
 }
 const knotlessPage = (page, uri) => { const at = parseUri(uri); return at && page ? `${page}/${at.collection === K_PULL ? 'pull' : 'issue'}/${at.repo}/${at.rkey}` : null; };
 // One issue's thread answers two questions (is it open, and which pulls mention it), so the
@@ -190,7 +197,9 @@ export async function subjectInfo(subject){
   const kind = kindOf(subject);
   try {
     if (kind === 'githubIssue') {
-      const r = await getJSON(`${GITHUB_API}/repos/${subject.repo}/issues/${subject.number}`);
+      const n = parseInt(subject.number, 10);
+      if (!REPO_NAME.test(subject.repo || '') || !(n > 0)) return null;
+      const r = await getJSON(`${GITHUB_API}/repos/${subject.repo}/issues/${n}`);
       return { title: r.title, body: r.body || '', state: r.state, url: r.html_url };
     }
     if (kind === 'knotlessIssue') {

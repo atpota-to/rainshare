@@ -3,9 +3,9 @@
 *Got rain to spare? Your friends' ideas and projects could use it.*
 
 AI plans reset whether you use them or not. On Rainshare, the people you trust share the
-ideas and projects they'd like a hand with. The agent usage you have left over is the rain. It's an
-atproto-native, social take on [Overflow](https://github.com/Nitjsefnie/Overflow): no ledger
-and nothing to spend, just your circle.
+ideas and projects they'd like a hand with. The agent usage you have left over is the rain. It's
+[Overflow](https://github.com/Nitjsefnie/Overflow) on atproto, without the ledger: nobody earns
+or spends credits, and you help the people you follow.
 
 - **Ask for rain**, in three short steps with a preview beside them. *What*: an idea, or a
   project you already have, where it lives (a Tangled, knotless or GitHub issue, or any git
@@ -55,13 +55,12 @@ Signed out, the home page is the pitch beside the water cycle: a stretch of coas
 
 Picking a part (its pin, or anywhere near it in the scene) flies the camera in for a closer
 look and shows a short note: what that part stands for, and a link to the screen where it
-happens. "Next" walks round the cycle, and "Whole view" or Escape backs out. That's all the
-explaining the page does; the rest is the scene and the board of open asks under it.
+happens. "Next" walks round the cycle, and "Whole view" or Escape backs out. The board of open
+asks sits under the scene.
 
 The clouds are the ones atmosphere.online's sky is made of: each is a few hundred soft, lit
 "puffs" with noisy edges (`puffs.js`, brought over from that repo's `src/puff3d.js` and
-`src/sky.js`), under the same Morning and Night colours. A cloud here has a life. It starts
-small over the sea, takes on puffs as it drifts inland, towers into a thunderhead over the
+`src/sky.js`), under the same Morning and Night colours. Each cloud starts small over the sea, takes on puffs as it drifts inland, towers into a thunderhead over the
 hills, rains, and thins out past the mountains.
 
 There are seeds in the ground too: rows of them in plots beside the river. Rain brings one
@@ -87,7 +86,7 @@ ground, being rained on once someone's on it, up once it's turned in, and sprout
 The "ai" inside the name is lit in its own colour wherever the wordmark appears, and so is
 the "ai" inside "rain" where the word is prominent: the headline, the pitch under it, and the
 line under the board's heading (`lit` in `ui/bits.js`). It's one variable, `--lit`, in
-`src/theme.css`, with a second value for dark. A screen reader hears the plain sentence.
+`src/theme.css`, with a second value for dark. Screen readers get the plain text.
 
 The site is set in one typeface, Zen Maru Gothic, the same one atmosphere.online uses
 (`--body` in `src/theme.css`).
@@ -110,8 +109,8 @@ Rainshare's own four record types, every seed is public, and the app shows "Priv
 group" as coming. Turning `GROUPS` on brings back everything below that's about groups.
 
 A public seed lives in your repo, and `audience` says who it's
-for: apps show it only to those people and only offer it to them. That's a filter, not a lock,
-because anything in a public repo can be read by anyone. A private seed lives in your repo
+for: apps show it only to those people and only offer it to them. It doesn't hide anything,
+though: a public repo can be read by anyone. A private seed lives in your repo
 inside a group's Rainshare space (an Open Social space of type `dev.rainshare.board`, which a
 group admin adds), and only members can read it. Takes and deliveries go wherever their
 seed is.
@@ -206,15 +205,15 @@ slowly, drawn by one shared renderer that loads only when a plant is on screen
 
 ## What you've helped with
 
-Helping earns nothing you can spend. What it leaves is a garden: one plant on your profile for
+Helping doesn't earn credits. It grows a garden instead: one plant on your profile for
 each idea or project that got done with your work, drawn as what it grew into, and each one
 opens the ask it came from. Your board says how many ("Helped with 2"), beside your forecast.
 
 It's worked out, not stored (`core/garden.js`). A helper's delivery says what they worked on,
 and the asker's own record names the delivery that did it, so a garden needs both
 people's records to agree and nobody can add to their own. Two friends could still agree to
-pad each other's, which is why it's a picture of what you've done and not a score: there's
-no total to compare and no ranking of people. Only public asks count for now.
+pad each other's, so a garden is only ever shown as plants: there's no total and no
+leaderboard. Only public asks count for now.
 
 ## An idea, with no repo
 
@@ -355,7 +354,35 @@ in the app.
 | `ui/post.js` | Asking for rain on an idea or a project: three steps, a live preview and a confirmation |
 | `ui/bits.js` | Small shared pieces: escaping, times, icons, faces, and the glyphs for a forecast's sky and a seed's life |
 | `cli/rainshare.mjs` | The CLI and MCP server |
-| `test/` | `npm test`: the core, the data source against a fake network, and the MCP server |
+| `test/` | `npm test`: the core, the data source against a fake network, the MCP server, and what other people's records can't do (`security.test.mjs`) |
+
+## Security
+
+Almost everything Rainshare shows was written by someone else: seeds, takes, deliveries and
+profiles come from other people's repos, through servers they may run themselves. So nothing
+read from the network is trusted, and each thing is checked where it's used:
+
+- **Records** (`core/net.js`). A record's address is rebuilt from the account, collection and
+  key that were asked for, never copied from a server's answer, and one that claims to be
+  somewhere else is dropped. Record keys must be what atproto allows, DIDs must look like DIDs,
+  a handle must be a domain name, a PDS must be on https, and a `did:web` is a bare host.
+- **Pages** (`ui/`). Every value goes through `esc` before it reaches the page, and a spec's
+  Markdown is escaped first and then turned back on for a few safe constructs
+  (`core/markdown.js`). Links are http(s) only. `vercel.json` sets a Content Security Policy
+  with no inline scripts, so a slip in escaping still can't run code.
+- **Commands** (`core/brief.js`, `core/subjects.js`). A repo is cloned only from an address that is
+  a host and a plain path; anything bound for a shell is single-quoted, and the folder a seed's
+  work goes in is made from letters and digits only.
+- **Terminals and agents.** Control characters (and the invisible marks that reorder text) are
+  taken out of the brief and of everything the CLI and MCP server print, so a spec can't end a
+  terminal's bracketed paste and type commands, or rewrite the screen or the clipboard.
+- **Blocks.** Takes and deliveries from people you block on Bluesky are left out along with their
+  seeds, so nobody you've blocked can make something look taken.
+
+Two things are by design and worth knowing. A seed's spec is a request from a stranger, and the
+brief tells the agent so; a repo you clone for someone can still carry its own agent settings
+(a `CLAUDE.md`, hooks, an `.mcp.json`), so look before you trust a folder you haven't seen. And
+an audience only decides who Rainshare shows a seed to: anyone can read a public one.
 
 ## Running it
 
@@ -401,7 +428,10 @@ including sending an agent, turning a pull request in, the warning when someone 
 a seed, and marking your own seed sprouted after a merge. Asking for rain in three steps (an
 idea and a project, "More options" staying open across redraws, everyone by default, the
 coming-soon group row), the folded profile and the folded send-your-agent panel were checked
-in the example circle at desktop and phone widths.
+in the example circle at desktop and phone widths. Every screen was checked again at 1280 and 390
+pixels wide in light and dark, with the Content Security Policy from `vercel.json` applied: no
+sideways scrolling, nothing past the edge of the phone sheet, and nothing blocked by the policy
+(the landing's scene, the turning plants and the sign-in code all load under it).
 
 Not yet checked:
 

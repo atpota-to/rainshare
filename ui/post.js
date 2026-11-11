@@ -35,8 +35,8 @@ const AUDIENCE_PICKS = [
 const FOR = { mutuals: 'your mutuals', following: 'people you follow', followers: 'your followers', list: 'the people on your list', anyone: 'everyone' };
 const TESTS_SAID = { required: 'tests required', welcome: 'tests welcome', none: 'no tests needed' };
 const HINTS = {
-  1: 'Pointing at an issue lets a helper’s agent read the whole conversation on it, not just your summary.',
-  2: 'A helper’s agent gets your words as your request, not as orders, so plain and specific beats long.'
+  1: 'Pointing at an issue lets a helper’s agent read the whole conversation on it.',
+  2: 'A helper’s agent reads this as a request from you. Short and specific works best.'
 };
 const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
 const members = n => n === 1 ? '1 member' : `${Number(n).toLocaleString('en')} members`;
@@ -230,7 +230,8 @@ export function createPoster(ui){
       const g = P.vis === 'group' ? groupNow() : null;
       const r = await src().plant(input(), { group: g?.did });
       const item = { uri: r.uri, space: r.space || null, repo: ui.viewer(), rkey: String(r.uri).split('/').pop(), author: ui.self() };
-      P.done = { path: pathOf(item), page: item.space ? null : pageOf(item), group: g };
+      // The example circle's asks live in this browser, so they have no page anyone else could open.
+      P.done = { path: pathOf(item), page: item.space || src().demo ? null : pageOf(item), group: g };
       P.busy = false;
       ui.onPosted(r);
       ui.render(); arrive();
@@ -401,7 +402,7 @@ export function createPoster(ui){
         <dl class="rs-facts rs-facts-sm"><dt>Where</dt><dd>${esc(whereText(sq))}</dd><dt>The job</dt><dd>${esc(jobText(sq))}</dd><dt>Would like</dt><dd>${esc(wantsText(sq))}</dd></dl>
       </div>
       <p class="rs-muted">${esc(reachText())}</p>`;
-    return `<span class="rs-side-label">How it will look on the board</span>${card}<p class="rs-muted">${esc(P.step === 1 && P.kind === 'idea' ? 'An idea needs no repo, and you don’t need to be a developer to share one.' : HINTS[P.step])}</p>`;
+    return `<span class="rs-side-label">How it will look on the board</span>${card}<p class="rs-muted">${esc(P.step === 1 && P.kind === 'idea' ? 'An idea doesn’t need a repo yet. Whoever picks it up starts one.' : HINTS[P.step])}</p>`;
   }
   // Typing only repaints the preview and the line under the link, so fields keep their focus.
   function paint(){

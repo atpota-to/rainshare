@@ -80,6 +80,9 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
   });
   const people = dids => net.profiles(dids);
   const publicProfile = did => memo('profile:' + did, () => net.getRecordOrNull(did, PROFILE, 'self'));
+  // Who you block on Bluesky. Their seeds are left out, and so are their takes and deliveries,
+  // so nobody you've blocked can mark something as taken to keep others off it.
+  const myBlocks = () => viewer ? memo('blocks', () => net.blocksOf(viewer), 300e3).catch(() => new Set()) : Promise.resolve(new Set());
 
   // Your groups that have Rainshare, and what's in each one's space.
   const myGroups = () => memo('groups', async () => {
@@ -92,8 +95,8 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     return records;
   }, 20e3);
 
-  function attach(items, takes, deliveries){
-    const by = (list, uri) => list.filter(r => r.value?.seed?.uri === uri);
+  function attach(items, takes, deliveries, blocked = new Set()){
+    const by = (list, uri) => list.filter(r => r.value?.seed?.uri === uri && !blocked.has(r.repo));
     for (const it of items) { it.takes = by(takes, it.uri); it.deliveries = by(deliveries, it.uri); }
     return items;
   }
@@ -121,7 +124,7 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     if (viewer) {
       [rels, blocked] = await Promise.all([
         net.relationships(viewer, authors).catch(() => { notes.push('Bluesky didn’t say who you follow, so only seeds open to everyone are showing.'); return new Map(); }),
-        net.blocksOf(viewer).catch(() => new Set())
+        myBlocks()
       ]);
     }
     const visible = [];
@@ -132,7 +135,7 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
       if (!meantFor(r.value, { viewer, author: r.repo, rel, inList })) continue;
       visible.push({ ...r, space: null, group: null, closeness: closeness({ viewer, author: r.repo, rel }), rel });
     }
-    attach(visible, takes, deliveries);
+    attach(visible, takes, deliveries, blocked);
     await Promise.all([...new Set(visible.map(v => v.repo))].map(async d => {
       const p = await publicProfile(d).catch(() => null);
       visible.filter(v => v.repo === d).forEach(v => { v.profile = p?.value || null; });
@@ -177,10 +180,10 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     if (!p || p.collection !== SEED) return null;
     const rec = await net.getRecordOrNull(p.repo, SEED, p.rkey);
     if (!rec) return null;
-    const [takes, deliveries, prof] = await Promise.all([everyone(TAKE).catch(() => []), everyone(DELIVERY).catch(() => []), publicProfile(p.repo).catch(() => null)]);
+    const [takes, deliveries, prof, blocked] = await Promise.all([everyone(TAKE).catch(() => []), everyone(DELIVERY).catch(() => []), publicProfile(p.repo).catch(() => null), myBlocks()]);
     const rel = viewer && viewer !== p.repo ? (await net.relationships(viewer, [p.repo]).catch(() => new Map())).get(p.repo) : null;
     const item = { ...rec, space: null, group: null, rel, closeness: closeness({ viewer, author: p.repo, rel }), profile: prof?.value || null };
-    attach([item], takes, deliveries);
+    attach([item], takes, deliveries, blocked);
     await named([item]);
     return item;
   }

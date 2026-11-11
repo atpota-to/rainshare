@@ -55,7 +55,8 @@ function loop(){
   const S = stage3d; if (!S) return;
   for (const v of S.views) if (v.seen && v.canvas.isConnected) paint(v);
   for (const v of S.views) if (!v.canvas.isConnected) S.views.delete(v);
-  S.raf = S.views.size && !calm() && !document.hidden ? requestAnimationFrame(loop) : 0;
+  // Nothing on screen, nothing to draw: the loop stops until a plant scrolls back into view.
+  S.raf = [...S.views].some(v => v.seen) && !calm() && !document.hidden ? requestAnimationFrame(loop) : 0;
 }
 
 /** Show a plant on a 2D canvas, turning slowly. Returns a function that takes it down. Throws where WebGL isn't to be had. */
