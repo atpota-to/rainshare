@@ -36,23 +36,38 @@ const docs = new Map(), handles = new Map();
 export function didDoc(did){
   if (!docs.has(did)) {
     const p = did.startsWith('did:plc:') ? getJSON(`${PLC}/${did}`)
-      : did.startsWith('did:web:') ? getJSON(`https://${decodeURIComponent(did.slice(8))}/.well-known/did.json`)
+      // atproto's did:web is a bare host name (a port only for development), never a path.
+      : /^did:web:[a-z0-9.-]+(%3a\d{1,5})?$/i.test(did) ? getJSON(`https://${did.slice(8).replace(/%3a/i, ':')}/.well-known/did.json`)
       : Promise.reject(new NetError('BadDid', 'Unsupported DID: ' + did));
     docs.set(did, p); p.catch(() => docs.delete(did));
   }
   return docs.get(did);
 }
+// A PDS is reached over https; plain http only for one running on this machine (development).
+const pdsUrl = raw => {
+  try {
+    const u = new URL(String(raw));
+    if (u.protocol === 'https:' || (u.protocol === 'http:' && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(u.hostname))) return u.origin;
+  } catch (_) { /* not a URL */ }
+  return null;
+};
 export async function pdsOf(did){
   const doc = await didDoc(did);
   const s = (doc?.service || []).find(x => x.id === '#atproto_pds' || x.id === did + '#atproto_pds');
-  if (!s?.serviceEndpoint) throw new NetError('NoPds', 'No server listed for ' + did);
-  return s.serviceEndpoint.replace(/\/+$/, '');
+  const pds = s?.serviceEndpoint && pdsUrl(s.serviceEndpoint);
+  if (!pds) throw new NetError('NoPds', 'No server listed for ' + did);
+  return pds;
 }
+/** A handle as atproto allows it: a domain name. Anything else (it comes from a DID document anyone can write) is ignored. */
+export const isHandle = s => /^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?$/i.test(String(s || '')) && String(s).length <= 253;
 export async function handleOf(did){
-  const aka = (await didDoc(did).catch(() => null))?.alsoKnownAs?.find(a => a.startsWith('at://'));
-  return aka ? aka.slice(5) : null;
+  const aka = (await didDoc(did).catch(() => null))?.alsoKnownAs;
+  const h = Array.isArray(aka) ? aka.find(a => typeof a === 'string' && a.startsWith('at://'))?.slice(5) : null;
+  return isHandle(h) ? h.toLowerCase() : null;
 }
 export const isDid = s => /^did:(plc|web):[A-Za-z0-9._:%-]+$/.test(String(s || ''));
+/** An at:// URI whose parts are all what atproto allows, so it's safe to put in a link or a command. */
+export const safeAtUri = u => { const p = parseUri(u); return p && /^did:[a-z]+:[A-Za-z0-9._:%-]+$/.test(p.repo) && /^[a-zA-Z][a-zA-Z0-9.-]*$/.test(p.collection) && isRkey(p.rkey) ? String(u) : null; };
 export const normalizeHandle = raw => String(raw || '').trim().replace(/^@/, '').toLowerCase();
 export async function resolveHandle(raw){
   const h = normalizeHandle(raw);
@@ -70,22 +85,36 @@ export const parseUri = uri => {
   return m ? { repo: m[1], collection: m[2], rkey: m[3] } : null;
 };
 export const recordUri = (repo, collection, rkey) => `at://${repo}/${collection}/${rkey}`;
+/** A record key as atproto allows it. Keys end up in links, file names and shell commands, so nothing else gets through. */
+export const isRkey = s => /^[A-Za-z0-9._:~-]{1,512}$/.test(String(s ?? '')) && s !== '.' && s !== '..';
 
+// Whatever a PDS answers is taken only as far as it agrees with what was asked: a record's
+// address is rebuilt from the account, collection and key, never copied from the answer, and
+// a record that claims to be somewhere else is left out.
+const valueOf = r => r && typeof r.value === 'object' && r.value !== null && !Array.isArray(r.value) ? r.value : null;
 export async function listRecords(did, collection, { limit = 100, pages = 3 } = {}){
+  if (!isDid(did)) throw new NetError('BadDid', 'Not a DID: ' + did);
   const pds = await pdsOf(did), out = [];
   let cursor;
   for (let i = 0; i < pages; i++) {
     const r = await xrpc(pds, 'com.atproto.repo.listRecords', { repo: did, collection, limit, cursor });
-    out.push(...(r.records || []));
+    out.push(...(Array.isArray(r.records) ? r.records : []));
     cursor = r.cursor;
     if (!cursor || (r.records || []).length < limit) break;
   }
-  return out.map(r => ({ uri: r.uri, cid: r.cid, repo: did, collection, rkey: r.uri.split('/').pop(), value: r.value }));
+  return out.flatMap(r => {
+    const at = parseUri(r?.uri);
+    if (!at || at.repo !== did || at.collection !== collection || !isRkey(at.rkey) || !valueOf(r)) return [];
+    return [{ uri: recordUri(did, collection, at.rkey), cid: typeof r.cid === 'string' ? r.cid : null, repo: did, collection, rkey: at.rkey, value: r.value }];
+  });
 }
 export async function getRecord(did, collection, rkey){
+  if (!isDid(did) || !isRkey(rkey)) throw new NetError('RecordNotFound', 'No such record', 400);
   const pds = await pdsOf(did);
   const r = await xrpc(pds, 'com.atproto.repo.getRecord', { repo: did, collection, rkey });
-  return { uri: r.uri, cid: r.cid, repo: did, collection, rkey, value: r.value };
+  const at = parseUri(r?.uri);
+  if ((at && (at.repo !== did || at.collection !== collection || at.rkey !== rkey)) || !valueOf(r)) throw new NetError('RecordNotFound', 'No such record', 404);
+  return { uri: recordUri(did, collection, rkey), cid: typeof r.cid === 'string' ? r.cid : null, repo: did, collection, rkey, value: r.value };
 }
 export async function getRecordOrNull(did, collection, rkey){
   try { return await getRecord(did, collection, rkey); }
@@ -101,7 +130,7 @@ export async function reposWith(collection, { max = 2000 } = {}){
       let cursor;
       do {
         const r = await xrpc(relay, 'com.atproto.sync.listReposByCollection', { collection, limit: 500, cursor });
-        out.push(...(r.repos || []).map(x => x.did));
+        out.push(...(Array.isArray(r.repos) ? r.repos : []).map(x => x?.did).filter(isDid));
         cursor = r.cursor;
       } while (cursor && out.length < max);
       return [...new Set(out)];
@@ -133,7 +162,7 @@ export async function profiles(dids){
   await Promise.all(chunk(todo, 25).map(async part => {
     try {
       const r = await xrpc(APPVIEW, 'app.bsky.actor.getProfiles', { actors: part });
-      for (const p of r.profiles || []) people.set(p.did, { did: p.did, handle: p.handle, displayName: p.displayName || '', avatar: p.avatar || null });
+      for (const p of r.profiles || []) if (isDid(p?.did)) people.set(p.did, { did: p.did, handle: isHandle(p.handle) ? p.handle : null, displayName: typeof p.displayName === 'string' ? p.displayName : '', avatar: /^https:\/\//.test(p.avatar || '') ? p.avatar : null });
     } catch (_) { /* fall through to the DID documents */ }
     await Promise.all(part.filter(d => !people.has(d)).map(async d => people.set(d, { did: d, handle: await handleOf(d).catch(() => null), displayName: '', avatar: null })));
   }));
@@ -151,7 +180,7 @@ export function listMembers(uri){
       let cursor;
       for (let i = 0; i < 10; i++) {
         const r = await xrpc(APPVIEW, 'app.bsky.graph.getList', { list: uri, limit: 100, cursor });
-        (r.items || []).forEach(it => out.add(it.subject?.did));
+        (r.items || []).forEach(it => { if (isDid(it.subject?.did)) out.add(it.subject.did); });
         cursor = r.cursor; if (!cursor) break;
       }
       return out;

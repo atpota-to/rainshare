@@ -11,7 +11,7 @@
 // It reaches public seeds (records in people's own repos). Private ones, in a group's
 // space, are taken on in the app for now.
 import { createSource } from '../core/source.js';
-import { brief, pageOf } from '../core/brief.js';
+import { brief, pageOf, printable, workDir } from '../core/brief.js';
 import { look, standing } from '../core/status.js';
 import { rank } from '../core/rank.js';
 import { parseSubject, describeSubject, cloneUrlOf, FORGE_NAMES } from '../core/subjects.js';
@@ -20,7 +20,7 @@ import { SEED, FORECAST, BUDGETS, TESTS, HARNESSES, labelOf, audienceOf } from '
 import { strongRef } from '../core/records.js';
 import { stateText } from '../core/words.js';
 import * as net from '../core/net.js';
-import { readFile, writeFile, mkdir, appendFile, rm } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, appendFile, rm, chmod } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -30,8 +30,11 @@ import readline from 'node:readline';
 const VERSION = '0.1.0';
 const CONFIG_DIR = join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'rainshare');
 const SESSION_FILE = join(CONFIG_DIR, 'session.json');
-let out = s => process.stdout.write(s + '\n');
-const err = s => process.stderr.write(s + '\n');
+// Most of what's printed was written by other people (titles, specs, names), so control
+// characters are taken out first: an escape sequence in a spec could otherwise rewrite the
+// terminal, its title or its clipboard.
+let out = s => process.stdout.write(printable(s) + '\n');
+const err = s => process.stderr.write(printable(s) + '\n');
 
 class CliError extends Error {}
 
@@ -52,10 +55,15 @@ async function loadSession(){
   if (process.env.RAINSHARE_HANDLE && process.env.RAINSHARE_APP_PASSWORD) return createSession(process.env.RAINSHARE_HANDLE, process.env.RAINSHARE_APP_PASSWORD);
   try { return JSON.parse(await readFile(SESSION_FILE, 'utf8')); } catch (_) { return null; }
 }
-async function saveSession(s){
-  if (process.env.RAINSHARE_HANDLE && process.env.RAINSHARE_APP_PASSWORD) return;
+// The tokens are only for you: the file is yours alone to read, even if it was there before.
+async function writeSession(s){
   await mkdir(CONFIG_DIR, { recursive: true, mode: 0o700 });
   await writeFile(SESSION_FILE, JSON.stringify(s, null, 2), { mode: 0o600 });
+  await chmod(SESSION_FILE, 0o600).catch(() => {});
+}
+async function saveSession(s){
+  if (process.env.RAINSHARE_HANDLE && process.env.RAINSHARE_APP_PASSWORD) return;
+  await writeSession(s);
 }
 // A fetchHandler like an OAuth session's: paths on your own PDS, refreshing when the token runs out.
 function agentFor(s){
@@ -205,6 +213,8 @@ async function doTurnIn(ref, { url, harness, model, sessionUrl, note } = {}){
   const { src, session } = await source({ required: true });
   let it = await getItem(src, ref);
   const pull = /^at:\/\//.test(url || '') ? url : undefined, setup = await setupFrom(src, session.did, { harness, model });
+  // The link is checked before anything is written, so a typo doesn't leave a take with nothing turned in.
+  if (!(pull ? net.parseUri(pull) : /^https?:\/\/\S+$/i.test(String(url || '')))) throw new CliError(`“${url}” isn’t a link. Give the pull request’s address (or, for an idea, where it lives).`);
   // Turning in something you hadn't said you were on: say so first, so the two records agree.
   if (!(it.takes || []).some(t => t.repo === session.did)) { await src.take(it, { setup }); it = await src.seed(it.uri, { force: true }) || it; }
   await src.turnIn(it, { url: pull ? undefined : url, pull, sessionUrl, note, setup });
@@ -268,7 +278,7 @@ async function doRun(ref, o = {}){
   const sq = item.value || {}, d = describeSubject(sq.subject), clone = cloneUrlOf(sq.subject);
   const mine = (await src.profileOf(session.did).catch(() => null))?.merged?.setups?.[0];
   const using = o.with || (mine?.harness === 'codex' ? 'codex' : 'claude');
-  const dir = o.dir || 'rainshare-' + item.rkey.slice(-8);
+  const dir = typeof o.dir === 'string' ? o.dir : workDir(item);
   if (!clone && d) throw new CliError('It doesn’t say where the code is. Read it with `show`, then clone it yourself.');
   if (!existsSync(dir)) {
     // An idea has nothing to clone: it starts as a new, empty repository.
@@ -402,8 +412,8 @@ function mcp(){
         if (!tool) return send({ jsonrpc: '2.0', id, error: { code: -32602, message: 'Unknown tool: ' + params?.name } });
         try {
           const r = await tool.run(params.arguments || {});
-          return send({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: r.text }], ...(r.data && !Array.isArray(r.data) ? { structuredContent: r.data } : {}) } });
-        } catch (e) { return send({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: e.message || String(e) }], isError: true } }); }
+          return send({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: printable(r.text) }], ...(r.data && !Array.isArray(r.data) ? { structuredContent: r.data } : {}) } });
+        } catch (e) { return send({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: printable(e.message || String(e)) }], isError: true } }); }
       }
       send({ jsonrpc: '2.0', id, error: { code: -32601, message: 'Method not found: ' + method } });
     } catch (e) { send({ jsonrpc: '2.0', id, error: { code: -32603, message: e.message || String(e) } }); }
@@ -416,7 +426,7 @@ function parseArgs(argv){
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a.startsWith('--')) {
-      const [k, v] = a.slice(2).split('=');
+      const eq = a.indexOf('='), k = eq < 0 ? a.slice(2) : a.slice(2, eq), v = eq < 0 ? undefined : a.slice(eq + 1);
       const key = k.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
       if (v !== undefined) opts[key] = v;
       else if (argv[i + 1] && !argv[i + 1].startsWith('--')) opts[key] = argv[++i];
@@ -467,8 +477,7 @@ async function main(){
       const handle = pos[0] || await ask('Your handle: ');
       const password = process.env.RAINSHARE_APP_PASSWORD || await ask('An app password (Bluesky: Settings → Privacy and security → App passwords): ', { hidden: true });
       const s = await createSession(handle, password);
-      await mkdir(CONFIG_DIR, { recursive: true, mode: 0o700 });
-      await writeFile(SESSION_FILE, JSON.stringify(s, null, 2), { mode: 0o600 });
+      await writeSession(s);
       return out(`Signed in as @${s.handle}. Saved to ${SESSION_FILE}.`);
     }
     case 'logout': await rm(SESSION_FILE, { force: true }); return out('Signed out.');

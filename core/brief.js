@@ -3,8 +3,8 @@
 // person, so an agent weighs it rather than obeying it.
 import { SITE, labelOf, TESTS } from './ns.js';
 import { nounOf, whatItIs } from './words.js';
-import { describeSubject, cloneUrlOf, kindOf, FORGE_NAMES, REPO_NAME, KNOTLESS, KNOTLESS_NAME } from './subjects.js';
-import { parseUri } from './net.js';
+import { describeSubject, cloneUrlOf, kindOf, safeHttp, FORGE_NAMES, REPO_NAME, KNOTLESS, KNOTLESS_NAME } from './subjects.js';
+import { parseUri, safeAtUri } from './net.js';
 import { standing } from './status.js';
 import { newRepoPlaces } from './forges.js';
 
@@ -12,6 +12,13 @@ const CLI_URL = SITE + '/rainshare.mjs';
 export const CLI_HOME = '~/.rainshare.mjs';
 export const INSTALL = `curl -fsSL ${CLI_URL} -o ${CLI_HOME}`;
 export const MCP_ADD = `claude mcp add rainshare -- node ${CLI_HOME} mcp`;
+
+// Control characters and the invisible marks that reorder text. A seed is written by someone
+// else, and its brief is pasted into terminals and agents: an escape sequence in it could end a
+// terminal's bracketed paste early and type the rest as commands, or redraw what's on screen.
+const CONTROL = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F\u200E\u200F\u202A-\u202E\u2066-\u2069]/g;
+/** Text with those taken out: newlines and tabs stay. */
+export const printable = s => String(s ?? '').replace(CONTROL, '');
 
 /** The seed's page on rainshare.dev (public ones; private ones only open where you're signed in). */
 export function pageOf(item){
@@ -43,7 +50,7 @@ export function readHandBack(search){
  */
 export function brief(item, { viewer, now = Date.now() } = {}){
   const sq = item.value || {}, sub = sq.subject, d = describeSubject(sub), clone = cloneUrlOf(sub), kind = kindOf(sub);
-  const w = sq.wants || {}, page = pageOf(item), pub = !!item.uri && !item.space, n = parseInt(sub?.number, 10) || '';
+  const w = sq.wants || {}, page = pageOf(item), pub = !!item.uri && !item.space, n = parseInt(sub?.number, 10) || '', specUrl = safeHttp(sq.specUrl);
   const forge = d ? FORGE_NAMES[d.forge] || 'the forge' : 'the forge';
   // On Tangled a pull request is opened on the web (a command-line tool is on its way), so the
   // agent pushes the branch and its user opens the pull request and says where it is.
@@ -55,7 +62,7 @@ export function brief(item, { viewer, now = Date.now() } = {}){
   // either can do the whole job. Its commands name a repo as knotless://<owner>/<name>.
   const knotless = d?.forge === 'knotless', kl = knotless && KNOTLESS_NAME.test(d.repo || '') ? `knotless://${d.repo}` : null;
   const lines = [
-    `# ${whatItIs(sq).name}: ${sq.title}`,
+    `# ${whatItIs(sq).name}: ${String(sq.title || '').replace(/\s+/g, ' ').trim()}`,
     '',
     // What it is, plainly: an idea with nothing built yet, or a project that exists, and how far along.
     `On Rainshare, friends with spare agent usage give each other a hand with their ideas and projects. ${who(item)} is asking for a hand with this ${nounOf(sq)} (${whatItIs(sq).note.replace(/\.$/, '').replace(/^\w/, c => c.toLowerCase())})${page ? `: ${page}` : ''}.`,
@@ -67,7 +74,7 @@ export function brief(item, { viewer, now = Date.now() } = {}){
     lines.push('## Where', '');
     if (clone) lines.push(`- Repository: ${clone}`);
     if (d.issue && d.href) lines.push(`- Issue: ${d.href}`);
-    if (sq.specUrl) lines.push(`- Longer spec: ${sq.specUrl}`);
+    if (specUrl) lines.push(`- Longer spec: ${specUrl}`);
     lines.push('');
   } else {
     const made = newRepoPlaces({ title: sq.title }).filter(p => p.command);
@@ -78,7 +85,7 @@ export function brief(item, { viewer, now = Date.now() } = {}){
       '', 'Starting a new one:', '',
       ...made.map(p => `- ${p.name}: \`${p.command}\`${p.note ? ` (${p.note.replace(/\.$/, '')}: ${p.href})` : ''}`),
       '- Anywhere else git can push to is fine too.',
-      ...(sq.specUrl ? [`- Longer spec: ${sq.specUrl}`] : []), '');
+      ...(specUrl ? [`- Longer spec: ${specUrl}`] : []), '');
   }
 
   // Where it stood when this was made, and what to check now: a brief can sit in a clipboard for days.
@@ -91,7 +98,7 @@ export function brief(item, { viewer, now = Date.now() } = {}){
   const checks = [
     kind === 'githubIssue' && d.repo && n ? `Look at the issue. Is it still open? Is there a linked pull request, or a comment from someone already working on it? \`gh issue view ${n} --repo ${d.repo} --comments\` shows it, and \`gh pr list --repo ${d.repo}\` lists the open pull requests.`
       : d?.forge === 'github' && d.repo ? `Look through the repository’s open pull requests for one that already does this: \`gh pr list --repo ${d.repo}\`.`
-        : knotless ? `Look at ${d.issue ? 'the issue, and at ' : ''}the repository’s pulls, for one that already does this.${kl ? ` With the knotless CLI: ${d.issue && sub.uri ? `\`knotless issue show ${kl} ${sub.uri}\` and ` : ''}\`knotless pull list ${kl}\` (its MCP tools \`issue_show\` and \`pull_list\` do the same).` : ''} On the web: ${[d.issue && d.href, clone && clone + '/pulls'].filter(Boolean).join(' and ') || 'its page'}.`
+        : knotless ? `Look at ${d.issue ? 'the issue, and at ' : ''}the repository’s pulls, for one that already does this.${kl ? ` With the knotless CLI: ${d.issue && safeAtUri(sub.uri) ? `\`knotless issue show ${kl} ${sub.uri}\` and ` : ''}\`knotless pull list ${kl}\` (its MCP tools \`issue_show\` and \`pull_list\` do the same).` : ''} On the web: ${[d.issue && d.href, clone && clone + '/pulls'].filter(Boolean).join(' and ') || 'its page'}.`
         : tangled ? `Look at ${d.issue ? 'the issue, and at ' : ''}the repository’s pull requests on tangled.org, for one that already does this: ${[d.issue && d.href, clone && clone + '/pulls'].filter(Boolean).join(' and ') || 'its page'}.`
           : d ? 'Look in the repository for a branch or pull request that already does this.'
             : 'Look for something that already does this. If it exists, tell your user before building anything: a pointer to it may be all that’s wanted.',
@@ -156,7 +163,7 @@ export function brief(item, { viewer, now = Date.now() } = {}){
       : `3. That nothing more is needed after that: ${who(item)} marks it done once the pull request is merged.`, '',
     `If you stop before finishing, say so plainly, so it can be dropped and someone else can pick it up${pub ? ` (\`node ${CLI_HOME} drop ${item.uri}\`, the MCP tool \`rainshare_drop\`, or its page on Rainshare)` : ''}.`,
     '');
-  return lines.join('\n');
+  return printable(lines.join('\n'));
 }
 
 // A heredoc delimiter that can't appear in the brief.
@@ -165,7 +172,8 @@ function heredoc(text){
   while (text.includes(tag)) tag += '_';
   return `"$(cat <<'${tag}'\n${text}\n${tag}\n)"`;
 }
-const dirOf = item => 'rainshare-' + (parseUri(item.uri)?.rkey || 'work').slice(-8);
+/** The folder a seed's work goes in: its key's last few letters, and nothing a shell would read as more than a word. */
+export const workDir = item => 'rainshare-' + (String(parseUri(item.uri)?.rkey || '').replace(/[^A-Za-z0-9-]/g, '').slice(-8) || 'work');
 /** One shell word, single-quoted. */
 export const sh = s => `'${String(s).replace(/'/g, `'\\''`)}'`;
 
@@ -177,7 +185,7 @@ export const sh = s => `'${String(s).replace(/'/g, `'\\''`)}'`;
  */
 export function launchers(item, opts){
   const clone = cloneUrlOf(item.value?.subject), d = describeSubject(item.value?.subject), out = [];
-  const text = brief(item, opts), dir = dirOf(item), pub = item.uri && !item.space;
+  const text = brief(item, opts), dir = workDir(item), pub = !!safeAtUri(item.uri) && !item.space;
   if (clone) {
     out.push({ id: 'claude', label: 'Claude Code', note: 'Clones the repo and starts Claude Code with the brief.', command: `git clone ${sh(clone)} ${dir} && cd ${dir} && claude ${heredoc(text)}` });
     if (d?.forge === 'github' && REPO_NAME.test(d.repo || '')) out.push({ id: 'cloud', label: 'Claude Code in the cloud', note: 'Forks it with the GitHub CLI, then runs the work as a cloud session on your fork, so it keeps going after you close your laptop.', command: `gh repo fork ${sh(d.repo)} --clone && cd ${sh(d.repo.split('/')[1])} && claude --cloud ${heredoc(text)}` });

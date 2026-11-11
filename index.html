@@ -17,6 +17,7 @@
 <meta property="og:image:alt" content="Rainshare. Got rain to spare? Your friends’ ideas and projects could use it. Beside the words, a coast under soft clouds: mist rising off the sea, rain over the hills, and a river running back.">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 </head>
 <body>
 <header class="rd-bar">
@@ -30,6 +31,7 @@
 </header>
 
 <main class="rd-main">
+  <noscript><p class="rd-noscript">Rainshare runs in your browser and needs JavaScript. The command-line version works without it: <code>curl -fsSL https://rainshare.dev/rainshare.mjs -o ~/.rainshare.mjs</code></p></noscript>
   <!-- Signed out, at /: what Rainshare is, beside the water cycle to look around in; then everything open to everyone -->
   <section class="rd-landing" id="landing" hidden>
     <div class="rd-pitch">
@@ -71,7 +73,7 @@
         <p class="rd-hint" id="sceneHint">Pick a part of the cycle to look closer.</p>
         <article class="rd-note" id="note0" hidden>
           <h2>Evaporation</h2>
-          <p>Your plan resets whether you use it or not. The part you won’t get to is the part worth sharing.</p>
+          <p>Some of your plan goes unused before it resets. That’s the part worth sharing.</p>
           <a href="/example/me" data-nav>See a forecast</a>
         </article>
         <article class="rd-note" id="note1" hidden>
@@ -102,7 +104,7 @@
 </main>
 
 <footer class="rd-foot">
-  <p>Every idea and project, every take and every profile is a record in its owner’s own account (<code>dev.rainshare.*</code>). Your circle comes from who you follow on Bluesky. Rainshare works with Bluesky, Tangled, knotless and GitHub.</p>
+  <p>Everything here is a record in its owner’s own account (<code>dev.rainshare.*</code>), and your circle is the people you follow on Bluesky. Works with Bluesky, Tangled, knotless and GitHub.</p>
 </footer>
 <div class="rd-toast" id="toast" role="status" aria-live="polite" hidden></div>
 <script type="module" src="/src/main.js"></script>

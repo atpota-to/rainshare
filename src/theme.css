@@ -55,6 +55,7 @@ a{color:inherit}
 @media (prefers-color-scheme:dark){.rd-btn{color:#0B1220}}
 .rd-link{border:0;background:none;color:var(--muted);font:600 14px var(--body);text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:4px}
 
+.rd-noscript{margin:0;padding:16px 20px;border-radius:16px;background:var(--card);font-size:16px;line-height:1.5}
 .rd-main{flex:1;width:100%;max-width:1112px;margin:0 auto;padding:8px 16px 48px;display:flex;flex-direction:column;gap:28px}
 
 .rd-foot{max-width:1112px;width:100%;margin:0 auto;padding:24px 16px 40px;color:var(--muted);font-size:14px;border-top:1px solid var(--line)}

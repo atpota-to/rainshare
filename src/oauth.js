@@ -30,6 +30,12 @@ const hasCallback = () => location.pathname === REDIRECT_PATH && /(^|[#&])state=
 export const mightBeSignedIn = () => { try { return !!localStorage.getItem(SIGNED_IN); } catch (_) { return false; } };
 export const isCallback = hasCallback;
 
+// Where to go after signing in: a path on this site, and nothing a browser would read as another one (//host, /\host).
+const samePath = to => {
+  if (typeof to !== 'string' || !/^\/(?![\/\\])/.test(to) || /[\\\u0000-\u001f]/.test(to)) return null;
+  try { const u = new URL(to, location.origin); return u.origin === location.origin ? u.pathname + u.search + u.hash : null; } catch (_) { return null; }
+};
+
 /** Finish a sign-in that just came back, or restore the last one: { session, to } or null. */
 export async function start(){
   if (!hasCallback() && !mightBeSignedIn()) return null;
@@ -46,7 +52,7 @@ export async function start(){
   if (!r) return null;
   let to = null;
   try { to = r.state ? JSON.parse(r.state).to : null; } catch (_) {}
-  return { session: r.session, to: typeof to === 'string' && to.startsWith('/') && !to.startsWith('//') ? to : null };
+  return { session: r.session, to: samePath(to) };
 }
 
 export async function signIn(handle, to, { basic } = {}){

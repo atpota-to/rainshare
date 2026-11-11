@@ -53,6 +53,8 @@
 .rd-pin.on{background:var(--accent);color:#fff}
 .rd-pin.on i{background:currentColor;box-shadow:none}
 @media (prefers-color-scheme:dark){.rd-pin.on{color:#0B1220}}
+/* a finger needs more to aim at than a pointer does */
+@media (pointer:coarse){.rd-pin{height:34px;margin-top:-17px}}
 @container (max-width:470px){
   .rd-pin,.rd-pin.flip{padding:0 8px}
   .rd-pin span{display:none}

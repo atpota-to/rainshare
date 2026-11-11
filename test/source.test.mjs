@@ -121,6 +121,22 @@ test('taking on, turning in and sprouting, even while the relay lags', async () 
   assert.equal((await src.seed(it.uri, { force: true })).takes.length, 0);
 });
 
+test('someone you block can’t keep a seed looking taken', async () => {
+  // Eve, whom I block, says she's on Dave's seed and turns something in.
+  const eve = createSource({ agent: agent(people.eve) });
+  const d1 = await eve.seed(`at://${people.dave}/${SEED}/d1`);
+  await eve.take(d1);
+  await eve.turnIn(d1, { url: 'https://github.com/o/r/pull/1' });
+  const seen = await eve.seed(d1.uri, { force: true });
+  assert.equal(seen.takes.length, 1, 'everyone else still sees it');
+  const mine = createSource({ agent: agent(people.me) });
+  const it = await mine.seed(d1.uri);
+  assert.equal(it.takes.length, 0);
+  assert.equal(it.deliveries.length, 0);
+  const onBoard = (await mine.board()).items.find(i => i.uri === d1.uri);
+  assert.equal(onBoard.takes.length, 0);
+});
+
 test('posting, closing and deleting your own', async () => {
   const src = createSource({ agent: agent(people.me) });
   lagging.add(people.me + ' ' + SEED);
