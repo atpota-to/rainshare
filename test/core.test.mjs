@@ -62,7 +62,8 @@ test('builds seeds with sensible defaults and limits', () => {
   const r = R.seed({ title: 'x'.repeat(200), tags: 'Rust, CLI tools, rust', audience: 'nonsense' });
   assert.equal([...r.title].length, 120);
   assert.deepEqual(r.tags, ['rust', 'cli-tools']);
-  assert.equal(r.audience.$type, SEED + '#mutuals');
+  assert.equal(r.audience.$type, SEED + '#mutuals', 'a word nobody knows keeps it narrow');
+  assert.equal(R.seed({ title: 't' }).audience.$type, SEED + '#anyone', 'left out, it’s open to everyone');
   assert.ok(r.createdAt && !r.updatedAt && !r.state);
   assert.throws(() => R.seed({ title: 't', audience: 'list' }), /list/);
   const g = R.seed({ title: 't', group: 'did:plc:group' });
@@ -72,6 +73,10 @@ test('builds seeds with sensible defaults and limits', () => {
   assert.equal(w.specUrl, undefined);
   const edited = R.seed({ title: 'new' }, { createdAt: '2026-01-01T00:00:00.000Z', state: 'sprouted' });
   assert.equal(edited.createdAt, '2026-01-01T00:00:00.000Z'); assert.equal(edited.state, 'sprouted'); assert.ok(edited.updatedAt);
+  // Saving one again (closing it, marking it sprouted) keeps who it's for, list and all.
+  const open = R.seed({ title: 't', audience: 'anyone' }), listed = R.seed({ title: 't', audience: 'list', list: 'at://did:plc:a/app.bsky.graph.list/1' });
+  assert.equal(R.seed({ ...open, state: 'sprouted' }, open).audience.$type, SEED + '#anyone');
+  assert.deepEqual(R.seed({ ...listed, state: 'closed' }, listed).audience, { $type: SEED + '#list', list: 'at://did:plc:a/app.bsky.graph.list/1' });
 });
 
 test('profiles keep private fields out of the public copy', () => {
@@ -215,6 +220,23 @@ test('a space record URI splits into its space and record', () => {
   assert.deepEqual(splitSpaceUri('at://did:plc:g/space/dev.rainshare.board/rainshare/did:plc:me/dev.rainshare.seed/3k1'),
     { space: 'at://did:plc:g/space/dev.rainshare.board/rainshare', repo: 'did:plc:me', collection: 'dev.rainshare.seed', rkey: '3k1' });
   assert.equal(splitSpaceUri('at://did:plc:me/dev.rainshare.seed/3k1'), null);
+});
+
+test('without groups, the example has nothing private and sign-in asks only for Rainshare’s records', async () => {
+  const src = createDemoSource({ groups: false });
+  assert.equal(src.canPrivate, false);
+  assert.deepEqual(await src.groups(), []);
+  const { items } = await src.board();
+  assert.ok(items.length >= 6 && items.every(i => !i.space && !i.group));
+  const me = await src.profileOf(src.viewer);
+  assert.deepEqual(me.hidden, []); assert.deepEqual(me.groups, []);
+  assert.equal(me.public.budget, me.merged.budget, 'nothing is kept back for groups that aren’t there');
+  const { SCOPE, BASIC_SCOPE } = await import('../src/scope.js');
+  const { GROUPS } = await import('../core/ns.js');
+  if (!GROUPS) {
+    assert.equal(SCOPE, 'atproto repo:dev.rainshare.profile repo:dev.rainshare.seed repo:dev.rainshare.take repo:dev.rainshare.delivery');
+    assert.equal(BASIC_SCOPE, SCOPE);
+  }
 });
 
 test('the example circle answers like the real source', async () => {

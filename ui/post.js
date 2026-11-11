@@ -1,10 +1,11 @@
-// Planting a seed, in five short steps with a preview beside them of how it will look:
-// where the work is, what you'd like done, how, who it's for, and a last look. Then a
-// confirmation that says who can see it and what happens next.
+// Asking for rain, in three short steps with a preview beside them of how it will look:
+// what needs it (a seed, or a plant and where it lives), what you'd like done (with how,
+// folded away under "More options"), and who it's for. Then a confirmation that says who
+// can see it and what happens next.
 //
 // rainshare.js owns the screen and hands in what this needs as `ui`; this keeps the draft
 // (so it survives leaving and coming back) and draws the steps.
-import { SEED, STAGES, MODEL_PICKS, modelName } from '../core/ns.js';
+import { SEED, STAGES, MODEL_PICKS, GROUPS, modelName } from '../core/ns.js';
 import { parseSubject, describeSubject, kindOf, subjectInfo, knotlessIssueSubject } from '../core/subjects.js';
 import { newRepoPlaces } from '../core/forges.js';
 import { whereText, shortWhere, jobText, jobShort, wantsText, wantsShort, askExcerpt, stageOf, aNoun } from '../core/words.js';
@@ -12,7 +13,9 @@ import { join } from '../core/rank.js';
 import { pageOf } from '../core/brief.js';
 import { esc, ago, ico, forgeIco, face, people, pathOf, plantPic } from './bits.js';
 
-const STEPS = ['Which', 'What', 'How', 'Who', 'Look it over'];
+const STEPS = ['What', 'Details', 'Who'];
+// A plant is a project that exists, and says how far along it is.
+const PLANT_STAGES = STAGES.filter(([k]) => k !== 'seed');
 const KINDS = [
   ['tangled', 'A Tangled issue', 'Pick from your Tangled repos'],
   ['knotless', 'A knotless issue', 'Pick from your knotless repos'],
@@ -21,19 +24,19 @@ const KINDS = [
 ];
 const TEST_PICKS = [['required', 'Required'], ['welcome', 'Welcome'], ['none', 'Not needed']];
 const SIZE_PICKS = [['tiny', 'Tiny', 'minutes'], ['small', 'Small', 'an evening'], ['medium', 'Medium', 'a weekend'], ['large', 'Large', 'longer']];
+// Everyone first: it's where an ask is most likely to find someone with rain to spare.
 const AUDIENCE_PICKS = [
+  ['anyone', 'Everyone', 'Anyone on Rainshare'],
   ['mutuals', 'Mutuals', 'People you follow who follow you back'],
   ['following', 'People I follow', 'Anyone you follow on Bluesky'],
-  ['followers', 'My followers', 'Anyone can follow you, so this is the widest circle'],
-  ['list', 'A Bluesky list', 'People on one of your lists'],
-  ['anyone', 'Everyone', 'Anyone who comes across it']
+  ['followers', 'My followers', 'Anyone who follows you on Bluesky'],
+  ['list', 'A Bluesky list', 'People on one of your lists']
 ];
 const FOR = { mutuals: 'your mutuals', following: 'people you follow', followers: 'your followers', list: 'the people on your list', anyone: 'everyone' };
 const TESTS_SAID = { required: 'tests required', welcome: 'tests welcome', none: 'no tests needed' };
 const HINTS = {
   1: 'Pointing at an issue lets a helper’s agent read the whole conversation on it, not just your summary.',
-  2: 'A helper’s agent gets your words as your request, not as orders, so plain and specific beats long.',
-  3: 'The board keeps this to one quiet line. The rest shows in the details beside it.'
+  2: 'A helper’s agent gets your words as your request, not as orders, so plain and specific beats long.'
 };
 const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
 const members = n => n === 1 ? '1 member' : `${Number(n).toLocaleString('en')} members`;
@@ -45,8 +48,9 @@ const fresh = () => ({
   kind: null, link: '', subject: null, info: null, prefilled: false,
   repos: null, repo: null, issues: null,
   title: '', spec: '', specUrl: '',
+  more: false,       // whether "More options" (models, tests, size, tags…) is open
   models: [], otherModel: '', tests: 'welcome', size: 'small', maxDiffLines: '', tags: '', values: '', notes: '',
-  vis: 'public', audience: 'mutuals', list: null, group: null, parallel: false,
+  vis: 'public', audience: 'anyone', list: null, group: null, parallel: false,
   owner: 'helper',   // for an idea: whoever builds it keeps it ('helper'), or it's started for you ('requester')
   lists: null, groups: null, reach: null,
   bsky: true, bskyText: null
@@ -69,7 +73,7 @@ export function createPoster(ui){
     Object.assign(P, { lists, groups, reach });
     if (!P.list && lists[0]) P.list = lists[0].uri;
     if (!P.group) P.group = groups.find(g => g.space)?.did || null;
-    if (P.step >= 4) ui.render();
+    if (P.step >= 3) ui.render();
   }
   // Tangled and knotless can both list your repos and their open issues, so both are picked
   // from the same way. What differs is what each calls a repo, and the subject it makes.
@@ -141,16 +145,16 @@ export function createPoster(ui){
   }
   function reachText(){
     if (P.vis === 'group') { const g = groupNow(); return !g ? 'Pick a group that has Rainshare.' : g.memberCount ? `The ${members(g.memberCount)} of ${g.name} could see it.` : `${g.name}’s members could see it.`; }
-    if (P.audience === 'anyone') return 'Anyone on Rainshare could see it.';
+    if (P.audience === 'anyone') return 'Anyone who comes to Rainshare could see it and take it on.';
     const n = countFor(P.audience);
-    return n != null ? `About ${people(n)} could see it on their board.` : `${cap(FOR[P.audience])} could see it on their board.`;
+    return `${cap(FOR[P.audience])}${n != null ? `, about ${people(n)},` : ''} could see it when they come to Rainshare. A Bluesky post is how they’ll know it’s there.`;
   }
   function doneText(){
     const g = P.done?.group;
     if (g) return g.memberCount ? `The ${members(g.memberCount)} of ${g.name} can see it on their board now, and nobody else.` : `${g.name}’s members can see it on their board now, and nobody else.`;
-    if (P.audience === 'anyone') return 'Anyone on Rainshare can see it now.';
-    const n = countFor(P.audience), of = { mutuals: 'of your mutuals', following: 'people you follow', followers: 'of your followers', list: 'people on your list' }[P.audience];
-    return n != null ? `About ${Number(n).toLocaleString('en')} ${of} can see it on their board now.` : `${cap(FOR[P.audience])} can see it on their board now.`;
+    if (P.audience === 'anyone') return 'Anyone who comes to Rainshare can see it now and take it on.';
+    const n = countFor(P.audience);
+    return `${cap(FOR[P.audience])}${n != null ? ` (about ${people(n)})` : ''} can see it whenever they come to Rainshare.`;
   }
   function whereLong(sq){
     if (P.kind === 'idea' || !sq.subject) return sq.owner === 'helper' ? 'Nowhere yet. It’s an idea for someone else to run with: whoever builds it keeps it, in their own repo.'
@@ -187,15 +191,15 @@ export function createPoster(ui){
   /* ---------- moving between steps ---------- */
   function problem(step){
     if (step === 1) {
-      if (!P.stage) return 'Pick what needs rain: a seed, or a plant.';
+      if (!P.stage) return 'Pick what needs rain: a seed or a plant.';
       if (P.stage === 'seed') return '';
       if (!P.kind || P.kind === 'idea') return 'Pick where it lives.';
       if (P.link.trim() && !P.subject) return 'That link isn’t one we understand. Paste the issue’s or the repo’s address.';
       if (!P.subject) return { tangled: 'Pick one of your repos, or paste a Tangled link.', knotless: 'Pick one of your repos, or paste a knotless link.', github: 'Paste the issue’s link, or the repo’s.', repo: 'Paste where to clone it from.' }[P.kind];
     }
     if (step === 2 && !P.title.trim()) return 'Give it a short title.';
-    if (step === 4 && P.vis === 'group' && !groupNow()) return 'Pick a group that has Rainshare, or make it public.';
-    if (step === 4 && P.vis === 'public' && P.audience === 'list' && !P.list) return 'Pick the list it’s for, or another audience.';
+    if (step === 3 && P.vis === 'group' && !groupNow()) return 'Pick a group that has Rainshare, or make it public.';
+    if (step === 3 && P.vis === 'public' && P.audience === 'list' && !P.list) return 'Pick the list it’s for, or another audience.';
     return '';
   }
   function prefill(){
@@ -220,7 +224,7 @@ export function createPoster(ui){
     if (h.closest('.rs-post').getBoundingClientRect().top < 0) h.closest('.rs-post').scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
   async function post(){
-    for (const s of [1, 2, 4]) { const e = problem(s); if (e) { P.err = e; P.step = s; ui.render(); return; } }
+    for (const s of [1, 2, 3]) { const e = problem(s); if (e) { P.err = e; P.step = s; ui.render(); return; } }
     P.busy = true; P.err = ''; ui.render();
     try {
       const g = P.vis === 'group' ? groupNow() : null;
@@ -276,43 +280,55 @@ export function createPoster(ui){
         <p class="rs-muted">${P.owner === 'helper' ? 'You don’t need to be a developer for this one. Say what it should do in the next step, in your own words.'
           : `Or make the empty repo yourself first and point at it: ${newRepoPlaces({ title: P.title }).map(p => `<a href="${esc(p.href)}" target="_blank" rel="noopener">${esc(p.name)}</a>`).join(', ')}.`}</p>`;
     }
-    // First what it is that needs rain: a seed (an idea) or a plant someone already has, by how far along it is. Then, for a plant, where it lives.
+    // First what it is that needs rain: a seed (an idea) or a plant someone already has. Then,
+    // for a plant, where it lives and how far along it is.
+    const plant = !!P.stage && P.stage !== 'seed';
+    const stageTile = (v, pic, on, t, n) => `<button type="button" class="rs-tile rs-stage" data-rs-stage="${v}" role="radio" aria-checked="${on}">${plantPic(pic, 84)}<b>${esc(t)}</b><small>${esc(n)}</small></button>`;
     return `<h1 tabindex="-1">What needs rain?</h1>
-      <p class="rs-lede">A seed is an idea, with nothing built yet. A plant is a project you already have, however long ago you started it and however far along it is.</p>
-      <div class="rs-tiles rs-stages" role="radiogroup" aria-label="What needs rain?">${STAGES.map(([k, t, n]) =>
-        `<button type="button" class="rs-tile rs-stage" data-rs-stage="${k}" role="radio" aria-checked="${P.stage === k}">${plantPic(k, 84)}<b>${esc(t)}</b><small>${esc(n)}</small></button>`).join('')}</div>
-      ${P.stage && P.stage !== 'seed' ? `<div class="rs-field"><span>Where does it live?</span>
+      <p class="rs-lede">A seed is an idea, with nothing built yet. A plant is a project you already have, however far along it is.</p>
+      <div class="rs-tiles rs-stages rs-stages-2" role="radiogroup" aria-label="What needs rain?">
+        ${stageTile('seed', 'seed', P.stage === 'seed', 'A seed', 'An idea. Nothing’s been built yet.')}
+        ${stageTile('plant', plant ? P.stage : 'young', plant, 'A plant', 'A project you already have.')}
+      </div>
+      ${plant ? `<div class="rs-field"><span>Where does it live?</span>
         <div class="rs-tiles" role="radiogroup" aria-label="Where does it live?">${KINDS.map(([k, t, n]) => tile('data-rs-kind', k, P.kind === k, t, n)).join('')}</div></div>` : ''}
       ${more}
-      <p class="rs-found" data-rs-found aria-live="polite">${found()}</p>`;
+      <p class="rs-found" data-rs-found aria-live="polite">${found()}</p>
+      ${plant ? `<div class="rs-field" role="radiogroup" aria-label="How far along is it?"><span>How far along is it?</span><div class="rs-options">
+        ${PLANT_STAGES.map(([k, t, n]) => row('data-rs-stage', k, P.stage === k, t, n)).join('')}</div></div>` : ''}`;
   }
+  // How it should be done: all optional, so it's folded away under the description.
+  const moreOptions = (summary, body) => `<details class="rs-more rs-options-more" data-rs-more${P.more ? ' open' : ''}>
+      <summary>${summary} <small>optional</small></summary><div class="rs-more-body">${body}</div></details>`;
   function stepWhat(){
     if (P.kind === 'idea') return `<h1 tabindex="-1">What’s the idea?</h1>
       <p class="rs-lede">Say it the way you would to a friend. Plain words are fine.</p>
       <label>A short title<input name="title" maxlength="120" required autocomplete="off" placeholder="A seating chart that shuffles itself" value="${esc(P.title)}"></label>
       <label>What should it do? <small>Who it’s for, what it should do, and anything it shouldn’t.</small>
         <textarea name="spec" rows="10" maxlength="10000" placeholder="I’d love a little tool that… It should… It doesn’t need to…">${esc(P.spec)}</textarea></label>
-      <label>Written up somewhere already? <small>Optional: a link to notes or a sketch</small><input name="specUrl" type="url" inputmode="url" placeholder="https://…" value="${esc(P.specUrl)}"></label>`;
+      <label>Written up somewhere already? <small>Optional: a link to notes or a sketch</small><input name="specUrl" type="url" inputmode="url" placeholder="https://…" value="${esc(P.specUrl)}"></label>
+      ${howFields()}`;
     return `<h1 tabindex="-1">What would you like done?</h1>
       <p class="rs-lede">Say it the way you would to a friend.${P.prefilled ? ' We’ve started you off from the issue.' : ''}</p>
       <label>A short title<input name="title" maxlength="120" required autocomplete="off" placeholder="Keep drafts out of the RSS feed" value="${esc(P.title)}"></label>
       <label>What does done look like? <small>What’s wrong, what done looks like, and anything to avoid. Markdown works.</small>
         <textarea name="spec" rows="10" maxlength="10000" placeholder="Right now… It’d be great if… Please don’t…">${esc(P.spec)}</textarea></label>
-      <label>A longer spec somewhere? <small>Optional, like a SPEC.md in the repo</small><input name="specUrl" type="url" inputmode="url" placeholder="https://…/SPEC.md" value="${esc(P.specUrl)}"></label>`;
+      <label>A longer spec somewhere? <small>Optional, like a SPEC.md in the repo</small><input name="specUrl" type="url" inputmode="url" placeholder="https://…/SPEC.md" value="${esc(P.specUrl)}"></label>
+      ${howFields()}`;
   }
-  function stepHow(){
+  function howFields(){
     const custom = P.models.filter(m => !MODEL_PICKS.includes(m));
     // An idea given away is the builder's to build their way: only what helps someone find it and size it up is asked.
-    if (P.kind === 'idea' && P.owner === 'helper') return `<h1 tabindex="-1">Anything to add?</h1>
-      <p class="rs-lede">All optional. It’s theirs to build, so how they build it is up to them. These help the right person find it.</p>
+    if (P.kind === 'idea' && P.owner === 'helper') return moreOptions('More: how big it feels, tags', `
+      <p class="rs-muted">It’s theirs to build, so how they build it is up to them. These help the right person find it.</p>
       <fieldset><legend>How big does it feel?</legend><div class="rs-options" role="radiogroup" aria-label="How big does it feel?">${SIZE_PICKS.map(([k, l, n]) => row('data-rs-size', k, P.size === k, l, '', n)).join('')}</div></fieldset>
       <div class="rs-two">
         <label>Tags <small>so the right person finds it</small><input name="tags" autocomplete="off" placeholder="teaching, printing" value="${esc(P.tags)}"></label>
         <label>What it stands for <small>optional</small><input name="values" list="rsValues" autocomplete="off" placeholder="education, accessibility" value="${esc(P.values)}"></label>
       </div>
-      <label>Anything else?<input name="notes" maxlength="1000" autocomplete="off" placeholder="It should work on a phone." value="${esc(P.notes)}"></label>`;
-    return `<h1 tabindex="-1">How should it be done?</h1>
-      <p class="rs-lede">All optional. These help the right helpers find it, and their agents get them in the brief.</p>
+      <label>Anything else?<input name="notes" maxlength="1000" autocomplete="off" placeholder="It should work on a phone." value="${esc(P.notes)}"></label>`);
+    return moreOptions('More options: models, tests, size, tags', `
+      <p class="rs-muted">These help the right helpers find it, and their agents get them in the brief.</p>
       <fieldset><legend>Which models would you like?</legend>
         <div class="rs-toggles" data-rs-models>
           <button type="button" data-rs-model="" aria-pressed="${!P.models.length}">Any model</button>
@@ -332,10 +348,10 @@ export function createPoster(ui){
       <div class="rs-two">
         <label>What it stands for <small>optional</small><input name="values" list="rsValues" autocomplete="off" placeholder="accessibility, climate" value="${esc(P.values)}"></label>
         <label>Anything else?<input name="notes" maxlength="1000" autocomplete="off" placeholder="No new dependencies, please." value="${esc(P.notes)}"></label>
-      </div>`;
+      </div>`);
   }
   function stepWho(){
-    const s = src(), canPrivate = !!s.canPrivate;
+    const pub = P.vis === 'public';
     let body;
     if (P.vis === 'group') {
       const gs = P.groups, withBoard = (gs || []).filter(g => g.space), without = (gs || []).filter(g => !g.space);
@@ -347,28 +363,19 @@ export function createPoster(ui){
       const lists = P.lists;
       body = `<div class="rs-options" role="radiogroup" aria-label="Who it’s for">${AUDIENCE_PICKS.map(([k, t, n]) => row('data-rs-aud', k, P.audience === k, t, k === 'list' && listNow() ? listNow().name : n, people(countFor(k)))).join('')}</div>
         ${P.audience === 'list' ? (lists == null ? '<p class="rs-muted">Finding your lists…</p>' : lists.length ? `<label>Which list<select name="list">${lists.map(l => `<option value="${esc(l.uri)}"${P.list === l.uri ? ' selected' : ''}>${esc(l.name)} (${people(l.count)})</option>`).join('')}</select></label>` : '<p class="rs-muted">You don’t have any Bluesky lists yet. Make one at bsky.app, then come back.</p>') : ''}
-        <p class="rs-muted">A public one is a record anyone could look up. This says who it’s meant for: Rainshare shows it only to them and only offers it to them. For something truly private, keep it to a group.</p>`;
+        ${P.audience !== 'anyone' ? '<p class="rs-muted">Rainshare shows it only to them and only offers it to them, but it’s still a public record that anyone could look up.</p>' : ''}
+        ${GROUPS ? '' : `<div class="rs-option rs-soon" aria-disabled="true"><span class="rs-option-text"><b>${ico('lock')}Private, in a group</b><small>Only its members could see it. Coming once group spaces leave alpha.</small></span><span class="rs-option-aside">Soon</span></div>`}`;
     }
+    // Groups are coming (GROUPS in ../core/ns.js): until then there's nothing to choose between.
+    const vis = GROUPS ? `<div class="rs-tiles rs-tiles-2" role="radiogroup" aria-label="Public or private">
+        ${tile('data-rs-vis', 'public', P.vis === 'public', 'Public, for my circle', 'Uses who you follow on Bluesky')}
+        ${tile('data-rs-vis', 'group', P.vis === 'group', 'Private, in a group', src().canPrivate ? 'Only its members can read it' : 'Needs groups, which this app can’t reach here', src().canPrivate ? '' : ' disabled')}
+      </div>` : '';
     return `<h1 tabindex="-1">Who’s it for?</h1>
       <p class="rs-lede">Only the people you pick see it on their board and can take it on.</p>
-      <div class="rs-tiles rs-tiles-2" role="radiogroup" aria-label="Public or private">
-        ${tile('data-rs-vis', 'public', P.vis === 'public', 'Public, for my circle', 'Uses who you follow on Bluesky')}
-        ${tile('data-rs-vis', 'group', P.vis === 'group', 'Private, in a group', canPrivate ? 'Only its members can read it' : 'Needs groups, which this app can’t reach here', canPrivate ? '' : ' disabled')}
-      </div>
+      ${vis}
       ${body}
-      <label class="rs-check"><input type="checkbox" name="parallel"${P.parallel ? ' checked' : ''}> More than one helper can try at once</label>`;
-  }
-  function stepLook(){
-    const sq = input(), pub = P.vis === 'public';
-    const rowOf = (n, label, html) => `<div><dt>${label}</dt><dd>${html}</dd><button class="rs-link" type="button" data-rs-step="${n}" aria-label="Edit ${label.toLowerCase()}">Edit</button></div>`;
-    return `<h1 tabindex="-1">Look it over</h1>
-      <p class="rs-lede">This is everything a helper and their agent will get.</p>
-      <dl class="rs-review">
-        ${rowOf(1, 'Which', `<span class="rs-row">${plantPic(stageOf(sq), 44)}<span>${esc(cap(aNoun(sq)))}. ${esc(whereLong(sq))}</span></span>`)}
-        ${rowOf(2, 'What', `<b>${esc(sq.title)}</b>${sq.spec ? `<br>${esc(askExcerpt(sq.spec, 360))}` : '<br><span class="rs-muted">No details beyond the title.</span>'}${sq.specUrl ? '<br><span class="rs-muted">And a longer spec, linked.</span>' : ''}`)}
-        ${rowOf(3, 'How', esc(howText(sq)))}
-        ${rowOf(4, 'Who', esc(whoText()))}
-      </dl>
+      <label class="rs-check"><input type="checkbox" name="parallel"${P.parallel ? ' checked' : ''}> More than one helper can try at once</label>
       ${pub ? `<div class="rs-bsky-opt">
         <label class="rs-check"><input type="checkbox" name="bsky"${P.bsky ? ' checked' : ''}> Also post it on Bluesky, so ${P.audience === 'anyone' ? 'people' : FOR[P.audience]} notice</label>
         ${P.bsky ? `<textarea name="bskyText" rows="3" maxlength="230" aria-label="Your Bluesky post">${esc(bskyText())}</textarea><small>The link to it goes on the end. Bluesky opens with this ready, and you post it there.</small>` : ''}
@@ -377,23 +384,24 @@ export function createPoster(ui){
   }
 
   // The preview beside the steps: the card as the board will show it, then (on the last
-  // step) the details a helper sees when they open it.
+  // step) the details a helper sees when they open it, and who could see it.
   function side(){
     const sq = input(), me = ui.self();
-    const line = P.step < 3 ? (!P.stage ? 'A seed or a plant' : P.stage !== 'seed' && !sq.subject ? 'Where it lives goes here' : whereText(sq))
+    const line = P.step < 2 ? (!P.stage ? 'A seed or a plant' : P.stage !== 'seed' && !sq.subject ? 'Where it lives goes here' : whereText(sq))
       : [shortWhere(sq), jobShort(sq), wantsShort(sq)].filter(Boolean).join(' · ');
     const card = `<div class="rs-mini${P.stage ? ' rs-mini-pic' : ''}">
-      <div class="rs-mini-top">${face(me, 'xs')}<b>You</b><span>· ${esc(P.step >= 4 ? whoFor() : 'just now')}</span></div>
+      <div class="rs-mini-top">${face(me, 'xs')}<b>You</b><span>· ${esc(P.step >= 3 ? whoFor() : 'just now')}</span></div>
       <b class="rs-mini-title">${esc(sq.title.trim() || 'Your title goes here')}</b>
       <span class="rs-mini-line">${esc(line)}</span>${P.stage ? plantPic(P.stage, 96, { live: true }) : ''}</div>`;
-    if (P.step === 5) return `<span class="rs-side-label">What a helper sees when they open it</span>
+    if (P.step === 3) return `<span class="rs-side-label">What a helper sees when they open it</span>
       <div class="rs-mini rs-mini-open">
         <div class="rs-mini-top">${face(me, 'xs')}<b>You</b><span>· ${esc(whoFor())} · just now</span></div>
         <b class="rs-mini-title">${esc(sq.title.trim() || 'Your title goes here')}</b>
         <span class="rs-mini-fit">Each helper sees how well it suits them here, from their own profile and yours.</span>
         <dl class="rs-facts rs-facts-sm"><dt>Where</dt><dd>${esc(whereText(sq))}</dd><dt>The job</dt><dd>${esc(jobText(sq))}</dd><dt>Would like</dt><dd>${esc(wantsText(sq))}</dd></dl>
-      </div>`;
-    return `<span class="rs-side-label">How your circle will see it</span>${card}<p class="rs-muted">${esc(P.step === 4 ? reachText() : P.step === 1 && P.kind === 'idea' ? 'An idea needs no repo, and you don’t need to be a developer to plant one.' : HINTS[P.step])}</p>`;
+      </div>
+      <p class="rs-muted">${esc(reachText())}</p>`;
+    return `<span class="rs-side-label">How it will look on the board</span>${card}<p class="rs-muted">${esc(P.step === 1 && P.kind === 'idea' ? 'An idea needs no repo, and you don’t need to be a developer to plant one.' : HINTS[P.step])}</p>`;
   }
   // Typing only repaints the preview and the line under the link, so fields keep their focus.
   function paint(){
@@ -431,8 +439,8 @@ export function createPoster(ui){
   function view(){
     ui.title('Ask for rain');
     if (P.done) return `<div class="rs-post">${done()}</div>`;
-    const body = [, stepWhere, stepWhat, stepHow, stepWho, stepLook][P.step]();
-    const next = { 1: P.stage === 'seed' ? 'Next: the idea' : 'Next: what you’d like done', 2: P.kind === 'idea' && P.owner === 'helper' ? 'Next: anything to add' : 'Next: how it should be done', 3: 'Next: who it’s for', 4: 'Next: look it over', 5: P.stage === 'seed' ? (P.busy ? 'Planting…' : 'Plant it') : (P.busy ? 'Asking…' : 'Ask for rain') }[P.step];
+    const body = [, stepWhere, stepWhat, stepWho][P.step]();
+    const next = { 1: P.stage === 'seed' ? 'Next: the idea' : 'Next: what you’d like done', 2: 'Next: who it’s for', 3: P.stage === 'seed' ? (P.busy ? 'Planting…' : 'Plant it') : (P.busy ? 'Asking…' : 'Ask for rain') }[P.step];
     return `<div class="rs-post">
       <header class="rs-post-head"><span>Ask for rain</span><button class="rs-link" type="button" data-rs-post-cancel>Cancel</button></header>
       <ol class="rs-stepper" aria-label="Steps">${STEPS.map((l, i) => {
@@ -453,6 +461,9 @@ export function createPoster(ui){
   /* ---------- events (rainshare.js passes on the ones inside the wizard) ---------- */
   function click(t){
     const pick = (sel, fn) => { const el = t.closest(sel); if (el && !el.disabled) { fn(el); return true; } return false; };
+    // Opening or closing "More options": the browser does it; this remembers it for the next redraw.
+    const sum = t.closest('[data-rs-more] > summary');
+    if (sum) { P.more = !sum.parentElement.open; return true; }
     return pick('[data-rs-step]', el => goStep(+el.dataset.rsStep))
       || pick('[data-rs-back]', () => { P.err = ''; P.step = Math.max(1, P.step - 1); ui.render(); arrive(); })
       || pick('[data-rs-kind]', el => {
@@ -464,7 +475,8 @@ export function createPoster(ui){
       })
       // A seed has nowhere to live yet; a plant keeps whatever repo was already picked for it.
       || pick('[data-rs-stage]', el => {
-        const st = el.dataset.rsStage; if (P.stage === st) return;
+        const v = el.dataset.rsStage, st = v === 'plant' ? (P.stage && P.stage !== 'seed' ? P.stage : 'young') : v;
+        if (P.stage === st) return;
         const was = P.stage; P.stage = st; P.err = '';
         if (st === 'seed') Object.assign(P, { kind: 'idea', link: '', subject: null, info: null, repo: null, issues: null, parallel: P.owner === 'helper' });
         else if (was === 'seed' || P.kind === 'idea') Object.assign(P, { kind: null, parallel: false });
@@ -499,7 +511,7 @@ export function createPoster(ui){
 
   return {
     view, click, typed, changed,
-    submit(){ if (P.busy) return; if (P.step < 5) goStep(P.step + 1); else post(); },
+    submit(){ if (P.busy) return; if (P.step < STEPS.length) goStep(P.step + 1); else post(); },
     /** Coming to the wizard: a finished one starts over; a draft is kept. */
     enter(){ if (P.done) P = fresh(); if (P.groups === null) loadBits(); },
     reset(){ P = fresh(); }

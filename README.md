@@ -8,20 +8,21 @@ exists and needs a hand. The agent usage you have left over is the rain. It's an
 atproto-native, social take on [Overflow](https://github.com/Nitjsefnie/Overflow): no ledger
 and nothing to spend, just your circle.
 
-- **Ask for rain**, in five short steps with a preview beside them: what needs it (a seed,
-  or a plant you already have, at one of three stages, each with its own little 3D plant),
-  where a plant lives
-  (a Tangled, knotless or GitHub issue, or any git repo), what done looks like, how (models,
-  tests, size), and who it's for: public for your mutuals (or people you follow, your
-  followers, a Bluesky list, everyone), with a count of roughly who that reaches, or private
-  to a group. Then a last look, and a Bluesky post to tell your circle. A seed needs no repo
-  and no developer: say what it should do, and whether someone else can run with it.
-- **Forecast your rain**: your profile says what you run, roughly what you spend on AI, how much
-  you have to spare right now, and who you'd like to help first: people without big plans,
-  students, people on low incomes, projects that share your values.
-- **Send your agent**: one click tells your friend you're on it and copies a command that
-  starts Claude Code, Codex or any MCP agent with a careful brief. Turn the pull request in
-  when it's up, and your friend marks it sprouted.
+- **Ask for rain**, in three short steps with a preview beside them. *What*: a seed, or a
+  plant you already have, where it lives (a Tangled, knotless or GitHub issue, or any git
+  repo) and how far along it is, each with its own little 3D plant. *Details*: what done looks
+  like, with models, tests, size and tags folded under "More options". *Who*: everyone, unless
+  you narrow it to your mutuals, people you follow, your followers or a Bluesky list, with a
+  count of roughly who that reaches, and a Bluesky post to tell people it's there. Private to
+  a group is shown as coming. A seed needs no repo and no developer: say what it should do,
+  and whether someone else can run with it.
+- **Forecast your rain**: your profile says what you run and how much you have to spare right
+  now. Folded under "Help the right people find you", it can also say roughly what you spend
+  on AI and who you'd like to help first: people without big plans, students, people on low
+  incomes, projects that share your values.
+- **Send your agent**: one click tells your friend you're on it and copies the command that
+  suits your setup (Claude Code, Codex, or a brief for any agent); the other ways are a click
+  away. Turn the pull request in when it's up, and your friend marks it sprouted.
 - **Water a garden**: everything that sprouts with your help shows on your profile as a plant
   in the garden you've watered.
 
@@ -81,7 +82,6 @@ set out under it.
 **The same pictures in the app.** A forecast is drawn as its sky: clear, then a cloud with
 more and more rain (`skyIco` in `ui/bits.js`). A seed is drawn where it is in its life: in the
 ground, being rained on once someone's on it, up once it's turned in, and sprouted (`lifeIco`).
-The board counts them the same way under its heading.
 
 The "ai" inside the name is lit in its own colour wherever the wordmark appears, and so is
 the "ai" inside "rain" where the word is prominent: the headline, the pitch under it, and the
@@ -103,14 +103,19 @@ the lexicon authority). The schemas are in `lexicons/dev/rainshare/`.
 | `dev.rainshare.take` | a helper | "my agent is on this": a strong ref to the seed and the setup doing it. Deleting it drops the seed. |
 | `dev.rainshare.delivery` | a helper | the pull request (URL, or on Tangled and knotless its own record's at:// URI), what did the work, and an optional session link |
 
-**Public and private.** A public seed lives in your repo, and `audience` says who it's
+**Public, and private soon.** Private seeds are off for now (`GROUPS` in `core/ns.js`),
+because spaces are still an alpha on the group host: sign-in asks only for `atproto` and
+Rainshare's own four record types, every seed is public, and the app shows "Private, in a
+group" as coming. Turning `GROUPS` on brings back everything below that's about groups.
+
+A public seed lives in your repo, and `audience` says who it's
 for: apps show it only to those people and only offer it to them. That's a filter, not a lock,
 because anything in a public repo can be read by anyone. A private seed lives in your repo
 inside a group's Rainshare space (an Open Social space of type `dev.rainshare.board`, which a
 group admin adds), and only members can read it. Takes and deliveries go wherever their
 seed is.
 
-**Profiles, in two copies.** Your budget and circumstances can be marked "only my groups": the
+**Profiles, in two copies** (once groups are on). Your budget and circumstances can be marked "only my groups": the
 public profile leaves them out, and the full profile goes only into your groups' Rainshare
 spaces. Helpers who can read a group copy see the fuller one.
 
@@ -166,7 +171,9 @@ Rainshare side of things.
 "Send my agent" reads the seed again and asks the forge before it writes your take. If that
 turns up something the screen wasn't already showing, it asks before going on. Then it copies
 whatever suits the setup in your profile: the Claude Code or Codex command, or the brief by
-itself for anything else.
+itself for anything else. The seed's page shows that one, with the other ways folded under it,
+and the turn-in form asks only for the pull request's link (what did the work, a session link
+and a note are folded away, filled in from your setup).
 
 The link an agent hands back is
 `rainshare.dev/seed/<handle>/<key>?pr=<pull request>&model=<model>`. Opening it fills in the
@@ -344,7 +351,7 @@ in the app.
 | `core/source.js` | Rainshare over atproto: the board, a seed, profiles and every write, public and in group spaces |
 | `core/demo.js` | The example circle, answering the same calls from fixtures and your browser's storage |
 | `ui/rainshare.js`, `ui/rainshare.css` | The screens: the board (a list with the details beside it), a seed, your profile, someone's profile, agents |
-| `ui/post.js` | Asking for rain on a seed or a plant: five steps, a live preview and a confirmation |
+| `ui/post.js` | Asking for rain on a seed or a plant: three steps, a live preview and a confirmation |
 | `ui/bits.js` | Small shared pieces: escaping, times, icons, faces, and the glyphs for a forecast's sky and a seed's life |
 | `cli/rainshare.mjs` | The CLI and MCP server |
 | `test/` | `npm test`: the core, the data source against a fake network, and the MCP server |
@@ -390,13 +397,16 @@ landing in light and dark from 360 to 1680 pixels wide with no sideways scrollin
 closer at each part by its pin, by tapping the scene and from the keyboard; Next, Whole view
 and Escape; pause, reduced motion, the fallback without WebGL; and the example circle,
 including sending an agent, turning a pull request in, the warning when someone is already on
-a seed, and marking your own seed sprouted after a merge.
+a seed, and marking your own seed sprouted after a merge. Asking for rain in three steps (a
+seed and a plant, "More options" staying open across redraws, everyone by default, the
+coming-soon group row), the folded profile and the folded send-your-agent panel were checked
+in the example circle at desktop and phone widths.
 
 Not yet checked:
 
-- Signing in with a real account, writing to a real PDS, and private seeds in a real
-  group. Private ones depend on the spaces alpha and on opensocial.fyi accepting a
-  `dev.rainshare.board` space; if it doesn't yet, public seeds still work.
+- Signing in with a real account (now asking only for `atproto` and `repo:dev.rainshare.*`)
+  and writing to a real PDS. Private seeds in a real group are off until the spaces alpha
+  settles; they depend on opensocial.fyi accepting a `dev.rainshare.board` space.
 - The signed-out board against the live relay and AppView from this repo. The code that reads
   them is unchanged from the prototype, where it was checked.
 - GitHub's side of `look` (`core/status.js`) has only been run against made-up answers. Two

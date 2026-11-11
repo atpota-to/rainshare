@@ -1,7 +1,9 @@
-// rainshare.dev's OAuth scope and client metadata. Plain and dependency-free, because the
-// Vercel function behind /oauth-client-metadata.json imports it too
+// rainshare.dev's OAuth scope and client metadata. Plain, with nothing but ../core/ns.js
+// (plain data) behind it, because the Vercel function behind /oauth-client-metadata.json imports it too
 // (api/oauth-client-metadata.js): a hosted client whose document declares less than the app
 // asks for fails every sign-in, so both come from here.
+import { GROUPS } from '../core/ns.js';
+
 const env = import.meta.env || {};
 
 // The group host, for private seeds in groups: an Open Social host.
@@ -19,12 +21,15 @@ const A = encodeURIComponent(AUD);
 const rpc = m => `rpc:${NS}.${m}?aud=${A}`;
 const repo = RAINSHARE.map(c => `repo:${c}`);
 
-// Any atproto account: your public seeds, takes, deliveries and profile, and finding your groups.
-export const BASIC_SCOPE = ['atproto', ...repo, ...METHODS.map(rpc)].join(' ');
+// With groups off (GROUPS in ../core/ns.js), sign-in asks for nothing but your own Rainshare
+// records: your public seeds, takes, deliveries and profile.
+//
+// Any atproto account: those, and finding your groups.
+export const BASIC_SCOPE = ['atproto', ...repo, ...(GROUPS ? METHODS.map(rpc) : [])].join(' ');
 // An account whose server does spaces: the same, plus reading your groups' spaces and writing
 // your own Rainshare records into them. `space:*` because nobody publishes the space type, and a
 // consent screen looks up every space type a scope names.
-export const SCOPE = [
+export const SCOPE = !GROUPS ? BASIC_SCOPE : [
   'atproto',
   `include:${NS}.basePermissions?aud=${A}`,
   `space:*?authority=*&${RAINSHARE.map(c => 'collection=' + c).join('&')}&action=read&action=create&action=update&action=delete`,

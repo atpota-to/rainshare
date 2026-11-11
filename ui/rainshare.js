@@ -32,7 +32,8 @@ export function createRainshare({ root, base = '/', host }){
   const S = {
     source: null, view: null, sub: '', tab: 'foryou',
     board: null, boardAt: 0, loading: false, error: null, shown: [], pick: null, sheet: false,
-    mine: null, garden: null, seed: null, seedErr: null, launch: null, pendingLaunch: null, handBack: null, again: null, other: null, form: null, drafts: {}, signin: null
+    mine: null, garden: null, seed: null, seedErr: null, launch: null, pendingLaunch: null, handBack: null, again: null, other: null, form: null, drafts: {}, signin: null,
+    open: {}   // which folded sections are open (<details data-rs-keep>), so a redraw leaves them be
   };
   const signedIn = () => !!S.source?.signedIn;
   const viewer = () => S.source?.viewer || null;
@@ -196,14 +197,6 @@ export function createRainshare({ root, base = '/', host }){
       <div class="rs-row rs-detail-actions">${buttons}</div>
     </article>`;
   }
-  // What's growing, at a glance: how many seeds are in the ground, being rained on, turned in and sprouted.
-  function growing(){
-    const all = S.board?.items || [], n = { seed: 0, rain: 0, up: 0, sprouted: 0 };
-    for (const it of all) if (it.value?.state !== 'closed') n[lifeOf(it)]++;
-    const said = { seed: 'in the ground', rain: 'being rained on', up: 'turned in', sprouted: 'sprouted' };
-    const parts = Object.keys(n).filter(k => n[k]).map(k => `<li>${lifeIco(k)}<b>${n[k]}</b> ${said[k]}</li>`);
-    return signedIn() && parts.length ? `<ul class="rs-growing" aria-label="Your circle’s seeds and plants, by where they are">${parts.join('')}</ul>` : '';
-  }
   function renderBoard(){
     const items = S.board ? boardItems() : [];
     S.shown = items;
@@ -211,16 +204,17 @@ export function createRainshare({ root, base = '/', host }){
     const sel = items.find(i => i.uri === S.pick);
     const fc = forecastOf(S.mine?.merged);
     const empty = {
-      foryou: signedIn() ? 'Nothing from your circle yet. When people you follow ask for rain on something meant for you, it shows up here. Ask for some yourself to get it going.' : 'Nothing’s open to everyone right now. Sign in to see what your circle would like done.',
+      foryou: signedIn() ? 'Nothing here yet. When someone asks for rain on something meant for you, it shows up here. Ask for some yourself to get it going.' : 'Nothing’s open to everyone yet. Sign in and ask for rain on something of yours, and it’ll be the first one here.',
       everyone: 'Nothing here is open to everyone yet.',
       yours: 'Your own seeds and plants, and the ones you take on, show up here.'
     }[S.tab];
     const hint = {
-      foryou: signedIn() ? 'The drops show how well each one suits you. Pick one to see the details beside the list.' : 'Open to everyone. Sign in to see your circle’s too, sorted for you.',
+      foryou: signedIn() ? 'The drops show how well each one suits you. Pick one for the details.' : 'Open to everyone. Sign in to see your circle’s too, sorted for you.',
       everyone: 'Open to anyone who comes across them, newest first.',
       yours: 'Your own seeds and plants, and the ones you’ve taken on.'
     }[S.tab];
-    const tabs = [['foryou', signedIn() ? 'For you' : 'Open'], ['everyone', 'Everyone'], ...(signedIn() ? [['yours', 'Yours']] : [])];
+    // Signed out, everything showing is open to everyone, so there's nothing to switch between.
+    const tabs = signedIn() ? [['foryou', 'For you'], ['everyone', 'Everyone'], ['yours', 'Yours']] : [];
     return `
       <header class="rs-head">
         <div class="rs-brand">${host.brand !== 'rainshare' ? `<span class="rs-logo">${ico('drop')}</span>` : ''}<div>${
@@ -237,10 +231,9 @@ export function createRainshare({ root, base = '/', host }){
       </header>
       ${S.source?.demo ? `<p class="rs-note rs-demo">${ico('sky')}<span>This is an example circle: pretend friends, real ideas. Anything you do here stays in this browser.</span>${host.exitDemo ? `<button class="rs-link" type="button" data-rs-act="exit-demo">${host.exitDemo}</button>` : ''}</p>` : ''}
       ${signedIn() && S.mine && !S.mine.merged ? `<p class="rs-note">${ico('person')}<span>Tell your circle what you run and who you’d like to help, so the right ones rise to the top.</span>${a('me', 'Set up your profile', 'rs-link')}</p>` : ''}
-      ${growing()}
       <div class="rs-board-head">
-        <nav class="rs-tabs" aria-label="Seeds">${tabs.map(([k, l]) => `<button type="button" data-rs-tab="${k}" aria-pressed="${S.tab === k}">${l}</button>`).join('')}
-          <button type="button" class="rs-link rs-refresh" data-rs-act="refresh">${S.loading ? 'Checking…' : 'Refresh'}</button></nav>
+        ${tabs.length ? `<nav class="rs-tabs" aria-label="Seeds">${tabs.map(([k, l]) => `<button type="button" data-rs-tab="${k}" aria-pressed="${S.tab === k}">${l}</button>`).join('')}
+          <button type="button" class="rs-link rs-refresh" data-rs-act="refresh">${S.loading ? 'Checking…' : 'Refresh'}</button></nav>` : ''}
         ${items.length ? `<p class="rs-muted">${esc(hint)}</p>` : ''}
       </div>
       ${S.error ? `<p class="rs-note rs-bad">${plain(S.error)}</p>` : ''}
@@ -371,16 +364,21 @@ export function createRainshare({ root, base = '/', host }){
     { id: 'brief', label: 'Any agent, by pasting', note: 'Nothing to install. Paste the brief into Claude Code, Codex or a chat window that can reach the repo.', command: briefFor(it), copied: 'Copied the brief. Paste it into your agent.' },
     ...launchers(it, { viewer: viewer() }).map(l => ({ ...l, copied: `Copied the ${l.label} command. Paste it in a terminal.` }))
   ];
+  // The way that suits them (the one just copied) up front, and the rest folded away.
   function renderLaunch(it){
-    const ls = ways(it);
+    const ls = ways(it), on = Math.max(0, ls.findIndex(l => l.id === S.launch)), first = ls[on];
+    const way = (l, i) => `<li data-rs-launch="${i}" class="${l.id === 'brief' ? 'rs-l-brief' : ''}${i === on ? ' on' : ''}">
+        <div class="rs-l-head"><b>${esc(l.label)}</b><button class="rs-btn rs-quiet rs-sm" type="button" data-rs-copy="${i}">${ico('copy')}Copy</button></div>
+        <small>${esc(l.note)}</small><pre><code>${esc(l.id !== 'brief' && l.command.length > 600 ? l.command.slice(0, 600) + '\n…' : l.command)}</code></pre></li>`;
     return `<section class="rs-launch" id="rsLaunch" aria-label="Send your agent">
       <h3>${ico('term')}Send your agent</h3>
-      <p class="rs-muted">Every one of these hands your agent the same brief. It frames this as ${esc(firstName(it.author))}’s request rather than orders, has the agent check that nobody got there first, and asks it to finish by telling you what’s left to do here.</p>
+      <p class="rs-muted">${first.id === 'brief' ? 'Paste the brief into your agent.' : 'Paste this in a terminal.'} When it’s done, your agent hands you a link back here that turns it in.</p>
       ${it.example ? '<p class="rs-note">This is an example, so these point at pretend repos. For a real one they’re ready to paste.</p>' : ''}
-      <ol class="rs-launchers">${ls.map((l, i) => `<li data-rs-launch="${i}" class="${l.id === 'brief' ? 'rs-l-brief' : ''}${S.launch === l.id || (!ls.some(x => x.id === S.launch) && i === 0) ? ' on' : ''}">
-        <div class="rs-l-head"><b>${esc(l.label)}</b><button class="rs-btn rs-quiet rs-sm" type="button" data-rs-copy="${i}">${ico('copy')}Copy</button></div>
-        <small>${esc(l.note)}</small><pre><code>${esc(l.id !== 'brief' && l.command.length > 600 ? l.command.slice(0, 600) + '\n…' : l.command)}</code></pre></li>`).join('')}</ol>
-      ${a('agents', 'Set up the CLI and MCP server once', 'rs-link')}
+      <ol class="rs-launchers">${way(first, on)}</ol>
+      <details class="rs-more" data-rs-keep="ways"${S.open.ways ? ' open' : ''}><summary>Other ways to send it</summary>
+        <ol class="rs-launchers">${ls.map((l, i) => i === on ? '' : way(l, i)).join('')}</ol>
+        <p>${a('agents', 'Set up the CLI and MCP server once', 'rs-link')}</p>
+      </details>
     </section>`;
   }
   function renderSeed(){
@@ -471,10 +469,12 @@ export function createRainshare({ root, base = '/', host }){
         ${S.launch ? renderLaunch(it) : ''}
         ${!form ? '<div class="rs-row"><button class="rs-link" type="button" data-rs-act="again">Turn in another pull request</button></div>' : `<form class="rs-form rs-turnin" data-rs-form="turnin">
           <label>${st.idea ? 'Where it lives <small>(the repo’s address, or a page that shows it)</small>' : `Pull request link${d?.forge === 'tangled' ? ' <small>(on Tangled you open it yourself, from the link your agent gives you, and paste its address here)</small>' : ''}`}<input name="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" pattern="\\s*(https?://|at://)\\S+\\s*" title="${st.idea ? 'A link to where it lives' : 'A link to the pull request, or its at:// address'}" placeholder="${st.idea ? 'https://…' : { tangled: 'https://tangled.org/…/pulls/…', knotless: 'at://…/dev.knotless.pull/… or its page' }[d?.forge] || 'https://github.com/…/pull/…'}" value="${esc(v.url || '')}" required></label>
-          <div class="rs-two"><label>What did the work<select name="harness">${HARNESSES.map(([k, l]) => `<option value="${k}"${(v.harness || taken?.value?.setup?.harness || setup?.harness) === k ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
-          <label>Model<input name="model" list="rsModels" value="${esc(v.model || taken?.value?.setup?.models?.[0] || setup?.models?.[0] || '')}" placeholder="claude-opus-5-5"></label></div>
-          <label>Session link <small>(optional, to show your working)</small><input name="sessionUrl" type="url" value="${esc(v.sessionUrl || '')}"></label>
-          <label>A note <small>(optional)</small><input name="note" maxlength="300" value="${esc(v.note || '')}"></label>
+          <details class="rs-more" data-rs-keep="turnin-more"${S.open['turnin-more'] || v.sessionUrl || v.note ? ' open' : ''}><summary>Add details: what did the work, a session link, a note</summary><div class="rs-more-body">
+            <div class="rs-two"><label>What did the work<select name="harness">${HARNESSES.map(([k, l]) => `<option value="${k}"${(v.harness || taken?.value?.setup?.harness || setup?.harness) === k ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
+            <label>Model<input name="model" list="rsModels" value="${esc(v.model || taken?.value?.setup?.models?.[0] || setup?.models?.[0] || '')}" placeholder="claude-opus-5-5"></label></div>
+            <label>Session link <small>(optional, to show your working)</small><input name="sessionUrl" type="url" value="${esc(v.sessionUrl || '')}"></label>
+            <label>A note <small>(optional)</small><input name="note" maxlength="300" value="${esc(v.note || '')}"></label>
+          </div></details>
           <div class="rs-row"><button class="rs-btn rs-primary" type="submit">Turn it in</button>${S.launch ? '' : '<button class="rs-link" type="button" data-rs-act="show-launch">Show the ways to send an agent</button>'}</div>
         </form>`}`;
     }
@@ -511,20 +511,22 @@ export function createRainshare({ root, base = '/', host }){
   function renderMe(){
     if (!signedIn()) return `${a('', `${ico('back')}All seeds and plants`, 'rs-back')}<p class="rs-empty">Sign in to set up your profile.</p>`;
     if (!S.mine) return `${a('', `${ico('back')}All seeds and plants`, 'rs-back')}<p class="rs-muted">Loading your profile…</p>`;
-    const p = S.form?.profile || structuredClone(S.mine.merged || {}), hidden = S.form?.hidden || (S.mine.merged ? S.mine.hidden : ['budget', 'circumstances']);
+    // "Only my groups" exists only where there are groups to share with (GROUPS in ../core/ns.js).
+    const priv = !!S.source.canPrivate;
+    const p = S.form?.profile || structuredClone(S.mine.merged || {}), hidden = !priv ? [] : S.form?.hidden || (S.mine.merged ? S.mine.hidden : ['budget', 'circumstances']);
     const groups = S.form?.groups ?? null, share = S.form?.share || S.mine.groups.map(g => g.did);
-    S.form = { profile: p, hidden, groups, share };
+    S.form = { ...S.form, profile: p, hidden, groups, share };
     const setups = p.setups?.length ? p.setups : [{ harness: 'claude-code', models: [] }];
-    const fc = p.forecast || {};
-    const visSel = field => `<select data-rs-vis="${field}" aria-label="Who sees this"><option value="public"${!hidden.includes(field) ? ' selected' : ''}>Everyone sees this</option><option value="private"${hidden.includes(field) ? ' selected' : ''}>Only my groups</option></select>`;
+    const fc = p.forecast || {}, raining = !!fc.level && fc.level !== 'dry';
+    const visSel = field => !priv ? '' : `<div class="rs-vis"><select data-rs-vis="${field}" aria-label="Who sees this"><option value="public"${!hidden.includes(field) ? ' selected' : ''}>Everyone sees this</option><option value="private"${hidden.includes(field) ? ' selected' : ''}>Only my groups</option></select></div>`;
     const withBoard = (groups || []).filter(g => g.space);
     return `${a('', `${ico('back')}All seeds and plants`, 'rs-back')}
-      ${S.source.gardenOf ? `<section class="rs-mygarden"><h2>The garden you’ve watered</h2>${gardenBlock(S.garden, 'You')}</section>` : ''}
+      ${S.source.gardenOf && S.garden?.length ? `<section class="rs-mygarden"><h2>The garden you’ve watered</h2>${gardenBlock(S.garden, 'You')}</section>` : ''}
       <form class="rs-form rs-me" data-rs-form="me">
         <h1>Your Rainshare profile</h1>
-        <p class="rs-muted">What helpers and askers see. It lives in your own account as a <code>dev.rainshare.profile</code> record, and anything you mark “only my groups” goes only into your groups’ private spaces.</p>
+        <p class="rs-muted">What helpers and askers see. All of it is optional, and it lives in your own account as a <code>dev.rainshare.profile</code> record.</p>
         <label>About you<textarea name="bio" rows="2" maxlength="300" placeholder="What you’re building, what you’re into">${esc(p.bio || '')}</textarea></label>
-        <fieldset><legend>Your setups</legend><p class="rs-muted">What you run, so people know what your agents can do.</p>
+        <fieldset><legend>What you run</legend><p class="rs-muted">So people know what your agents can do, and “Send my agent” hands you the right command.</p>
           <ol class="rs-setups">${setups.map((s, i) => `<li data-setup="${i}">
             <label>Harness<select name="harness">${HARNESSES.map(([k, l]) => `<option value="${k}"${s.harness === k ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
             <label>Models<input name="models" list="rsModels" value="${esc((s.models || []).join(', '))}" placeholder="claude-opus-5-5"></label>
@@ -533,30 +535,36 @@ export function createRainshare({ root, base = '/', host }){
             ${setups.length > 1 ? `<button class="rs-link" type="button" data-rs-remove-setup="${i}">Remove</button>` : ''}</li>`).join('')}</ol>
           ${setups.length < 6 ? `<button class="rs-link" type="button" data-rs-act="add-setup">${ico('plus')}Add another setup</button>` : ''}
         </fieldset>
-        <fieldset><legend>Your forecast</legend><p class="rs-muted">How much spare usage you have right now. It rises to the top of your circle’s minds when it’s pouring.</p>
+        <fieldset><legend>Your forecast</legend><p class="rs-muted">How much spare usage you have right now. When it’s pouring, you rise to the top of your circle’s minds.</p>
           ${seg('forecast', FORECAST.map(f => [f[0], f[1]]), fc.level || '')}
           <p class="rs-muted">${esc(FORECAST.find(f => f[0] === fc.level)?.[2] || 'Pick one when you have rain to spare.')}</p>
-          <div class="rs-two"><label>Until <small>(often when your plan resets)</small><input name="until" type="date" value="${esc(fc.until ? fc.until.slice(0, 10) : '')}"></label>
+          ${raining ? `<div class="rs-two"><label>Until <small>(often when your plan resets)</small><input name="until" type="date" value="${esc(fc.until ? fc.until.slice(0, 10) : '')}"></label>
           <label>With <small>(models)</small><input name="fcModels" list="rsModels" value="${esc((fc.models || []).join(', '))}"></label></div>
-          <label>A note <small>(optional)</small><input name="fcNote" maxlength="300" value="${esc(fc.note || '')}" placeholder="Send me your gnarly ones"></label>
+          <label>A note <small>(optional)</small><input name="fcNote" maxlength="300" value="${esc(fc.note || '')}" placeholder="Send me your gnarly ones"></label>` : ''}
         </fieldset>
-        <fieldset><legend>Your AI budget</legend><p class="rs-muted">Roughly what you spend on AI a month. Helpers who want to help people without big plans use this to find you.</p>
-          ${seg('budget', BUDGETS.map(b => [b[0], b[1]]), p.budget || '')}
-          <div class="rs-vis">${visSel('budget')}</div>
-        </fieldset>
-        <fieldset><legend>About your situation</legend><p class="rs-muted">Only if you’d like to share. Some helpers put students, people learning, or people on low incomes first.</p>
-          ${toggles('circumstances', CIRCUMSTANCES, p.circumstances)}
-          <div class="rs-vis">${visSel('circumstances')}</div>
-        </fieldset>
-        <fieldset><legend>What you care about</legend>
-          ${toggles('values', [...new Set([...VALUES, ...(p.values || [])])].map(v => [v, v]), p.values)}
-          <label>Add your own <small>(comma separated)</small><input name="moreValues" placeholder="birding, zines"></label>
-        </fieldset>
-        <fieldset><legend>Who you’d like to help first</legend><p class="rs-muted">When you have rain to spare, these rise to the top of your board.</p>
-          ${toggles('priorities', PRIORITIES, p.priorities)}
-        </fieldset>
-        <label>Work you’re happy to take on <small>(comma separated)</small><input name="offering" value="${esc((p.offering || []).join(', '))}" placeholder="rust, css, docs, testing"></label>
-        ${S.source.canPrivate ? `<fieldset><legend>Your groups</legend>
+        <details class="rs-more rs-options-more" data-rs-keep="me-more"${S.open['me-more'] ? ' open' : ''}>
+          <summary>Help the right people find you <small>optional</small></summary>
+          <div class="rs-more-body">
+            <p class="rs-muted">Helpers can put people without big AI plans, students or projects they care about first. ${priv ? 'Anything marked “only my groups” goes only into your groups’ private spaces.' : 'Everyone can see what you share here. Sharing some of it with only your groups is coming.'}</p>
+            <fieldset><legend>Your AI budget</legend><p class="rs-muted">Roughly what you spend on AI a month.</p>
+              ${seg('budget', BUDGETS.map(b => [b[0], b[1]]), p.budget || '')}
+              ${visSel('budget')}
+            </fieldset>
+            <fieldset><legend>About your situation</legend><p class="rs-muted">Only if you’d like to share.</p>
+              ${toggles('circumstances', CIRCUMSTANCES, p.circumstances)}
+              ${visSel('circumstances')}
+            </fieldset>
+            <fieldset><legend>What you care about</legend>
+              ${toggles('values', [...new Set([...VALUES, ...(p.values || [])])].map(v => [v, v]), p.values)}
+              <label>Add your own <small>(comma separated)</small><input name="moreValues" placeholder="birding, zines"></label>
+            </fieldset>
+            <fieldset><legend>Who you’d like to help first</legend><p class="rs-muted">When you have rain to spare, these rise to the top of your board.</p>
+              ${toggles('priorities', PRIORITIES, p.priorities)}
+            </fieldset>
+            <label>Work you’re happy to take on <small>(comma separated)</small><input name="offering" value="${esc((p.offering || []).join(', '))}" placeholder="rust, css, docs, testing"></label>
+          </div>
+        </details>
+        ${priv ? `<fieldset><legend>Your groups</legend>
           ${groups === null ? '<p class="rs-muted">Finding your groups…</p>' : withBoard.length ? `<p class="rs-muted">Your full profile, including anything marked “only my groups”, goes into these groups’ private Rainshare spaces.</p>
             <div class="rs-toggles" data-rs-toggles="share">${withBoard.map(g => `<button type="button" data-v="${esc(g.did)}" aria-pressed="${share.includes(g.did)}">${ico('lock')}${esc(g.name)}</button>`).join('')}</div>`
             : '<p class="rs-muted">None of your groups has Rainshare yet, so anything marked “only my groups” stays unshared for now.</p>'}
@@ -574,7 +582,9 @@ export function createRainshare({ root, base = '/', host }){
       plan: li.querySelector('[name=plan]').value, runsOn: li.querySelector('[name=runsOn]').value || undefined
     }));
     const level = form.querySelector('[data-rs-seg="forecast"] [aria-pressed="true"]')?.dataset.v;
-    p.forecast = level ? { level, until: fd.get('until') ? new Date(fd.get('until') + 'T23:59:00').toISOString() : undefined, models: String(fd.get('fcModels') || '').split(',').map(s => s.trim()).filter(Boolean), note: fd.get('fcNote') } : undefined;
+    // Until, with and the note show only once it's raining; off screen, they keep what they had.
+    const was = p.forecast || {}, shown = !!form.querySelector('[name="fcModels"]');
+    p.forecast = level ? !shown ? { ...was, level } : { level, until: fd.get('until') ? new Date(fd.get('until') + 'T23:59:00').toISOString() : undefined, models: String(fd.get('fcModels') || '').split(',').map(s => s.trim()).filter(Boolean), note: fd.get('fcNote') } : undefined;
     p.budget = form.querySelector('[data-rs-seg="budget"] [aria-pressed="true"]')?.dataset.v || undefined;
     const on = name => [...form.querySelectorAll(`[data-rs-toggles="${name}"] [aria-pressed="true"]`)].map(b => b.dataset.v);
     p.circumstances = on('circumstances');
@@ -670,7 +680,7 @@ export function createRainshare({ root, base = '/', host }){
             <p class="rs-muted">It checks where one stands before taking it on, and tells you when it’s turned in.</p>
           </section>
         </div>
-        <p class="rs-note">${ico('lock')}<span>For now the CLI and MCP server reach public ones only. Private, group-only ones are taken on from here, in the app.</span></p>
+        ${S.source?.canPrivate ? `<p class="rs-note">${ico('lock')}<span>For now the CLI and MCP server reach public ones only. Private, group-only ones are taken on from here, in the app.</span></p>` : ''}
       </div>`;
   }
 
@@ -827,10 +837,13 @@ export function createRainshare({ root, base = '/', host }){
       if (name === 'budget') S.form.profile.budget = S.form.profile.budget === v ? undefined : v;
       render(); return;
     }
+    // A folded section opening or closing: the browser does it; this remembers it for the next redraw.
+    const keep = t.closest('details[data-rs-keep] > summary');
+    if (keep) { S.open[keep.parentElement.dataset.rsKeep] = !keep.parentElement.open; return; }
     const tgl = t.closest('[data-rs-toggles] button'); if (tgl) { tgl.setAttribute('aria-pressed', String(tgl.getAttribute('aria-pressed') !== 'true')); return; }
     const pl = t.closest('[data-rs-launch]');
     if (pl && !t.closest('button')) { const l = ways(S.seed)[+pl.dataset.rsLaunch]; if (l) { S.launch = l.id; root.querySelectorAll('.rs-launchers li').forEach(li => li.classList.toggle('on', li === pl)); } return; }
-    const cp = t.closest('[data-rs-copy]'); if (cp) { const l = ways(S.seed)[+cp.dataset.rsCopy]; if (l) { S.launch = l.id; copy(l.command, l.copied); root.querySelectorAll('.rs-launchers li').forEach((li, i) => li.classList.toggle('on', i === +cp.dataset.rsCopy)); } return; }
+    const cp = t.closest('[data-rs-copy]'); if (cp) { const l = ways(S.seed)[+cp.dataset.rsCopy]; if (l) { S.launch = l.id; copy(l.command, l.copied); root.querySelectorAll('.rs-launchers li').forEach(li => li.classList.toggle('on', li.dataset.rsLaunch === cp.dataset.rsCopy)); } return; }
     const md = t.closest('[data-rs-md]');
     if (md) {
       const it = S.seed?.uri === md.dataset.rsMd ? S.seed : S.shown.find(i => i.uri === md.dataset.rsMd) || S.board?.items.find(i => i.uri === md.dataset.rsMd);

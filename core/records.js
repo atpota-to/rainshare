@@ -1,6 +1,6 @@
 // Building the four records from what people type, so every app writes the same shapes.
 // Each builder trims, clips to the lexicon's limits and leaves out what's empty.
-import { PROFILE, SEED, TAKE, DELIVERY, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, HARNESSES, RUNS_ON, AUDIENCES, TESTS, SIZES, OWNERS, STAGES } from './ns.js';
+import { PROFILE, SEED, TAKE, DELIVERY, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, HARNESSES, RUNS_ON, AUDIENCES, TESTS, SIZES, OWNERS, STAGES, audienceOf } from './ns.js';
 import { parseUri } from './net.js';
 import { kindOf } from './subjects.js';
 
@@ -59,9 +59,14 @@ export function publicProfile(full, hidden = []){
 export function seed(input = {}, prev){
   const title = clip(input.title || '', 120);
   if (!title) throw new Error('Give it a title.');
-  const aud = input.group ? 'group' : known(AUDIENCES, input.audience) || 'mutuals';
-  if (aud === 'list' && !parseUri(input.list)) throw new Error('Pick the list it’s for.');
-  const audience = { $type: `${SEED}#${aud}`, ...(aud === 'list' ? { list: input.list } : {}), ...(aud === 'group' ? { group: input.group } : {}) };
+  // The audience comes as a word from a form or the CLI, or as the record's own audience when
+  // a seed is saved again (closed, reopened, sprouted), which it must keep as it was.
+  // Left out, it's open to everyone; a word nobody knows keeps it narrow.
+  const said = input.audience && typeof input.audience === 'object' ? audienceOf(input) : input.audience;
+  const list = input.list ?? input.audience?.list;
+  const aud = input.group ? 'group' : said == null ? 'anyone' : known(AUDIENCES, said) || 'mutuals';
+  if (aud === 'list' && !parseUri(list)) throw new Error('Pick the list it’s for.');
+  const audience = { $type: `${SEED}#${aud}`, ...(aud === 'list' ? { list } : {}), ...(aud === 'group' ? { group: input.group } : {}) };
   const subject = input.subject && kindOf(input.subject) ? prune({ ...input.subject }) : undefined;
   const w = input.wants || {};
   const max = parseInt(w.maxDiffLines, 10);

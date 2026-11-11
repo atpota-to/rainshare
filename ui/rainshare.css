@@ -104,9 +104,6 @@
 .rs-item-taken{margin-left:auto;white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
 /* the glyphs the app shares with the landing's scene: a forecast's sky, and where a seed is in its life */
 .rs-sky,.rs-life{width:20px;height:20px}
-.rs-growing{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px 22px;font-size:14px;color:var(--rs-muted)}
-.rs-growing li{display:inline-flex;align-items:center;gap:6px}
-.rs-growing b{color:var(--rs-ink);font-variant-numeric:tabular-nums}
 .rs-life-rain{color:var(--rs-showers)}
 .rs-life-up,.rs-life-sprouted{color:var(--rs-ok)}
 .rs-life .rs-bud{fill:#F5B83D;stroke:none}
@@ -265,7 +262,7 @@
 .rs-vis select{width:auto!important;min-height:38px!important;font-size:14px!important}
 .rs-sticky{position:sticky;bottom:12px;z-index:2;padding:10px;margin:0 -10px;border-radius:999px;background:color-mix(in srgb,var(--rs-bg-card) 85%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
 
-/* posting: five steps, with a preview beside them */
+/* asking for rain: three steps, with a preview beside them */
 .rs-post{display:flex;flex-direction:column;gap:16px;width:100%;scroll-margin-top:16px}
 .rs-post-head{display:flex;align-items:center;justify-content:space-between;gap:12px;font-weight:650;font-size:15px;color:var(--rs-muted)}
 .rs-stepper{list-style:none;margin:0;padding:4px;display:flex;gap:2px;border-radius:999px;background:var(--rs-sunk);overflow-x:auto;align-self:flex-start;max-width:100%;scrollbar-width:none}
@@ -284,8 +281,18 @@
 .rs-mini.rs-mini-pic{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:10px}
 .rs-mini.rs-mini-pic>*:not(.rs-plant){grid-column:1}
 .rs-mini.rs-mini-pic>.rs-plant{grid-column:2;grid-row:1/span 3;align-self:center}
-/* choosing what to plant: the four of them, each with its plant */
+/* what needs rain: a seed or a plant, each with its picture */
 .rs-tiles.rs-stages{grid-template-columns:repeat(auto-fit,minmax(min(100%,124px),1fr))}
+.rs-tiles.rs-stages-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+/* "More options": everything optional, folded under the description */
+.rs-options-more{padding:14px 16px;border-radius:16px;box-shadow:inset 0 0 0 1.5px var(--rs-line)}
+.rs-options-more summary small{font-weight:500;color:var(--rs-muted);margin-left:4px}
+.rs-options-more[open] summary{margin-bottom:12px}
+.rs-more-body{display:flex;flex-direction:column;gap:14px}
+/* what's coming, shown but not yet offered */
+.rs-option.rs-soon{background:none;box-shadow:none;border:1.5px dashed var(--rs-line);cursor:default;opacity:.7}
+.rs-soon b{display:inline-flex;align-items:center;gap:6px}
+.rs-soon .rs-i{width:15px;height:15px}
 .rs-tile.rs-stage{align-items:center;text-align:center;padding:10px 10px 16px}
 .rs-stage small{text-wrap:balance}
 .rs-mini-top{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--rs-muted);min-width:0}
@@ -318,12 +325,6 @@
 .rs-addrow{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 14px;border-radius:14px;border:1.5px dashed var(--rs-line);font-size:15px}
 .rs-post-nav{display:flex;gap:10px;flex-wrap:wrap;padding-top:6px}
 .rs-post-nav [type=submit]{margin-left:auto}
-.rs-review{margin:0;display:flex;flex-direction:column;border-radius:16px;box-shadow:inset 0 0 0 1px var(--rs-line)}
-.rs-review>div{display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:14px;padding:14px 16px;align-items:baseline}
-.rs-review>div+div{border-top:1px solid var(--rs-line)}
-.rs-review dt{font-weight:650;font-size:14px;color:var(--rs-muted)}
-.rs-review dd{margin:0;font-size:15px;line-height:1.5;overflow-wrap:anywhere}
-.rs-review dd b{font-weight:650}
 .rs-bsky-opt{display:flex;flex-direction:column;gap:8px;padding:14px 16px;border-radius:16px;background:var(--rs-sunk)}
 .rs-post-done{padding:36px;max-width:720px;width:100%;align-self:center;display:flex;flex-direction:column;gap:18px;align-items:flex-start}
 .rs-post-done h1{font-size:clamp(28px,3.4vw,38px);font-weight:800}
@@ -347,8 +348,6 @@
   .rs-stepper{align-self:stretch}
   .rs-stepper li:not(.on) button span:last-child{display:none}
   .rs-stepper li:not(.on) button{padding:6px}
-  .rs-review>div{grid-template-columns:minmax(0,1fr) auto;gap:4px 12px}
-  .rs-review dd{grid-column:1 / -1;grid-row:2}
   .rs-post-nav .rs-btn{flex:1}
 }
 

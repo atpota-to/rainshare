@@ -11,7 +11,7 @@ import './theme.css';
 import { createRainshare } from '../ui/rainshare.js';
 import { createSource } from '../core/source.js';
 import { createDemoSource } from '../core/demo.js';
-import { BOARD } from '../core/ns.js';
+import { BOARD, GROUPS } from '../core/ns.js';
 import { profiles } from '../core/net.js';
 // The spaces alpha's plumbing (credentials, signed reads, writes into a space) and the group
 // host's methods, for private seeds.
@@ -58,7 +58,7 @@ const host = kind => ({
 let real = null, example = null;
 function app(kind){
   if (kind === 'example') {
-    if (!example) { example = createRainshare({ root: $('#example'), base: EXAMPLE, host: host('example') }); example.setSource(createDemoSource({ store })); }
+    if (!example) { example = createRainshare({ root: $('#example'), base: EXAMPLE, host: host('example') }); example.setSource(createDemoSource({ store, groups: GROUPS })); }
     return example;
   }
   real ||= createRainshare({ root: $('#circle'), base: '/', host: host('real') });
@@ -82,8 +82,11 @@ const groups = {
 };
 function sourceNow(){
   if (!session) return createSource();
+  const agent = { did: session.did, fetchHandler: (path, init) => session.fetchHandler(path, init) };
+  // Groups are coming (GROUPS in ../core/ns.js): until then every seed is public.
+  if (!GROUPS) return createSource({ agent });
   return createSource({
-    agent: { did: session.did, fetchHandler: (path, init) => session.fetchHandler(path, init) },
+    agent,
     spaces: {
       read: (space, cs) => atp.readSpace(session, space, cs),
       create: (space, c, rec) => atp.createOwn(session, space, c, rec),
@@ -101,6 +104,8 @@ function route(){
   $('#circle').hidden = kind !== 'real';
   const landing = ready && kind === 'real' && !session && !sub;
   $('#landing').hidden = !landing;
+  // The example circle is for looking around before signing in; once you're in, your own circle is the thing.
+  $('[data-tab="example"]').hidden = !!session && kind !== 'example';
   landing ? showLanding() : hideLanding();
   document.querySelectorAll('[data-tab]').forEach(a => a.setAttribute('aria-current', String(a.dataset.tab === (kind === 'example' ? 'example' : sub === 'agents' ? 'agents' : 'circle'))));
   app(kind).show(sub);
