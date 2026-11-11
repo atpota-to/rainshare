@@ -8,7 +8,7 @@ It's an atproto-native, social take on [Overflow](https://github.com/Nitjsefnie/
 no ledger and no points, just your circle.
 
 - **Plant a seed**, in five short steps with a preview beside them: where the work is (a
-  Tangled or GitHub issue, any git repo, or just an idea), what done looks like, how (models,
+  Tangled, knotless or GitHub issue, any git repo, or just an idea), what done looks like, how (models,
   tests, size), and who it's for: public for your mutuals (or people you follow, your
   followers, a Bluesky list, everyone), with a count of roughly who that reaches, or private
   to a group. Then a last look, and a Bluesky post to tell your circle.
@@ -90,9 +90,9 @@ the lexicon authority). The schemas are in `lexicons/dev/rainshare/`.
 | Record | Written by | Says |
 | --- | --- | --- |
 | `dev.rainshare.profile` (`self`) | everyone | bio, setups (harness, models, plan, where it runs), AI budget, forecast, circumstances, values, priorities, the kinds of work you take on |
-| `dev.rainshare.seed` | the requester | title, subject (Tangled issue, GitHub issue, or repo), spec in Markdown, wants, tags, values, size, audience, state (`open`, `sprouted`, `closed`) |
+| `dev.rainshare.seed` | the requester | title, subject (Tangled issue, knotless issue, GitHub issue, or repo), spec in Markdown, wants, tags, values, size, audience, state (`open`, `sprouted`, `closed`) |
 | `dev.rainshare.take` | a helper | "my agent is on this": a strong ref to the seed and the setup doing it. Deleting it drops the seed. |
-| `dev.rainshare.delivery` | a helper | the pull request (URL, or a Tangled pull's at:// URI), what did the work, and an optional session link |
+| `dev.rainshare.delivery` | a helper | the pull request (URL, or on Tangled and knotless its own record's at:// URI), what did the work, and an optional session link |
 
 **Public and private.** A public seed lives in your repo, and `audience` says who it's
 for: apps show it only to those people and only offer it to them. That's a filter, not a lock,
@@ -137,8 +137,10 @@ However a seed reaches an agent, the agent is handed the same brief (`core/brief
    ask before anything that reaches outside it.
 5. **Turning it in**: open the pull request (on GitHub with "Fixes #N", so that merging it
    closes the issue) and put the seed's link in it. That link is how the seed and the pull
-   request find each other later. On Tangled the agent pushes a branch and writes the title and
-   description, and its user opens the pull request from the link.
+   request find each other later. On knotless the brief names knotless's own commands, so an
+   agent with its CLI or MCP server forks, pushes and opens the pull itself. On Tangled the
+   agent pushes a branch and writes the title and description, and its user opens the pull
+   request from the link.
 6. **When you're done**: tell your user the pull request's address, whether it has been turned
    in on Rainshare, and that the rest is the requester's to do.
 
@@ -179,12 +181,13 @@ own records can't say, and `standing` puts the two together.
 | The issue was closed on the forge | Ask before starting | Mark it sprouted, or close it |
 | The seed has sprouted and the issue is still open | | Close the issue on the forge |
 
-Nothing is closed automatically. Rainshare reads GitHub and Tangled but can't write to them, and
+Nothing is closed automatically. Rainshare reads the forges but can't write to them, and
 whether a pull request did the job is the requester's call. So each side is shown what's left
 for them at the moment they're looking: on the seed's page, in `check`, and in the brief.
 
 A pull request that mentions a seed without having been turned in is listed on the seed's page
-under "Also on GitHub" or "Also on Tangled". Whoever's agent opened it can turn it in from there.
+under "Also on GitHub" (or Tangled, or knotless). Whoever's agent opened it can turn it in from
+there.
 
 ## The CLI and MCP server
 
@@ -218,7 +221,7 @@ Both sign in with an app password (saved to `~/.config/rainshare`, or from `RAIN
 and `RAINSHARE_APP_PASSWORD`), and reach public seeds only for now: private ones are taken on
 in the app.
 
-## Bluesky, Tangled and GitHub
+## Bluesky, Tangled, knotless and GitHub
 
 - **Bluesky**: your handle signs you in (OAuth with your own server), your follows make your
   circle, lists and blocks are respected, and "Share on Bluesky" and "Thank them on Bluesky"
@@ -234,6 +237,14 @@ in the app.
   address. Pull requests are opened on the web for now, so the brief has the agent push a
   branch and hand its user the link that opens one; Tangled's launch post says a CLI and agent
   skills are on the way, and the brief should change when they arrive.
+- **knotless**: pick an open issue from your own knotless repos, or paste any knotless.dev
+  link. knotless keeps a repo, its issues and its pulls as records in people's own accounts,
+  and its public API (`knotless.dev/xrpc`) says whether an issue is open, whether a pull is
+  open, merged or closed, and which pulls name an issue; pulls that carry the seed's link are
+  searched for. Repos clone over plain https. A pull can be turned in by its page or by the
+  `at://` address `knotless pull create` prints, and Rainshare works out the page from it.
+  The brief gives the agent knotless's own commands (and the MCP tools of the same names), and
+  asks for "Fixes" and the issue's address in the pull, which closes the issue when it merges.
 - **GitHub**: paste an issue or repo link. The issue's title and body start you off, and its
   state is read back, along with each delivered pull request's (open, merged or closed). The
   repo's 50 most recently updated pull requests are also searched for the issue's number or
@@ -253,7 +264,7 @@ in the app.
 | `core/ns.js` | Collection names, and the words people see for every known value |
 | `core/records.js` | Building each record from what people type, within the lexicons' limits |
 | `core/net.js` | Public reads: identity, records from each PDS, the relay, the Bluesky graph |
-| `core/subjects.js` | Tangled and GitHub: parsing links, clone URLs, issue titles and states, pull request states, pull requests that mention a seed |
+| `core/subjects.js` | Tangled, knotless and GitHub: parsing links, clone URLs, issue titles and states, pull request states, pull requests that mention a seed |
 | `core/circle.js` | Audiences and closeness |
 | `core/rank.js` | A helper's board in order, and how well each seed fits them, with reasons |
 | `core/words.js` | A seed in plain lines: where, the job, what they'd like, who's on it |
@@ -329,6 +340,13 @@ Not yet checked:
   pushing to a Tangled fork and the link that push prints, picking an issue from your own
   repos while signed in, cloning (tangled.org answers with a redirect to the repo's knot,
   which was seen but not followed), and repos on knots other than Tangled's own.
+- knotless: the lookups were run against `knotless.dev` on 11 November 2026, read-only, on a
+  public repo there (a person's repos, a repo's open issues, an open and a closed issue, a
+  merged pull by its page and by its record, and the pull that names an issue). Its API
+  allows requests from other sites, and a repo's git address answered. Not checked: an agent
+  forking, pushing and opening a pull with the knotless CLI or MCP server (the commands in
+  the brief are from knotless's docs, not from running them), private repos, and knotless
+  servers other than knotless.dev, which Rainshare doesn't recognise as knotless yet.
 - The CLI's `run` end to end with a real agent: starting it, finding the pull request with
   `gh` afterwards, and turning it in.
 - How smoothly the scene runs on real phones and older laptops. It has only been run on a

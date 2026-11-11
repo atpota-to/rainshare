@@ -2,7 +2,7 @@
 // commands that start one on it. The brief frames the seed as a request from another
 // person, so an agent weighs it rather than obeying it.
 import { SITE, labelOf, TESTS } from './ns.js';
-import { describeSubject, cloneUrlOf, kindOf, FORGE_NAMES, REPO_NAME } from './subjects.js';
+import { describeSubject, cloneUrlOf, kindOf, FORGE_NAMES, REPO_NAME, KNOTLESS, KNOTLESS_NAME } from './subjects.js';
 import { parseUri } from './net.js';
 import { standing } from './status.js';
 
@@ -46,6 +46,9 @@ export function brief(item, { viewer, now = Date.now() } = {}){
   // On Tangled a pull request is opened on the web (a command-line tool is on its way), so the
   // agent pushes the branch and its user opens the pull request and says where it is.
   const tangled = d?.forge === 'tangled';
+  // knotless has a command for everything, and an MCP tool for each command, so an agent with
+  // either can do the whole job. Its commands name a repo as knotless://<owner>/<name>.
+  const knotless = d?.forge === 'knotless', kl = knotless && KNOTLESS_NAME.test(d.repo || '') ? `knotless://${d.repo}` : null;
   const lines = [
     `# Seed: ${sq.title}`,
     '',
@@ -72,6 +75,7 @@ export function brief(item, { viewer, now = Date.now() } = {}){
   const checks = [
     kind === 'githubIssue' && d.repo && n ? `Look at the issue. Is it still open? Is there a linked pull request, or a comment from someone already working on it? \`gh issue view ${n} --repo ${d.repo} --comments\` shows it, and \`gh pr list --repo ${d.repo}\` lists the open pull requests.`
       : d?.forge === 'github' && d.repo ? `Look through the repository’s open pull requests for one that already does this: \`gh pr list --repo ${d.repo}\`.`
+        : knotless ? `Look at ${d.issue ? 'the issue, and at ' : ''}the repository’s pulls, for one that already does this.${kl ? ` With the knotless CLI: ${d.issue && sub.uri ? `\`knotless issue show ${kl} ${sub.uri}\` and ` : ''}\`knotless pull list ${kl}\` (its MCP tools \`issue_show\` and \`pull_list\` do the same).` : ''} On the web: ${[d.issue && d.href, clone && clone + '/pulls'].filter(Boolean).join(' and ') || 'its page'}.`
         : tangled ? `Look at ${d.issue ? 'the issue, and at ' : ''}the repository’s pull requests on tangled.org, for one that already does this: ${[d.issue && d.href, clone && clone + '/pulls'].filter(Boolean).join(' and ') || 'its page'}.`
           : d ? 'Look in the repository for a branch or pull request that already does this.' : null,
     pub ? `Look at the seed itself: \`node ${CLI_HOME} check ${item.uri}\` if the Rainshare CLI is here, or the MCP tool \`rainshare_check\`. With neither, ask your user to glance at its page.`
@@ -98,6 +102,16 @@ export function brief(item, { viewer, now = Date.now() } = {}){
     `- If the push prints a link for opening a pull request, pass that on to your user. If it doesn’t, the form is at ${clone ? clone + '/pulls/new' : 'the repository’s New pull page'}. Write the title and description for them to paste: ${d.issue && d.href ? `link the issue (${d.href}), ` : ''}${credit}.`,
     '- If you can’t push at all, make a patch with `git format-patch` and tell your user exactly what to open, and where.',
     `- Once it’s open, the pull request has an address like ${clone || 'https://tangled.org/<owner>/<repo>'}/pulls/<id>, and it still needs turning in on Rainshare. ${pub ? `If your user gives you that address and the Rainshare CLI or MCP server is set up here, do it yourself: ${yourself}. Otherwise they paste it into the turn-in form on the seed’s page${page ? `: ${page}` : ''}.` : 'Your user pastes it into the turn-in form on the seed’s page in Rainshare.'}`,
+    '');
+  else if (knotless) lines.push(
+    `- With the \`knotless\` command here, do it all yourself. Push your branch: to ${d.repo || 'the repository'} if your user can write to it, otherwise fork it${kl ? ` (\`knotless repo fork ${kl}\`)` : ''} and push to the fork (\`git push knotless://<their handle>/<repo> <branch>\`). Then open the pull${kl ? `: \`knotless pull create ${kl} <base branch> knotless://<their handle>/<repo> <branch> "<title>" -m - < body.md\`` : ''}. With the knotless MCP server instead, the tools are \`repo_fork\`, \`repo_commit\` and \`pull_create\`.`,
+    `- In the pull’s body, ${d.issue && d.href ? `write "Fixes ${d.href}" so that merging it closes the issue, ` : ''}${credit}. If the repository has a template for pulls${kl ? ` (\`knotless pull template ${kl}\`)` : ''}, follow it.`,
+    `- \`pull create\` prints the pull’s \`at://\` address, and that address is what gets turned in.${clone ? ` Its page is ${clone}/pull/<the account in that address>/<its last part>.` : ''}`,
+    `- With neither here, ask your user to set knotless up (${KNOTLESS}/start), or make a patch with \`git format-patch\` and tell them exactly what to open, and where.`,
+    ...(pub
+      ? [`- Then turn it in on Rainshare. If the Rainshare CLI or MCP server is set up here, do it yourself: ${yourself}.`,
+        ...(page ? [`- If neither is set up, your user turns it in with one click. Give them this link with the pull’s address on the end; it opens the seed with the turn-in form filled in: ${handBack(item, '<pull request URL>', '<model>')}`] : [])]
+      : ['- Then your user turns it in from the seed’s page in Rainshare.']),
     '');
   else lines.push(
     kind === 'githubIssue' || d?.forge === 'github'

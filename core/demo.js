@@ -54,7 +54,7 @@ const SEEDS = [
     tags: ['python', 'django'], values: ['mutual-aid', 'civic'], size: 'medium', audience: { $type: sq('anyone') } } },
   { id: '3sq-kai', by: 'did:example:kai', at: 5 * day, value: {
     title: 'Fix the flaky timezone test',
-    subject: { $type: sq('tangledIssue'), url: 'https://tangled.org/kai.example/almanac/issues/88', repoUrl: 'https://tangled.org/kai.example/almanac' },
+    subject: { $type: sq('knotlessIssue'), url: 'https://knotless.dev/kai.example/almanac/issue/did:example:kai/3mzissue88', repoUrl: 'https://knotless.dev/kai.example/almanac', uri: 'at://did:example:kai/dev.knotless.issue/3mzissue88' },
     spec: '`TestNextOccurrence` fails about one run in twenty around midnight UTC. I suspect it reads the wall clock somewhere.',
     wants: { tests: 'required' }, tags: ['go', 'testing'], size: 'tiny', parallel: true, audience: { $type: sq('mutuals') } } },
   { id: '3sq-priya', by: 'did:example:priya', at: 9 * 3600e3, value: {
@@ -188,6 +188,11 @@ export function createDemoSource({ store = null, me: meOverride = null } = {}){
     tangledIssues: () => Promise.resolve([
       { uri: 'at://did:example:garden/org.tangled.track.ticket/3iss1', cid: 'bafyexampleiss1', title: 'RSS feed skips drafts incorrectly', body: '' },
       { uri: 'at://did:example:garden/org.tangled.track.ticket/3iss2', cid: 'bafyexampleiss2', title: 'Add a sitemap.xml', body: '' }
+    ]),
+    knotlessRepos: () => Promise.resolve([{ uri: 'at://did:example:you/dev.knotless.repo/tally', name: 'tally', url: 'https://knotless.dev/you.example/tally', description: 'Adds up receipts' }]),
+    knotlessIssues: () => Promise.resolve([
+      { uri: 'at://did:example:you/dev.knotless.issue/3iss3', title: 'Dates in ISO 8601 are read as text', body: '' },
+      { uri: 'at://did:example:you/dev.knotless.issue/3iss4', title: 'Totals round each line, not the sum', body: '' }
     ])
   };
 }

@@ -12,7 +12,7 @@ import { PROFILE, SEED, TAKE, DELIVERY } from './ns.js';
 import * as net from './net.js';
 import * as R from './records.js';
 import { closeness, meantFor } from './circle.js';
-import { completeTangled, tangledRepos, tangledIssues } from './subjects.js';
+import { completeTangled, tangledRepos, tangledIssues, knotlessRepos, knotlessIssues } from './subjects.js';
 
 const TTL = 60e3;
 /** A record URI inside a space: the space, then repo/collection/rkey. */
@@ -276,6 +276,8 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
       return { ...c, mutuals };
     }, 300e3) : Promise.resolve(null),
     tangledRepos: () => viewer ? tangledRepos(viewer) : Promise.resolve([]),
-    tangledIssues
+    tangledIssues,
+    knotlessRepos: () => viewer ? knotlessRepos(viewer) : Promise.resolve([]),
+    knotlessIssues
   };
 }

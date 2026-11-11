@@ -13,7 +13,7 @@
           "title": { "type": "string", "maxLength": 1200, "maxGraphemes": 120 },
           "subject": {
             "type": "union",
-            "refs": ["#tangledIssue", "#githubIssue", "#repo"],
+            "refs": ["#tangledIssue", "#githubIssue", "#knotlessIssue", "#repo"],
             "description": "Where the work is."
           },
           "spec": {
@@ -70,12 +70,22 @@
         "number": { "type": "integer", "minimum": 1 }
       }
     },
+    "knotlessIssue": {
+      "type": "object",
+      "description": "An issue on knotless: its page, the repo's page (which git can clone from), and its record.",
+      "required": ["url"],
+      "properties": {
+        "url": { "type": "string", "format": "uri", "description": "The issue's page on knotless.dev." },
+        "repoUrl": { "type": "string", "format": "uri", "description": "The repo's page, which git can clone from." },
+        "uri": { "type": "string", "format": "at-uri", "description": "The issue's dev.knotless.issue record, in its author's account." }
+      }
+    },
     "repo": {
       "type": "object",
       "required": ["url"],
       "properties": {
         "url": { "type": "string", "format": "uri", "description": "Where to clone it from, or its page." },
-        "forge": { "type": "string", "maxLength": 320, "maxGraphemes": 32, "knownValues": ["tangled", "github", "gitlab", "codeberg", "other"] },
+        "forge": { "type": "string", "maxLength": 320, "maxGraphemes": 32, "knownValues": ["tangled", "github", "knotless", "gitlab", "codeberg", "other"] },
         "repoDid": { "type": "string", "format": "did", "description": "For a Tangled repo, its DID." },
         "name": { "type": "string", "maxLength": 640, "maxGraphemes": 64 }
       }

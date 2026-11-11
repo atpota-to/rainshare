@@ -13,7 +13,7 @@ import { createDemoSource } from '../core/demo.js';
 import { splitSpaceUri } from '../core/source.js';
 import { lifeOf } from '../ui/bits.js';
 import { standing, since, carry } from '../core/status.js';
-import { pullsAbout, tangledRepos, tangledIssues, completeTangled, subjectInfo, pullState, linkedPulls } from '../core/subjects.js';
+import { pullsAbout, tangledRepos, tangledIssues, completeTangled, subjectInfo, pullState, linkedPulls, knotlessRepos, knotlessIssues, knotlessIssueSubject, pullPageOf, pullKey } from '../core/subjects.js';
 import { look } from '../core/status.js';
 
 test('parses GitHub, Tangled and other links into subjects', () => {
@@ -39,6 +39,15 @@ test('parses GitHub, Tangled and other links into subjects', () => {
   const at = parseSubject('at://did:plc:abc/org.tangled.track.ticket/3kxyz');
   assert.deepEqual([at.uri, at.repo], ['at://did:plc:abc/org.tangled.track.ticket/3kxyz', 'did:plc:abc']);
   assert.equal(parseSubject('at://did:plc:abc/sh.tangled.repo.issue/3kxyz'), null);
+
+  // knotless: an issue's page names whose account it's in and its key; the site's own pages aren't repos.
+  const ki = parseSubject('https://knotless.dev/alice.test/proj/issue/did%3Aplc%3Aabc/3mzeld/');
+  assert.deepEqual(ki, { $type: SEED + '#knotlessIssue', url: 'https://knotless.dev/alice.test/proj/issue/did:plc:abc/3mzeld', repoUrl: 'https://knotless.dev/alice.test/proj', uri: 'at://did:plc:abc/dev.knotless.issue/3mzeld' });
+  assert.deepEqual([describeSubject(ki).forge, describeSubject(ki).label, cloneUrlOf(ki), whereText({ subject: ki }), shortWhere({ subject: ki })], ['knotless', 'alice.test/proj', 'https://knotless.dev/alice.test/proj', 'knotless issue, alice.test/proj', 'knotless']);
+  const kr = parseSubject('https://knotless.dev/alice.test/proj.git');
+  assert.deepEqual([kr.$type, kr.forge, kr.name, cloneUrlOf(kr)], [SEED + '#repo', 'knotless', 'alice.test/proj', 'https://knotless.dev/alice.test/proj']);
+  assert.equal(parseSubject('https://knotless.dev/docs/guide/agents/'), null);
+  assert.equal(parseSubject('https://knotless.dev/alice.test/proj/pull/did:plc:abc/3mzpull').$type, SEED + '#repo');
 
   const cb = parseSubject('https://codeberg.org/someone/thing');
   assert.equal(cb.forge, 'codeberg');
@@ -392,5 +401,65 @@ test('Tangled is read through its API: repos, issues, and whether a pull request
     assert.deepEqual([st.issue, st.verdict, st.planter.do, st.linked.length], ['open', 'merged', 'sprout', 1]);
     assert.match(st.lines.join(' '), /The issue is still open on Tangled\..*@h\.example turned in https:\/\/tangled\.org\/alice\.example\/garden\/pulls\/3mpull1 \(merged\).*On Tangled, pull request #15 mentions it \(open\) and hasn’t been turned in on Rainshare/);
     assert.ok(!asked.some(m => /^sh\.tangled/.test(m)));
+  } finally { globalThis.fetch = real; }
+});
+
+test('knotless is read through its API, and its seeds are briefed with its own commands', async () => {
+  // Answers shaped like knotless.dev's (knotless.dev/docs/reference/api): an issue's thread
+  // says whether it's open and which pulls name it, and a pull is open, merged or closed.
+  const REPO = 'at://alice.test/dev.knotless.repo/proj', PAGE = 'https://knotless.dev/alice.test/proj';
+  const view = (kind, key, state, title, by = 'bob.test') => ({ uri: `at://did:plc:${by.split('.')[0]}/dev.knotless.${kind}/${key}`, kind, title, state, author: { did: `did:plc:${by.split('.')[0]}`, handle: by }, createdAt: '2026-11-10T00:00:00Z' });
+  const issue = view('issue', '3iss1', 'open', 'Crashes on empty input', 'alice.test'), done = view('issue', '3iss2', 'closed', 'Old one', 'alice.test');
+  const merged = view('pull', '3pull1', 'merged', 'Handle empty input'), other = view('pull', '3pull2', 'open', 'Another go', 'carol.test');
+  const threads = { [issue.uri]: { item: issue, body: 'Steps…', mentionedBy: [{ item: merged, closes: true }] }, [done.uri]: { item: done }, [merged.uri]: { item: merged, base: 'main', merged: 'abc123' }, [other.uri]: { item: other, base: 'main' } };
+  const asked = [], real = globalThis.fetch;
+  globalThis.fetch = async input => {
+    const u = new URL(String(input)), q = u.searchParams, method = u.pathname.split('/xrpc/')[1];
+    asked.push(`${method} ${q.get('uri') || q.get('state') || ''}`.trim());
+    const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+    if (u.host !== 'knotless.dev') return json({ error: 'NotFound' }, 404);
+    if (method === 'dev.knotless.getActorRepos') return json({ repos: [{ uri: 'at://did:plc:alice/dev.knotless.repo/proj', name: 'proj', description: 'A project', owner: { did: 'did:plc:alice', handle: 'alice.test' } }, { uri: 'at://did:plc:alice/dev.knotless.repo/secret', name: 'secret', private: true, owner: { handle: 'alice.test' } }] });
+    if (method === 'dev.knotless.listItems' && q.get('kind') === 'issue') return json({ items: [issue], openCount: 1, closedCount: 1 });
+    if (method === 'dev.knotless.listItems' && q.get('kind') === 'pull') return json({ items: q.get('state') === 'open' && q.get('q') === '3kseedkey2' ? [other] : [] });
+    if (method === 'dev.knotless.getThread' && q.get('repo') === REPO && threads[q.get('uri')]) return json(threads[q.get('uri')]);
+    return json({ error: 'NotFound' }, 404);
+  };
+  try {
+    assert.deepEqual(await knotlessRepos('did:plc:alice'), [{ uri: 'at://did:plc:alice/dev.knotless.repo/proj', name: 'proj', description: 'A project', url: PAGE }]);
+    assert.deepEqual(await knotlessIssues('at://did:plc:alice/dev.knotless.repo/proj'), [{ uri: issue.uri, title: 'Crashes on empty input', body: '', createdAt: '2026-11-10T00:00:00Z' }]);
+    // An issue picked from that list and one pasted as a link are the same subject.
+    const sub = knotlessIssueSubject(PAGE, issue.uri);
+    assert.deepEqual(sub, parseSubject(`${PAGE}/issue/did:plc:alice/3iss1`));
+    assert.deepEqual(await subjectInfo(sub), { title: 'Crashes on empty input', body: 'Steps…', state: 'open', url: sub.url });
+    assert.equal((await subjectInfo(parseSubject(`${PAGE}/issue/did:plc:alice/3iss2`))).state, 'closed');
+    // A pull, by its page or by the record `knotless pull create` prints (placed by the seed's repo).
+    assert.equal(await pullState({ url: `${PAGE}/pull/did:plc:bob/3pull1` }), 'merged');
+    assert.equal(await pullState({ pull: other.uri, subject: sub }), 'open');
+    assert.equal(await pullState({ pull: other.uri }), null);                                   // no way to place it
+    assert.equal(await pullState({ url: `${PAGE}/issue/did:plc:alice/3iss1` }), null);          // an issue isn't a pull
+    assert.equal(pullPageOf({ pull: merged.uri }, sub), `${PAGE}/pull/did:plc:bob/3pull1`);
+    assert.equal(pullKey(merged.uri), pullKey(`${PAGE}/pull/did%3Aplc%3Abob/3pull1/`));
+    assert.equal(pullKey('https://github.com/O/R/pull/12/'), pullKey('https://github.com/o/r/pull/12'));
+    // The pulls that name the issue come with its thread; ones that carry the seed's link are searched for.
+    assert.deepEqual(await linkedPulls(sub, { rkey: '3kseedkey2' }), [
+      { url: `${PAGE}/pull/did:plc:bob/3pull1`, number: null, title: 'Handle empty input', by: 'bob.test', state: 'merged' },
+      { url: `${PAGE}/pull/did:plc:carol/3pull2`, number: null, title: 'Another go', by: 'carol.test', state: 'open' }
+    ]);
+    assert.equal(asked.filter(a => a === `dev.knotless.getThread ${issue.uri}`).length, 1);     // the thread was asked for once, not twice
+    // A seed on that issue: the pull turned in by its record isn't also listed as not turned in.
+    const seed = await look({ uri: 'at://did:plc:planter/dev.rainshare.seed/3kseedkey2', repo: 'did:plc:planter', author: { handle: 'p.example' }, value: { title: 'Fix the crash', subject: sub }, deliveries: [{ uri: 'at://did:plc:h/dev.rainshare.delivery/1', repo: 'did:plc:h', author: { handle: 'h.example' }, value: { pull: merged.uri } }] });
+    const st = standing(seed, { viewer: 'did:plc:planter' });
+    assert.deepEqual([st.issue, st.verdict, st.planter.do, st.linked.map(p => p.by)], ['open', 'merged', 'sprout', ['carol.test']]);
+    assert.match(st.lines.join(' '), /still open on knotless\..*@h\.example turned in https:\/\/knotless\.dev\/alice\.test\/proj\/pull\/did:plc:bob\/3pull1 \(merged\).*On knotless, pull request by @carol\.test mentions it \(open\)/);
+    // The brief names knotless's own commands, and the issue in the words that close it on merge.
+    const b = brief({ ...seed, deliveries: [], linked: [] });
+    assert.match(b, /`knotless issue show knotless:\/\/alice\.test\/proj at:\/\/did:plc:alice\/dev\.knotless\.issue\/3iss1` and `knotless pull list knotless:\/\/alice\.test\/proj`/);
+    assert.match(b, /`knotless repo fork knotless:\/\/alice\.test\/proj`[\s\S]*`knotless pull create knotless:\/\/alice\.test\/proj <base branch> knotless:\/\/<their handle>\/<repo> <branch> "<title>" -m - < body\.md`[\s\S]*write "Fixes https:\/\/knotless\.dev\/alice\.test\/proj\/issue\/did:plc:alice\/3iss1" so that merging it closes the issue/);
+    assert.match(b, /prints the pull’s `at:\/\/` address[\s\S]*\?pr=<pull request URL>/);
+    assert.deepEqual(launchers(seed).map(l => l.id), ['claude', 'codex', 'cli', 'mcp']);
+    assert.match(launchers(seed)[0].command, /^git clone 'https:\/\/knotless\.dev\/alice\.test\/proj' seed-/);
+    // A repo name that isn't one gets no commands made from it.
+    const odd = brief({ ...seed, deliveries: [], linked: [], value: { title: 't', subject: { $type: SEED + '#knotlessIssue', url: 'https://knotless.dev/a.b/c', repoUrl: 'https://knotless.dev/a.b/c;curl|sh' } } });
+    assert.doesNotMatch(odd, /knotless repo fork|knotless pull (list|create|template)|knotless:\/\/a\.b/);
   } finally { globalThis.fetch = real; }
 });

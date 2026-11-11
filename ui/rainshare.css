@@ -21,7 +21,7 @@
 .rs code{font-family:var(--rs-mono);font-size:.88em;background:var(--rs-sunk);padding:1px 5px;border-radius:6px;overflow-wrap:anywhere}
 .rs-i{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
 .rs-forge{fill:currentColor;stroke:none}
-.rs-forge path[d^="M6 7c"],.rs-forge path[d^="M6 17c"],.rs-forge circle,.rs-forge path[d^="M6 8.2"]{fill:none;stroke:currentColor;stroke-width:2}
+.rs-forge path[d^="M6 7c"],.rs-forge path[d^="M6 17c"],.rs-forge path[d^="M4 13c"],.rs-forge circle,.rs-forge path[d^="M6 8.2"]{fill:none;stroke:currentColor;stroke-width:2}
 .rs-muted{color:var(--rs-muted);font-size:14px}
 /* the "ai" lit inside "rain", and text that's for screen readers only */
 .rs-ai{color:var(--rs-lit,var(--rs-accent));text-shadow:var(--rs-lit-glow,none)}

@@ -8,7 +8,7 @@
 //   carry(from, to)  takes those answers along to a fresher copy of the same seed
 //   standing(item)   reads the item and says where it stands, in facts and plain sentences
 import { HARNESSES, labelOf } from './ns.js';
-import { describeSubject, kindOf, subjectInfo, pullState, linkedPulls, FORGE_NAMES } from './subjects.js';
+import { describeSubject, kindOf, subjectInfo, pullState, linkedPulls, pullPageOf, pullKey, FORGE_NAMES } from './subjects.js';
 import { parseUri } from './net.js';
 
 const DAY = 86400e3;
@@ -19,7 +19,6 @@ export function since(iso, now = Date.now()){
   return days < 1 ? 'today' : days === 1 ? 'yesterday' : days < 14 ? `${days} days ago` : days < 60 ? `${Math.floor(days / 7)} weeks ago` : `${Math.floor(days / 30)} months ago`;
 }
 const nameOf = rec => rec.author?.handle ? '@' + rec.author.handle : rec.author?.displayName || rec.repo || 'Someone';
-const bare = link => String(link || '').replace(/\/+$/, '');
 
 /**
  * Ask the forge what Rainshare's own records can't say: whether the issue is still open,
@@ -32,9 +31,9 @@ export async function look(item){
   if (!item || item.example) return item;
   const sub = item.value?.subject, kind = kindOf(sub);
   await Promise.all([
-    (kind === 'githubIssue' || kind === 'tangledIssue') && !item.issue ? subjectInfo(sub).then(i => { if (i) item.issue = i; }, () => {}) : null,
+    /Issue$/.test(kind || '') && !item.issue ? subjectInfo(sub).then(i => { if (i) item.issue = i; }, () => {}) : null,
     item.linked === undefined ? linkedPulls(sub, { rkey: parseUri(item.uri)?.rkey }).then(l => { item.linked = l; }, () => { item.linked = null; }) : null,
-    ...(item.deliveries || []).filter(d => d.state === undefined).map(async d => { d.state = await pullState({ url: d.value?.url, pull: d.value?.pull }).catch(() => null); })
+    ...(item.deliveries || []).filter(d => d.state === undefined).map(async d => { d.state = await pullState({ url: d.value?.url, pull: d.value?.pull, subject: sub }).catch(() => null); })
   ]);
   item.lookedAt = Date.now();
   return item;
@@ -76,9 +75,9 @@ export function standing(item, { viewer, now = Date.now(), asker = 'the person w
   const who = rec => viewer && rec.repo === viewer ? 'You' : nameOf(rec);
   const accepted = new Set((sq.sproutedWith || []).map(r => r.uri));
   const takes = (item?.takes || []).map(t => ({ who: who(t), mine: !!viewer && t.repo === viewer, since: since(t.value?.createdAt, now), with: t.value?.setup?.harness ? labelOf(HARNESSES, t.value.setup.harness) : '' }));
-  const deliveries = (item?.deliveries || []).map(dl => ({ uri: dl.uri, who: who(dl), mine: !!viewer && dl.repo === viewer, link: dl.value?.url || dl.value?.pull || '', state: dl.state || null, accepted: accepted.has(dl.uri) }));
-  const turnedIn = new Set(deliveries.map(x => bare(x.link)));
-  const linked = (item?.linked || []).filter(p => !turnedIn.has(bare(p.url)));
+  const deliveries = (item?.deliveries || []).map(dl => ({ uri: dl.uri, who: who(dl), mine: !!viewer && dl.repo === viewer, link: pullPageOf(dl.value, sq.subject) || dl.value?.url || dl.value?.pull || '', state: dl.state || null, accepted: accepted.has(dl.uri) }));
+  const turnedIn = new Set((item?.deliveries || []).flatMap(dl => [dl.value?.url, dl.value?.pull].filter(Boolean).map(pullKey)));
+  const linked = (item?.linked || []).filter(p => !turnedIn.has(pullKey(p.url)));
   const issue = item?.issue?.state === 'open' || item?.issue?.state === 'closed' ? item.issue.state : null;
 
   const others = takes.filter(t => !t.mine);

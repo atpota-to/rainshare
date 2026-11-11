@@ -14,6 +14,7 @@ export function whereText(sq){
   if (!d) return 'No repo yet';
   const forge = FORGE_NAMES[d.forge] || 'Git';
   if (kindOf(s) === 'githubIssue') return `${forge} issue #${parseInt(s.number, 10) || ''}${d.repo ? ', ' + d.repo : ''}`;
+  if (kindOf(s) === 'knotlessIssue') return `${forge} issue${d.repo ? ', ' + d.repo : ''}`;
   if (kindOf(s) === 'tangledIssue') {
     const n = (String(s.url || '').match(/\/issues\/(\d+)(?:[/?#]|$)/) || [])[1];
     return `${forge} issue${n ? ' #' + n : ''}${d.repo ? ', ' + d.repo : ''}`;

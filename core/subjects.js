@@ -1,4 +1,4 @@
-// Where the work is: a Tangled issue or repo, a GitHub issue or repo, or any git URL.
+// Where the work is: an issue or repo on Tangled, GitHub or knotless, or any git URL.
 // Parsing what someone pasted, describing it, the URL to clone, and (where the forge has a
 // public API) the issue's title and whether a pull request has landed.
 import { SEED } from './ns.js';
@@ -11,6 +11,12 @@ export const TANGLED = 'https://tangled.org';
 // the page address ends in, a number on older repos and a longer id on newer ones.
 export const TICKET = 'org.tangled.track.ticket';
 const KEY = '[A-Za-z0-9._:~-]+';
+// knotless keeps a repo, its issues and its pulls as records in people's own accounts. An
+// issue's or a pull's page address ends in whose account it's in and its key, and its API
+// (knotless.dev/docs/reference/api) names a repo by its record: at://<owner>/dev.knotless.repo/<name>.
+export const KNOTLESS = 'https://knotless.dev';
+const K_REPO = 'dev.knotless.repo', K_ISSUE = 'dev.knotless.issue', K_PULL = 'dev.knotless.pull';
+export const KNOTLESS_NAME = /^[A-Za-z0-9._:-]+\/[A-Za-z0-9._-]+$/;
 export const GITHUB_API = 'https://api.github.com';
 
 const T = kind => `${SEED}#${kind}`;
@@ -28,7 +34,7 @@ export const REPO_NAME = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 function url(raw){
   try { const u = new URL(String(raw).trim()); return /^https?:$/.test(u.protocol) ? u : null; } catch (_) { return null; }
 }
-const FORGES = { 'github.com': 'github', 'www.github.com': 'github', 'tangled.org': 'tangled', 'tangled.sh': 'tangled', 'gitlab.com': 'gitlab', 'codeberg.org': 'codeberg' };
+const FORGES = { 'github.com': 'github', 'www.github.com': 'github', 'tangled.org': 'tangled', 'tangled.sh': 'tangled', 'knotless.dev': 'knotless', 'gitlab.com': 'gitlab', 'codeberg.org': 'codeberg' };
 
 /** What someone pasted, as a seed subject, or null if it isn't a link we understand. */
 export function parseSubject(raw){
@@ -49,6 +55,14 @@ export function parseSubject(raw){
     if (parts[2] === 'issues' && parts[3] !== 'new' && new RegExp(`^${KEY}$`).test(parts[3] || '')) return { $type: T('tangledIssue'), url: `${repoUrl}/issues/${parts[3]}`, repoUrl };
     return { $type: T('repo'), url: repoUrl, forge, name: `${owner}/${name}` };
   }
+  // On knotless an owner is a handle or a DID, which is how its repos are told from its own pages.
+  if (forge === 'knotless') {
+    const owner = (parts[0] || '').replace(/^@/, ''), name = (parts[1] || '').replace(/\.git$/, '');
+    if (!KNOTLESS_NAME.test(`${owner}/${name}`) || !/[.:]/.test(owner)) return null;
+    const repoUrl = `${KNOTLESS}/${owner}/${name}`;
+    if (parts[2] === 'issue' && /^did:[a-z]+:[A-Za-z0-9._:%-]+$/.test(parts[3] || '') && new RegExp(`^${KEY}$`).test(parts[4] || '')) return { $type: T('knotlessIssue'), url: `${repoUrl}/issue/${parts[3]}/${parts[4]}`, repoUrl, uri: `at://${parts[3]}/${K_ISSUE}/${parts[4]}` };
+    return { $type: T('repo'), url: repoUrl, forge, name: `${owner}/${name}` };
+  }
   if (parts.length >= 1) return { $type: T('repo'), url: u.href.replace(/\/+$/, ''), forge, name: parts.slice(0, 2).join('/').replace(/\.git$/, '') };
   return null;
 }
@@ -65,19 +79,25 @@ export function describeSubject(subject){
     const n = (String(subject.url || '').match(/\/issues\/(\d+)(?:[/?#]|$)/) || [])[1];
     return { forge: 'tangled', label: repo ? `${repo}${n ? ' #' + n : ''}` : 'A Tangled issue', repo, href: safeHttp(subject.url) || page, issue: true };
   }
+  if (kind === 'knotlessIssue') {
+    const page = safeHttp(subject.repoUrl), repo = page ? page.replace(KNOTLESS + '/', '') : '';
+    return { forge: 'knotless', label: repo || 'A knotless issue', repo, href: safeHttp(subject.url) || page, issue: true };
+  }
   if (kind === 'repo') {
-    const forge = ['github', 'tangled', 'gitlab', 'codeberg'].includes(subject.forge) ? subject.forge : 'other';
+    const forge = ['github', 'tangled', 'knotless', 'gitlab', 'codeberg'].includes(subject.forge) ? subject.forge : 'other';
     return { forge, label: subject.name || subject.url, repo: forge !== 'github' || REPO_NAME.test(subject.name || '') ? subject.name : null, href: safeHttp(subject.url), issue: false };
   }
   return null;
 }
-export const FORGE_NAMES = { github: 'GitHub', tangled: 'Tangled', gitlab: 'GitLab', codeberg: 'Codeberg', other: 'Git' };
+export const FORGE_NAMES = { github: 'GitHub', tangled: 'Tangled', knotless: 'knotless', gitlab: 'GitLab', codeberg: 'Codeberg', other: 'Git' };
+/** The repo's page on its forge, whichever kind of subject names it. */
+export const repoPageOf = subject => safeHttp(kindOf(subject) === 'repo' ? subject.url : kindOf(subject) === 'githubIssue' ? (REPO_NAME.test(subject.repo || '') ? `https://github.com/${subject.repo}` : null) : subject?.repoUrl);
 
 /** The URL git clones from, when we can tell. */
 export function cloneUrlOf(subject){
   const kind = kindOf(subject);
   if (kind === 'githubIssue') return REPO_NAME.test(subject.repo || '') ? `https://github.com/${subject.repo}.git` : null;
-  if (kind === 'tangledIssue') return safeHttp(subject.repoUrl);
+  if (kind === 'tangledIssue' || kind === 'knotlessIssue') return safeHttp(subject.repoUrl);
   if (kind === 'repo') { const u = safeHttp(subject.url); return u && subject.forge === 'github' && !u.endsWith('.git') ? u + '.git' : u; }
   return null;
 }
@@ -133,6 +153,38 @@ export async function completeTangled(subject){
   return out;
 }
 
+/* ---------- knotless, through its public API ---------- */
+const knotlessRepo = page => { const m = String(page || '').match(/^https:\/\/knotless\.dev\/@?([^/?#]+)\/([^/?#]+)/); return m ? `at://${decodeURIComponent(m[1])}/${K_REPO}/${decodeURIComponent(m[2]).replace(/\.git$/, '')}` : null; };
+/** A knotless issue or pull, from its page address: the repo it's on and its own record. */
+function knotlessRef(link){
+  const m = String(link || '').match(new RegExp(`^(https://knotless\\.dev/[^/?#]+/[^/?#]+)/(issue|pull)/(did(?::|%3A)[^/?#]+)/(${KEY})`, 'i'));
+  return m ? { page: m[1], repo: knotlessRepo(m[1]), uri: `at://${decodeURIComponent(m[3])}/dev.knotless.${m[2].toLowerCase()}/${m[4]}` } : null;
+}
+const knotlessPage = (page, uri) => { const at = parseUri(uri); return at && page ? `${page}/${at.collection === K_PULL ? 'pull' : 'issue'}/${at.repo}/${at.rkey}` : null; };
+// One issue's thread answers two questions (is it open, and which pulls mention it), so the
+// answer is kept for a moment rather than asked for twice.
+const threads = new Map();
+function knotlessThread(repo, uri){
+  const key = repo + ' ' + uri, had = threads.get(key);
+  if (had && Date.now() - had.at < 20e3) return had.p;
+  const p = xrpc(KNOTLESS, 'dev.knotless.getThread', { repo, uri, filesOnly: true });
+  threads.set(key, { at: Date.now(), p }); p.catch(() => threads.delete(key));
+  return p;
+}
+const knotlessState = t => ['open', 'merged', 'closed'].includes(t) ? t : null;
+/** Someone's public knotless repos: [{ uri, name, url, description }]. */
+export async function knotlessRepos(did){
+  const r = await xrpc(KNOTLESS, 'dev.knotless.getActorRepos', { actor: did });
+  return (r.repos || []).filter(x => x.uri && x.name && !x.private).map(x => ({ uri: x.uri, name: x.name, description: x.description || '', url: `${KNOTLESS}/${x.owner?.handle || x.owner?.did || did}/${x.name}` }));
+}
+/** A knotless repo's open issues: [{ uri, title, createdAt }]. `repo` is its record's URI. */
+export async function knotlessIssues(repo){
+  const r = await xrpc(KNOTLESS, 'dev.knotless.listItems', { repo, kind: 'issue', state: 'open', limit: 100 });
+  return (r.items || []).map(x => ({ uri: x.uri, title: x.title || 'Untitled issue', body: '', createdAt: x.createdAt }));
+}
+/** The subject for an issue picked from one of those repos. */
+export const knotlessIssueSubject = (repoUrl, uri) => ({ $type: T('knotlessIssue'), url: knotlessPage(repoUrl, uri), repoUrl, uri });
+
 /* ---------- the issue itself: title, body and state, where a public API has them ---------- */
 export async function subjectInfo(subject){
   const kind = kindOf(subject);
@@ -140,6 +192,12 @@ export async function subjectInfo(subject){
     if (kind === 'githubIssue') {
       const r = await getJSON(`${GITHUB_API}/repos/${subject.repo}/issues/${subject.number}`);
       return { title: r.title, body: r.body || '', state: r.state, url: r.html_url };
+    }
+    if (kind === 'knotlessIssue') {
+      const ref = knotlessRef(subject.url) || (subject.uri && subject.repoUrl ? { repo: knotlessRepo(subject.repoUrl), uri: subject.uri } : null);
+      if (!ref?.repo) return null;
+      const r = await knotlessThread(ref.repo, ref.uri);
+      return { title: r.item?.title || '', body: r.body || '', state: r.item?.state === 'open' ? 'open' : r.item?.state ? 'closed' : null, url: subject.url || null };
     }
     if (kind === 'tangledIssue') {
       const uri = await tangledTicket(subject.uri || subject.url);
@@ -156,7 +214,8 @@ export async function subjectInfo(subject){
  * on Rainshare: ones that mention the issue (its number or its address), or the seed's own
  * link (the brief asks for that link in every pull request). On GitHub it looks through the
  * repo's 50 most recently updated; on Tangled, through the 50 newest and whatever search
- * turns up. [{ url, number, title, by, state }], or null if it can't tell.
+ * turns up; knotless already keeps, for each issue, the pulls that name it.
+ * [{ url, number, title, by, state }], or null if it can't tell.
  */
 export async function linkedPulls(subject, { rkey } = {}){
   const d = describeSubject(subject), kind = kindOf(subject);
@@ -176,6 +235,21 @@ export async function linkedPulls(subject, { rkey } = {}){
       const [recent, ...hits] = await Promise.all([xrpc(BOBBIN, 'org.tangled.repo.listPulls', { subject: repoDid, limit: 50 }).then(r => r.items || []), ...[issue, rkey].filter(Boolean).map(found)]);
       const seen = new Set();
       return tangledPullsAbout([...recent, ...hits.flat()].filter(x => x?.uri && !seen.has(x.uri) && seen.add(x.uri)), { page, issue, rkey });
+    }
+    if (d?.forge === 'knotless') {
+      const page = repoPageOf(subject), repo = knotlessRepo(page);
+      if (!repo) return null;
+      const issue = kind === 'knotlessIssue' ? knotlessRef(subject.url)?.uri || subject.uri : null;
+      let answered = false;
+      const got = p => p.then(v => { answered = true; return v; }, () => []);
+      const lists = await Promise.all([
+        issue ? got(knotlessThread(repo, issue).then(r => (r.mentionedBy || []).map(m => m.item))) : [],
+        ...(rkey ? ['open', 'closed'].map(state => got(xrpc(KNOTLESS, 'dev.knotless.listItems', { repo, kind: 'pull', state, q: rkey, limit: 50 }).then(r => r.items || []))) : [])
+      ]);
+      if (!answered && (issue || rkey)) return null;
+      const seen = new Set();
+      return lists.flat().filter(x => x?.uri && x.kind === 'pull' && !seen.has(x.uri) && seen.add(x.uri))
+        .map(x => ({ url: knotlessPage(page, x.uri), number: null, title: x.title || '', by: x.author?.handle || null, state: knotlessState(x.state) }));
     }
   } catch (_) { /* unknown */ }
   return null;
@@ -206,11 +280,16 @@ export function tangledPullsAbout(items, { page, issue, rkey } = {}){
   });
 }
 
-/** Whether a delivered pull request has landed: 'merged', 'open', 'closed', or null if we can't tell. */
-export async function pullState({ url: link, pull } = {}){
+/**
+ * Whether a delivered pull request has landed: 'merged', 'open', 'closed', or null if we can't
+ * tell. `subject` is the seed's, which is how a pull turned in by its record alone is placed.
+ */
+export async function pullState({ url: link, pull, subject } = {}){
   try {
     const m = String(link || '').match(/^https:\/\/github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)/);
     if (m) { const r = await getJSON(`${GITHUB_API}/repos/${m[1]}/pulls/${m[2]}`); return r.merged_at ? 'merged' : r.state; }
+    const k = knotlessRef(link) || (parseUri(pull)?.collection === K_PULL && describeSubject(subject)?.forge === 'knotless' ? { repo: knotlessRepo(repoPageOf(subject)), uri: pull } : null);
+    if (k?.repo) { const r = await knotlessThread(k.repo, k.uri); return r.item?.kind === 'pull' ? knotlessState(r.item.state) : null; }
     const uri = await tangledTicket(pull || link);
     if (uri) {
       const r = await xrpc(BOBBIN, 'org.tangled.track.getTicketView', { uri });
@@ -218,4 +297,20 @@ export async function pullState({ url: link, pull } = {}){
     }
   } catch (_) { /* unknown */ }
   return null;
+}
+/** A page to open for a delivered pull request: its link, or one worked out from its record and the seed's repo. */
+export function pullPageOf({ url, pull } = {}, subject){
+  const u = safeHttp(url); if (u) return u;
+  const at = parseUri(pull), page = repoPageOf(subject), forge = describeSubject(subject)?.forge;
+  if (!at || !page) return null;
+  return at.collection === K_PULL && forge === 'knotless' ? `${page}/pull/${at.repo}/${at.rkey}` : at.collection === TICKET && forge === 'tangled' ? `${page}/pulls/${at.rkey}` : null;
+}
+/** One name for a pull request however it was written down (a page address, a record, a trailing slash), for telling two mentions of it apart. */
+export function pullKey(link){
+  const s = String(link || '').trim(), at = parseUri(s);
+  if (at) return at.collection === K_PULL ? `knotless:${at.repo}/${at.rkey}` : at.collection === TICKET ? `tangled:${at.rkey}` : s;
+  const g = s.match(/^https:\/\/github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)/i); if (g) return `github:${g[1].toLowerCase()}#${g[2]}`;
+  const k = knotlessRef(s); if (k) { const p = parseUri(k.uri); return `knotless:${p.repo}/${p.rkey}`; }
+  const t = s.match(new RegExp(`^https://tangled\\.(?:org|sh)/[^/?#]+/[^/?#]+/pulls/(${KEY})`)); if (t) return `tangled:${t[1]}`;   // a key is one of a kind within its repo
+  return s.replace(/\/+$/, '');
 }

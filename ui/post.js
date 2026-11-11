@@ -5,7 +5,7 @@
 // rainshare.js owns the screen and hands in what this needs as `ui`; this keeps the draft
 // (so it survives leaving and coming back) and draws the steps.
 import { SEED, MODEL_PICKS, modelName } from '../core/ns.js';
-import { parseSubject, describeSubject, kindOf, subjectInfo } from '../core/subjects.js';
+import { parseSubject, describeSubject, kindOf, subjectInfo, knotlessIssueSubject } from '../core/subjects.js';
 import { whereText, shortWhere, jobText, jobShort, wantsText, wantsShort, askExcerpt } from '../core/words.js';
 import { join } from '../core/rank.js';
 import { pageOf } from '../core/brief.js';
@@ -14,6 +14,7 @@ import { esc, ago, ico, forgeIco, face, people, pathOf } from './bits.js';
 const STEPS = ['Where', 'What', 'How', 'Who', 'Look it over'];
 const KINDS = [
   ['tangled', 'A Tangled issue', 'Pick from your Tangled repos'],
+  ['knotless', 'A knotless issue', 'Pick from your knotless repos'],
   ['github', 'A GitHub issue', 'Paste its link'],
   ['repo', 'Any git repo', 'Codeberg, GitLab, your own server'],
   ['idea', 'Nowhere yet', 'Just an idea for now']
@@ -68,25 +69,39 @@ export function createPoster(ui){
     if (!P.group) P.group = groups.find(g => g.space)?.did || null;
     if (P.step >= 4) ui.render();
   }
-  const repoOf = did => Array.isArray(P.repos) ? P.repos.find(r => r.repoDid === did) : null;
-  const repoSubject = r => ({ $type: `${SEED}#repo`, url: r.url, forge: 'tangled', repoDid: r.repoDid, name: r.url.replace('https://tangled.org/', '') });
+  // Tangled and knotless can both list your repos and their open issues, so both are picked
+  // from the same way. What differs is what each calls a repo, and the subject it makes.
+  const PICKERS = {
+    tangled: { name: 'Tangled', sample: 'https://tangled.org/you/repo/issues/12', id: r => r.repoDid, repos: () => src().tangledRepos(), issues: id => src().tangledIssues(id),
+      repo: r => ({ $type: `${SEED}#repo`, url: r.url, forge: 'tangled', repoDid: r.repoDid, name: r.url.replace('https://tangled.org/', '') }),
+      issue: (r, i, id) => ({ $type: `${SEED}#tangledIssue`, uri: i.uri, cid: i.cid, repo: id, ...(r?.url ? { repoUrl: r.url } : {}) }) },
+    knotless: { name: 'knotless', sample: 'https://knotless.dev/you.bsky.social/repo/issue/…', id: r => r.uri, repos: () => src().knotlessRepos(), issues: id => src().knotlessIssues(id),
+      repo: r => ({ $type: `${SEED}#repo`, url: r.url, forge: 'knotless', name: r.url.replace('https://knotless.dev/', '') }),
+      issue: (r, i) => knotlessIssueSubject(r.url, i.uri) }
+  };
+  const picker = () => PICKERS[P.kind] || null;
+  const repoOf = id => Array.isArray(P.repos) ? P.repos.find(r => picker()?.id(r) === id) : null;
   async function loadRepos(){
-    const mine = P; P.repos = 'loading'; ui.render();
-    try { P.repos = await src().tangledRepos(); } catch (e) { P.repos = { error: e }; }
-    if (P !== mine) return;
-    if (Array.isArray(P.repos) && P.repos.length === 1 && !P.subject) return loadIssues(P.repos[0].repoDid);
+    const mine = P, pk = picker(); if (!pk) return;
+    Object.assign(P, { repos: 'loading', reposOf: P.kind, repo: null, issues: null }); ui.render();
+    const kind = P.kind; let got;
+    try { got = await pk.repos(); } catch (e) { got = { error: e }; }
+    if (P !== mine || P.reposOf !== kind || P.kind !== kind) return;   // they've moved on to another forge
+    P.repos = got;
+    if (Array.isArray(P.repos) && P.repos.length === 1 && !P.subject) return loadIssues(pk.id(P.repos[0]));
     ui.render();
   }
-  async function loadIssues(repoDid){
-    const mine = P, repo = repoOf(repoDid);
-    Object.assign(P, { repo: repoDid, issues: 'loading', subject: repo ? repoSubject(repo) : null, info: null, link: '' });
+  async function loadIssues(id){
+    const mine = P, pk = picker(), repo = repoOf(id); if (!pk) return;
+    Object.assign(P, { repo: id, issues: 'loading', subject: repo ? pk.repo(repo) : null, whole: true, info: null, link: '' });
     ui.render();
-    try { P.issues = await src().tangledIssues(repoDid); } catch (e) { P.issues = { error: e }; }
+    try { P.issues = await pk.issues(id); } catch (e) { P.issues = { error: e }; }
     if (P === mine) ui.render();
   }
   function pickIssue(uri){
-    const repo = repoOf(P.repo), issue = Array.isArray(P.issues) ? P.issues.find(i => i.uri === uri) : null;
-    P.subject = issue ? { $type: `${SEED}#tangledIssue`, uri: issue.uri, cid: issue.cid, repo: P.repo, ...(repo?.url ? { repoUrl: repo.url } : {}) } : repo ? repoSubject(repo) : null;
+    const pk = picker(), repo = repoOf(P.repo), issue = Array.isArray(P.issues) ? P.issues.find(i => i.uri === uri) : null;
+    P.subject = issue ? pk.issue(repo, issue, P.repo) : repo ? pk.repo(repo) : null;
+    P.whole = !issue;
     P.info = issue ? { title: issue.title, body: issue.body } : null;
     P.link = '';
   }
@@ -98,7 +113,7 @@ export function createPoster(ui){
     if (P.subject) P.repo = null;
     clearTimeout(infoTimer);
     const sub = P.subject;
-    if (sub && kindOf(sub) === 'githubIssue') infoTimer = setTimeout(async () => {
+    if (sub && /Issue$/.test(kindOf(sub) || '')) infoTimer = setTimeout(async () => {
       const info = await subjectInfo(sub);
       if (P.subject === sub && info) { P.info = info; paint(); }
     }, 350);
@@ -139,6 +154,7 @@ export function createPoster(ui){
     const t = P.info?.title, d = describeSubject(sq.subject);
     if (t && kindOf(sq.subject) === 'githubIssue') return `GitHub issue #${sq.subject.number} “${t}” in ${d.repo || d.label}`;
     if (t && kindOf(sq.subject) === 'tangledIssue') return `Tangled issue “${t}”${d.repo ? ' in ' + d.repo : ''}`;
+    if (t && kindOf(sq.subject) === 'knotlessIssue') return `knotless issue “${t}”${d.repo ? ' in ' + d.repo : ''}`;
     return whereText(sq);
   }
   function howText(sq){
@@ -169,7 +185,7 @@ export function createPoster(ui){
       if (!P.kind) return 'Pick where the work is, or “Nowhere yet”.';
       if (P.kind === 'idea') return '';
       if (P.link.trim() && !P.subject) return 'That link isn’t one we understand. Paste the issue’s or the repo’s address.';
-      if (!P.subject) return { tangled: 'Pick one of your repos, or paste a Tangled link.', github: 'Paste the issue’s link, or the repo’s.', repo: 'Paste where to clone it from.' }[P.kind];
+      if (!P.subject) return { tangled: 'Pick one of your repos, or paste a Tangled link.', knotless: 'Pick one of your repos, or paste a knotless link.', github: 'Paste the issue’s link, or the repo’s.', repo: 'Paste where to clone it from.' }[P.kind];
     }
     if (step === 2 && !P.title.trim()) return 'Give it a short title.';
     if (step === 4 && P.vis === 'group' && !groupNow()) return 'Pick a group that has Rainshare, or make it public.';
@@ -228,19 +244,19 @@ export function createPoster(ui){
   };
   function stepWhere(){
     let more = '';
-    if (P.kind === 'tangled') {
-      const r = P.repos;
+    if (picker()) {
+      const pk = picker(), r = P.reposOf === P.kind ? P.repos : null;
       more = `<div class="rs-pick">
-        ${r === null || r === 'loading' ? '<p class="rs-muted">Finding your Tangled repos…</p>'
-          : r.error ? '<p class="rs-muted">Couldn’t reach Tangled just now. Paste a link instead.</p>'
-          : !r.length ? '<p class="rs-muted">No Tangled repos on this account. Paste a link instead.</p>'
-          : `<label>Your repo<select data-rs-repo><option value="">Choose a repo…</option>${r.map(x => `<option value="${esc(x.repoDid)}"${P.repo === x.repoDid ? ' selected' : ''}>${esc(x.name)}${x.description ? ' · ' + esc(x.description.slice(0, 60)) : ''}</option>`).join('')}</select></label>`}
+        ${r === null || r === 'loading' ? `<p class="rs-muted">Finding your ${pk.name} repos…</p>`
+          : r.error ? `<p class="rs-muted">Couldn’t reach ${pk.name} just now. Paste a link instead.</p>`
+          : !r.length ? `<p class="rs-muted">No ${pk.name} repos on this account. Paste a link instead.</p>`
+          : `<label>Your repo<select data-rs-repo><option value="">Choose a repo…</option>${r.map(x => `<option value="${esc(pk.id(x))}"${P.repo === pk.id(x) ? ' selected' : ''}>${esc(x.name)}${x.description ? ' · ' + esc(x.description.slice(0, 60)) : ''}</option>`).join('')}</select></label>`}
         ${P.issues === 'loading' ? '<p class="rs-muted">Loading its open issues…</p>'
           : P.issues?.error ? '<p class="rs-muted">Couldn’t load its issues. It’ll point at the repo, or paste an issue’s link.</p>'
           : Array.isArray(P.issues) && P.repo ? `<div class="rs-field" role="radiogroup" aria-label="Which issue?"><span>Which issue?</span><div class="rs-options">
             ${P.issues.map(i => row('data-rs-issue', i.uri, P.subject?.uri === i.uri, i.title, i.createdAt ? 'opened ' + ago(i.createdAt) : '')).join('')}
-            ${row('data-rs-issue', '', kindOf(P.subject) === 'repo' && P.subject?.repoDid === P.repo, P.issues.length ? 'None of these' : 'No open issues', 'Point at the whole repo')}</div></div>` : ''}
-        <label>Or paste a Tangled link<input name="link" inputmode="url" autocomplete="off" placeholder="https://tangled.org/you/repo/issues/12" value="${esc(P.link)}"></label>
+            ${row('data-rs-issue', '', kindOf(P.subject) === 'repo' && !!P.whole, P.issues.length ? 'None of these' : 'No open issues', 'Point at the whole repo')}</div></div>` : ''}
+        <label>Or paste a ${pk.name} link<input name="link" inputmode="url" autocomplete="off" placeholder="${esc(pk.sample)}" value="${esc(P.link)}"></label>
       </div>`;
     } else if (P.kind === 'github') {
       more = `<label>The issue’s link <small>or the repo’s</small><input name="link" inputmode="url" autocomplete="off" placeholder="https://github.com/you/repo/issues/12" value="${esc(P.link)}"></label>`;
@@ -411,8 +427,8 @@ export function createPoster(ui){
       || pick('[data-rs-kind]', el => {
         const k = el.dataset.rsKind; if (P.kind === k) return;
         Object.assign(P, { kind: k, err: '', link: '', subject: null, info: null, repo: null, issues: null });
-        if (k === 'tangled' && (P.repos === null || P.repos?.error)) return loadRepos();
-        if (k === 'tangled' && Array.isArray(P.repos) && P.repos.length === 1) return loadIssues(P.repos[0].repoDid);
+        if (picker() && (P.reposOf !== k || P.repos === null || P.repos?.error)) return loadRepos();
+        if (picker() && Array.isArray(P.repos) && P.repos.length === 1) return loadIssues(picker().id(P.repos[0]));
         ui.render(); ui.root.querySelector('.rs-post [name="link"]')?.focus();
       })
       || pick('[data-rs-issue]', el => { pickIssue(el.dataset.rsIssue); P.err = ''; ui.render(); })
