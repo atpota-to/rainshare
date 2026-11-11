@@ -13,7 +13,7 @@
           "seed": { "type": "ref", "ref": "com.atproto.repo.strongRef" },
           "take": { "type": "ref", "ref": "com.atproto.repo.strongRef" },
           "url": { "type": "string", "format": "uri", "description": "The pull request, branch or patch." },
-          "pull": { "type": "string", "format": "at-uri", "description": "For Tangled, the sh.tangled.repo.pull record." },
+          "pull": { "type": "string", "format": "at-uri", "description": "For Tangled, the pull request's org.tangled.track.ticket record." },
           "setup": { "type": "ref", "ref": "dev.rainshare.defs#setup", "description": "What actually did the work." },
           "sessionUrl": { "type": "string", "format": "uri", "description": "A shared agent session, if you'd like to show your working." },
           "note": { "type": "string", "maxLength": 3000, "maxGraphemes": 300 },

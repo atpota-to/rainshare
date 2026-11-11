@@ -15,7 +15,7 @@ export function whereText(sq){
   const forge = FORGE_NAMES[d.forge] || 'Git';
   if (kindOf(s) === 'githubIssue') return `${forge} issue #${parseInt(s.number, 10) || ''}${d.repo ? ', ' + d.repo : ''}`;
   if (kindOf(s) === 'tangledIssue') {
-    const n = (String(s.url || '').match(/\/issues\/(\d+)/) || [])[1];
+    const n = (String(s.url || '').match(/\/issues\/(\d+)(?:[/?#]|$)/) || [])[1];
     return `${forge} issue${n ? ' #' + n : ''}${d.repo ? ', ' + d.repo : ''}`;
   }
   return `${forge}, ${d.label}`;
@@ -25,7 +25,7 @@ export function shortWhere(sq){
   const s = sq?.subject, d = describeSubject(s);
   if (!d) return 'No repo yet';
   const forge = FORGE_NAMES[d.forge] || 'Git';
-  const n = kindOf(s) === 'githubIssue' ? parseInt(s.number, 10) : (String(s.url || '').match(/\/issues\/(\d+)/) || [])[1];
+  const n = kindOf(s) === 'githubIssue' ? parseInt(s.number, 10) : (String(s.url || '').match(/\/issues\/(\d+)(?:[/?#]|$)/) || [])[1];
   return n ? `${forge} #${n}` : forge;
 }
 

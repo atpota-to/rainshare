@@ -13,7 +13,8 @@ import { createDemoSource } from '../core/demo.js';
 import { splitSpaceUri } from '../core/source.js';
 import { lifeOf } from '../ui/bits.js';
 import { standing, since, carry } from '../core/status.js';
-import { pullsAbout } from '../core/subjects.js';
+import { pullsAbout, tangledRepos, tangledIssues, completeTangled, subjectInfo, pullState, linkedPulls } from '../core/subjects.js';
+import { look } from '../core/status.js';
 
 test('parses GitHub, Tangled and other links into subjects', () => {
   const gi = parseSubject('https://github.com/dame-is/atmosphere-online/issues/42');
@@ -30,8 +31,14 @@ test('parses GitHub, Tangled and other links into subjects', () => {
   assert.equal(describeSubject(ti).label, 'dame.is/garden #7');
   assert.equal(cloneUrlOf(ti), 'https://tangled.org/dame.is/garden');
 
-  const at = parseSubject('at://did:plc:abc/sh.tangled.repo.issue/3kxyz');
-  assert.equal(at.uri, 'at://did:plc:abc/sh.tangled.repo.issue/3kxyz');
+  // Newer Tangled issues have a longer key in place of a number, and "new" is the form, not an issue.
+  const tk = parseSubject('https://tangled.org/dame.is/garden/issues/3lzq4w5qk2c2a');
+  assert.equal(tk.url, 'https://tangled.org/dame.is/garden/issues/3lzq4w5qk2c2a'); assert.equal(describeSubject(tk).label, 'dame.is/garden');
+  assert.equal(parseSubject('https://tangled.org/dame.is/garden/issues/new').$type, SEED + '#repo');
+  // An issue's own record lives in the repo's account, so its address names the repo.
+  const at = parseSubject('at://did:plc:abc/org.tangled.track.ticket/3kxyz');
+  assert.deepEqual([at.uri, at.repo], ['at://did:plc:abc/org.tangled.track.ticket/3kxyz', 'did:plc:abc']);
+  assert.equal(parseSubject('at://did:plc:abc/sh.tangled.repo.issue/3kxyz'), null);
 
   const cb = parseSubject('https://codeberg.org/someone/thing');
   assert.equal(cb.forge, 'codeberg');
@@ -175,7 +182,12 @@ test('the brief frames the request and the launchers paste as one command', () =
   assert.match(brief(theirs, { viewer: 'did:plc:me' }), /- @kai\.example took it on today\.\n\n@kai\.example is already on it\. Check with them, or with your user, before starting/);
   assert.doesNotMatch(brief(taken, { viewer: 'did:plc:me' }), /is already on it\. Check with them/);
   assert.match(brief({ ...item, value: { title: 'An idea' } }), /No repository is named/);
-  assert.match(brief({ ...item, value: { title: 't', subject: parseSubject('https://tangled.org/a/b/issues/2') } }), /pull request against a\/b on tangled\.org, linking the issue[\s\S]*git format-patch/);
+  // On Tangled the agent pushes and its user opens the pull request, so the brief ends differently.
+  const tb = brief({ ...item, value: { title: 't', subject: parseSubject('https://tangled.org/a/b/issues/2') } });
+  assert.match(tb, /1\. Look at the issue, and at the repository’s pull requests on tangled\.org, for one that already does this: https:\/\/tangled\.org\/a\/b\/issues\/2 and https:\/\/tangled\.org\/a\/b\/pulls\./);
+  assert.match(tb, /pull requests are opened on the web for now\. Push your branch first: to a\/b itself[\s\S]*the form is at https:\/\/tangled\.org\/a\/b\/pulls\/new[\s\S]*link the issue \(https:\/\/tangled\.org\/a\/b\/issues\/2\)[\s\S]*git format-patch[\s\S]*an address like https:\/\/tangled\.org\/a\/b\/pulls\/<id>/);
+  assert.match(tb, /1\. The link that opens the pull request, and the title and description to paste into it\.\n2\. That once it’s open it needs turning in on Rainshare/);
+  assert.doesNotMatch(tb, /\?pr=|gh pr list|Fixes #/);
   // With nothing set up, the agent hands back a link that carries the pull request.
   assert.match(b, /rainshare\.dev\/seed\/friend\.example\/3k1\?pr=<pull request URL>&model=<model>/);
   assert.doesNotMatch(brief({ ...item, space: 'at://g/space/x/y' }), /\?pr=/);
@@ -259,7 +271,7 @@ test('a hand-back link carries the pull request into the turn-in form', () => {
   assert.deepEqual(readHandBack(new URL(link).search), { url: 'https://github.com/o/r/pull/12', model: 'claude-opus-5-5', harness: '', sessionUrl: '' });
   // Encoded works too, and so does a Tangled pull's at:// address.
   assert.equal(readHandBack('?pr=' + encodeURIComponent('https://github.com/o/r/pull/12') + '&session=https%3A%2F%2Fclaude.ai%2Fcode%2Fs1').sessionUrl, 'https://claude.ai/code/s1');
-  assert.equal(readHandBack('?pr=at://did:plc:abc/sh.tangled.repo.pull/3k2').url, 'at://did:plc:abc/sh.tangled.repo.pull/3k2');
+  assert.equal(readHandBack('?pr=at://did:plc:abc/org.tangled.track.ticket/3k2').url, 'at://did:plc:abc/org.tangled.track.ticket/3k2');
   // Anything that isn't a link is ignored, so a page can't be made to fill the form with script.
   assert.equal(readHandBack('?pr=javascript:alert(1)'), null);
   assert.equal(readHandBack('?model=x'), null);
@@ -319,4 +331,66 @@ test('pull requests on GitHub are matched to an issue or a seed', () => {
   assert.deepEqual(pullsAbout(list, { repo: 'o/r', number: 5, rkey: '3k1' }).map(p => [p.number, p.state]), [[12, 'open'], [14, 'closed'], [15, 'merged']]);
   assert.deepEqual(pullsAbout(list, { repo: 'o/r', rkey: '3k1' }).map(p => p.number), [15]);
   assert.deepEqual(pullsAbout({ message: 'rate limited' }, { repo: 'o/r', number: 5 }), []);
+});
+
+test('Tangled is read through its API: repos, issues, and whether a pull request has landed', async () => {
+  // Answers shaped like api.tangled.org's (tangled.org/docs/api/bobbin): an issue and a pull
+  // request are both tickets in the repo's own account, and a merged pull request is "completed".
+  const REPO = 'did:plc:tngrepo1', OWNER = 'did:plc:tngowner1', T = `at://${REPO}/org.tangled.track.ticket/`;
+  const manifest = { uri: `at://${REPO}/org.tangled.repo.manifest/self`, knot: 'knot1.tangled.sh', value: { declaration: { name: 'garden', owner: OWNER }, description: 'A garden' } };
+  const ticket = (key, state, title, body, extra = {}) => ({ uri: T + key, cid: 'bafy' + key, state, author: 'did:plc:someone', value: { state, title: { text: title }, body: { text: body }, createdAt: '2026-11-10T00:00:00Z', ...extra } });
+  const pulls = [
+    ticket('3mpull1', 'completed', 'Sitemap', 'Closes https://tangled.org/alice.example/garden/issues/12', { targetBranch: 'main' }),
+    ticket('15', 'open', 'Another go', 'From https://rainshare.dev/seed/x.example/3kseedkey1.', { targetBranch: 'main' }),
+    ticket('16', 'open', 'Unrelated', 'See issues/120 and #121', { targetBranch: 'main' })
+  ];
+  const issues = [ticket('12', 'open', 'Add a sitemap', 'Please.'), ticket('14', 'closed', 'Old one', '')];
+  const view = t => ({ uri: t.uri, cid: t.cid, state: t.state, title: t.value.title, body: t.value.body, ...(t.value.targetBranch ? { targetBranch: t.value.targetBranch } : {}) });
+  const asked = [], real = globalThis.fetch;
+  globalThis.fetch = async input => {
+    const u = new URL(String(input)), q = u.searchParams, method = u.pathname.split('/xrpc/')[1];
+    asked.push(method || u.host);
+    const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+    if (u.host === 'plc.directory') return json({ alsoKnownAs: ['at://alice.example'] });
+    if (method === 'com.atproto.identity.resolveHandle') return json({ did: OWNER });
+    if (u.host !== 'api.tangled.org') return json({ error: 'NotFound' }, 404);
+    if (method === 'org.tangled.repo.listRepos' && q.get('subject') === OWNER) return json({ items: [manifest] });
+    if (method === 'org.tangled.repo.getRepoByRepoDid' && q.get('repoDid') === REPO) return json(manifest);
+    if (method === 'org.tangled.repo.getRepoByName' && q.get('owner') === OWNER && q.get('name') === 'garden') return json(manifest);
+    if (method === 'org.tangled.repo.listIssues' && q.get('subject') === REPO) return json({ items: issues.filter(t => t.state === q.get('state')) });
+    if (method === 'org.tangled.repo.listPulls' && q.get('subject') === REPO) return json({ items: pulls.slice(1) });   // the oldest has dropped off the recent list
+    if (method === 'org.tangled.search.query' && q.get('repo') === REPO && q.get('kind') === 'pull') return json({ hits: pulls.filter(t => `${t.value.title.text} ${t.value.body.text}`.includes(q.get('q'))).map(t => ({ ...t, nsid: 'org.tangled.track.ticket' })) });
+    const t = method === 'org.tangled.track.getTicketView' && [...issues, ...pulls].find(x => x.uri === q.get('uri'));
+    return t ? json(view(t)) : json({ error: 'RecordNotFound' }, 404);
+  };
+  try {
+    assert.deepEqual(await tangledRepos(OWNER), [{ uri: manifest.uri, repoDid: REPO, name: 'garden', description: 'A garden', url: 'https://tangled.org/alice.example/garden' }]);
+    assert.deepEqual(await tangledIssues(REPO), [{ uri: T + '12', cid: 'bafy12', title: 'Add a sitemap', body: 'Please.', createdAt: '2026-11-10T00:00:00Z' }]);
+    // A pasted link and a picked record end up saying the same things.
+    const pasted = await completeTangled(parseSubject('https://tangled.org/alice.example/garden/issues/12'));
+    assert.deepEqual([pasted.uri, pasted.repo, pasted.repoUrl], [T + '12', REPO, 'https://tangled.org/alice.example/garden']);
+    const picked = await completeTangled({ $type: SEED + '#tangledIssue', uri: T + '12' });
+    assert.deepEqual([picked.repo, picked.repoUrl, picked.url], [REPO, 'https://tangled.org/alice.example/garden', 'https://tangled.org/alice.example/garden/issues/12']);
+    assert.equal(cloneUrlOf(picked), 'https://tangled.org/alice.example/garden');
+    // The issue, and the pull requests.
+    assert.deepEqual(await subjectInfo(pasted), { title: 'Add a sitemap', body: 'Please.', state: 'open', url: pasted.url });
+    assert.equal((await subjectInfo({ $type: SEED + '#tangledIssue', uri: T + '14' })).state, 'closed');
+    assert.equal(await subjectInfo({ $type: SEED + '#tangledIssue', uri: 'at://did:plc:old/sh.tangled.repo.issue/3k' }), null);
+    assert.equal(await pullState({ url: 'https://tangled.org/alice.example/garden/pulls/3mpull1' }), 'merged');
+    assert.equal(await pullState({ pull: T + '15' }), 'open');
+    assert.equal(await pullState({ url: 'https://tangled.org/alice.example/garden/issues/12' }), null);   // an issue isn't a pull request
+    assert.equal(await pullState({ url: 'https://tangled.org/alice.example/garden/pulls/nope' }), null);
+    // Pull requests that mention the issue's address, or the seed's link, are found; passing mentions of other things aren't.
+    assert.deepEqual(await linkedPulls(pasted, { rkey: '3kseedkey1' }), [
+      { url: 'https://tangled.org/alice.example/garden/pulls/15', number: 15, title: 'Another go', by: null, state: 'open' },
+      { url: 'https://tangled.org/alice.example/garden/pulls/3mpull1', number: null, title: 'Sitemap', by: null, state: 'merged' }   // found by search
+    ]);
+    assert.deepEqual((await linkedPulls({ $type: SEED + '#repo', url: 'https://tangled.org/alice.example/garden', forge: 'tangled' }, { rkey: '3kseedkey1' })).map(p => p.number), [15]);
+    // All of it together: a seed on that issue, looked at and summed up for whoever planted it.
+    const seed = await look({ uri: 'at://did:plc:planter/dev.rainshare.seed/3kseedkey1', repo: 'did:plc:planter', author: { handle: 'p.example' }, value: { title: 'Sitemap', subject: pasted }, deliveries: [{ uri: 'at://did:plc:h/dev.rainshare.delivery/1', repo: 'did:plc:h', author: { handle: 'h.example' }, value: { url: 'https://tangled.org/alice.example/garden/pulls/3mpull1' } }] });
+    const st = standing(seed, { viewer: 'did:plc:planter' });
+    assert.deepEqual([st.issue, st.verdict, st.planter.do, st.linked.length], ['open', 'merged', 'sprout', 1]);
+    assert.match(st.lines.join(' '), /The issue is still open on Tangled\..*@h\.example turned in https:\/\/tangled\.org\/alice\.example\/garden\/pulls\/3mpull1 \(merged\).*On Tangled, pull request #15 mentions it \(open\) and hasn’t been turned in on Rainshare/);
+    assert.ok(!asked.some(m => /^sh\.tangled/.test(m)));
+  } finally { globalThis.fetch = real; }
 });

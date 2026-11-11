@@ -184,10 +184,10 @@ export function createDemoSource({ store = null, me: meOverride = null } = {}){
     reach: () => Promise.resolve({ following: 312, followers: 1204, mutuals: 84 }),
     addToGroup: async did => { if (!state.added.includes(did)) state.added.push(did); save(); return pause(GROUPS[did]?.space || `at://${did}/space/dev.rainshare.board/rainshare`); },
     lists: () => Promise.resolve([{ uri: 'at://did:example:you/app.bsky.graph.list/trusted', name: 'People whose agents I trust', count: 12 }]),
-    tangledRepos: () => Promise.resolve([{ uri: 'at://did:example:you/sh.tangled.repo/garden', name: 'garden', repoDid: 'did:example:garden', url: 'https://tangled.org/you.example/garden', description: 'My little static site generator' }]),
+    tangledRepos: () => Promise.resolve([{ uri: 'at://did:example:garden/org.tangled.repo.manifest/self', name: 'garden', repoDid: 'did:example:garden', url: 'https://tangled.org/you.example/garden', description: 'My little static site generator' }]),
     tangledIssues: () => Promise.resolve([
-      { uri: 'at://did:example:you/sh.tangled.repo.issue/3iss1', cid: 'bafyexampleiss1', title: 'RSS feed skips drafts incorrectly', body: '' },
-      { uri: 'at://did:example:you/sh.tangled.repo.issue/3iss2', cid: 'bafyexampleiss2', title: 'Add a sitemap.xml', body: '' }
+      { uri: 'at://did:example:garden/org.tangled.track.ticket/3iss1', cid: 'bafyexampleiss1', title: 'RSS feed skips drafts incorrectly', body: '' },
+      { uri: 'at://did:example:garden/org.tangled.track.ticket/3iss2', cid: 'bafyexampleiss2', title: 'Add a sitemap.xml', body: '' }
     ])
   };
 }

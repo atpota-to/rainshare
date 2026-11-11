@@ -54,7 +54,7 @@
       "type": "object",
       "description": "A Tangled issue: its record when it was picked from the repo's issues, its page when it was pasted as a link, or both. Apps write at least one of uri and url.",
       "properties": {
-        "uri": { "type": "string", "format": "at-uri", "description": "The sh.tangled.repo.issue record." },
+        "uri": { "type": "string", "format": "at-uri", "description": "The issue's org.tangled.track.ticket record, in the repo's own account." },
         "cid": { "type": "string", "format": "cid" },
         "repo": { "type": "string", "format": "did", "description": "The Tangled repo's DID." },
         "url": { "type": "string", "format": "uri", "description": "The issue's page on tangled.org." },

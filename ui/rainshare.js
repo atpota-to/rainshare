@@ -399,8 +399,8 @@ export function createRainshare({ root, base = '/', host }){
     // Pull requests on the forge that mention this and weren't turned in here. A helper whose
     // agent opened one can turn it in from the list.
     const canClaim = open && !mine && signedIn();
-    const linked = st.linked.map(pr => `<li><div><span><a class="rs-link" href="${esc(safeHttp(pr.url) || '')}" target="_blank" rel="noopener nofollow">${ico('link')}#${esc(pr.number)} ${esc(pr.title)}</a></span>
-      <small>${pr.by ? `By @${esc(pr.by)} · ` : ''}${{ merged: 'Merged', open: 'Open', closed: 'Closed without merging' }[pr.state] || ''} · mentions this, but hasn’t been turned in here</small>
+    const linked = st.linked.map(pr => `<li><div><span><a class="rs-link" href="${esc(safeHttp(pr.url) || '')}" target="_blank" rel="noopener nofollow">${ico('link')}${pr.number ? `#${esc(pr.number)} ` : ''}${esc(pr.title || 'A pull request')}</a></span>
+      <small>${esc([pr.by && `By @${pr.by}`, { merged: 'Merged', open: 'Open', closed: 'Closed without merging' }[pr.state], 'mentions this, but hasn’t been turned in here'].filter(Boolean).join(' · '))}</small>
       ${canClaim && pr.state !== 'closed' ? `<div class="rs-row"><button class="rs-btn rs-quiet rs-sm" type="button" data-rs-claim="${esc(pr.url)}">It’s mine: turn it in</button></div>` : ''}</div></li>`).join('');
     const setup = mySetup();
     // An agent handed back a pull request for this one (see readHandBack): it goes straight to the turn-in form.
@@ -440,7 +440,7 @@ export function createRainshare({ root, base = '/', host }){
           : `<p class="rs-note rs-on">${lifeIco('up')}<span>A pull request is ready to turn in. Look it over and send it. That also tells ${esc(firstName(p))} you took this on.</span></p>`}
         ${S.launch ? renderLaunch(it) : ''}
         ${!form ? '<div class="rs-row"><button class="rs-link" type="button" data-rs-act="again">Turn in another pull request</button></div>' : `<form class="rs-form rs-turnin" data-rs-form="turnin">
-          <label>Pull request link<input name="url" type="url" placeholder="${d?.forge === 'tangled' ? 'https://tangled.org/…/pulls/…' : 'https://github.com/…/pull/…'}" value="${esc(v.url || '')}" required></label>
+          <label>Pull request link${d?.forge === 'tangled' ? ' <small>(on Tangled you open it yourself, from the link your agent gives you, and paste its address here)</small>' : ''}<input name="url" type="url" placeholder="${d?.forge === 'tangled' ? 'https://tangled.org/…/pulls/…' : 'https://github.com/…/pull/…'}" value="${esc(v.url || '')}" required></label>
           <div class="rs-two"><label>What did the work<select name="harness">${HARNESSES.map(([k, l]) => `<option value="${k}"${(v.harness || taken?.value?.setup?.harness || setup?.harness) === k ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
           <label>Model<input name="model" list="rsModels" value="${esc(v.model || taken?.value?.setup?.models?.[0] || setup?.models?.[0] || '')}" placeholder="claude-opus-5-5"></label></div>
           <label>Session link <small>(optional, to show your working)</small><input name="sessionUrl" type="url" value="${esc(v.sessionUrl || '')}"></label>
@@ -595,8 +595,8 @@ export function createRainshare({ root, base = '/', host }){
           <h2 id="rsQuick">${ico('copy')}With nothing set up</h2>
           <ol class="rs-steps">
             <li><h3>Press Send my agent on a seed</h3><p class="rs-muted">That tells your friend you’re on it, so nobody doubles up, and copies the brief: where the code is, what’s wanted, where things stand, and how to turn it in. If your profile says you run Claude Code or Codex, the brief comes inside a command that clones the repo and starts it. Copy as Markdown copies the brief alone, without saying you’re on it.</p></li>
-            <li><h3>Paste it</h3><p class="rs-muted">The command goes in a terminal; the brief alone goes into any agent that can reach the repo. Either way the agent checks first that nobody got there before you, then does the work and opens the pull request with its own access to GitHub or Tangled.</p></li>
-            <li><h3>Open the link it hands back</h3><p class="rs-muted">The brief asks the agent to finish with a link to the seed that carries the pull request. Open it, and the turn-in form is filled in for you to send. After that it’s your friend’s turn: they mark the seed sprouted once the pull request is merged.</p></li>
+            <li><h3>Paste it</h3><p class="rs-muted">The command goes in a terminal; the brief alone goes into any agent that can reach the repo. Either way the agent checks first that nobody got there before you, then does the work. On GitHub it opens the pull request itself. On Tangled, where pull requests are opened on the web for now, it pushes the branch and hands you the link that opens one.</p></li>
+            <li><h3>Open the link it hands back</h3><p class="rs-muted">The brief asks the agent to finish with a link to the seed that carries the pull request. Open it, and the turn-in form is filled in for you to send. (For a Tangled seed, paste the pull request’s address into that form yourself.) After that it’s your friend’s turn: they mark the seed sprouted once the pull request is merged.</p></li>
           </ol>
         </section>
         <h2 class="rs-agents-or">Or let your agent do the Rainshare side too</h2>

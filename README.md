@@ -137,7 +137,8 @@ However a seed reaches an agent, the agent is handed the same brief (`core/brief
    ask before anything that reaches outside it.
 5. **Turning it in**: open the pull request (on GitHub with "Fixes #N", so that merging it
    closes the issue) and put the seed's link in it. That link is how the seed and the pull
-   request find each other later.
+   request find each other later. On Tangled the agent pushes a branch and writes the title and
+   description, and its user opens the pull request from the link.
 6. **When you're done**: tell your user the pull request's address, whether it has been turned
    in on Rainshare, and that the rest is the requester's to do.
 
@@ -172,7 +173,7 @@ own records can't say, and `standing` puts the two together.
 | --- | --- | --- |
 | Nobody is on it | It's clear to start | |
 | Someone has taken it on | Check with them first (unless the seed welcomes more than one helper) | |
-| A pull request has been turned in, or one on GitHub mentions the issue or the seed's link | Read that one before making another | |
+| A pull request has been turned in, or one on the forge mentions the issue or the seed's link | Read that one before making another | |
 | A turned-in pull request has been merged | It's probably done | Mark it sprouted, with one button |
 | A pull request nobody turned in has been merged | It's probably done | Mark it sprouted |
 | The issue was closed on the forge | Ask before starting | Mark it sprouted, or close it |
@@ -183,7 +184,7 @@ whether a pull request did the job is the requester's call. So each side is show
 for them at the moment they're looking: on the seed's page, in `check`, and in the brief.
 
 A pull request that mentions a seed without having been turned in is listed on the seed's page
-under "Also on GitHub". Whoever's agent opened it can turn it in from there.
+under "Also on GitHub" or "Also on Tangled". Whoever's agent opened it can turn it in from there.
 
 ## The CLI and MCP server
 
@@ -222,10 +223,17 @@ in the app.
 - **Bluesky**: your handle signs you in (OAuth with your own server), your follows make your
   circle, lists and blocks are respected, and "Share on Bluesky" and "Thank them on Bluesky"
   open the composer with a link.
-- **Tangled**: pick an open issue from your own Tangled repos (through Tangled's public API,
-  `api.tangled.org`), or paste any tangled.org link. Repos clone over https, a delivery can be a
-  Tangled pull's at:// URI, and its state is read back from Tangled. An issue counts as closed
-  when it's no longer among the repo's open issues.
+- **Tangled**: pick an open issue from your own Tangled repos, or paste any tangled.org link.
+  It's read through Tangled's public API (`api.tangled.org`), with the `org.tangled.*` methods
+  that replaced `sh.tangled.*` when Tangled relaunched on 30 October 2026. An issue and a pull
+  request are now the same kind of record, `org.tangled.track.ticket`, kept in the repo's own
+  account, and a pull request is one that names a target branch. From it Rainshare reads
+  whether the issue is still open and whether a delivered pull request is open, merged or
+  closed. Pull requests that mention the issue or the seed's link are found through the repo's
+  50 newest and through Tangled's search. Repos clone over https from their tangled.org
+  address. Pull requests are opened on the web for now, so the brief has the agent push a
+  branch and hand its user the link that opens one; Tangled's launch post says a CLI and agent
+  skills are on the way, and the brief should change when they arrive.
 - **GitHub**: paste an issue or repo link. The issue's title and body start you off, and its
   state is read back, along with each delivered pull request's (open, merged or closed). The
   repo's 50 most recently updated pull requests are also searched for the issue's number or
@@ -310,12 +318,17 @@ Not yet checked:
   `dev.rainshare.board` space; if it doesn't yet, public seeds still work.
 - The signed-out board against the live relay and AppView from this repo. The code that reads
   them is unchanged from the prototype, where it was checked.
-- What the forges say (`look` in `core/status.js`) has only been run against made-up answers,
-  never against GitHub or Tangled themselves. Three things to watch when it is: GitHub lets a
-  browser that isn't signed in ask 60 things an hour, after which the forge's side is left
-  unknown rather than guessed; matching by "#N" finds any pull request whose text mentions the
-  issue, including ones that only refer to it in passing; and on Tangled, pull requests that
-  weren't turned in aren't looked for at all.
+- GitHub's side of `look` (`core/status.js`) has only been run against made-up answers. Two
+  things to watch when it meets GitHub: a browser that isn't signed in may ask 60 things an
+  hour, after which the forge's side is left unknown rather than guessed; and matching by
+  "#N" finds any pull request whose text mentions the issue, including ones that only refer
+  to it in passing.
+- Tangled: the lookups were run against `api.tangled.org` on 11 November 2026, read-only, on
+  Tangled's own `core` repo (repos, open issues, an open and a closed issue, an open and a
+  merged pull request, and the pull request that closes an issue). Not checked: an agent
+  pushing to a Tangled fork and the link that push prints, picking an issue from your own
+  repos while signed in, cloning (tangled.org answers with a redirect to the repo's knot,
+  which was seen but not followed), and repos on knots other than Tangled's own.
 - The CLI's `run` end to end with a real agent: starting it, finding the pull request with
   `gh` afterwards, and turning it in.
 - How smoothly the scene runs on real phones and older laptops. It has only been run on a

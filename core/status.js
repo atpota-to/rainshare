@@ -91,7 +91,7 @@ export function standing(item, { viewer, now = Date.now(), asker = 'the person w
   if (state === 'open' && !takes.length) lines.push('Nobody has taken it on yet.');
   if (state === 'open') for (const t of takes) lines.push(`${t.who} took it on${t.since ? ' ' + t.since : ''}${t.with ? `, with ${t.with}` : ''}.`);
   for (const dl of deliveries) lines.push(`${dl.who} turned in ${dl.link || 'a pull request'}${dl.state ? ` (${dl.state})` : ''}${dl.accepted ? ', and it made the seed sprout' : ''}.`);
-  for (const p of linked) lines.push(`On ${forge}, pull request #${p.number}${p.by ? ` by @${p.by}` : ''} mentions it (${p.state}) and hasn’t been turned in on Rainshare: ${p.url}`);
+  for (const p of linked) lines.push(`On ${forge}, pull request${p.number ? ' #' + p.number : ''}${p.by ? ` by @${p.by}` : ''} mentions it${p.state ? ` (${p.state})` : ''} and hasn’t been turned in on Rainshare: ${p.url}`);
   if (state === 'open' && sq.parallel && others.length) lines.push('More than one helper is welcome on this one.');
 
   const advice = {
