@@ -86,11 +86,11 @@ export function standing(item, { viewer, now = Date.now(), asker = 'the person w
   const waiting = [...deliveries.filter(x => !x.mine), ...linked].filter(x => x.state !== 'merged' && x.state !== 'closed');
   const verdict = state !== 'open' ? state : merged ? 'merged' : issue === 'closed' ? 'issue-closed' : waiting.length ? 'turned-in' : others.length && !sq.parallel ? 'on-it' : 'clear';
 
-  const lines = [state === 'sprouted' ? 'It has sprouted: the work is done.' : state === 'closed' ? `It’s closed: ${asker} isn’t looking for help with it now.` : 'It’s open.'];
+  const lines = [state === 'sprouted' ? 'It’s done.' : state === 'closed' ? `It’s closed: ${asker} isn’t looking for help with it now.` : 'It’s open.'];
   if (issue) lines.push(`The issue is ${issue === 'open' ? 'still open' : 'closed'} on ${forge}.`);
   if (state === 'open' && !takes.length) lines.push('Nobody has taken it on yet.');
   if (state === 'open') for (const t of takes) lines.push(`${t.who} took it on${t.since ? ' ' + t.since : ''}${t.with ? `, with ${t.with}` : ''}.`);
-  for (const dl of deliveries) lines.push(`${dl.who} turned in ${dl.link || 'a pull request'}${dl.state ? ` (${dl.state})` : ''}${dl.accepted ? ', and it made the seed sprout' : ''}.`);
+  for (const dl of deliveries) lines.push(`${dl.who} turned in ${dl.link || 'a pull request'}${dl.state ? ` (${dl.state})` : ''}${dl.accepted ? ', and that did it' : ''}.`);
   for (const p of linked) lines.push(`On ${forge}, pull request${p.number ? ' #' + p.number : ''}${p.by ? ` by @${p.by}` : ''} mentions it${p.state ? ` (${p.state})` : ''} and hasn’t been turned in on Rainshare: ${p.url}`);
   if (state === 'open' && sq.parallel && others.length) lines.push('More than one helper is welcome on this one.');
 
@@ -99,7 +99,7 @@ export function standing(item, { viewer, now = Date.now(), asker = 'the person w
     'on-it': `${others.map(t => t.who).join(' and ')} ${others.length > 1 ? 'are' : 'is'} already on it. Check with them, or with your user, before starting, so it isn’t done twice.`,
     'turned-in': idea ? 'Someone has already built a version of it. Look at theirs first: another is only worth making if it would be different.'
       : 'There’s already a pull request for it. Read that first: a second one is only worth making if the first has stalled or missed the point.',
-    merged: `A pull request for it has been merged, so there’s probably nothing left to do. It’s waiting for ${asker} to mark it sprouted.`,
+    merged: `A pull request for it has been merged, so there’s probably nothing left to do. It’s waiting for ${asker} to mark it done.`,
     'issue-closed': `The issue has been closed on ${forge}. Ask before doing anything: it may be finished, or no longer wanted.`,
     sprouted: 'It’s done. There’s nothing to do here.',
     closed: 'It’s closed. There’s nothing to do here unless it’s reopened.'
@@ -108,7 +108,7 @@ export function standing(item, { viewer, now = Date.now(), asker = 'the person w
   // If it's already theirs, what they're told is about their own work, not about starting.
   const own = deliveries.filter(x => x.mine);
   const yours = state !== 'open' ? null
-    : own.some(x => x.state === 'merged') ? `Your pull request has been merged. It’s waiting for ${asker} to mark it sprouted: nothing more is needed from you.`
+    : own.some(x => x.state === 'merged') ? `Your pull request has been merged. It’s waiting for ${asker} to mark it done: nothing more is needed from you.`
       : own.length && own.every(x => x.state === 'closed') ? 'Your pull request was closed without being merged. Ask what was missing, or drop it so someone else can pick it up.'
         : own.length ? `You’ve turned it in. It’s with ${asker} now: nothing more is needed unless they ask.`
           : takes.some(t => t.mine) && verdict === 'clear' ? (idea ? 'You’re on it. When there’s something to show, turn in where it lives.' : 'You’re on it. When the pull request is up, turn it in.') : null;
@@ -116,10 +116,10 @@ export function standing(item, { viewer, now = Date.now(), asker = 'the person w
   // An idea has no merge to wait for: once someone turns in what they built, it's the planter's to look at.
   const landed = deliveries.find(x => x.state === 'merged' && !x.accepted), shown = idea ? deliveries.find(x => !x.accepted) : null;
   const planter = state === 'open'
-    ? landed ? { do: 'sprout', why: 'merged', delivery: landed.uri, text: `${landed.who === 'You' ? 'Your' : landed.who + '’s'} pull request has been merged. If that did it, mark it sprouted.` }
-      : shown ? { do: 'sprout', why: 'shown', delivery: shown.uri, text: `${shown.who === 'You' ? 'You have' : shown.who + ' has'} built something for this. If it’s what you had in mind, mark it sprouted.` }
-      : linked.some(p => p.state === 'merged') ? { do: 'look', text: `A pull request that mentions this was merged on ${forge}, though nobody turned it in here. If it did the job, mark this sprouted.` }
-        : issue === 'closed' ? { do: 'close', text: `The issue is closed on ${forge}. If the work is done, mark this sprouted. If it’s no longer wanted, close it.` } : null
+    ? landed ? { do: 'sprout', why: 'merged', delivery: landed.uri, text: `${landed.who === 'You' ? 'Your' : landed.who + '’s'} pull request has been merged. If that did it, mark it done.` }
+      : shown ? { do: 'sprout', why: 'shown', delivery: shown.uri, text: `${shown.who === 'You' ? 'You have' : shown.who + ' has'} built something for this. If it’s what you had in mind, mark it done.` }
+      : linked.some(p => p.state === 'merged') ? { do: 'look', text: `A pull request that mentions this was merged on ${forge}, though nobody turned it in here. If it did the job, mark this done.` }
+        : issue === 'closed' ? { do: 'close', text: `The issue is closed on ${forge}. If the work is done, mark this done. If it’s no longer wanted, close it.` } : null
     : state === 'sprouted' && issue === 'open' ? { do: 'close-issue', href: d?.href || null, text: `The issue is still open on ${forge}. Close it there if it’s done.` } : null;
 
   return { state, idea, issue, takes, deliveries, linked, verdict, clear: verdict === 'clear', lines, advice: yours || advice, yours: !!yours, planter };

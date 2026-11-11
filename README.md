@@ -1,20 +1,19 @@
 # Rainshare
 
-*Got rain to spare? Your friends' seeds and plants could use it.*
+*Got rain to spare? Your friends' ideas and projects could use it.*
 
-AI plans reset whether you use them or not. On Rainshare, the people you trust share what
-they're growing: a seed is an idea with nothing built yet, and a plant is a project that
-exists and needs a hand. The agent usage you have left over is the rain. It's an
+AI plans reset whether you use them or not. On Rainshare, the people you trust share the
+ideas and projects they'd like a hand with. The agent usage you have left over is the rain. It's an
 atproto-native, social take on [Overflow](https://github.com/Nitjsefnie/Overflow): no ledger
 and nothing to spend, just your circle.
 
-- **Ask for rain**, in three short steps with a preview beside them. *What*: a seed, or a
-  plant you already have, where it lives (a Tangled, knotless or GitHub issue, or any git
-  repo) and how far along it is, each with its own little 3D plant. *Details*: what done looks
+- **Ask for rain**, in three short steps with a preview beside them. *What*: an idea, or a
+  project you already have, where it lives (a Tangled, knotless or GitHub issue, or any git
+  repo) and how far along it is, each drawn as its own little 3D plant. *Details*: what done looks
   like, with models, tests, size and tags folded under "More options". *Who*: everyone, unless
   you narrow it to your mutuals, people you follow, your followers or a Bluesky list, with a
   count of roughly who that reaches, and a Bluesky post to tell people it's there. Private to
-  a group is shown as coming. A seed needs no repo and no developer: say what it should do,
+  a group is shown as coming. An idea needs no repo and no developer: say what it should do,
   and whether someone else can run with it.
 - **Forecast your rain**: your profile says what you run and how much you have to spare right
   now. Folded under "Help the right people find you", it can also say roughly what you spend
@@ -22,16 +21,18 @@ and nothing to spend, just your circle.
   incomes, projects that share your values.
 - **Send your agent**: one click tells your friend you're on it and copies the command that
   suits your setup (Claude Code, Codex, or a brief for any agent); the other ways are a click
-  away. Turn the pull request in when it's up, and your friend marks it sprouted.
-- **Water a garden**: everything that sprouts with your help shows on your profile as a plant
-  in the garden you've watered.
+  away. Turn the pull request in when it's up, and your friend marks it done.
+- **Grow a garden**: everything that gets done with your help shows on your profile as a
+  plant, in a garden of what you've helped with.
 
-**The words.** Seeding a cloud is how you ask for rain in a particular place, and what's in
-the ground is what rain grows. A *seed* is an idea. A *plant* is a project, and it says how
-far along it is: a *seedling*, a *young plant* or an *established plant*. Only a seed is
-planted here: a plant is something you already have, perhaps for years, so you *ask for
-rain* on it. Helpers *water* them. When the work is done it has *sprouted*, whichever it was, and it's drawn one stage on:
-a seed that sprouted is a seedling now.
+**The words, and the pictures.** What people read is plain: an *idea* (nothing built yet)
+or a *project* (something that exists), which is *done* when the work lands. Rain is the
+brand: your spare usage, and "Ask for rain" to ask for some. The rest of the metaphor is
+drawn rather than said. An idea is drawn as a seed in the ground, and a project as a plant
+grown as far as it has (just started, taking shape, established). When the work is done it's
+drawn one stage on, and what you've helped with grows into a garden on your profile. The
+records keep the metaphor's names (`dev.rainshare.seed`, `stage`, `state: sprouted`), which
+nobody needs to read.
 
 It runs in two places, both from this repo:
 
@@ -49,13 +50,13 @@ Signed out, the home page is the pitch beside the water cycle: a stretch of coas
 | --- | --- | --- |
 | **Evaporation**: mist lifts off the sea | Usage you won't get to before your plan resets | a forecast, in the example circle |
 | **Condensation**: it gathers into clouds | Forecasts, sitting with the people you follow | the example circle's board |
-| **Precipitation**: rain falls on seeds planted by the river | Agents sent after a friend's seed | a seed to send an agent after |
-| **Collection**: the river runs back to the sea | Pull requests coming home, and the next reset | a seed that sprouted |
+| **Precipitation**: rain falls on seeds planted by the river | Agents sent after a friend's idea or project | an idea to send an agent after |
+| **Collection**: the river runs back to the sea | Pull requests coming home, and the next reset | one that's done |
 
 Picking a part (its pin, or anywhere near it in the scene) flies the camera in for a closer
 look and shows a short note: what that part stands for, and a link to the screen where it
 happens. "Next" walks round the cycle, and "Whole view" or Escape backs out. That's all the
-explaining the page does; the rest is the scene and the board of open seeds under it.
+explaining the page does; the rest is the scene and the board of open asks under it.
 
 The clouds are the ones atmosphere.online's sky is made of: each is a few hundred soft, lit
 "puffs" with noisy edges (`puffs.js`, brought over from that repo's `src/puff3d.js` and
@@ -181,17 +182,18 @@ turn-in form, and sending it writes your take (if there wasn't one) and the deli
 (`handBack` and `readHandBack` in `core/brief.js`). Once you've turned something in, the form
 steps aside and the page says what's left: nothing, unless the requester asks.
 
-## Seeds and plants
+## Ideas and projects
 
-Every ask says what it is, by how far along the project is. That's what a helper sizes it up
-by, and it's what the brief tells their agent first.
+Every ask says what it is: an idea, or a project and how far along it is. That's what a
+helper sizes it up by, and it's what the brief tells their agent first. Each is drawn as a
+seed or a plant.
 
-| | What it means | In the record |
-| --- | --- | --- |
-| **Seed** | An idea. Nothing's been built yet. | no `subject` |
-| **Seedling** | Just started. There's a repo and a first sketch. | `stage: seedling` |
-| **Young plant** | It works, and it's still taking shape. | `stage: young` |
-| **Established plant** | People use it and rely on it. | `stage: established` |
+| What people read | What it means | Drawn as | In the record |
+| --- | --- | --- | --- |
+| **Idea** | Nothing's been built yet. | a seed | no `subject` |
+| **Project**, just started | There's a repo and a first sketch. | a seedling | `stage: seedling` |
+| **Project**, taking shape | It works, and it's still changing. | a young plant | `stage: young` |
+| **Project**, established | People use it and rely on it. | an established plant | `stage: established` |
 
 Each has a small 3D model (`src/plants/models.js`): a seed lying in a mound of soil, a stem
 with its first two leaves, a stem with leaves up it, and several stems in flower. They share
@@ -202,22 +204,21 @@ slowly, drawn by one shared renderer that loads only when a plant is on screen
 (`src/plants/live.js`); without WebGL, or with reduced motion on, the picture stays.
 `npm run plants` takes the pictures again after a model changes.
 
-## The garden you've watered
+## What you've helped with
 
 Helping earns nothing you can spend. What it leaves is a garden: one plant on your profile for
-each seed or plant that sprouted with your work, drawn as what it grew into, and each one
-opens the ask it came from. Your board shows how many, beside your forecast.
+each idea or project that got done with your work, drawn as what it grew into, and each one
+opens the ask it came from. Your board says how many ("Helped with 2"), beside your forecast.
 
 It's worked out, not stored (`core/garden.js`). A helper's delivery says what they worked on,
-and the asker's own record names the delivery that made it sprout, so a garden needs both
+and the asker's own record names the delivery that did it, so a garden needs both
 people's records to agree and nobody can add to their own. Two friends could still agree to
 pad each other's, which is why it's a picture of what you've done and not a score: there's
 no total to compare and no ranking of people. Only public asks count for now.
 
-## A seed, with no repo
+## An idea, with no repo
 
-A seed is an idea, so it has no code to point at. Planting one asks one thing more: whose
-will it be?
+An idea has no code to point at. Asking for rain on one asks one thing more: whose will it be?
 
 | | **Someone else can run with it** | **Start it for me** |
 | --- | --- | --- |
@@ -249,10 +250,10 @@ own records can't say, and `standing` puts the two together.
 | Nobody is on it | It's clear to start | |
 | Someone has taken it on | Check with them first (unless the seed welcomes more than one helper) | |
 | A pull request has been turned in, or one on the forge mentions the issue or the seed's link | Read that one before making another | |
-| A turned-in pull request has been merged | It's probably done | Mark it sprouted, with one button |
-| A pull request nobody turned in has been merged | It's probably done | Mark it sprouted |
-| The issue was closed on the forge | Ask before starting | Mark it sprouted, or close it |
-| The seed has sprouted and the issue is still open | | Close the issue on the forge |
+| A turned-in pull request has been merged | It's probably done | Mark it done, with one button |
+| A pull request nobody turned in has been merged | It's probably done | Mark it done |
+| The issue was closed on the forge | Ask before starting | Mark it done, or close it |
+| It's done and the issue is still open | | Close the issue on the forge |
 
 Nothing is closed automatically. Rainshare reads the forges but can't write to them, and
 whether a pull request did the job is the requester's call. So each side is shown what's left
@@ -269,10 +270,10 @@ curl -fsSL https://rainshare.dev/rainshare.mjs -o ~/.rainshare.mjs
 node ~/.rainshare.mjs doctor                     # what's set up here, and what will work
 node ~/.rainshare.mjs login you.bsky.social      # with an app password
 node ~/.rainshare.mjs board                      # your circle, best first for you
-node ~/.rainshare.mjs check <seed>               # where it stands (no sign-in needed)
-node ~/.rainshare.mjs run <seed>                 # check, take, clone, start your agent, turn it in
-node ~/.rainshare.mjs turn-in <seed> --url <pull request>
-node ~/.rainshare.mjs sprout <seed>              # your own seed: the work landed
+node ~/.rainshare.mjs check <link>               # where it stands (no sign-in needed)
+node ~/.rainshare.mjs run <link>                 # check, take, clone, start your agent, turn it in
+node ~/.rainshare.mjs turn-in <link> --url <pull request>
+node ~/.rainshare.mjs done <link>                # your own: the work landed (sprout works too)
 claude mcp add rainshare -- node ~/.rainshare.mjs mcp
 ```
 
@@ -284,7 +285,7 @@ offers to turn it in. `turn-in` writes a take first if you hadn't said you were 
 
 The MCP tools are `rainshare_board`, `rainshare_show` (with the brief), `rainshare_check`,
 `rainshare_take`, `rainshare_drop`, `rainshare_turn_in`, `rainshare_ask`,
-`rainshare_close_out` (mark your own seed sprouted, closed or open again), `rainshare_profile`,
+`rainshare_close_out` (mark your own done, closed or open again), `rainshare_profile`,
 `rainshare_set_forecast` and `rainshare_whoami`. The server's instructions give an agent the
 order: check, take, do the work, open the pull request with the seed's link in it, check again,
 turn it in, and tell its user what's left. Without a sign-in the read-only tools still work, and
@@ -344,14 +345,14 @@ in the app.
 | `core/rank.js` | A helper's board in order, and how well each seed fits them, with reasons |
 | `core/words.js` | A seed in plain lines: where, the job, what they'd like, who's on it |
 | `core/status.js` | Where a seed stands: who's on it, what's been turned in, what the forge says, and what each side should do next |
-| `core/garden.js` | The garden someone has watered: what sprouted with their help, worked out from the records |
+| `core/garden.js` | What someone has helped with: what got done with their help, worked out from the records |
 | `core/forges.js` | The right page on each forge: where to start a repo, fork one, or see its pull requests |
 | `core/brief.js` | The agent brief, the link an agent hands back, and the one-paste launch commands |
 | `core/markdown.js` | A small, safe Markdown renderer for specs |
 | `core/source.js` | Rainshare over atproto: the board, a seed, profiles and every write, public and in group spaces |
 | `core/demo.js` | The example circle, answering the same calls from fixtures and your browser's storage |
 | `ui/rainshare.js`, `ui/rainshare.css` | The screens: the board (a list with the details beside it), a seed, your profile, someone's profile, agents |
-| `ui/post.js` | Asking for rain on a seed or a plant: three steps, a live preview and a confirmation |
+| `ui/post.js` | Asking for rain on an idea or a project: three steps, a live preview and a confirmation |
 | `ui/bits.js` | Small shared pieces: escaping, times, icons, faces, and the glyphs for a forecast's sky and a seed's life |
 | `cli/rainshare.mjs` | The CLI and MCP server |
 | `test/` | `npm test`: the core, the data source against a fake network, and the MCP server |
@@ -397,8 +398,8 @@ landing in light and dark from 360 to 1680 pixels wide with no sideways scrollin
 closer at each part by its pin, by tapping the scene and from the keyboard; Next, Whole view
 and Escape; pause, reduced motion, the fallback without WebGL; and the example circle,
 including sending an agent, turning a pull request in, the warning when someone is already on
-a seed, and marking your own seed sprouted after a merge. Asking for rain in three steps (a
-seed and a plant, "More options" staying open across redraws, everyone by default, the
+a seed, and marking your own seed sprouted after a merge. Asking for rain in three steps (an
+idea and a project, "More options" staying open across redraws, everyone by default, the
 coming-soon group row), the folded profile and the folded send-your-agent panel were checked
 in the example circle at desktop and phone widths.
 
@@ -427,7 +428,7 @@ Not yet checked:
   forking, pushing and opening a pull with the knotless CLI or MCP server (the commands in
   the brief are from knotless's docs, not from running them), private repos, and knotless
   servers other than knotless.dev, which Rainshare doesn't recognise as knotless yet.
-- Ideas: planting one, running with one and turning it in were checked in the example circle.
+- Ideas: asking for rain on one, running with one and turning it in were checked in the example circle.
   The pages Rainshare links to on Tangled exist (they ask you to sign in). GitHub's new-repo
   page taking a name and description from the link is from memory, not checked from here; if
   it doesn't, the page still opens, just empty.

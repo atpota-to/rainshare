@@ -1,4 +1,4 @@
-// A seed in plain words, for the board's details and the seed's page: where the
+// An ask in plain words, for the board's details and its own page: where the
 // work is, how big the job is, what the asker would like, and who's on it. Each is a short
 // line of text, so nothing needs a coloured chip.
 import { labelOf, SIZES, HARNESSES, audienceOf, modelName } from './ns.js';
@@ -10,11 +10,19 @@ const harnessName = h => labelOf(HARNESSES, h);
 
 /** Which of the four it is: 'seed' (an idea, no repo), 'seedling', 'young' or 'established'. One with a repo that doesn't say is drawn as a young plant. */
 export const stageOf = sq => !describeSubject(sq?.subject) ? 'seed' : ['seedling', 'young', 'established'].includes(sq?.stage) ? sq.stage : 'young';
-/** What to call it: "seed", "seedling", "young plant", "established plant", or just "plant" for one that doesn't say how far along it is. */
-export const nounOf = sq => !describeSubject(sq?.subject) ? 'seed' : { seedling: 'seedling', young: 'young plant', established: 'established plant' }[sq?.stage] || 'plant';
+/** What to call it: an "idea" (no repo yet) or a "project". The plant it's drawn as says how far along. */
+export const nounOf = sq => !describeSubject(sq?.subject) ? 'idea' : 'project';
+/** What it is, for the line under its title: { name: 'Idea' | 'Project', note }. */
+export function whatItIs(sq){
+  const st = stageOf(sq);
+  return st === 'seed' ? { name: 'Idea', note: 'Nothing’s been built yet.' } : {
+    name: 'Project',
+    note: { seedling: 'Just started: there’s a repo and a first sketch.', young: 'It works, and it’s still taking shape.', established: 'Established: people use it and rely on it.' }[st]
+  };
+}
 /** Which plant to draw for it: its own stage, or the next one on once it has sprouted (a seed that sprouted is a seedling now). */
 export const pictureOf = sq => { const st = stageOf(sq); return sq?.state === 'sprouted' ? { seed: 'seedling', seedling: 'young', young: 'established' }[st] || st : st; };
-/** The same with its article: "a seed", "an established plant". */
+/** The same with its article: "an idea", "a project". */
 export const aNoun = sq => { const n = nounOf(sq); return (/^[aeiou]/.test(n) ? 'an ' : 'a ') + n; };
 
 /** "GitHub issue #14, example/flashdeck", "Tangled, kai.example/almanac", or for an idea "No repo yet". */
@@ -113,4 +121,5 @@ export function askExcerpt(spec, max = 260){
   return t.slice(0, max).replace(/\s+\S*$/, '') + '…';
 }
 
-export const stateText = sq => sq?.state === 'sprouted' ? 'Sprouted' : sq?.state === 'closed' ? 'Closed' : '';
+// "sprouted" is the record's word for done; people read "Done", beside a sprouted plant.
+export const stateText = sq => sq?.state === 'sprouted' ? 'Done' : sq?.state === 'closed' ? 'Closed' : '';

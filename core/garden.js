@@ -16,9 +16,9 @@ export function wateredBy(did, items){
     .map(it => ({ uri: it.uri, repo: it.repo, rkey: it.rkey, space: it.space || null, author: it.author || null, title: it.value.title, stage: stageOf(it.value), picture: pictureOf(it.value), at: it.value.updatedAt || it.value.createdAt || '' }))
     .sort((a, b) => String(b.at).localeCompare(String(a.at)));
 }
-/** "Nothing yet", "1 seed", "2 plants", "1 seed and 3 plants". */
+/** "Nothing yet", "1 idea", "2 projects", "1 idea and 3 projects". */
 export function wateredText(garden){
-  const seeds = (garden || []).filter(g => g.stage === 'seed').length, plants = (garden || []).length - seeds;
+  const ideas = (garden || []).filter(g => g.stage === 'seed').length, projects = (garden || []).length - ideas;
   const say = (n, one) => n ? `${n} ${one}${n === 1 ? '' : 's'}` : '';
-  return [say(seeds, 'seed'), say(plants, 'plant')].filter(Boolean).join(' and ') || 'Nothing yet';
+  return [say(ideas, 'idea'), say(projects, 'project')].filter(Boolean).join(' and ') || 'Nothing yet';
 }
