@@ -113,9 +113,11 @@ const MY_PROFILE = {
   setups: [{ harness: 'claude-code', models: ['claude-sonnet-5-5'], plan: 'Claude Pro', runsOn: 'local' }], forecast: { level: 'showers', models: ['claude-sonnet-5-5'] }
 };
 
-export function createDemoSource({ store = null, me: meOverride = null } = {}){
+// `groups`: whether private seeds in groups are part of it (GROUPS in ns.js). Without them
+// the example has no group seed, no groups to share a profile with, and nothing kept back.
+export function createDemoSource({ store = null, me: meOverride = null, groups = true } = {}){
   const saved = store?.get('rainshare') || {};
-  const state = { profile: saved.profile || MY_PROFILE, hidden: saved.hidden || ['budget'], share: saved.share ?? [GROUP.did], mine: saved.mine || [], takes: saved.takes || [], deliveries: saved.deliveries || [], removed: saved.removed || [], edits: saved.edits || {}, added: saved.added || [] };
+  const state = { profile: saved.profile || MY_PROFILE, hidden: groups ? saved.hidden || ['budget'] : [], share: groups ? saved.share ?? [GROUP.did] : [], mine: saved.mine || [], takes: saved.takes || [], deliveries: saved.deliveries || [], removed: saved.removed || [], edits: saved.edits || {}, added: saved.added || [] };
   const save = () => store?.set('rainshare', state);
   const me = { did: ME, handle: meOverride?.handle || 'you.example', displayName: meOverride?.displayName || 'You', avatar: meOverride?.avatar || null };
 
@@ -127,7 +129,7 @@ export function createDemoSource({ store = null, me: meOverride = null } = {}){
 
   function items(){
     const all = [...SEEDS.map(x => ({ ...x, value: { ...x.value, ...(x.state ? { state: x.state } : {}) } })), ...state.mine]
-      .filter(x => !state.removed.includes(x.id))
+      .filter(x => !state.removed.includes(x.id) && (groups || !x.private))
       .map(x => ({ ...x, value: { ...x.value, ...(state.edits[x.id] || {}) } }));
     // The example takes and deliveries point at their seed the way real ones do: a strong ref.
     const on = x => { const s = SEEDS.find(q => q.id === x.on); return { ...x, value: { ...x.value, seed: { uri: uriOf(s.by, SEED, s.id, groupOf(s)), cid: cidOf(s.id) } } }; };
@@ -160,7 +162,7 @@ export function createDemoSource({ store = null, me: meOverride = null } = {}){
   const tid = p => `3${p}-${Date.now().toString(36)}${(n++).toString(36)}`;
 
   return {
-    viewer: ME, signedIn: true, canPrivate: true, demo: true, me,
+    viewer: ME, signedIn: true, canPrivate: groups, demo: true, me,
     board: () => pause({ items: items(), notes: [] }),
     seed: uri => pause(find(uri)),
     async profileOf(did){
@@ -169,7 +171,7 @@ export function createDemoSource({ store = null, me: meOverride = null } = {}){
       return p ? { person: person(did), public: p.profile, merged: p.profile, hidden: [], groups: [] } : { person: { did }, public: null, merged: null, hidden: [], groups: [] };
     },
     async saveProfile(input, { hidden = [], share = [] } = {}){
-      state.profile = R.profile(input, state.profile); state.hidden = hidden; state.share = share; save();
+      state.profile = R.profile(input, state.profile); state.hidden = groups ? hidden : []; state.share = groups ? share : []; save();
       return pause(state.profile);
     },
     async plant(input, { group } = {}){
@@ -201,8 +203,8 @@ export function createDemoSource({ store = null, me: meOverride = null } = {}){
       state.deliveries.push(d); save(); return pause(d);
     },
     forget(){},
-    reset(){ store?.set('rainshare', null); Object.assign(state, { profile: MY_PROFILE, hidden: ['budget'], share: [GROUP.did], mine: [], takes: [], deliveries: [], removed: [], edits: {}, added: [] }); },
-    groups: () => Promise.resolve([GROUP, { ...HACKERS, space: state.added.includes(HACKERS.did) ? HACKERS.space : null, canAdd: true }]),
+    reset(){ store?.set('rainshare', null); Object.assign(state, { profile: MY_PROFILE, hidden: groups ? ['budget'] : [], share: groups ? [GROUP.did] : [], mine: [], takes: [], deliveries: [], removed: [], edits: {}, added: [] }); },
+    groups: () => Promise.resolve(!groups ? [] : [GROUP, { ...HACKERS, space: state.added.includes(HACKERS.did) ? HACKERS.space : null, canAdd: true }]),
     reach: () => Promise.resolve({ following: 312, followers: 1204, mutuals: 84 }),
     addToGroup: async did => { if (!state.added.includes(did)) state.added.push(did); save(); return pause(GROUPS[did]?.space || `at://${did}/space/dev.rainshare.board/rainshare`); },
     lists: () => Promise.resolve([{ uri: 'at://did:example:you/app.bsky.graph.list/trusted', name: 'People whose agents I trust', count: 12 }]),

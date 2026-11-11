@@ -6,6 +6,11 @@ export const COLLECTIONS = [PROFILE, SEED, TAKE, DELIVERY];
 // The space type a group's Rainshare lives in (its private seeds, takes, deliveries and profiles).
 export const BOARD = NS + '.board';
 export const SITE = 'https://rainshare.dev';
+// Private seeds in a group's space. Spaces are still an alpha on the group host, so for now
+// every seed is public: sign-in asks only for Rainshare's own records, and the app shows
+// groups as coming. Turning this on brings back everything private (src/scope.js, the
+// "Private, in a group" choice, "only my groups" on a profile, and groups in the example).
+export const GROUPS = false;
 
 export const HARNESSES = [
   ['claude-code', 'Claude Code'], ['codex', 'Codex'], ['cursor', 'Cursor'], ['gemini-cli', 'Gemini CLI'],
