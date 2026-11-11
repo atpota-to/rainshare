@@ -9,7 +9,7 @@ and nothing to spend, just your circle.
 
 - **Ask for rain**, in three short steps with a preview beside them. *What*: an idea, or a
   project you already have, where it lives (a Tangled, knotless or GitHub issue, or any git
-  repo) and how far along it is, each drawn as its own little 3D plant. *Details*: what done looks
+  repo) and how far along the project is as a whole, each drawn as its own little 3D plant. *Details*: what done looks
   like, with models, tests, size and tags folded under "More options". *Who*: everyone, unless
   you narrow it to your mutuals, people you follow, your followers or a Bluesky list, with a
   count of roughly who that reaches, and a Bluesky post to tell people it's there. Private to
@@ -184,7 +184,7 @@ steps aside and the page says what's left: nothing, unless the requester asks.
 
 ## Ideas and projects
 
-Every ask says what it is: an idea, or a project and how far along it is. That's what a
+Every ask says what it is: an idea, or a project and how far along the project is as a whole. That's what a
 helper sizes it up by, and it's what the brief tells their agent first. Each is drawn as a
 seed or a plant.
 
