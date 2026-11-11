@@ -187,7 +187,7 @@ export function createPoster(ui){
   /* ---------- moving between steps ---------- */
   function problem(step){
     if (step === 1) {
-      if (!P.stage) return 'Pick what you’re planting: a seed, or a plant.';
+      if (!P.stage) return 'Pick what needs rain: a seed, or a plant.';
       if (P.stage === 'seed') return '';
       if (!P.kind || P.kind === 'idea') return 'Pick where it lives.';
       if (P.link.trim() && !P.subject) return 'That link isn’t one we understand. Paste the issue’s or the repo’s address.';
@@ -276,10 +276,10 @@ export function createPoster(ui){
         <p class="rs-muted">${P.owner === 'helper' ? 'You don’t need to be a developer for this one. Say what it should do in the next step, in your own words.'
           : `Or make the empty repo yourself first and point at it: ${newRepoPlaces({ title: P.title }).map(p => `<a href="${esc(p.href)}" target="_blank" rel="noopener">${esc(p.name)}</a>`).join(', ')}.`}</p>`;
     }
-    // First what it is: a seed (an idea) or a plant, by how far along it is. Then, for a plant, where it lives.
-    return `<h1 tabindex="-1">What are you planting?</h1>
-      <p class="rs-lede">A seed is an idea, with nothing built yet. A plant is a project that exists, however far along it is.</p>
-      <div class="rs-tiles rs-stages" role="radiogroup" aria-label="What are you planting?">${STAGES.map(([k, t, n]) =>
+    // First what it is that needs rain: a seed (an idea) or a plant someone already has, by how far along it is. Then, for a plant, where it lives.
+    return `<h1 tabindex="-1">What needs rain?</h1>
+      <p class="rs-lede">A seed is an idea, with nothing built yet. A plant is a project you already have, however long ago you started it and however far along it is.</p>
+      <div class="rs-tiles rs-stages" role="radiogroup" aria-label="What needs rain?">${STAGES.map(([k, t, n]) =>
         `<button type="button" class="rs-tile rs-stage" data-rs-stage="${k}" role="radio" aria-checked="${P.stage === k}">${plantPic(k, 84)}<b>${esc(t)}</b><small>${esc(n)}</small></button>`).join('')}</div>
       ${P.stage && P.stage !== 'seed' ? `<div class="rs-field"><span>Where does it live?</span>
         <div class="rs-tiles" role="radiogroup" aria-label="Where does it live?">${KINDS.map(([k, t, n]) => tile('data-rs-kind', k, P.kind === k, t, n)).join('')}</div></div>` : ''}
@@ -347,7 +347,7 @@ export function createPoster(ui){
       const lists = P.lists;
       body = `<div class="rs-options" role="radiogroup" aria-label="Who it’s for">${AUDIENCE_PICKS.map(([k, t, n]) => row('data-rs-aud', k, P.audience === k, t, k === 'list' && listNow() ? listNow().name : n, people(countFor(k)))).join('')}</div>
         ${P.audience === 'list' ? (lists == null ? '<p class="rs-muted">Finding your lists…</p>' : lists.length ? `<label>Which list<select name="list">${lists.map(l => `<option value="${esc(l.uri)}"${P.list === l.uri ? ' selected' : ''}>${esc(l.name)} (${people(l.count)})</option>`).join('')}</select></label>` : '<p class="rs-muted">You don’t have any Bluesky lists yet. Make one at bsky.app, then come back.</p>') : ''}
-        <p class="rs-muted">What’s planted in public is a record anyone could look up. This says who it’s meant for: Rainshare shows it only to them and only offers it to them. For something truly private, plant it in a group.</p>`;
+        <p class="rs-muted">A public one is a record anyone could look up. This says who it’s meant for: Rainshare shows it only to them and only offers it to them. For something truly private, keep it to a group.</p>`;
     }
     return `<h1 tabindex="-1">Who’s it for?</h1>
       <p class="rs-lede">Only the people you pick see it on their board and can take it on.</p>
@@ -406,7 +406,7 @@ export function createPoster(ui){
     const intent = pub && P.bsky && d.page ? `https://bsky.app/intent/compose?text=${encodeURIComponent(`${bskyText()} ${d.page}`)}` : null;
     return `<section class="rs-post-done" aria-live="polite">
       <span class="rs-done-mark">${ico('check')}</span>
-      <h1 tabindex="-1">It’s in the ground.</h1>
+      <h1 tabindex="-1">${P.stage === 'seed' ? 'It’s in the ground.' : 'It’s on the board.'}</h1>
       <p class="rs-lede">${esc(doneText())}</p>
       <div class="rs-mini">
         <div class="rs-mini-top">${face(ui.self(), 'xs')}<b>You</b><span>· ${esc(whoFor())} · just now</span></div>
@@ -424,17 +424,17 @@ export function createPoster(ui){
           : '<li><b>They turn in a pull request.</b> <span>It shows up on your plant’s page, with the model that did the work.</span></li>'}
         <li><b>You mark it sprouted.</b> <span>And thank them on Bluesky, if you like.</span></li>
       </ol></div>
-      <div class="rs-row">${ui.a(d.path, 'See your seed', 'rs-btn rs-primary')}<button class="rs-btn rs-quiet" type="button" data-rs-again>Plant another</button></div>
+      <div class="rs-row">${ui.a(d.path, P.stage === 'seed' ? 'See your seed' : 'See it on the board', 'rs-btn rs-primary')}<button class="rs-btn rs-quiet" type="button" data-rs-again>Ask about something else</button></div>
     </section>`;
   }
 
   function view(){
-    ui.title('Plant something');
+    ui.title('Ask for rain');
     if (P.done) return `<div class="rs-post">${done()}</div>`;
     const body = [, stepWhere, stepWhat, stepHow, stepWho, stepLook][P.step]();
-    const next = { 1: P.stage === 'seed' ? 'Next: the idea' : 'Next: what you’d like done', 2: P.kind === 'idea' && P.owner === 'helper' ? 'Next: anything to add' : 'Next: how it should be done', 3: 'Next: who it’s for', 4: 'Next: look it over', 5: P.busy ? 'Planting…' : 'Plant it' }[P.step];
+    const next = { 1: P.stage === 'seed' ? 'Next: the idea' : 'Next: what you’d like done', 2: P.kind === 'idea' && P.owner === 'helper' ? 'Next: anything to add' : 'Next: how it should be done', 3: 'Next: who it’s for', 4: 'Next: look it over', 5: P.stage === 'seed' ? (P.busy ? 'Planting…' : 'Plant it') : (P.busy ? 'Asking…' : 'Ask for rain') }[P.step];
     return `<div class="rs-post">
-      <header class="rs-post-head"><span>Plant something</span><button class="rs-link" type="button" data-rs-post-cancel>Cancel</button></header>
+      <header class="rs-post-head"><span>Ask for rain</span><button class="rs-link" type="button" data-rs-post-cancel>Cancel</button></header>
       <ol class="rs-stepper" aria-label="Steps">${STEPS.map((l, i) => {
         const n = i + 1, state = n < P.step ? 'done' : n === P.step ? 'on' : '';
         return `<li class="${state}"><button type="button" data-rs-step="${n}"${n > P.reached ? ' disabled' : ''}${n === P.step ? ' aria-current="step"' : ''}><span class="rs-step-n" aria-hidden="true">${n < P.step ? ico('check') : n}</span><span>${l}</span></button></li>`;

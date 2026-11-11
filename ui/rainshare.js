@@ -122,7 +122,7 @@ export function createRainshare({ root, base = '/', host }){
     const yours = whose === 'You';
     return `<div class="rs-panel">
       <p>${garden.length ? `${esc(whose)}${yours ? '’ve' : ' has'} watered ${esc(wateredText(garden))}.` : yours ? 'Nothing here yet.' : `${esc(whose)} hasn’t watered anything yet.`}</p>
-      ${garden.length ? `<ul class="rs-garden">${garden.map(g => `<li><a href="${esc(href(pathOf(g)))}" data-rs-go="${esc(pathOf(g))}" title="${esc(g.title)}" aria-label="${esc(`${labelOf(STAGES, g.stage)}: ${g.title}, planted by ${nameOf(g.author)}`)}">${plantPic(g.picture || g.stage, 76)}</a></li>`).join('')}</ul>` : ''}
+      ${garden.length ? `<ul class="rs-garden">${garden.map(g => `<li><a href="${esc(href(pathOf(g)))}" data-rs-go="${esc(pathOf(g))}" title="${esc(g.title)}" aria-label="${esc(`${g.title}: ${nameOf(g.author)}’s ${labelOf(STAGES, g.stage).toLowerCase()}`)}">${plantPic(g.picture || g.stage, 76)}</a></li>`).join('')}</ul>` : ''}
       <p class="rs-muted">${garden.length ? `One for each seed or plant that sprouted with ${yours ? 'your' : 'their'} help. It’s worked out from the records, so there’s nothing to collect and nothing to spend.`
         : `${yours ? 'The first seed or plant that sprouts with your help shows up here.' : 'What sprouts with their help shows up here.'}`}</p>
     </div>`;
@@ -211,14 +211,14 @@ export function createRainshare({ root, base = '/', host }){
     const sel = items.find(i => i.uri === S.pick);
     const fc = forecastOf(S.mine?.merged);
     const empty = {
-      foryou: signedIn() ? 'Nothing from your circle yet. When people you follow plant something meant for you, it shows up here. Plant something of your own to get it going.' : 'Nothing’s open to everyone right now. Sign in to see what your circle would like done.',
-      everyone: 'Nobody has planted anything open to everyone yet.',
-      yours: 'What you plant, and what you take on, shows up here.'
+      foryou: signedIn() ? 'Nothing from your circle yet. When people you follow ask for rain on something meant for you, it shows up here. Ask for some yourself to get it going.' : 'Nothing’s open to everyone right now. Sign in to see what your circle would like done.',
+      everyone: 'Nothing here is open to everyone yet.',
+      yours: 'Your own seeds and plants, and the ones you take on, show up here.'
     }[S.tab];
     const hint = {
       foryou: signedIn() ? 'The drops show how well each one suits you. Pick one to see the details beside the list.' : 'Open to everyone. Sign in to see your circle’s too, sorted for you.',
       everyone: 'Open to anyone who comes across them, newest first.',
-      yours: 'What you’ve planted, and what you’ve taken on.'
+      yours: 'Your own seeds and plants, and the ones you’ve taken on.'
     }[S.tab];
     const tabs = [['foryou', signedIn() ? 'For you' : 'Open'], ['everyone', 'Everyone'], ...(signedIn() ? [['yours', 'Yours']] : [])];
     return `
@@ -232,7 +232,7 @@ export function createRainshare({ root, base = '/', host }){
         <div class="rs-head-actions">
           ${signedIn() && S.garden?.length ? a('u/' + viewer(), `${plantPic(S.garden[0].picture || S.garden[0].stage, 26)}${S.garden.length} watered`, 'rs-btn rs-quiet rs-watered-btn') : ''}
           ${signedIn() ? a('me', `${skyIco(fc?.[0])}${fc ? esc(fc[1]) : 'Your forecast'}`, 'rs-btn rs-quiet rs-fc' + (fc ? ' rs-fc-' + fc[0] : '')) : ''}
-          ${signedIn() ? a('new', `${ico('plus')}Plant something`, 'rs-btn rs-primary') : host.signIn ? `<button class="rs-btn rs-primary" type="button" data-rs-act="signin">Sign in</button>` : ''}
+          ${signedIn() ? a('new', `${ico('plus')}Ask for rain`, 'rs-btn rs-primary') : host.signIn ? `<button class="rs-btn rs-primary" type="button" data-rs-act="signin">Sign in</button>` : ''}
         </div>
       </header>
       ${S.source?.demo ? `<p class="rs-note rs-demo">${ico('sky')}<span>This is an example circle: pretend friends, real ideas. Anything you do here stays in this browser.</span>${host.exitDemo ? `<button class="rs-link" type="button" data-rs-act="exit-demo">${host.exitDemo}</button>` : ''}</p>` : ''}
@@ -446,7 +446,7 @@ export function createRainshare({ root, base = '/', host }){
         pl.do === 'sprout' ? `<button class="rs-btn rs-primary rs-sm" type="button" data-rs-sprout="${esc(pl.delivery)}">Mark it sprouted</button>`
           : pl.do === 'close-issue' ? (safeHttp(pl.href) && !it.example ? `<a class="rs-btn rs-quiet rs-sm" href="${esc(safeHttp(pl.href))}" target="_blank" rel="noopener">Open the issue</a>` : '')
             : sproutBtn}</p>`;
-      const tell = open && page && d?.issue && !it.example ? `<button class="rs-link" type="button" data-rs-copy-text="${esc(`I’ve planted this on Rainshare, for anyone with spare agent usage who’d like to take it on: ${page}`)}" data-rs-copied="Copied. Paste it as a comment on the issue.">Copy a note for the issue</button>` : '';
+      const tell = open && page && d?.issue && !it.example ? `<button class="rs-link" type="button" data-rs-copy-text="${esc(`I’ve asked for a hand with this on Rainshare, for anyone with spare agent usage who’d like to take it on: ${page}`)}" data-rs-copied="Copied. Paste it as a comment on the issue.">Copy a note for the issue</button>` : '';
       actions = `${next}<div class="rs-row">${open ? `<button class="rs-btn rs-quiet" type="button" data-rs-act="close">Close it</button>` : `<button class="rs-btn rs-quiet" type="button" data-rs-act="reopen">Reopen it</button>`}
         ${shareBtn(it, 'Share on Bluesky')}${tell}
         <button class="rs-link rs-danger" type="button" data-rs-act="delete">Delete</button></div>
@@ -610,7 +610,7 @@ export function createRainshare({ root, base = '/', host }){
         <header>${face(p, 'lg')}<div><h1>${esc(nameOf(p))}</h1>${p.handle ? `<a class="rs-link" href="https://bsky.app/profile/${esc(p.handle)}" target="_blank" rel="noopener">@${esc(p.handle)}</a>` : ''}</div>${o.did === viewer() ? a('me', 'Edit', 'rs-btn rs-quiet rs-sm') : ''}</header>
         <div class="rs-panel">${profileCard(o.merged, p)}${o.groups?.length && o.did !== viewer() ? `<p class="rs-muted">${ico('lock')} Some of this is shared only with ${esc(o.groups.map(g => g.name).join(' and '))}.</p>` : ''}</div>
         ${S.source.gardenOf ? `<h2>${o.did === viewer() ? 'The garden you’ve watered' : `The garden ${esc(firstName(p))} has watered`}</h2>${gardenBlock(o.garden, o.did === viewer() ? 'You' : firstName(p))}` : ''}
-        <h2>${o.did === viewer() ? 'What you’ve planted' : 'What they’ve planted'}</h2>
+        <h2>${o.did === viewer() ? 'Your seeds and plants' : `${esc(firstName(p))}’s seeds and plants`}</h2>
         ${!S.board ? '<p class="rs-muted">Loading…</p>' : theirs.length ? `<ul class="rs-list">${theirs.map(it => card(it, { nav: true })).join('')}</ul>` : '<p class="rs-muted">None that you can see.</p>'}
       </section>`;
   }
@@ -651,21 +651,21 @@ export function createRainshare({ root, base = '/', host }){
           <section class="rs-panel" aria-labelledby="rsWayCli">
             <h2 id="rsWayCli">${ico('term')}From a terminal</h2>
             <ol class="rs-steps">
-              <li><h3>See what’s planted</h3>${block(`node ${CLI_HOME} board`)}</li>
+              <li><h3>See what needs rain</h3>${block(`node ${CLI_HOME} board`)}</li>
               <li><h3>See where one stands</h3>${block(`node ${CLI_HOME} check <link>`)}
                 <p class="rs-muted">Who’s on it, what’s been turned in, and what GitHub or Tangled says about the issue and its pull requests. It needs no sign-in. <code>&lt;link&gt;</code> is its link on Rainshare.</p></li>
               <li><h3>Take one on</h3>${block(`node ${CLI_HOME} run <link>`)}
                 <p class="rs-muted">This runs the same check and stops if someone got there first. Otherwise it tells your friend you’re on it, clones the repo and starts your agent with the brief. When the agent finishes, it finds the pull request and offers to turn it in.</p></li>
               <li><h3>Or turn one in yourself</h3>${block(`node ${CLI_HOME} turn-in <link> --url <pull request>`)}</li>
             </ol>
-            <p class="rs-muted"><code>node ${CLI_HOME} doctor</code> says what’s set up and what’s missing. <code>node ${CLI_HOME} help</code> lists the rest: planting something, closing it out, setting your forecast.</p>
+            <p class="rs-muted"><code>node ${CLI_HOME} doctor</code> says what’s set up and what’s missing. <code>node ${CLI_HOME} help</code> lists the rest: asking for rain yourself, closing one out, setting your forecast.</p>
           </section>
           <section class="rs-panel" aria-labelledby="rsWayMcp">
             <h2 id="rsWayMcp">${ico('sky')}From inside your agent</h2>
             <ol class="rs-steps">
               <li><h3>Add Rainshare to it</h3><p class="rs-muted">In Claude Code:</p>${block(MCP_ADD)}
                 <details class="rs-more"><summary>In another MCP client</summary>${block(json)}</details></li>
-              <li><h3>Ask it</h3>${say('What has my circle planted that suits my setup?')}${say('Take this one on from Rainshare and turn it in when the PR is up.')}${say('Has anything I planted had a pull request merged? Close out what’s done.')}</li>
+              <li><h3>Ask it</h3>${say('What in my circle needs rain that suits my setup?')}${say('Take this one on from Rainshare and turn it in when the PR is up.')}${say('Has anything of mine had a pull request merged? Close out what’s done.')}</li>
             </ol>
             <p class="rs-muted">It checks where one stands before taking it on, and tells you when it’s turned in.</p>
           </section>
@@ -701,7 +701,7 @@ export function createRainshare({ root, base = '/', host }){
     root.querySelectorAll('canvas[data-rs-plant]').forEach(c => { try { const off = host.plant3d(c, c.dataset.rsPlant); if (off) turning.push(off); } catch (_) {} });
   }
 
-  /* ---------- planting a seed or a plant (./post.js draws the steps) ---------- */
+  /* ---------- asking for rain on a seed or a plant (./post.js draws the steps) ---------- */
   const poster = createPoster({
     root, a, go, toast, title, plainText, self, viewer, live: () => livePlants(),
     source: () => S.source,
@@ -709,7 +709,7 @@ export function createRainshare({ root, base = '/', host }){
     onPosted(){ S.board = null; loadBoard(true); }
   });
   const renderNew = () => signedIn() ? poster.view()
-    : `${a('', `${ico('back')}All seeds and plants`, 'rs-back')}<p class="rs-empty">Sign in to plant something.</p>${host.signIn ? '<button class="rs-btn rs-primary" type="button" data-rs-act="signin">Sign in</button>' : ''}`;
+    : `${a('', `${ico('back')}All seeds and plants`, 'rs-back')}<p class="rs-empty">Sign in to ask for rain.</p>${host.signIn ? '<button class="rs-btn rs-primary" type="button" data-rs-act="signin">Sign in</button>' : ''}`;
 
   /* ---------- render ---------- */
   const datalists = `<datalist id="rsModels">${MODELS.map(m => `<option value="${m}">`).join('')}</datalist><datalist id="rsValues">${VALUES.map(m => `<option value="${m}">`).join('')}</datalist>`;
@@ -874,7 +874,7 @@ export function createRainshare({ root, base = '/', host }){
     if (sub !== S.sub && !(S.view === 'me' && sub === 'me')) S.form = null;
     S.sub = sub;
     if (!sub) { S.view = 'board'; render(); loadBoard(); }
-    else if (sub === 'new') { S.view = 'new'; if (signedIn()) poster.enter(); else title('Plant something'); render(); }
+    else if (sub === 'new') { S.view = 'new'; if (signedIn()) poster.enter(); else title('Ask for rain'); render(); }
     else if (sub === 'me') {
       S.view = 'me'; title('Your profile'); render();
       if (signedIn() && !S.mine) { await loadMine(); render(); }

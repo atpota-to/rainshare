@@ -8,8 +8,9 @@ exists and needs a hand. The agent usage you have left over is the rain. It's an
 atproto-native, social take on [Overflow](https://github.com/Nitjsefnie/Overflow): no ledger
 and nothing to spend, just your circle.
 
-- **Plant something**, in five short steps with a preview beside them: which it is (a seed,
-  or a plant at one of three stages, each with its own little 3D plant), where a plant lives
+- **Ask for rain**, in five short steps with a preview beside them: what needs it (a seed,
+  or a plant you already have, at one of three stages, each with its own little 3D plant),
+  where a plant lives
   (a Tangled, knotless or GitHub issue, or any git repo), what done looks like, how (models,
   tests, size), and who it's for: public for your mutuals (or people you follow, your
   followers, a Bluesky list, everyone), with a count of roughly who that reaches, or private
@@ -26,8 +27,9 @@ and nothing to spend, just your circle.
 
 **The words.** Seeding a cloud is how you ask for rain in a particular place, and what's in
 the ground is what rain grows. A *seed* is an idea. A *plant* is a project, and it says how
-far along it is: a *seedling*, a *young plant* or an *established plant*. Helpers *water*
-them. When the work is done it has *sprouted*, whichever it was, and it's drawn one stage on:
+far along it is: a *seedling*, a *young plant* or an *established plant*. Only a seed is
+planted here: a plant is something you already have, perhaps for years, so you *ask for
+rain* on it. Helpers *water* them. When the work is done it has *sprouted*, whichever it was, and it's drawn one stage on:
 a seed that sprouted is a seedling now.
 
 It runs in two places, both from this repo:
@@ -188,7 +190,7 @@ Each has a small 3D model (`src/plants/models.js`): a seed lying in a mound of s
 with its first two leaves, a stem with leaves up it, and several stems in flower. They share
 one mound and one framing, so how big each stands says how far along it is. A picture of each
 (`public/plants/*.webp`, about 60 KB for all four) is what shows on cards, lists and the
-planting step. On an ask's own page and in the planting preview the model itself turns
+first step of asking. On an ask's own page and in the preview beside those steps the model itself turns
 slowly, drawn by one shared renderer that loads only when a plant is on screen
 (`src/plants/live.js`); without WebGL, or with reduced motion on, the picture stays.
 `npm run plants` takes the pictures again after a model changes.
@@ -200,7 +202,7 @@ each seed or plant that sprouted with your work, drawn as what it grew into, and
 opens the ask it came from. Your board shows how many, beside your forecast.
 
 It's worked out, not stored (`core/garden.js`). A helper's delivery says what they worked on,
-and the planter's own record names the delivery that made it sprout, so a garden needs both
+and the asker's own record names the delivery that made it sprout, so a garden needs both
 people's records to agree and nobody can add to their own. Two friends could still agree to
 pad each other's, which is why it's a picture of what you've done and not a score: there's
 no total to compare and no ranking of people. Only public asks count for now.
@@ -274,7 +276,7 @@ writes the brief to `.rainshare/SEED.md` (kept out of git), starts Claude Code (
 offers to turn it in. `turn-in` writes a take first if you hadn't said you were on it.
 
 The MCP tools are `rainshare_board`, `rainshare_show` (with the brief), `rainshare_check`,
-`rainshare_take`, `rainshare_drop`, `rainshare_turn_in`, `rainshare_plant`,
+`rainshare_take`, `rainshare_drop`, `rainshare_turn_in`, `rainshare_ask`,
 `rainshare_close_out` (mark your own seed sprouted, closed or open again), `rainshare_profile`,
 `rainshare_set_forecast` and `rainshare_whoami`. The server's instructions give an agent the
 order: check, take, do the work, open the pull request with the seed's link in it, check again,
@@ -342,7 +344,7 @@ in the app.
 | `core/source.js` | Rainshare over atproto: the board, a seed, profiles and every write, public and in group spaces |
 | `core/demo.js` | The example circle, answering the same calls from fixtures and your browser's storage |
 | `ui/rainshare.js`, `ui/rainshare.css` | The screens: the board (a list with the details beside it), a seed, your profile, someone's profile, agents |
-| `ui/post.js` | Planting a seed or a plant: five steps, a live preview and a confirmation |
+| `ui/post.js` | Asking for rain on a seed or a plant: five steps, a live preview and a confirmation |
 | `ui/bits.js` | Small shared pieces: escaping, times, icons, faces, and the glyphs for a forecast's sky and a seed's life |
 | `cli/rainshare.mjs` | The CLI and MCP server |
 | `test/` | `npm test`: the core, the data source against a fake network, and the MCP server |
@@ -419,10 +421,10 @@ Not yet checked:
   The pages Rainshare links to on Tangled exist (they ask you to sign in). GitHub's new-repo
   page taking a name and description from the link is from memory, not checked from here; if
   it doesn't, the page still opens, just empty.
-- The plants: the four models, their pictures, the turning model on a page and in the planting
-  preview, and the garden were checked in the example circle, on a software renderer and at
+- The plants: the four models, their pictures, the turning model on a page and in the preview
+  when asking, and the garden were checked in the example circle, on a software renderer and at
   phone width. Not checked: how the turning model runs on a real GPU or an old phone, and a
-  garden worked out from real records on the network (it needs a real planter to have marked
+  garden worked out from real records on the network (it needs a real asker to have marked
   a real delivery).
 - The CLI's `run` end to end with a real agent: starting it, finding the pull request with
   `gh` afterwards, and turning it in.

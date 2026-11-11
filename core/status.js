@@ -54,7 +54,7 @@ export function carry(from, to, { maxAge = 90e3, now = Date.now() } = {}){
 
 /**
  * Where a seed stands, for someone thinking of working on it (`viewer` is their DID, if known;
- * `asker` is what to call the person who planted it, where a sentence names them):
+ * `asker` is what to call the person who asked, where a sentence names them):
  *
  *   state        'open', 'sprouted' or 'closed'
  *   issue        'open' or 'closed' on the forge, or null if it isn't an issue or isn't known
@@ -66,11 +66,11 @@ export function carry(from, to, { maxAge = 90e3, now = Date.now() } = {}){
  *   lines        the facts, as plain sentences
  *   advice       one sentence on what to do about them (about their own work, if it's already theirs: `yours`)
  *   idea         whether it's an idea with no repo yet (what gets turned in is a project, not a pull request)
- *   planter      for the person who planted it, the next thing worth doing, or null:
+ *   planter      for the person whose it is, the next thing worth doing, or null:
  *                { do: 'sprout', delivery, why: 'merged' | 'shown' } | { do: 'look' } | { do: 'close' } | { do: 'close-issue', href }, each with `text`
  *                ('look': a pull request nobody turned in was merged; 'close': the issue was closed on the forge)
  */
-export function standing(item, { viewer, now = Date.now(), asker = 'the person who planted it' } = {}){
+export function standing(item, { viewer, now = Date.now(), asker = 'the person who asked' } = {}){
   const sq = item?.value || {}, d = describeSubject(sq.subject), forge = d ? FORGE_NAMES[d.forge] || 'the forge' : 'the forge';
   const state = sq.state === 'sprouted' || sq.state === 'closed' ? sq.state : 'open', idea = !d;
   const who = rec => viewer && rec.repo === viewer ? 'You' : nameOf(rec);

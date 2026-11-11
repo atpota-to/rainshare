@@ -537,9 +537,9 @@ test('a seed is an idea and a plant says how far along it is', () => {
   assert.deepEqual([{ state: 'sprouted' }, { subject: repo, stage: 'seedling', state: 'sprouted' }, { subject: repo, stage: 'established', state: 'sprouted' }].map(pictureOf), ['seedling', 'young', 'established']);
   // The brief leads with what it is.
   const item = v => ({ uri: 'at://did:plc:abc/dev.rainshare.seed/3k1', repo: 'did:plc:abc', author: { handle: 'friend.example' }, value: { title: 'Fix it', ...v } });
-  assert.match(brief(item({ subject: repo, stage: 'established' })), /^# Established plant: Fix it\n\nOn Rainshare, people ask for a hand with what they’re growing\. A seed is an idea with nothing built yet; a plant is a project that exists\. @friend\.example planted this established plant \(people use it and rely on it\) and would like some help with it: https:\/\/rainshare\.dev\/seed\/friend\.example\/3k1\./);
-  assert.match(brief(item({ owner: 'helper' })), /^# Seed: Fix it\n\n[^\n]*@friend\.example planted this seed and would like some help with it/);
-  assert.match(brief(item({ subject: repo })), /^# Young plant: Fix it\n\n[^\n]*planted this plant \(it works, and it’s still taking shape\)/);
+  assert.match(brief(item({ subject: repo, stage: 'established' })), /^# Established plant: Fix it\n\nOn Rainshare, people ask for a hand with what they’re growing\. A seed is an idea with nothing built yet; a plant is a project that exists\. @friend\.example is asking for a hand with this established plant \(people use it and rely on it\): https:\/\/rainshare\.dev\/seed\/friend\.example\/3k1\./);
+  assert.match(brief(item({ owner: 'helper' })), /^# Seed: Fix it\n\n[^\n]*@friend\.example is asking for a hand with this seed: https/);
+  assert.match(brief(item({ subject: repo })), /^# Young plant: Fix it\n\n[^\n]*is asking for a hand with this plant \(it works, and it’s still taking shape\)/);
 });
 
 test('the garden someone has watered is what sprouted with their help, and nothing else', async () => {
