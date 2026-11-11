@@ -73,6 +73,11 @@ const SEEDS = [
     subject: { $type: sq('githubIssue'), url: 'https://github.com/example/quizbowl/issues/3', repo: 'example/quizbowl', number: 3 },
     spec: 'Each question has a `hint` field we never show. A button that reveals it (and marks the answer as hinted) would help my students.',
     wants: { tests: 'welcome' }, tags: ['javascript', 'education'], values: ['education'], size: 'tiny', audience: { $type: sq('anyone') } } },
+  // An idea from someone who won't build it: there's no repo, and whoever runs with it keeps it.
+  { id: '3sq-mo-idea', by: 'did:example:mo', at: 14 * 3600e3, value: {
+    title: 'Bookmarks we can print from our reading list',
+    spec: 'I’m not going to build this, but our book club would use it every month.\n\nPaste in a list of titles and authors, and get a page of bookmarks to print and cut out, one per book. Six to a page would be perfect.\n\nIt doesn’t need accounts or anything clever. A single web page is plenty.',
+    owner: 'helper', parallel: true, tags: ['printing', 'books'], values: ['education'], size: 'small', audience: { $type: sq('anyone') } } },
   // One of your own, most of the way round: a friend's pull request has been merged, and it's
   // waiting for you to mark it sprouted.
   { id: '3sq-you', by: ME, at: 6 * day, forge: { issue: { title: 'README screenshots are out of date', state: 'open' } }, value: {

@@ -8,10 +8,10 @@ import { join, modelsOf, modelMatch } from './rank.js';
 const firstName = p => String(p?.displayName || '').trim().split(/\s+/)[0] || (p?.handle ? '@' + p.handle : 'Someone');
 const harnessName = h => labelOf(HARNESSES, h);
 
-/** "GitHub issue #14, example/flashdeck", "Tangled, kai.example/almanac", or "No repo yet". */
+/** "GitHub issue #14, example/flashdeck", "Tangled, kai.example/almanac", or for an idea "No repo yet". */
 export function whereText(sq){
   const s = sq?.subject, d = describeSubject(s);
-  if (!d) return 'No repo yet';
+  if (!d) return sq?.owner === 'helper' ? 'No repo: an idea to run with' : 'No repo yet';
   const forge = FORGE_NAMES[d.forge] || 'Git';
   if (kindOf(s) === 'githubIssue') return `${forge} issue #${parseInt(s.number, 10) || ''}${d.repo ? ', ' + d.repo : ''}`;
   if (kindOf(s) === 'knotlessIssue') return `${forge} issue${d.repo ? ', ' + d.repo : ''}`;
@@ -24,7 +24,7 @@ export function whereText(sq){
 /** The short form, for a line on a card: "GitHub #14", "Tangled", "Codeberg". */
 export function shortWhere(sq){
   const s = sq?.subject, d = describeSubject(s);
-  if (!d) return 'No repo yet';
+  if (!d) return sq?.owner === 'helper' ? 'An idea to run with' : 'An idea';
   const forge = FORGE_NAMES[d.forge] || 'Git';
   const n = kindOf(s) === 'githubIssue' ? parseInt(s.number, 10) : (String(s.url || '').match(/\/issues\/(\d+)(?:[/?#]|$)/) || [])[1];
   return n ? `${forge} #${n}` : forge;

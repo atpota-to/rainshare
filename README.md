@@ -11,7 +11,8 @@ no ledger and no points, just your circle.
   Tangled, knotless or GitHub issue, any git repo, or just an idea), what done looks like, how (models,
   tests, size), and who it's for: public for your mutuals (or people you follow, your
   followers, a Bluesky list, everyone), with a count of roughly who that reaches, or private
-  to a group. Then a last look, and a Bluesky post to tell your circle.
+  to a group. Then a last look, and a Bluesky post to tell your circle. An idea needs no repo
+  and no developer: say what it should do, and whether someone else can run with it.
 - **Forecast your rain**: your profile says what you run, roughly what you spend on AI, how much
   you have to spare right now, and who you'd like to help first: people without big plans,
   students, people on low incomes, projects that share your values.
@@ -90,7 +91,7 @@ the lexicon authority). The schemas are in `lexicons/dev/rainshare/`.
 | Record | Written by | Says |
 | --- | --- | --- |
 | `dev.rainshare.profile` (`self`) | everyone | bio, setups (harness, models, plan, where it runs), AI budget, forecast, circumstances, values, priorities, the kinds of work you take on |
-| `dev.rainshare.seed` | the requester | title, subject (Tangled issue, knotless issue, GitHub issue, or repo), spec in Markdown, wants, tags, values, size, audience, state (`open`, `sprouted`, `closed`) |
+| `dev.rainshare.seed` | the requester | title, subject (Tangled issue, knotless issue, GitHub issue, or repo; none for an idea, which says whose the result will be), spec in Markdown, wants, tags, values, size, audience, state (`open`, `sprouted`, `closed`) |
 | `dev.rainshare.take` | a helper | "my agent is on this": a strong ref to the seed and the setup doing it. Deleting it drops the seed. |
 | `dev.rainshare.delivery` | a helper | the pull request (URL, or on Tangled and knotless its own record's at:// URI), what did the work, and an optional session link |
 
@@ -164,6 +165,29 @@ The link an agent hands back is
 turn-in form, and sending it writes your take (if there wasn't one) and the delivery together
 (`handBack` and `readHandBack` in `core/brief.js`). Once you've turned something in, the form
 steps aside and the page says what's left: nothing, unless the requester asks.
+
+## An idea, with no repo
+
+A seed doesn't have to point at code. "Just an idea" asks one thing more: whose will it be?
+
+| | **Someone else can run with it** | **Start it for me** |
+| --- | --- | --- |
+| Who keeps what's built | whoever builds it, in a repo of their own | the person who asked |
+| Who it's for | anyone with an idea, developer or not | someone who wants the repo but hasn't made it |
+| How many can take it on | more than one, by default | one at a time, by default |
+| What's asked when planting | the idea in plain words, how big it feels, tags | the same as any seed |
+| What the brief tells the agent | it's your user's project: start a new repo | ask where it should live before creating anything |
+
+Either way the brief lists where a new repo can go and the command for each, tells the agent
+to look first for something that already does the job, and asks for a README that credits the
+idea. What gets turned in is the repo's address, and with no merge to wait for, the person who
+asked is told to have a look as soon as something is turned in. From a terminal, the
+one-line commands and `run` start in a new, empty repository instead of a clone.
+
+Rainshare doesn't make anything on a forge itself. It sends people to the right page instead
+(`core/forges.js`): the new-repo page on Tangled, knotless, GitHub, Codeberg and GitLab, with
+the name and description filled in where the forge takes them, and a seed's own repo, issue
+and pull requests on whichever forge it lives on.
 
 ## Where a seed stands
 
@@ -269,6 +293,7 @@ in the app.
 | `core/rank.js` | A helper's board in order, and how well each seed fits them, with reasons |
 | `core/words.js` | A seed in plain lines: where, the job, what they'd like, who's on it |
 | `core/status.js` | Where a seed stands: who's on it, what's been turned in, what the forge says, and what each side should do next |
+| `core/forges.js` | The right page on each forge: where to start a repo, fork one, or see its pull requests |
 | `core/brief.js` | The agent brief, the link an agent hands back, and the one-paste launch commands |
 | `core/markdown.js` | A small, safe Markdown renderer for specs |
 | `core/source.js` | Rainshare over atproto: the board, a seed, profiles and every write, public and in group spaces |
@@ -347,6 +372,10 @@ Not yet checked:
   forking, pushing and opening a pull with the knotless CLI or MCP server (the commands in
   the brief are from knotless's docs, not from running them), private repos, and knotless
   servers other than knotless.dev, which Rainshare doesn't recognise as knotless yet.
+- Ideas: planting one, running with one and turning it in were checked in the example circle.
+  The pages Rainshare links to on Tangled exist (they ask you to sign in). GitHub's new-repo
+  page taking a name and description from the link is from memory, not checked from here; if
+  it doesn't, the page still opens, just empty.
 - The CLI's `run` end to end with a real agent: starting it, finding the pull request with
   `gh` afterwards, and turning it in.
 - How smoothly the scene runs on real phones and older laptops. It has only been run on a

@@ -37,6 +37,7 @@
             "refs": ["#anyone", "#following", "#mutuals", "#followers", "#list", "#group"],
             "description": "Who this is meant for. #following: people you follow. #followers: people who follow you. #mutuals: both. #group: the members of the group whose space it's in."
           },
+          "owner": { "type": "string", "maxLength": 320, "maxGraphemes": 32, "knownValues": ["helper", "requester"], "description": "For an idea with no repo yet, who keeps what gets built: the helper (run with it, it's yours) or the requester (start it for me)." },
           "parallel": { "type": "boolean", "description": "More than one helper is welcome to try at once." },
           "state": { "type": "string", "maxLength": 320, "maxGraphemes": 32, "knownValues": ["open", "sprouted", "closed"], "default": "open" },
           "sproutedWith": {

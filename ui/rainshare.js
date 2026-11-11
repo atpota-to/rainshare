@@ -14,6 +14,7 @@
 import { SEED, HARNESSES, MODELS, RUNS_ON, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, labelOf, audienceOf, modelName } from '../core/ns.js';
 import { describeSubject, cloneUrlOf, safeHttp, pullPageOf, FORGE_NAMES } from '../core/subjects.js';
 import { look, carry, standing } from '../core/status.js';
+import { newRepoPlaces, placesFor } from '../core/forges.js';
 import { audienceLine } from '../core/circle.js';
 import { rank, fit, join, pretty } from '../core/rank.js';
 import { whereText, shortWhere, jobText, jobShort, wantsText, onItText, takenShort, relationText, askExcerpt, stateText } from '../core/words.js';
@@ -77,7 +78,8 @@ export function createRainshare({ root, base = '/', host }){
     const others = (it.takes || []).filter(t => t.repo !== viewer()).map(t => nameOf(t.author));
     return {
       'on-it': `${join(others)} ${others.length > 1 ? 'are' : 'is'} already on it. Check with them before you send your agent, so it isn’t done twice.`,
-      'turned-in': 'There’s already a pull request for this. Look it over first: a second one only helps if that one has stalled.',
+      'turned-in': st.idea ? 'Someone has already built a version of this. Look at theirs first: another only helps if it would be different.'
+        : 'There’s already a pull request for this. Look it over first: a second one only helps if that one has stalled.',
       merged: `A pull request for this has been merged, so it’s probably done. It’s waiting for ${who} to mark it sprouted.`,
       'issue-closed': `The issue has been closed on ${forge}. Ask ${who} before starting: it may be done, or no longer wanted.`
     }[st.verdict] || '';
@@ -371,9 +373,15 @@ export function createRainshare({ root, base = '/', host }){
     const page = pageOf(it), open = isOpen(it), issue = it.issue, st = stand(it), forge = FORGE_NAMES[d?.forge] || 'the forge';
     title(sq.title);
     const f = !mine && open && signedIn() && !taken ? fit(it, me()) : null;
-    const where = !d ? 'No repo yet. A helper can start one, or suggest where it should live.'
+    // An idea has nowhere to live yet. Whose it'll be is said plainly, and whoever picks it up
+    // is a click from the page that makes a repo, on whichever forge they use.
+    const pulls = d && !it.example ? safeHttp(placesFor(sq.subject).pulls) : null;
+    const startOn = `<span class="rs-row rs-where-links"><span class="rs-muted">Start a repo on</span>${newRepoPlaces({ title: sq.title, about: askExcerpt(sq.spec) }).map(pl => `<a class="rs-link" href="${esc(pl.href)}" target="_blank" rel="noopener">${esc(pl.name)}</a>`).join('')}</span>`;
+    const where = !d ? `${sq.owner === 'helper' ? `It’s an idea to run with. There’s no repo, and whoever builds it keeps it${mine ? '' : ', in a repo of their own'}.`
+        : sq.owner === 'requester' ? `No repo yet. ${mine ? 'You’d' : esc(firstName(p)) + ' would'} like one started${mine ? '' : ' for them'}: ${mine ? 'a helper will ask where it should live' : 'ask where it should live'}.`
+          : 'No repo yet. A helper can start one, or suggest where it should live.'}${open ? startOn : ''}`
       : `${esc(whereText(sq))}${issue?.title ? `<br><span class="rs-muted">“${esc(issue.title)}”${issue.state ? `, ${esc(issue.state)}` : ''}</span>` : ''}
-        <span class="rs-row rs-where-links">${d.href && !it.example ? `<a class="rs-link" href="${esc(d.href)}" target="_blank" rel="noopener">Open on ${esc(FORGE_NAMES[d.forge] || 'the forge')}</a>` : ''}${clone ? `<button class="rs-link" type="button" data-rs-copy-text="${esc('git clone ' + sh(clone))}">Copy the clone command</button>` : ''}</span>`;
+        <span class="rs-row rs-where-links">${d.href && !it.example ? `<a class="rs-link" href="${esc(d.href)}" target="_blank" rel="noopener">Open on ${esc(FORGE_NAMES[d.forge] || 'the forge')}</a>` : ''}${pulls ? `<a class="rs-link" href="${esc(pulls)}" target="_blank" rel="noopener">Its pull requests</a>` : ''}${clone ? `<button class="rs-link" type="button" data-rs-copy-text="${esc('git clone ' + sh(clone))}">Copy the clone command</button>` : ''}</span>`;
     const takes = (it.takes || []).map(t => `${t.repo === viewer() ? 'You' : nameOf(t.author)}${t.value?.setup ? ', with ' + setupText(t.value.setup) : ''}${t.value?.note ? `: “${t.value.note}”` : ''}`);
     const facts = [
       ['Where', where],
@@ -412,7 +420,9 @@ export function createRainshare({ root, base = '/', host }){
       // that was closed over on the forge, or an issue still open after the seed sprouted.
       const pl = st.planter, sproutBtn = '<button class="rs-btn rs-primary rs-sm" type="button" data-rs-act="sprout">Mark it sprouted</button>';
       const by = pl?.do === 'sprout' ? (it.deliveries || []).find(dl => dl.uri === pl.delivery) : null;
-      const said = by && by.repo !== viewer() ? `${nameOf(by.author)}’s pull request has been merged. If that did it, mark it sprouted.` : pl?.text;
+      const said = !by || by.repo === viewer() ? pl?.text
+        : pl.why === 'shown' ? `${nameOf(by.author)} has built something for this. If it’s what you had in mind, mark it sprouted.`
+          : `${nameOf(by.author)}’s pull request has been merged. If that did it, mark it sprouted.`;
       const next = !pl ? '' : `<p class="rs-note${pl.do === 'sprout' ? ' rs-on' : ''}">${lifeIco(pl.do === 'close-issue' ? 'sprouted' : 'up')}<span>${esc(said)}</span>${
         pl.do === 'sprout' ? `<button class="rs-btn rs-primary rs-sm" type="button" data-rs-sprout="${esc(pl.delivery)}">Mark it sprouted</button>`
           : pl.do === 'close-issue' ? (safeHttp(pl.href) && !it.example ? `<a class="rs-btn rs-quiet rs-sm" href="${esc(safeHttp(pl.href))}" target="_blank" rel="noopener">Open the issue</a>` : '')
@@ -423,7 +433,7 @@ export function createRainshare({ root, base = '/', host }){
         <button class="rs-link rs-danger" type="button" data-rs-act="delete">Delete</button></div>
         ${open && !pl && !(it.deliveries || []).length ? '<p class="rs-muted">When a helper turns it in, you can mark it sprouted here.</p>' : ''}`;
     } else if (!signedIn()) {
-      actions = `${handed ? `<p class="rs-note">${lifeIco('up')}<span>A pull request is ready to turn in. Sign in and it’ll be waiting in the form.</span></p>` : open ? heedNote(it, st) : ''}
+      actions = `${handed ? `<p class="rs-note">${lifeIco('up')}<span>${st.idea ? 'It’s' : 'A pull request is'} ready to turn in. Sign in and it’ll be waiting in the form.</span></p>` : open ? heedNote(it, st) : ''}
         <div class="rs-row">${host.signIn ? `<button class="rs-btn rs-primary" type="button" data-rs-act="signin">${handed ? 'Sign in to turn it in' : 'Sign in to take it on'}</button>` : ''}${shareBtn(it)}</div>`;
     } else if (!open) {
       actions = `<p class="rs-muted">${sq.state === 'sprouted' ? 'This one’s sprouted. Thanks, everyone.' : 'This one’s closed.'}</p>`;
@@ -437,11 +447,11 @@ export function createRainshare({ root, base = '/', host }){
       const sent = (it.deliveries || []).some(dl => dl.repo === viewer()), form = !sent || handed || S.again === it.uri;
       const dropBtn = taken ? '<button class="rs-link" type="button" data-rs-act="drop">Drop it</button>' : '';
       actions = `${sent ? `<p class="rs-note${st.deliveries.some(x => x.mine && x.state !== 'closed') ? ' rs-on' : ''}">${ico('check')}<span>${esc(st.yours ? st.advice : 'You’ve turned it in.')}</span>${dropBtn}</p>`
-        : taken ? `<p class="rs-note rs-on">${ico('check')}<span>You’re on it${taken.value?.setup ? ` with ${esc(setupText(taken.value.setup))}` : ''}. When the pull request is up, turn it in.</span>${dropBtn}</p>${heedNote(it, st)}`
-          : `<p class="rs-note rs-on">${lifeIco('up')}<span>A pull request is ready to turn in. Look it over and send it. That also tells ${esc(firstName(p))} you took this on.</span></p>`}
+        : taken ? `<p class="rs-note rs-on">${ico('check')}<span>You’re on it${taken.value?.setup ? ` with ${esc(setupText(taken.value.setup))}` : ''}. ${st.idea ? 'When there’s something to show, turn in where it lives.' : 'When the pull request is up, turn it in.'}</span>${dropBtn}</p>${heedNote(it, st)}`
+          : `<p class="rs-note rs-on">${lifeIco('up')}<span>${st.idea ? 'It’s' : 'A pull request is'} ready to turn in. Look it over and send it. That also tells ${esc(firstName(p))} you took this on.</span></p>`}
         ${S.launch ? renderLaunch(it) : ''}
         ${!form ? '<div class="rs-row"><button class="rs-link" type="button" data-rs-act="again">Turn in another pull request</button></div>' : `<form class="rs-form rs-turnin" data-rs-form="turnin">
-          <label>Pull request link${d?.forge === 'tangled' ? ' <small>(on Tangled you open it yourself, from the link your agent gives you, and paste its address here)</small>' : ''}<input name="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" pattern="\\s*(https?://|at://)\\S+\\s*" title="A link to the pull request, or its at:// address" placeholder="${{ tangled: 'https://tangled.org/…/pulls/…', knotless: 'at://…/dev.knotless.pull/… or its page' }[d?.forge] || 'https://github.com/…/pull/…'}" value="${esc(v.url || '')}" required></label>
+          <label>${st.idea ? 'Where it lives <small>(the repo’s address, or a page that shows it)</small>' : `Pull request link${d?.forge === 'tangled' ? ' <small>(on Tangled you open it yourself, from the link your agent gives you, and paste its address here)</small>' : ''}`}<input name="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" pattern="\\s*(https?://|at://)\\S+\\s*" title="${st.idea ? 'A link to where it lives' : 'A link to the pull request, or its at:// address'}" placeholder="${st.idea ? 'https://…' : { tangled: 'https://tangled.org/…/pulls/…', knotless: 'at://…/dev.knotless.pull/… or its page' }[d?.forge] || 'https://github.com/…/pull/…'}" value="${esc(v.url || '')}" required></label>
           <div class="rs-two"><label>What did the work<select name="harness">${HARNESSES.map(([k, l]) => `<option value="${k}"${(v.harness || taken?.value?.setup?.harness || setup?.harness) === k ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
           <label>Model<input name="model" list="rsModels" value="${esc(v.model || taken?.value?.setup?.models?.[0] || setup?.models?.[0] || '')}" placeholder="claude-opus-5-5"></label></div>
           <label>Session link <small>(optional, to show your working)</small><input name="sessionUrl" type="url" value="${esc(v.sessionUrl || '')}"></label>

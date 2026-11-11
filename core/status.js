@@ -65,13 +65,14 @@ export function carry(from, to, { maxAge = 90e3, now = Date.now() } = {}){
  *   clear        whether there's nothing in the way of starting
  *   lines        the facts, as plain sentences
  *   advice       one sentence on what to do about them (about their own work, if it's already theirs: `yours`)
+ *   idea         whether it's an idea with no repo yet (what gets turned in is a project, not a pull request)
  *   planter      for the person who planted it, the next thing worth doing, or null:
- *                { do: 'sprout', delivery } | { do: 'look' } | { do: 'close' } | { do: 'close-issue', href }, each with `text`
+ *                { do: 'sprout', delivery, why: 'merged' | 'shown' } | { do: 'look' } | { do: 'close' } | { do: 'close-issue', href }, each with `text`
  *                ('look': a pull request nobody turned in was merged; 'close': the issue was closed on the forge)
  */
 export function standing(item, { viewer, now = Date.now(), asker = 'the person who planted it' } = {}){
   const sq = item?.value || {}, d = describeSubject(sq.subject), forge = d ? FORGE_NAMES[d.forge] || 'the forge' : 'the forge';
-  const state = sq.state === 'sprouted' || sq.state === 'closed' ? sq.state : 'open';
+  const state = sq.state === 'sprouted' || sq.state === 'closed' ? sq.state : 'open', idea = !d;
   const who = rec => viewer && rec.repo === viewer ? 'You' : nameOf(rec);
   const accepted = new Set((sq.sproutedWith || []).map(r => r.uri));
   const takes = (item?.takes || []).map(t => ({ who: who(t), mine: !!viewer && t.repo === viewer, since: since(t.value?.createdAt, now), with: t.value?.setup?.harness ? labelOf(HARNESSES, t.value.setup.harness) : '' }));
@@ -96,7 +97,8 @@ export function standing(item, { viewer, now = Date.now(), asker = 'the person w
   const advice = {
     clear: 'It’s clear to start.',
     'on-it': `${others.map(t => t.who).join(' and ')} ${others.length > 1 ? 'are' : 'is'} already on it. Check with them, or with your user, before starting, so it isn’t done twice.`,
-    'turned-in': 'There’s already a pull request for it. Read that first: a second one is only worth making if the first has stalled or missed the point.',
+    'turned-in': idea ? 'Someone has already built a version of it. Look at theirs first: another is only worth making if it would be different.'
+      : 'There’s already a pull request for it. Read that first: a second one is only worth making if the first has stalled or missed the point.',
     merged: `A pull request for it has been merged, so there’s probably nothing left to do. It’s waiting for ${asker} to mark it sprouted.`,
     'issue-closed': `The issue has been closed on ${forge}. Ask before doing anything: it may be finished, or no longer wanted.`,
     sprouted: 'It’s done. There’s nothing to do here.',
@@ -109,14 +111,16 @@ export function standing(item, { viewer, now = Date.now(), asker = 'the person w
     : own.some(x => x.state === 'merged') ? `Your pull request has been merged. It’s waiting for ${asker} to mark it sprouted: nothing more is needed from you.`
       : own.length && own.every(x => x.state === 'closed') ? 'Your pull request was closed without being merged. Ask what was missing, or drop the seed so someone else can pick it up.'
         : own.length ? `You’ve turned it in. It’s with ${asker} now: nothing more is needed unless they ask.`
-          : takes.some(t => t.mine) && verdict === 'clear' ? 'You’re on it. When the pull request is up, turn it in.' : null;
+          : takes.some(t => t.mine) && verdict === 'clear' ? (idea ? 'You’re on it. When there’s something to show, turn in where it lives.' : 'You’re on it. When the pull request is up, turn it in.') : null;
 
-  const landed = deliveries.find(x => x.state === 'merged' && !x.accepted);
+  // An idea has no merge to wait for: once someone turns in what they built, it's the planter's to look at.
+  const landed = deliveries.find(x => x.state === 'merged' && !x.accepted), shown = idea ? deliveries.find(x => !x.accepted) : null;
   const planter = state === 'open'
-    ? landed ? { do: 'sprout', delivery: landed.uri, text: `${landed.who === 'You' ? 'Your' : landed.who + '’s'} pull request has been merged. If that did it, mark it sprouted.` }
+    ? landed ? { do: 'sprout', why: 'merged', delivery: landed.uri, text: `${landed.who === 'You' ? 'Your' : landed.who + '’s'} pull request has been merged. If that did it, mark it sprouted.` }
+      : shown ? { do: 'sprout', why: 'shown', delivery: shown.uri, text: `${shown.who === 'You' ? 'You have' : shown.who + ' has'} built something for this. If it’s what you had in mind, mark it sprouted.` }
       : linked.some(p => p.state === 'merged') ? { do: 'look', text: `A pull request that mentions this was merged on ${forge}, though nobody turned it in here. If it did the job, mark this sprouted.` }
         : issue === 'closed' ? { do: 'close', text: `The issue is closed on ${forge}. If the work is done, mark this sprouted. If it’s no longer wanted, close it.` } : null
     : state === 'sprouted' && issue === 'open' ? { do: 'close-issue', href: d?.href || null, text: `The issue is still open on ${forge}. Close it there if it’s done.` } : null;
 
-  return { state, issue, takes, deliveries, linked, verdict, clear: verdict === 'clear', lines, advice: yours || advice, yours: !!yours, planter };
+  return { state, idea, issue, takes, deliveries, linked, verdict, clear: verdict === 'clear', lines, advice: yours || advice, yours: !!yours, planter };
 }

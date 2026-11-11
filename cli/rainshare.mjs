@@ -218,7 +218,9 @@ async function doPlant(o){
   const spec = o.specFile ? await readFile(o.specFile, 'utf8') : o.spec;
   const list = v => Array.isArray(v) ? v : String(v || '').split(',').map(s => s.trim()).filter(Boolean);
   const r = await src.plant({
-    title: o.title, subject, spec, specUrl: o.specUrl, tags: list(o.tags), values: list(o.values), size: o.size, parallel: !!o.parallel,
+    title: o.title, subject, spec, specUrl: o.specUrl, tags: list(o.tags), values: list(o.values), size: o.size,
+    // With no repo it's an idea: `--give-away` means whoever builds it keeps it, and more than one person may.
+    owner: subject ? undefined : o.owner || (o.giveAway ? 'helper' : undefined), parallel: !!o.parallel || (!subject && (o.giveAway || o.owner === 'helper')),
     wants: { models: list(o.models), harnesses: list(o.harnesses), tests: o.tests, maxDiffLines: o.maxLines ?? o.maxDiffLines, notes: o.notes },
     audience: o.audience || 'mutuals', list: o.list
   });
@@ -260,9 +262,11 @@ async function doRun(ref, o = {}){
   const mine = (await src.profileOf(session.did).catch(() => null))?.merged?.setups?.[0];
   const using = o.with || (mine?.harness === 'codex' ? 'codex' : 'claude');
   const dir = o.dir || 'seed-' + item.rkey.slice(-8);
-  if (!clone) throw new CliError('This seed doesn’t say where the code is. Read it with `show`, then clone it yourself.');
+  if (!clone && d) throw new CliError('This seed doesn’t say where the code is. Read it with `show`, then clone it yourself.');
   if (!existsSync(dir)) {
-    if (using === 'cloud') {
+    // An idea has nothing to clone: it starts as a new, empty repository.
+    if (!d) { if (using === 'cloud') throw new CliError('An idea has no repo to fork yet. Run it here first, with --with claude or --with codex.'); await mkdir(dir, { recursive: true }); if (have('git')) run('git', ['init', '--quiet', dir]); }
+    else if (using === 'cloud') {
       if (d?.forge !== 'github' || !d.repo || !have('gh')) throw new CliError('Cloud runs need a GitHub repo and the GitHub CLI (gh), to fork it.');
       run('gh', ['repo', 'fork', d.repo, '--clone', '--', dir]);
     } else run('git', ['clone', '--', clone, dir]);
@@ -286,11 +290,14 @@ async function wrapUp(item, dir, setup){
   const { src, session } = await source({ required: true });
   const now = await src.seed(item.uri, { force: true }).catch(() => null) || item;
   if ((now.deliveries || []).some(d => d.repo === session.did)) return err('\n' + turnedInText(now));       // the agent turned it in itself
-  const later = `Still yours. When there’s a pull request: node rainshare.mjs turn-in ${item.uri} --url <its address>\nIf you won’t be finishing it: node rainshare.mjs drop ${item.uri}`;
-  const found = have('gh') ? String(spawnSync('gh', ['pr', 'view', '--json', 'url', '-q', '.url'], { cwd: dir, encoding: 'utf8' }).stdout || '').trim() : '';
+  // An idea has no pull request: what's turned in is where the new repository ended up, which its remote says.
+  const idea = !item.value?.subject, thing = idea ? 'repository' : 'pull request';
+  const later = `Still yours. When ${idea ? 'it has somewhere to live' : 'there’s a pull request'}: node rainshare.mjs turn-in ${item.uri} --url <its address>\nIf you won’t be finishing it: node rainshare.mjs drop ${item.uri}`;
+  const said = (cmd, args) => String(spawnSync(cmd, args, { cwd: dir, encoding: 'utf8' }).stdout || '').trim();
+  const found = idea ? (have('git') ? said('git', ['remote', 'get-url', 'origin']).replace(/\.git$/, '') : '') : have('gh') ? said('gh', ['pr', 'view', '--json', 'url', '-q', '.url']) : '';
   const url = /^https:\/\/\S+$/.test(found) ? found : '';
-  if (!process.stdin.isTTY) return err('\n' + (url ? `Pull request: ${url}\nTurn it in: node rainshare.mjs turn-in ${item.uri} --url ${url}` : later));
-  const answer = url ? await ask(`\nFound the pull request: ${url}\nTurn it in? [Y/n] `) : await ask('\nPaste the pull request’s address to turn it in (or press Enter to leave it for later): ');
+  if (!process.stdin.isTTY) return err('\n' + (url ? `The ${thing}: ${url}\nTurn it in: node rainshare.mjs turn-in ${item.uri} --url ${url}` : later));
+  const answer = url ? await ask(`\nFound the ${thing}: ${url}\nTurn it in? [Y/n] `) : await ask(`\nPaste the ${thing}’s address to turn it in (or press Enter to leave it for later): `);
   const link = url ? (/^n/i.test(answer) ? '' : url) : answer;
   if (!link) return err(later);
   err(turnedInText(await doTurnIn(item.uri, { ...setup, url: link })));
@@ -348,7 +355,7 @@ const TOOLS = [
     inputSchema: { type: 'object', required: ['ref', 'url'], properties: { ref: { type: 'string' }, url: { type: 'string', description: 'The pull request’s URL, or its at:// address where it has one (Tangled, knotless)' }, harness: { type: 'string' }, model: { type: 'string' }, sessionUrl: { type: 'string' }, note: { type: 'string' } } }, annotations: { destructiveHint: false },
     run: async a => { const it = await doTurnIn(a.ref, a); return { text: turnedInText(it) + ' Tell your user it’s turned in.' }; } },
   { name: 'rainshare_plant', description: 'Plant a seed for the signed-in person: something they’d like a friend’s agent to do. Public, for the audience given (mutuals by default).',
-    inputSchema: { type: 'object', required: ['title'], properties: { title: { type: 'string' }, where: { type: 'string', description: 'A GitHub or Tangled issue or repo link' }, spec: { type: 'string', description: 'Markdown: what’s wrong, what done looks like, what to avoid' }, models: { type: 'array', items: { type: 'string' } }, tests: { type: 'string', enum: ['required', 'welcome', 'none'] }, maxDiffLines: { type: 'integer' }, tags: { type: 'array', items: { type: 'string' } }, audience: { type: 'string', enum: ['mutuals', 'following', 'followers', 'anyone', 'list'] }, list: { type: 'string' }, parallel: { type: 'boolean' } } },
+    inputSchema: { type: 'object', required: ['title'], properties: { title: { type: 'string' }, where: { type: 'string', description: 'A GitHub, Tangled or knotless issue or repo link. Leave it out for an idea with no repo yet.' }, owner: { type: 'string', enum: ['helper', 'requester'], description: 'For an idea with no repo: "helper" if whoever builds it should keep it, "requester" if it should be started for the person asking.' }, spec: { type: 'string', description: 'Markdown: what’s wrong, what done looks like, what to avoid' }, models: { type: 'array', items: { type: 'string' } }, tests: { type: 'string', enum: ['required', 'welcome', 'none'] }, maxDiffLines: { type: 'integer' }, tags: { type: 'array', items: { type: 'string' } }, audience: { type: 'string', enum: ['mutuals', 'following', 'followers', 'anyone', 'list'] }, list: { type: 'string' }, parallel: { type: 'boolean' } } },
     run: async a => { const r = await doPlant(a); return { text: `Planted: ${a.title}\n${r.uri}`, data: r }; } },
   { name: 'rainshare_close_out', description: 'For a seed the signed-in person planted: mark it sprouted (the work landed), close it (no longer wanted), or reopen it. Only do this when your user asks, or after rainshare_check says a pull request for it has been merged and your user agrees it did the job.',
     inputSchema: { type: 'object', required: ['ref', 'state'], properties: { ref: { type: 'string' }, state: { type: 'string', enum: ['sprouted', 'closed', 'open'] }, delivery: { type: 'string', description: 'With sprouted: the at:// URI of the delivery that did it, if there’s more than one' } } },
@@ -429,6 +436,7 @@ const HELP = `Rainshare ${VERSION}: friends' seeds, for spare agent usage
   turn-in <seed> --url <pull request> [--model m] [--harness h] [--session url] [--note n]
   plant --title t [--where <issue or repo link>] [--spec text | --spec-file f] [--models a,b]
         [--tests required|welcome|none] [--max-lines n] [--tags a,b] [--audience mutuals|following|followers|anyone]
+                             with no --where it's an idea; add --give-away if whoever builds it should keep it
   close | reopen <seed>      sprout <seed> [--delivery <uri>]
   profile [--json]           your Rainshare profile
   forecast <dry|drizzle|showers|downpour> [--until date] [--models a,b] [--note n]

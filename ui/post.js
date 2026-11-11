@@ -6,6 +6,7 @@
 // (so it survives leaving and coming back) and draws the steps.
 import { SEED, MODEL_PICKS, modelName } from '../core/ns.js';
 import { parseSubject, describeSubject, kindOf, subjectInfo, knotlessIssueSubject } from '../core/subjects.js';
+import { newRepoPlaces } from '../core/forges.js';
 import { whereText, shortWhere, jobText, jobShort, wantsText, wantsShort, askExcerpt } from '../core/words.js';
 import { join } from '../core/rank.js';
 import { pageOf } from '../core/brief.js';
@@ -17,7 +18,7 @@ const KINDS = [
   ['knotless', 'A knotless issue', 'Pick from your knotless repos'],
   ['github', 'A GitHub issue', 'Paste its link'],
   ['repo', 'Any git repo', 'Codeberg, GitLab, your own server'],
-  ['idea', 'Nowhere yet', 'Just an idea for now']
+  ['idea', 'Just an idea', 'No repo. Someone else can build it']
 ];
 const TEST_PICKS = [['required', 'Required'], ['welcome', 'Welcome'], ['none', 'Not needed']];
 const SIZE_PICKS = [['tiny', 'Tiny', 'minutes'], ['small', 'Small', 'an evening'], ['medium', 'Medium', 'a weekend'], ['large', 'Large', 'longer']];
@@ -46,6 +47,7 @@ const fresh = () => ({
   title: '', spec: '', specUrl: '',
   models: [], otherModel: '', tests: 'welcome', size: 'small', maxDiffLines: '', tags: '', values: '', notes: '',
   vis: 'public', audience: 'mutuals', list: null, group: null, parallel: false,
+  owner: 'helper',   // for an idea: whoever builds it keeps it ('helper'), or it's started for you ('requester')
   lists: null, groups: null, reach: null,
   bsky: true, bskyText: null
 });
@@ -126,8 +128,9 @@ export function createPoster(ui){
   const listNow = () => (P.lists || []).find(l => l.uri === P.list) || null;
   function input(){
     return {
-      title: P.title, subject: subjectNow(), spec: P.spec, specUrl: P.specUrl, tags: P.tags, values: P.values, size: P.size, parallel: P.parallel,
-      wants: { models: [...new Set([...P.models, ...list(P.otherModel)])], tests: P.tests, maxDiffLines: parseInt(P.maxDiffLines, 10) || undefined, notes: P.notes.trim() },
+      title: P.title, subject: subjectNow(), owner: P.kind === 'idea' ? P.owner : undefined, spec: P.spec, specUrl: P.specUrl, tags: P.tags, values: P.values, size: P.size, parallel: P.parallel,
+      wants: P.kind === 'idea' && P.owner === 'helper' ? { notes: P.notes.trim() }
+        : { models: [...new Set([...P.models, ...list(P.otherModel)])], tests: P.tests, maxDiffLines: parseInt(P.maxDiffLines, 10) || undefined, notes: P.notes.trim() },
       audience: P.audience, list: P.audience === 'list' ? P.list : undefined
     };
   }
@@ -150,7 +153,8 @@ export function createPoster(ui){
     return n != null ? `About ${Number(n).toLocaleString('en')} ${of} can see it on their board now.` : `${cap(FOR[P.audience])} can see it on their board now.`;
   }
   function whereLong(sq){
-    if (P.kind === 'idea' || !sq.subject) return 'Nowhere yet. It’s just an idea, so a helper can start a repo for you or suggest where it should live.';
+    if (P.kind === 'idea' || !sq.subject) return sq.owner === 'helper' ? 'Nowhere yet. It’s an idea for someone else to run with: whoever builds it keeps it, in their own repo.'
+      : 'Nowhere yet. It’s just an idea, so a helper can start a repo for you or suggest where it should live.';
     const t = P.info?.title, d = describeSubject(sq.subject);
     if (t && kindOf(sq.subject) === 'githubIssue') return `GitHub issue #${sq.subject.number} “${t}” in ${d.repo || d.label}`;
     if (t && kindOf(sq.subject) === 'tangledIssue') return `Tangled issue “${t}”${d.repo ? ' in ' + d.repo : ''}`;
@@ -158,7 +162,7 @@ export function createPoster(ui){
     return whereText(sq);
   }
   function howText(sq){
-    const w = sq.wants, names = w.models.map(modelName);
+    const w = sq.wants || {}, names = (w.models || []).map(modelName);
     const first = [sq.size ? `a ${sq.size} job` : '', TESTS_SAID[w.tests] || '', names.length ? `ideally with ${join(names, 'or')}` : ''].filter(Boolean).join(', ');
     const out = [first ? cap(first) + '.' : ''];
     if (w.maxDiffLines) out.push(`Under about ${w.maxDiffLines} lines.`);
@@ -176,7 +180,8 @@ export function createPoster(ui){
     if (n == null) return `${cap(FOR[P.audience])}. ${one}`;
     return `${P.audience === 'following' ? `The ${people(n)} you follow` : `${cap(FOR[P.audience])}, about ${people(n)}`}. ${one}`;
   }
-  const bskyDefault = () => `Got spare agent usage? I’d love a hand with this: “${P.title.trim()}”.${P.size ? ` It’s a ${P.size} one${P.tests === 'required' ? ' with tests' : ''}.` : ''}`;
+  const bskyDefault = () => P.kind === 'idea' && P.owner === 'helper' ? `I’d love to see someone build this: “${P.title.trim()}”. It’s yours to run with, if you have agent usage to spare.`
+    : `Got spare agent usage? I’d love a hand with this: “${P.title.trim()}”.${P.size ? ` It’s a ${P.size} one${P.tests === 'required' ? ' with tests' : ''}.` : ''}`;
   const bskyText = () => (P.bskyText ?? bskyDefault()).trim();
 
   /* ---------- moving between steps ---------- */
@@ -263,15 +268,26 @@ export function createPoster(ui){
     } else if (P.kind === 'repo') {
       more = `<label>Where to clone it from<input name="link" inputmode="url" autocomplete="off" placeholder="https://codeberg.org/you/repo" value="${esc(P.link)}"></label>`;
     } else if (P.kind === 'idea') {
-      more = '<p class="rs-muted">That’s fine. Describe it in the next step, and a helper can start a repo for you or suggest where it should live.</p>';
+      // Whose it'll be decides what a helper does first, so it's asked here rather than left to be worked out.
+      more = `<div class="rs-field" role="radiogroup" aria-label="Whose will it be?"><span>Whose will it be?</span><div class="rs-options">
+          ${row('data-rs-owner', 'helper', P.owner === 'helper', 'Someone else can run with it', 'Whoever builds it keeps it, in their own repo. You’d just like it to exist.')}
+          ${row('data-rs-owner', 'requester', P.owner === 'requester', 'Start it for me', 'A helper sets up the repo and hands it over, or builds it where you say.')}</div></div>
+        <p class="rs-muted">${P.owner === 'helper' ? 'You don’t need to be a developer for this one. Say what it should do in the next step, in your own words.'
+          : `Or make the empty repo yourself first and point at it: ${newRepoPlaces({ title: P.title }).map(p => `<a href="${esc(p.href)}" target="_blank" rel="noopener">${esc(p.name)}</a>`).join(', ')}.`}</p>`;
     }
     return `<h1 tabindex="-1">Where’s the work?</h1>
-      <p class="rs-lede">Point at the issue or the repo. Rainshare brings in its title and details, so you write less.</p>
+      <p class="rs-lede">Point at the issue or the repo, and Rainshare brings in its title and details. Or plant an idea with no repo at all.</p>
       <div class="rs-tiles" role="radiogroup" aria-label="Where’s the work?">${KINDS.map(([k, t, n]) => tile('data-rs-kind', k, P.kind === k, t, n)).join('')}</div>
       ${more}
       <p class="rs-found" data-rs-found aria-live="polite">${found()}</p>`;
   }
   function stepWhat(){
+    if (P.kind === 'idea') return `<h1 tabindex="-1">What’s the idea?</h1>
+      <p class="rs-lede">Say it the way you would to a friend. Plain words are fine.</p>
+      <label>A short title<input name="title" maxlength="120" required autocomplete="off" placeholder="A seating chart that shuffles itself" value="${esc(P.title)}"></label>
+      <label>What should it do? <small>Who it’s for, what it should do, and anything it shouldn’t.</small>
+        <textarea name="spec" rows="10" maxlength="10000" placeholder="I’d love a little tool that… It should… It doesn’t need to…">${esc(P.spec)}</textarea></label>
+      <label>Written up somewhere already? <small>Optional: a link to notes or a sketch</small><input name="specUrl" type="url" inputmode="url" placeholder="https://…" value="${esc(P.specUrl)}"></label>`;
     return `<h1 tabindex="-1">What would you like done?</h1>
       <p class="rs-lede">Say it the way you would to a friend.${P.prefilled ? ' We’ve started you off from the issue.' : ''}</p>
       <label>A short title<input name="title" maxlength="120" required autocomplete="off" placeholder="Keep drafts out of the RSS feed" value="${esc(P.title)}"></label>
@@ -281,6 +297,15 @@ export function createPoster(ui){
   }
   function stepHow(){
     const custom = P.models.filter(m => !MODEL_PICKS.includes(m));
+    // An idea given away is the builder's to build their way: only what helps someone find it and size it up is asked.
+    if (P.kind === 'idea' && P.owner === 'helper') return `<h1 tabindex="-1">Anything to add?</h1>
+      <p class="rs-lede">All optional. It’s theirs to build, so how they build it is up to them. These help the right person find it.</p>
+      <fieldset><legend>How big does it feel?</legend><div class="rs-options" role="radiogroup" aria-label="How big does it feel?">${SIZE_PICKS.map(([k, l, n]) => row('data-rs-size', k, P.size === k, l, '', n)).join('')}</div></fieldset>
+      <div class="rs-two">
+        <label>Tags <small>so the right person finds it</small><input name="tags" autocomplete="off" placeholder="teaching, printing" value="${esc(P.tags)}"></label>
+        <label>What it stands for <small>optional</small><input name="values" list="rsValues" autocomplete="off" placeholder="education, accessibility" value="${esc(P.values)}"></label>
+      </div>
+      <label>Anything else?<input name="notes" maxlength="1000" autocomplete="off" placeholder="It should work on a phone." value="${esc(P.notes)}"></label>`;
     return `<h1 tabindex="-1">How should it be done?</h1>
       <p class="rs-lede">All optional. These help the right helpers find it, and their agents get them in the brief.</p>
       <fieldset><legend>Which models would you like?</legend>
@@ -350,8 +375,8 @@ export function createPoster(ui){
   // step) the details a helper sees when they open it.
   function side(){
     const sq = input(), me = ui.self();
-    const line = P.step < 3 ? (P.kind === 'idea' || !sq.subject ? (P.kind ? 'An idea, no repo yet' : 'Where it is goes here') : whereText(sq))
-      : [P.kind === 'idea' || !sq.subject ? 'An idea' : shortWhere(sq), jobShort(sq), wantsShort(sq)].filter(Boolean).join(' · ');
+    const line = P.step < 3 ? (P.kind === 'idea' || !sq.subject ? (P.kind ? whereText(sq) : 'Where it is goes here') : whereText(sq))
+      : [shortWhere(sq), jobShort(sq), wantsShort(sq)].filter(Boolean).join(' · ');
     const card = `<div class="rs-mini">
       <div class="rs-mini-top">${face(me, 'xs')}<b>You</b><span>· ${esc(P.step >= 4 ? whoFor() : 'just now')}</span></div>
       <b class="rs-mini-title">${esc(sq.title.trim() || 'Your title goes here')}</b>
@@ -361,9 +386,9 @@ export function createPoster(ui){
         <div class="rs-mini-top">${face(me, 'xs')}<b>You</b><span>· ${esc(whoFor())} · just now</span></div>
         <b class="rs-mini-title">${esc(sq.title.trim() || 'Your title goes here')}</b>
         <span class="rs-mini-fit">Each helper sees how well it suits them here, from their own profile and yours.</span>
-        <dl class="rs-facts rs-facts-sm"><dt>Where</dt><dd>${esc(P.kind === 'idea' || !sq.subject ? 'No repo yet' : whereText(sq))}</dd><dt>The job</dt><dd>${esc(jobText(sq))}</dd><dt>Would like</dt><dd>${esc(wantsText(sq))}</dd></dl>
+        <dl class="rs-facts rs-facts-sm"><dt>Where</dt><dd>${esc(whereText(sq))}</dd><dt>The job</dt><dd>${esc(jobText(sq))}</dd><dt>Would like</dt><dd>${esc(wantsText(sq))}</dd></dl>
       </div>`;
-    return `<span class="rs-side-label">How your circle will see it</span>${card}<p class="rs-muted">${esc(P.step === 4 ? reachText() : HINTS[P.step])}</p>`;
+    return `<span class="rs-side-label">How your circle will see it</span>${card}<p class="rs-muted">${esc(P.step === 4 ? reachText() : P.step === 1 && P.kind === 'idea' ? 'An idea needs no repo, and you don’t need to be a developer to plant one.' : HINTS[P.step])}</p>`;
   }
   // Typing only repaints the preview and the line under the link, so fields keep their focus.
   function paint(){
@@ -381,7 +406,7 @@ export function createPoster(ui){
       <div class="rs-mini">
         <div class="rs-mini-top">${face(ui.self(), 'xs')}<b>You</b><span>· ${esc(whoFor())} · just now</span></div>
         <b class="rs-mini-title">${esc(sq.title)}</b>
-        <span class="rs-mini-line">${esc([P.kind === 'idea' || !sq.subject ? 'An idea' : shortWhere(sq), jobShort(sq), wantsShort(sq)].filter(Boolean).join(' · '))}</span>
+        <span class="rs-mini-line">${esc([shortWhere(sq), jobShort(sq), wantsShort(sq)].filter(Boolean).join(' · '))}</span>
       </div>
       ${pub && P.bsky ? `<div class="rs-bsky">
         <b>Tell your circle on Bluesky</b>
@@ -390,7 +415,8 @@ export function createPoster(ui){
       </div>` : ''}
       <div class="rs-next"><h2>What happens next</h2><ol>
         <li><b>A friend sends their agent.</b> <span>You’ll see who’s on it, and what they’re running.</span></li>
-        <li><b>They turn in a pull request.</b> <span>It shows up on your seed, with the model that did the work.</span></li>
+        ${P.kind === 'idea' ? '<li><b>They turn in what they built.</b> <span>A link to it shows up on your seed, with the model that did the work.</span></li>'
+          : '<li><b>They turn in a pull request.</b> <span>It shows up on your seed, with the model that did the work.</span></li>'}
         <li><b>You mark it sprouted.</b> <span>And thank them on Bluesky, if you like.</span></li>
       </ol></div>
       <div class="rs-row">${ui.a(d.path, 'See your seed', 'rs-btn rs-primary')}<button class="rs-btn rs-quiet" type="button" data-rs-again>Plant another</button></div>
@@ -401,7 +427,7 @@ export function createPoster(ui){
     ui.title('Plant a seed');
     if (P.done) return `<div class="rs-post">${done()}</div>`;
     const body = [, stepWhere, stepWhat, stepHow, stepWho, stepLook][P.step]();
-    const next = { 1: 'Next: what you’d like done', 2: 'Next: how it should be done', 3: 'Next: who it’s for', 4: 'Next: look it over', 5: P.busy ? 'Planting…' : 'Plant it' }[P.step];
+    const next = { 1: P.kind === 'idea' ? 'Next: the idea' : 'Next: what you’d like done', 2: P.kind === 'idea' && P.owner === 'helper' ? 'Next: anything to add' : 'Next: how it should be done', 3: 'Next: who it’s for', 4: 'Next: look it over', 5: P.busy ? 'Planting…' : 'Plant it' }[P.step];
     return `<div class="rs-post">
       <header class="rs-post-head"><span>Plant a seed</span><button class="rs-link" type="button" data-rs-post-cancel>Cancel</button></header>
       <ol class="rs-stepper" aria-label="Steps">${STEPS.map((l, i) => {
@@ -426,12 +452,14 @@ export function createPoster(ui){
       || pick('[data-rs-back]', () => { P.err = ''; P.step = Math.max(1, P.step - 1); ui.render(); arrive(); })
       || pick('[data-rs-kind]', el => {
         const k = el.dataset.rsKind; if (P.kind === k) return;
-        Object.assign(P, { kind: k, err: '', link: '', subject: null, info: null, repo: null, issues: null });
+        Object.assign(P, { kind: k, err: '', link: '', subject: null, info: null, repo: null, issues: null, parallel: k === 'idea' && P.owner === 'helper' });
         if (picker() && (P.reposOf !== k || P.repos === null || P.repos?.error)) return loadRepos();
         if (picker() && Array.isArray(P.repos) && P.repos.length === 1) return loadIssues(picker().id(P.repos[0]));
         ui.render(); ui.root.querySelector('.rs-post [name="link"]')?.focus();
       })
       || pick('[data-rs-issue]', el => { pickIssue(el.dataset.rsIssue); P.err = ''; ui.render(); })
+      // An idea given away can be built by more than one person; one started for you is one job.
+      || pick('[data-rs-owner]', el => { P.owner = el.dataset.rsOwner; P.parallel = P.owner === 'helper'; P.err = ''; ui.render(); })
       || pick('[data-rs-model]', el => { const m = el.dataset.rsModel; P.models = !m ? [] : P.models.includes(m) ? P.models.filter(x => x !== m) : [...P.models, m]; ui.render(); })
       || pick('[data-rs-tests]', el => { P.tests = el.dataset.rsTests; ui.render(); })
       || pick('[data-rs-size]', el => { P.size = el.dataset.rsSize; ui.render(); })

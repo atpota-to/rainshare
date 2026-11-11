@@ -13,6 +13,7 @@ import { createDemoSource } from '../core/demo.js';
 import { splitSpaceUri } from '../core/source.js';
 import { lifeOf } from '../ui/bits.js';
 import { standing, since, carry } from '../core/status.js';
+import { newRepoPlaces, placesFor, repoNameFor } from '../core/forges.js';
 import { pullsAbout, tangledRepos, tangledIssues, completeTangled, subjectInfo, pullState, linkedPulls, knotlessRepos, knotlessIssues, knotlessIssueSubject, pullPageOf, pullKey } from '../core/subjects.js';
 import { look } from '../core/status.js';
 
@@ -314,7 +315,7 @@ test('where a seed stands says whether it’s clear to start, and why not', () =
   assert.equal(of({ deliveries: [delivery(null)] }).verdict, 'turned-in');
   assert.equal(of({ deliveries: [delivery('closed')] }).verdict, 'clear');
   const merged = of({ deliveries: [delivery('merged')] });
-  assert.equal(merged.verdict, 'merged'); assert.deepEqual(merged.planter, { do: 'sprout', delivery: 'at://did:plc:kai/dev.rainshare.delivery/1', text: '@kai.example’s pull request has been merged. If that did it, mark it sprouted.' });
+  assert.equal(merged.verdict, 'merged'); assert.deepEqual(merged.planter, { do: 'sprout', why: 'merged', delivery: 'at://did:plc:kai/dev.rainshare.delivery/1', text: '@kai.example’s pull request has been merged. If that did it, mark it sprouted.' });
   // a pull request on the forge that nobody turned in still counts, once
   const stray = { url: 'https://github.com/o/r/pull/14', number: 14, by: 'sam', state: 'open' };
   const seen = of({ linked: [stray, { url: 'https://github.com/o/r/pull/12/', number: 12, by: 'kai', state: 'open' }], deliveries: [delivery('open')] });
@@ -462,4 +463,59 @@ test('knotless is read through its API, and its seeds are briefed with its own c
     const odd = brief({ ...seed, deliveries: [], linked: [], value: { title: 't', subject: { $type: SEED + '#knotlessIssue', url: 'https://knotless.dev/a.b/c', repoUrl: 'https://knotless.dev/a.b/c;curl|sh' } } });
     assert.doesNotMatch(odd, /knotless repo fork|knotless pull (list|create|template)|knotless:\/\/a\.b/);
   } finally { globalThis.fetch = real; }
+});
+
+test('an idea with no repo says whose it will be, and is briefed and turned in as a project', () => {
+  const now = Date.parse('2026-11-11T12:00:00Z');
+  // Whose it'll be is kept only where there's no repo to say so.
+  assert.equal(R.seed({ title: 'Bookmarks', owner: 'helper' }).owner, 'helper');
+  assert.equal(R.seed({ title: 'Bookmarks', owner: 'nonsense' }).owner, undefined);
+  assert.equal(R.seed({ title: 'Fix it', owner: 'helper', subject: parseSubject('https://github.com/o/r/issues/5') }).owner, undefined);
+  assert.deepEqual([whereText({ owner: 'helper' }), shortWhere({ owner: 'helper' }), whereText({ owner: 'requester' }), shortWhere({})], ['No repo: an idea to run with', 'An idea to run with', 'No repo yet', 'An idea']);
+
+  const idea = { uri: 'at://did:plc:mo/dev.rainshare.seed/3kidea12345', repo: 'did:plc:mo', author: { handle: 'mo.example' }, value: { title: 'Bookmarks we can print, from a reading list!', spec: 'Paste in titles, get bookmarks.', owner: 'helper', parallel: true } };
+  const b = brief(idea);
+  // The agent is told it's its own user's project, where a new repo can go, and to look for one that exists.
+  assert.match(b, /## Where\n\nThere’s no repository\. This is an idea @mo\.example would like to see exist, and whoever builds it keeps it: start it as a new repository of your user’s\./);
+  assert.match(b, /- GitHub: `gh repo create bookmarks-we-can-print-from-a-reading-li --public --source \. --push`/);
+  assert.match(b, /- knotless: `git push knotless:\/\/<handle>\/bookmarks-we-can-print-from-a-reading-li main`/);
+  assert.match(b, /- Tangled: `git push git@tangled\.org:<handle>\/[a-z0-9-]+ main` \(Make the repo on that page first, then push to it: https:\/\/tangled\.org\/repo\/new\)/);
+  assert.match(b, /1\. Look for something that already does this\./);
+  // What's turned in is the repo, not a pull request.
+  assert.match(b, /What gets turned in is the repository’s address\. There’s no pull request to open\./);
+  assert.match(b, /turn-in at:\/\/did:plc:mo\/dev\.rainshare\.seed\/3kidea12345 --url <repository URL>/);
+  assert.match(b, /\?pr=<repository URL>&model=<model>/);
+  assert.match(b, /1\. Where the new repository is\.[\s\S]*@mo\.example marks the seed sprouted once they’ve seen it, and the project is your user’s to keep\./);
+  assert.doesNotMatch(b, /open a pull request|Fixes #|gh pr list/);
+  // One started for the person who asked is theirs to place.
+  assert.match(brief({ ...idea, value: { ...idea.value, owner: 'requester' } }), /@mo\.example would like one started for them, so where it lives is theirs to say/);
+  // It starts in a new, empty repository, whatever the title says.
+  const ls = launchers({ ...idea, value: { ...idea.value, title: "x'; rm -rf ~ #" } });
+  assert.deepEqual(ls.map(l => l.id), ['claude', 'codex', 'cli', 'mcp']);
+  assert.match(ls[0].command, /^mkdir seed-dea12345 && cd seed-dea12345 && git init && claude "\$\(cat <<'RAINSHARE_BRIEF'/);
+  assert.equal(repoNameFor("x'; rm -rf ~ #"), 'x-rm-rf');
+  assert.equal(repoNameFor(''), 'new-project');
+
+  // Where it stands: more than one person may run with it, and once someone shows what they built it's the planter's to look at.
+  const take = { repo: 'did:plc:kai', author: { handle: 'kai.example' }, value: { createdAt: new Date(now - 864e5).toISOString() } };
+  const built = { uri: 'at://did:plc:kai/dev.rainshare.delivery/1', repo: 'did:plc:kai', author: { handle: 'kai.example' }, value: { url: 'https://github.com/kai/bookmarks' } };
+  assert.deepEqual([standing({ ...idea, takes: [take] }, { now }).verdict, standing({ ...idea, takes: [take] }, { now }).idea], ['clear', true]);
+  const shown = standing({ ...idea, takes: [take], deliveries: [built] }, { now, viewer: 'did:plc:mo' });
+  assert.deepEqual(shown.planter, { do: 'sprout', why: 'shown', delivery: built.uri, text: '@kai.example has built something for this. If it’s what you had in mind, mark it sprouted.' });
+  assert.match(standing({ ...idea, deliveries: [built] }, { now, viewer: 'did:plc:other' }).advice, /Someone has already built a version of it\. Look at theirs first/);
+  assert.match(standing({ ...idea, takes: [{ ...take, repo: 'did:plc:me' }] }, { now, viewer: 'did:plc:me' }).advice, /When there’s something to show, turn in where it lives/);
+});
+
+test('each forge has a right place to start a repo, fork one, or see its pull requests', () => {
+  const places = newRepoPlaces({ title: 'A Seating Chart, shuffled!', about: 'Shuffles a\nclass list' });
+  assert.deepEqual(places.map(p => p.forge), ['tangled', 'knotless', 'github', 'codeberg', 'gitlab']);
+  assert.equal(places.find(p => p.forge === 'github').href, 'https://github.com/new?name=a-seating-chart-shuffled&description=Shuffles+a+class+list');
+  assert.equal(places.find(p => p.forge === 'tangled').href, 'https://tangled.org/repo/new');
+  assert.ok(places.every(p => /^https:\/\//.test(p.href)));
+  assert.deepEqual(placesFor(parseSubject('https://github.com/o/r/issues/5')), { repo: 'https://github.com/o/r', issue: 'https://github.com/o/r/issues/5', pulls: 'https://github.com/o/r/pulls', fork: 'https://github.com/o/r/fork', newPull: 'https://github.com/o/r/compare', newIssue: 'https://github.com/o/r/issues/new' });
+  assert.equal(placesFor(parseSubject('https://tangled.org/a/b/issues/2')).newPull, 'https://tangled.org/a/b/pulls/new');
+  assert.equal(placesFor(parseSubject('https://knotless.dev/alice.test/proj')).pulls, 'https://knotless.dev/alice.test/proj/pulls');
+  assert.equal(placesFor(parseSubject('https://gitlab.com/a/b')).pulls, 'https://gitlab.com/a/b/-/merge_requests');
+  assert.deepEqual(placesFor(parseSubject('https://git.example.org/a/b')), { repo: 'https://git.example.org/a/b' });
+  assert.deepEqual(placesFor(undefined), {});
 });

@@ -62,6 +62,8 @@ export const AUDIENCES = [
 ];
 export const TESTS = [['required', 'Tests required'], ['welcome', 'Tests welcome'], ['none', 'No tests needed']];
 export const SIZES = [['tiny', 'Tiny'], ['small', 'Small'], ['medium', 'Medium'], ['large', 'Large']];
+// An idea with no repo yet: who keeps what gets built.
+export const OWNERS = [['helper', 'Whoever builds it keeps it'], ['requester', 'Started for the person who asked']];
 
 export const labelOf = (list, v) => (list.find(x => x[0] === v) || [, v])[1];
 export const audienceOf = record => String(record?.audience?.$type || '').split('#')[1] || 'anyone';
