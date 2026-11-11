@@ -118,10 +118,39 @@ export async function subjectInfo(subject){
     }
     if (kind === 'tangledIssue' && subject.uri) {
       const r = await xrpc(BOBBIN, 'sh.tangled.repo.getIssue', { issue: subject.uri });
-      return { title: r.value?.title, body: r.value?.body || '', state: null, url: subject.url || null };
+      // Tangled's API lists a repo's open issues: one that's among them is open, and one that
+      // isn't is closed, as long as the list wasn't cut short.
+      const repo = subject.repo || r.value?.repo, open = repo ? await tangledIssues(repo).catch(() => null) : null;
+      const state = !open ? null : open.some(x => x.uri === subject.uri) ? 'open' : open.length < 100 ? 'closed' : null;
+      return { title: r.value?.title, body: r.value?.body || '', state, url: subject.url || null };
     }
   } catch (_) { /* rate limits and private repos: the link still works */ }
   return null;
+}
+
+/**
+ * Pull requests on the forge that point at this work, whether or not anyone turned them in
+ * on Rainshare: ones that mention the issue's number or address, or the seed's own link (the
+ * brief asks for that link in every pull request). GitHub only for now. Looks through the
+ * repo's 50 most recently updated. [{ url, number, title, by, state }], or null if it can't tell.
+ */
+export async function linkedPulls(subject, { rkey } = {}){
+  const d = describeSubject(subject);
+  if (d?.forge !== 'github' || !REPO_NAME.test(d.repo || '')) return null;
+  try {
+    const list = await getJSON(`${GITHUB_API}/repos/${d.repo}/pulls?state=all&sort=updated&direction=desc&per_page=50`);
+    return pullsAbout(list, { repo: d.repo, number: kindOf(subject) === 'githubIssue' ? parseInt(subject.number, 10) : null, rkey });
+  } catch (_) { return null; }
+}
+/** From a GitHub pull request list, the ones about an issue (by number or address) or a seed (by its link). */
+export function pullsAbout(list, { repo, number, rkey } = {}){
+  const quoted = s => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const byNumber = number ? new RegExp(`(^|[^\\w/-])#${number}(?!\\d)`) : null, byAddress = number && repo ? new RegExp(`${quoted(repo)}/issues/${number}(?!\\d)`, 'i') : null;
+  const bySeed = rkey ? new RegExp(`/seed/[^\\s/]+/${quoted(rkey)}(?![A-Za-z0-9])`) : null;
+  return (Array.isArray(list) ? list : []).filter(pr => {
+    const text = `${pr?.title || ''}\n${pr?.body || ''}`;
+    return byNumber?.test(text) || byAddress?.test(text) || bySeed?.test(text);
+  }).map(pr => ({ url: pr.html_url, number: pr.number, title: pr.title || '', by: pr.user?.login || null, state: pr.merged_at ? 'merged' : pr.state === 'closed' ? 'closed' : 'open' }));
 }
 
 /** Whether a delivered pull request has landed: 'merged', 'open', 'closed', or null if we can't tell. */

@@ -12,7 +12,8 @@
 //   u/<did>            someone's profile and their seeds
 //   agents             the CLI and MCP server, for sending agents from a terminal
 import { SEED, HARNESSES, MODELS, RUNS_ON, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, labelOf, audienceOf, modelName } from '../core/ns.js';
-import { describeSubject, cloneUrlOf, kindOf, subjectInfo, pullState, safeHttp, FORGE_NAMES } from '../core/subjects.js';
+import { describeSubject, cloneUrlOf, safeHttp, FORGE_NAMES } from '../core/subjects.js';
+import { look, carry, standing } from '../core/status.js';
 import { audienceLine } from '../core/circle.js';
 import { rank, fit, join, pretty } from '../core/rank.js';
 import { whereText, shortWhere, jobText, jobShort, wantsText, onItText, takenShort, relationText, askExcerpt, stateText } from '../core/words.js';
@@ -29,7 +30,7 @@ export function createRainshare({ root, base = '/', host }){
   const S = {
     source: null, view: null, sub: '', tab: 'foryou',
     board: null, boardAt: 0, loading: false, error: null, shown: [], pick: null, sheet: false,
-    mine: null, seed: null, seedErr: null, launch: null, pendingLaunch: null, handBack: null, other: null, form: null, drafts: {}, signin: null
+    mine: null, seed: null, seedErr: null, launch: null, pendingLaunch: null, handBack: null, again: null, other: null, form: null, drafts: {}, signin: null
   };
   const signedIn = () => !!S.source?.signedIn;
   const viewer = () => S.source?.viewer || null;
@@ -67,6 +68,21 @@ export function createRainshare({ root, base = '/', host }){
   const isOpen = it => !it.value?.state || it.value.state === 'open';
   const myTake = it => (it.takes || []).find(t => t.repo === viewer());
   const mySetup = () => S.mine?.merged?.setups?.[0] || null;
+  // Where a seed stands for whoever's looking (../core/status.js), and the brief made for them.
+  const stand = it => standing(it, { viewer: viewer(), asker: firstName(it.author) });
+  const briefFor = it => brief(it, { viewer: viewer() });
+  // What's in the way of starting on one, said to a person rather than to an agent.
+  function heed(it, st){
+    const who = firstName(it.author), forge = FORGE_NAMES[describeSubject(it.value?.subject)?.forge] || 'the forge';
+    const others = (it.takes || []).filter(t => t.repo !== viewer()).map(t => nameOf(t.author));
+    return {
+      'on-it': `${join(others)} ${others.length > 1 ? 'are' : 'is'} already on it. Check with them before you send your agent, so it isn’t done twice.`,
+      'turned-in': 'There’s already a pull request for this. Look it over first: a second one only helps if that one has stalled.',
+      merged: `A pull request for this has been merged, so it’s probably done. It’s waiting for ${who} to mark it sprouted.`,
+      'issue-closed': `The issue has been closed on ${forge}. Ask ${who} before starting: it may be done, or no longer wanted.`
+    }[st.verdict] || '';
+  }
+  const heedNote = (it, st) => st && !st.clear && heed(it, st) ? `<p class="rs-note rs-heed">${ico('person')}<span>${esc(heed(it, st))}</span></p>` : '';
   const fitBox = f => `<div class="rs-fitbox">${drops(f.level)}<p><b>${esc(f.label)} for you.</b> ${esc(f.why)}</p></div>`;
   function shareUrl(it){
     const page = pageOf(it), sq = it.value || {};
@@ -148,6 +164,7 @@ export function createRainshare({ root, base = '/', host }){
     else if (!signedIn()) buttons = (host.signIn ? '<button class="rs-btn rs-primary" type="button" data-rs-act="signin">Sign in to take it on</button>' : '') + mdBtn(it) + shareBtn(it);
     else if (myTake(it)) buttons = a(page, 'You’re on it: turn it in', 'rs-btn rs-primary') + mdBtn(it);
     else buttons = `<button class="rs-btn rs-primary" type="button" data-rs-take="${esc(it.uri)}">${ico('drop')}Send my agent</button>${mdBtn(it)}${shareBtn(it)}`;
+    const st = open && !mine && !myTake(it) ? stand(it) : null;
     return `<article class="rs-detail">
       <div class="rs-detail-top">${a('u/' + it.repo, face(p) + `<b>${esc(mine ? 'You' : nameOf(p))}</b>`, 'rs-who')}<span class="rs-muted">${rel ? ' · ' + (it.space ? ico('lock') : '') + esc(rel) : ''} · ${esc(ago(sq.createdAt))}</span>
         <button class="rs-sheet-close" type="button" data-rs-close-sheet aria-label="Close">${ico('close')}</button></div>
@@ -155,6 +172,7 @@ export function createRainshare({ root, base = '/', host }){
       ${f ? fitBox(f) : !open ? `<p class="rs-state${sq.state === 'sprouted' ? ' rs-ok' : ''}">${sq.state === 'sprouted' ? `${lifeIco('sprouted')}Sprouted. Thanks, everyone.` : 'Closed.'}</p>` : !signedIn() ? `<p class="rs-muted">${esc(audienceLine(sq, { authorName: firstName(p), groupName: it.group?.name }))}.</p>` : ''}
       ${facts(it)}
       <div class="rs-ask"><span class="rs-label">The ask</span><p>${esc(askExcerpt(sq.spec) || 'No details beyond the title.')}</p>${a(page, 'Read all of it', 'rs-link')}</div>
+      ${heedNote(it, st)}
       <div class="rs-row rs-detail-actions">${buttons}</div>
     </article>`;
   }
@@ -233,15 +251,28 @@ export function createRainshare({ root, base = '/', host }){
     root.querySelector('.rs-split')?.classList.remove('rs-open');
     root.querySelector(`.rs-item[data-rs-pick="${CSS.escape(S.pick || '')}"]`)?.focus({ preventScroll: true });
   }
+  // Taking one on looks first: at the seed as it is this minute, and at the forge. If that turns
+  // up something the screen wasn't already saying (someone took it a moment ago, a pull request
+  // is up, the issue was closed), it asks before saying you're on it.
   async function takeIt(it, el){
     if (el) el.disabled = true;
     try {
-      await S.source.take(it, { setup: mySetup() || undefined });
-      const fresh = await S.source.seed(it.uri, { force: true }) || it;
-      const l = pickLauncher(launchers(fresh));
+      const shown = stand(it).verdict;
+      const now = carry(it, await S.source.seed(it.uri, { force: true }).catch(() => null) || it);
+      await Promise.race([look(now), new Promise(r => setTimeout(r, 4000))]);
+      const st = stand(now);
+      if (!st.clear && st.verdict !== shown && !confirm(`${heed(now, st) || st.advice}\n\nSend your agent anyway?`)) {
+        if (S.seed?.uri === now.uri) { S.seed = now; render(); }
+        if (el) el.disabled = false;
+        return null;
+      }
+      await S.source.take(now, { setup: mySetup() || undefined });
+      const fresh = carry(now, await S.source.seed(it.uri, { force: true }) || now);
+      const l = pickLauncher(launchers(fresh, { viewer: viewer() }));
       S.board = null; loadBoard();
-      if (l) copy(l.command, `You’re on it. Copied the ${l.label} command: paste it in a terminal.`); else toast('You’re on it');
-      return { fresh, launch: l?.id || 'none' };
+      if (l) copy(l.command, `You’re on it. Copied the ${l.label} command: paste it in a terminal.`);
+      else copy(briefFor(fresh), 'You’re on it. Copied the brief: paste it into your agent.');
+      return { fresh, launch: l?.id || 'brief' };
     } catch (e) { console.warn('rainshare take', e); toast(plainText(e)); if (el) el.disabled = false; return null; }
   }
   // From the panel: take it on, then open its page with the commands to start an agent.
@@ -279,21 +310,21 @@ export function createRainshare({ root, base = '/', host }){
     if (S.view === 'seed') render();
     try {
       const fresh = await S.source.seed(uri, { force: !!cached });
-      if (fresh) S.seed = fresh; else if (!cached) S.seedErr = { message: 'This seed is gone, or it isn’t one you can see.' };
+      if (fresh) S.seed = carry(cached, fresh); else if (!cached) S.seedErr = { message: 'This seed is gone, or it isn’t one you can see.' };
     } catch (e) { if (!cached) S.seedErr = e; console.warn('rainshare seed', e); }
-    if (S.seed && !S.seed.example) enrich(S.seed);
+    seen(S.seed);
   }
-  // The issue's title and the pull requests' states, where a public API has them.
-  async function enrich(item){
-    const sub = item.value?.subject;
-    if (sub && (kindOf(sub) === 'githubIssue' || kindOf(sub) === 'tangledIssue') && !item.issue) {
-      item.issue = await subjectInfo(sub);
-      if (S.seed === item && S.view === 'seed') render();
-    }
-    await Promise.all((item.deliveries || []).filter(d => d.state === undefined).map(async d => {
-      d.state = await pullState({ url: d.value?.url, pull: d.value?.pull });
-    }));
-    if (S.seed === item && S.view === 'seed') render();
+  // What the forge knows: whether the issue is still open, whether the pull requests turned in
+  // have landed, and whether one is up there that nobody turned in. The page fills in when it answers.
+  function seen(item){
+    if (!item || item.example) return;
+    look(item).then(() => { if (S.seed === item && S.view === 'seed') rerender(); }, () => {});
+  }
+  // A seed read again after something changed keeps what the forge said a moment ago.
+  async function reread(it){
+    const fresh = carry(it, await S.source.seed(it.uri, { force: true }) || it);
+    seen(fresh);
+    return fresh;
   }
   const setupText = s => s ? `${HARNESS_NAMES[s.harness] || s.harness}${s.models?.length ? ` (${join(s.models.map(modelName))})` : ''}` : '';
   // Someone's profile as a few plain lines.
@@ -313,16 +344,21 @@ export function createRainshare({ root, base = '/', host }){
     ].filter(r => r[1]);
     return `${p.bio ? `<p class="rs-bio">${esc(p.bio)}</p>` : ''}${rows.length ? `<dl class="rs-facts rs-facts-sm">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${k === 'Forecast' ? `<span class="rs-fc-${fc[0]}">${skyIco(fc[0])}</span>` : ''}${esc(v)}</dd>`).join('')}</dl>` : p.bio ? '' : '<p class="rs-muted">Nothing shared yet.</p>'}`;
   }
+  // Every way to hand a seed to an agent: the brief, to paste into one, and then the commands
+  // that start one from a terminal.
+  const ways = it => [
+    { id: 'brief', label: 'Any agent, by pasting', note: 'Nothing to install. Paste the brief into Claude Code, Codex or a chat window that can reach the repo.', command: briefFor(it), copied: 'Copied the brief. Paste it into your agent.' },
+    ...launchers(it, { viewer: viewer() }).map(l => ({ ...l, copied: `Copied the ${l.label} command. Paste it in a terminal.` }))
+  ];
   function renderLaunch(it){
-    const ls = launchers(it);
+    const ls = ways(it);
     return `<section class="rs-launch" id="rsLaunch" aria-label="Send your agent">
       <h3>${ico('term')}Send your agent</h3>
-      <p class="rs-muted">Paste one into a terminal. Each one starts an agent with the brief below, which frames this as ${esc(firstName(it.author))}’s request rather than orders.</p>
+      <p class="rs-muted">Every one of these hands your agent the same brief. It frames this as ${esc(firstName(it.author))}’s request rather than orders, has the agent check that nobody got there first, and asks it to finish by telling you what’s left to do here.</p>
       ${it.example ? '<p class="rs-note">This is an example seed, so these point at pretend repos. For a real one they’re ready to paste.</p>' : ''}
-      <ol class="rs-launchers">${ls.map((l, i) => `<li data-rs-launch="${i}"${S.launch === l.id || (!ls.some(x => x.id === S.launch) && i === 0) ? ' class="on"' : ''}>
+      <ol class="rs-launchers">${ls.map((l, i) => `<li data-rs-launch="${i}" class="${l.id === 'brief' ? 'rs-l-brief' : ''}${S.launch === l.id || (!ls.some(x => x.id === S.launch) && i === 0) ? ' on' : ''}">
         <div class="rs-l-head"><b>${esc(l.label)}</b><button class="rs-btn rs-quiet rs-sm" type="button" data-rs-copy="${i}">${ico('copy')}Copy</button></div>
-        <small>${esc(l.note)}</small><pre><code>${esc(l.command.length > 600 ? l.command.slice(0, 600) + '\n…' : l.command)}</code></pre></li>`).join('')}</ol>
-      <details class="rs-brief"><summary>The brief your agent gets</summary><pre>${esc(brief(it))}</pre><button class="rs-btn rs-quiet rs-sm" type="button" data-rs-act="copy-brief">${ico('copy')}Copy the brief</button></details>
+        <small>${esc(l.note)}</small><pre><code>${esc(l.id !== 'brief' && l.command.length > 600 ? l.command.slice(0, 600) + '\n…' : l.command)}</code></pre></li>`).join('')}</ol>
       ${a('agents', 'Set up the CLI and MCP server once', 'rs-link')}
     </section>`;
   }
@@ -332,7 +368,7 @@ export function createRainshare({ root, base = '/', host }){
     const it = S.seed;
     if (!it) return `${back}<div class="rs-seed rs-ghost"><div></div></div>`;
     const sq = it.value || {}, p = it.author || {}, mine = it.repo === viewer(), taken = myTake(it), d = describeSubject(sq.subject), clone = cloneUrlOf(sq.subject);
-    const page = pageOf(it), open = isOpen(it), issue = it.issue;
+    const page = pageOf(it), open = isOpen(it), issue = it.issue, st = stand(it), forge = FORGE_NAMES[d?.forge] || 'the forge';
     title(sq.title);
     const f = !mine && open && signedIn() && !taken ? fit(it, me()) : null;
     const where = !d ? 'No repo yet. A helper can start one, or suggest where it should live.'
@@ -353,45 +389,64 @@ export function createRainshare({ root, base = '/', host }){
       const v = dl.value || {}, setup = setupText(v.setup), url = safeHttp(v.url);
       const status = sprouted.has(dl.uri) ? `<span class="rs-status rs-ok">${lifeIco('sprouted')}Made it sprout</span>` : { merged: '<span class="rs-status rs-ok">Merged</span>', open: '<span class="rs-status">Open</span>', closed: '<span class="rs-status rs-dim">Closed</span>' }[dl.state] || '';
       const thank = mine && !it.example && dl.author?.handle ? `<a class="rs-link" target="_blank" rel="noopener" href="https://bsky.app/intent/compose?text=${encodeURIComponent(`Thank you @${dl.author.handle} for taking on my seed “${sq.title}”${setup ? ` (${setup})` : ''} ${url || page || ''}`)}">Thank them on Bluesky</a>` : '';
-      const sprout = mine && open ? `<button class="rs-btn rs-quiet rs-sm" type="button" data-rs-sprout="${esc(dl.uri)}">${lifeIco('up')}This made it sprout</button>` : '';
+      const sprout = mine && open && st.planter?.delivery !== dl.uri ? `<button class="rs-btn rs-quiet rs-sm" type="button" data-rs-sprout="${esc(dl.uri)}">${lifeIco('up')}This made it sprout</button>` : '';
       const shown = String(v.url || '').replace(/^https?:\/\//, '').slice(0, 70);
       return `<li>${face(dl.author)}<div><span><b>${esc(dl.repo === viewer() ? 'You' : nameOf(dl.author))}</b> turned it in${status ? ' · ' + status : ''}</span>
         <small>${setup ? esc(setup) + ' · ' : ''}${esc(ago(v.createdAt))}</small>
         ${v.note ? `<p>${esc(v.note)}</p>` : ''}
         <div class="rs-row">${url && !it.example ? `<a class="rs-link" href="${esc(url)}" target="_blank" rel="noopener nofollow">${ico('link')}${esc(shown)}</a>` : shown ? `<span class="rs-muted">${ico('link')} ${esc(shown)}</span>` : ''}${safeHttp(v.sessionUrl) && !it.example ? `<a class="rs-link" href="${esc(safeHttp(v.sessionUrl))}" target="_blank" rel="noopener nofollow">See the session</a>` : ''}${sprout}${thank}</div></div></li>`;
     }).join('');
+    // Pull requests on the forge that mention this and weren't turned in here. A helper whose
+    // agent opened one can turn it in from the list.
+    const canClaim = open && !mine && signedIn();
+    const linked = st.linked.map(pr => `<li><div><span><a class="rs-link" href="${esc(safeHttp(pr.url) || '')}" target="_blank" rel="noopener nofollow">${ico('link')}#${esc(pr.number)} ${esc(pr.title)}</a></span>
+      <small>${pr.by ? `By @${esc(pr.by)} · ` : ''}${{ merged: 'Merged', open: 'Open', closed: 'Closed without merging' }[pr.state] || ''} · mentions this, but hasn’t been turned in here</small>
+      ${canClaim && pr.state !== 'closed' ? `<div class="rs-row"><button class="rs-btn rs-quiet rs-sm" type="button" data-rs-claim="${esc(pr.url)}">It’s mine: turn it in</button></div>` : ''}</div></li>`).join('');
     const setup = mySetup();
     // An agent handed back a pull request for this one (see readHandBack): it goes straight to the turn-in form.
     const handed = open && !mine && S.handBack === it.uri;
     let actions = '';
     if (mine) {
-      actions = `<div class="rs-row">${open ? `<button class="rs-btn rs-quiet" type="button" data-rs-act="close">Close it</button>` : `<button class="rs-btn rs-quiet" type="button" data-rs-act="reopen">Reopen it</button>`}
-        ${shareBtn(it, 'Share on Bluesky')}
+      // What's left for the person who planted it: a merged pull request to accept, an issue
+      // that was closed over on the forge, or an issue still open after the seed sprouted.
+      const pl = st.planter, sproutBtn = '<button class="rs-btn rs-primary rs-sm" type="button" data-rs-act="sprout">Mark it sprouted</button>';
+      const by = pl?.do === 'sprout' ? (it.deliveries || []).find(dl => dl.uri === pl.delivery) : null;
+      const said = by && by.repo !== viewer() ? `${nameOf(by.author)}’s pull request has been merged. If that did it, mark it sprouted.` : pl?.text;
+      const next = !pl ? '' : `<p class="rs-note${pl.do === 'sprout' ? ' rs-on' : ''}">${lifeIco(pl.do === 'close-issue' ? 'sprouted' : 'up')}<span>${esc(said)}</span>${
+        pl.do === 'sprout' ? `<button class="rs-btn rs-primary rs-sm" type="button" data-rs-sprout="${esc(pl.delivery)}">Mark it sprouted</button>`
+          : pl.do === 'close-issue' ? (safeHttp(pl.href) && !it.example ? `<a class="rs-btn rs-quiet rs-sm" href="${esc(safeHttp(pl.href))}" target="_blank" rel="noopener">Open the issue</a>` : '')
+            : sproutBtn}</p>`;
+      const tell = open && page && d?.issue && !it.example ? `<button class="rs-link" type="button" data-rs-copy-text="${esc(`I’ve planted this on Rainshare, for anyone with spare agent usage who’d like to take it on: ${page}`)}" data-rs-copied="Copied. Paste it as a comment on the issue.">Copy a note for the issue</button>` : '';
+      actions = `${next}<div class="rs-row">${open ? `<button class="rs-btn rs-quiet" type="button" data-rs-act="close">Close it</button>` : `<button class="rs-btn rs-quiet" type="button" data-rs-act="reopen">Reopen it</button>`}
+        ${shareBtn(it, 'Share on Bluesky')}${tell}
         <button class="rs-link rs-danger" type="button" data-rs-act="delete">Delete</button></div>
-        ${open && !(it.deliveries || []).length ? '<p class="rs-muted">When a helper turns it in, you can mark it sprouted here.</p>' : ''}`;
+        ${open && !pl && !(it.deliveries || []).length ? '<p class="rs-muted">When a helper turns it in, you can mark it sprouted here.</p>' : ''}`;
     } else if (!signedIn()) {
-      actions = `${handed ? `<p class="rs-note">${lifeIco('up')}<span>A pull request is ready to turn in. Sign in and it’ll be waiting in the form.</span></p>` : ''}
+      actions = `${handed ? `<p class="rs-note">${lifeIco('up')}<span>A pull request is ready to turn in. Sign in and it’ll be waiting in the form.</span></p>` : open ? heedNote(it, st) : ''}
         <div class="rs-row">${host.signIn ? `<button class="rs-btn rs-primary" type="button" data-rs-act="signin">${handed ? 'Sign in to turn it in' : 'Sign in to take it on'}</button>` : ''}${shareBtn(it)}</div>`;
     } else if (!open) {
       actions = `<p class="rs-muted">${sq.state === 'sprouted' ? 'This one’s sprouted. Thanks, everyone.' : 'This one’s closed.'}</p>`;
     } else if (!taken && !handed) {
-      const others = (it.takes || []).length && !sq.parallel;
-      actions = `<div class="rs-row"><button class="rs-btn rs-primary rs-big" type="button" data-rs-act="take">${ico('drop')}Send my agent</button>${shareBtn(it)}</div>
-        <p class="rs-muted">${others ? 'Someone’s already on it. You can still try, but check with them first. ' : ''}This tells ${esc(firstName(p))} you’re on it${setup ? ` with ${esc(setupText(setup))}` : ''}, and copies a command that starts your agent.</p>`;
+      const l = pickLauncher(launchers(it, { viewer: viewer() }));
+      actions = `${heedNote(it, st)}<div class="rs-row"><button class="rs-btn ${st.clear ? 'rs-primary rs-big' : 'rs-quiet'}" type="button" data-rs-act="take">${ico('drop')}${st.clear ? 'Send my agent' : 'Send my agent anyway'}</button>${shareBtn(it)}</div>
+        <p class="rs-muted">This tells ${esc(firstName(p))} you’re on it${setup ? ` with ${esc(setupText(setup))}` : ''}, and copies ${l ? `the ${esc(l.label)} command to paste in a terminal` : 'the brief to paste into your agent'}.</p>`;
     } else {
       const v = S.drafts.turnIn || {};
-      actions = `${taken
-        ? `<p class="rs-note rs-on">${ico('check')}<span>You’re on it${taken.value?.setup ? ` with ${esc(setupText(taken.value.setup))}` : ''}. When the pull request is up, turn it in.</span><button class="rs-link" type="button" data-rs-act="drop">Drop it</button></p>`
-        : `<p class="rs-note rs-on">${lifeIco('up')}<span>A pull request is ready to turn in. Look it over and send it. That also tells ${esc(firstName(p))} you took this on.</span></p>`}
+      // Once it's turned in, the form steps aside: what's left is the planter's to do.
+      const sent = (it.deliveries || []).some(dl => dl.repo === viewer()), form = !sent || handed || S.again === it.uri;
+      const dropBtn = taken ? '<button class="rs-link" type="button" data-rs-act="drop">Drop it</button>' : '';
+      actions = `${sent ? `<p class="rs-note${st.deliveries.some(x => x.mine && x.state !== 'closed') ? ' rs-on' : ''}">${ico('check')}<span>${esc(st.yours ? st.advice : 'You’ve turned it in.')}</span>${dropBtn}</p>`
+        : taken ? `<p class="rs-note rs-on">${ico('check')}<span>You’re on it${taken.value?.setup ? ` with ${esc(setupText(taken.value.setup))}` : ''}. When the pull request is up, turn it in.</span>${dropBtn}</p>${heedNote(it, st)}`
+          : `<p class="rs-note rs-on">${lifeIco('up')}<span>A pull request is ready to turn in. Look it over and send it. That also tells ${esc(firstName(p))} you took this on.</span></p>`}
         ${S.launch ? renderLaunch(it) : ''}
-        <form class="rs-form rs-turnin" data-rs-form="turnin">
+        ${!form ? '<div class="rs-row"><button class="rs-link" type="button" data-rs-act="again">Turn in another pull request</button></div>' : `<form class="rs-form rs-turnin" data-rs-form="turnin">
           <label>Pull request link<input name="url" type="url" placeholder="${d?.forge === 'tangled' ? 'https://tangled.org/…/pulls/…' : 'https://github.com/…/pull/…'}" value="${esc(v.url || '')}" required></label>
           <div class="rs-two"><label>What did the work<select name="harness">${HARNESSES.map(([k, l]) => `<option value="${k}"${(v.harness || taken?.value?.setup?.harness || setup?.harness) === k ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
           <label>Model<input name="model" list="rsModels" value="${esc(v.model || taken?.value?.setup?.models?.[0] || setup?.models?.[0] || '')}" placeholder="claude-opus-5-5"></label></div>
           <label>Session link <small>(optional, to show your working)</small><input name="sessionUrl" type="url" value="${esc(v.sessionUrl || '')}"></label>
           <label>A note <small>(optional)</small><input name="note" maxlength="300" value="${esc(v.note || '')}"></label>
-          <div class="rs-row"><button class="rs-btn rs-primary" type="submit">Turn it in</button>${S.launch ? '' : '<button class="rs-link" type="button" data-rs-act="show-launch">Show the agent commands</button>'}</div>
-        </form>`;
+          <div class="rs-row"><button class="rs-btn rs-primary" type="submit">Turn it in</button>${S.launch ? '' : '<button class="rs-link" type="button" data-rs-act="show-launch">Show the ways to send an agent</button>'}</div>
+        </form>`}`;
     }
     return `${back}
       <article class="rs-seed">
@@ -405,6 +460,7 @@ export function createRainshare({ root, base = '/', host }){
             <div class="rs-spec">${sq.spec ? renderMarkdown(sq.spec) : '<p class="rs-muted">No details beyond the title.</p>'}${safeHttp(sq.specUrl) ? `<p><a href="${esc(safeHttp(sq.specUrl))}" target="_blank" rel="noopener nofollow">The longer spec</a></p>` : ''}</div></section>
           <div class="rs-actions">${actions}</div>
           ${deliveries ? `<h2>Turned in</h2><ul class="rs-people rs-deliveries">${deliveries}</ul>` : ''}
+          ${linked ? `<h2>Also on ${esc(forge)}</h2><ul class="rs-people rs-deliveries rs-linked">${linked}</ul>` : ''}
         </div>
         <aside class="rs-seed-side">
           <div class="rs-panel"><h2>${esc(mine ? 'Your profile' : 'About ' + firstName(p))}</h2>${profileCard(it.profile, p, { compact: true })}${a('u/' + it.repo, mine ? 'See your profile' : 'See their profile', 'rs-link')}</div>
@@ -538,9 +594,9 @@ export function createRainshare({ root, base = '/', host }){
         <section class="rs-panel" aria-labelledby="rsQuick">
           <h2 id="rsQuick">${ico('copy')}With nothing set up</h2>
           <ol class="rs-steps">
-            <li><h3>Copy a seed as Markdown</h3><p class="rs-muted">Every seed has a Copy as Markdown button. It copies the whole brief: where the code is, what’s wanted, and how to turn it in.</p></li>
-            <li><h3>Paste it into your agent</h3><p class="rs-muted">Any of them will do: Claude Code, Codex, a chat window. It does the work and opens the pull request with its own access to GitHub or Tangled.</p></li>
-            <li><h3>Open the link it hands back</h3><p class="rs-muted">The brief asks the agent to finish with a link to the seed that carries the pull request. Open it, and the turn-in form is filled in for you to send.</p></li>
+            <li><h3>Press Send my agent on a seed</h3><p class="rs-muted">That tells your friend you’re on it, so nobody doubles up, and copies the brief: where the code is, what’s wanted, where things stand, and how to turn it in. If your profile says you run Claude Code or Codex, the brief comes inside a command that clones the repo and starts it. Copy as Markdown copies the brief alone, without saying you’re on it.</p></li>
+            <li><h3>Paste it</h3><p class="rs-muted">The command goes in a terminal; the brief alone goes into any agent that can reach the repo. Either way the agent checks first that nobody got there before you, then does the work and opens the pull request with its own access to GitHub or Tangled.</p></li>
+            <li><h3>Open the link it hands back</h3><p class="rs-muted">The brief asks the agent to finish with a link to the seed that carries the pull request. Open it, and the turn-in form is filled in for you to send. After that it’s your friend’s turn: they mark the seed sprouted once the pull request is merged.</p></li>
           </ol>
         </section>
         <h2 class="rs-agents-or">Or let your agent do the Rainshare side too</h2>
@@ -558,19 +614,22 @@ export function createRainshare({ root, base = '/', host }){
             <h2 id="rsWayCli">${ico('term')}From a terminal</h2>
             <ol class="rs-steps">
               <li><h3>See what’s planted</h3>${block(`node ${CLI_HOME} board`)}</li>
+              <li><h3>See where one stands</h3>${block(`node ${CLI_HOME} check <seed>`)}
+                <p class="rs-muted">Who’s on it, what’s been turned in, and what GitHub or Tangled says about the issue and its pull requests. It needs no sign-in. <code>&lt;seed&gt;</code> is the seed’s link.</p></li>
               <li><h3>Take one on</h3>${block(`node ${CLI_HOME} run <seed>`)}
-                <p class="rs-muted">This tells your friend you’re on it, clones the repo and starts your agent with the brief. <code>&lt;seed&gt;</code> is the seed’s link.</p></li>
-              <li><h3>Turn it in</h3>${block(`node ${CLI_HOME} turn-in <seed> --url <pull request>`)}</li>
+                <p class="rs-muted">This runs the same check and stops if someone got there first. Otherwise it tells your friend you’re on it, clones the repo and starts your agent with the brief. When the agent finishes, it finds the pull request and offers to turn it in.</p></li>
+              <li><h3>Or turn one in yourself</h3>${block(`node ${CLI_HOME} turn-in <seed> --url <pull request>`)}</li>
             </ol>
-            <p class="rs-muted"><code>node ${CLI_HOME} help</code> lists the rest: planting a seed, setting your forecast and more.</p>
+            <p class="rs-muted"><code>node ${CLI_HOME} doctor</code> says what’s set up and what’s missing. <code>node ${CLI_HOME} help</code> lists the rest: planting a seed, closing one out, setting your forecast.</p>
           </section>
           <section class="rs-panel" aria-labelledby="rsWayMcp">
             <h2 id="rsWayMcp">${ico('sky')}From inside your agent</h2>
             <ol class="rs-steps">
               <li><h3>Add Rainshare to it</h3><p class="rs-muted">In Claude Code:</p>${block(MCP_ADD)}
                 <details class="rs-more"><summary>In another MCP client</summary>${block(json)}</details></li>
-              <li><h3>Ask it</h3>${say('What seeds does my circle have that suit my setup?')}${say('Take on this Rainshare seed and turn it in when the PR is up.')}</li>
+              <li><h3>Ask it</h3>${say('What seeds does my circle have that suit my setup?')}${say('Take on this Rainshare seed and turn it in when the PR is up.')}${say('Have any of my seeds had a pull request merged? Close out the ones that are done.')}</li>
             </ol>
+            <p class="rs-muted">It checks a seed before taking it on, and tells you when it’s turned in.</p>
           </section>
         </div>
         <p class="rs-note">${ico('lock')}<span>For now the CLI and MCP server reach public seeds only. Private, group-only ones are taken on from here, in the app.</span></p>
@@ -645,8 +704,9 @@ export function createRainshare({ root, base = '/', host }){
         root.querySelector('#rsLaunch')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         return;
       }
-      if (name === 'show-launch') { S.launch = S.launch || pickLauncher(launchers(it))?.id || 'none'; rerender(); root.querySelector('#rsLaunch')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
-      if (name === 'copy-brief') return copy(brief(it), 'Copied the brief');
+      if (name === 'show-launch') { S.launch = S.launch || pickLauncher(launchers(it, { viewer: viewer() }))?.id || 'brief'; rerender(); root.querySelector('#rsLaunch')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+      if (name === 'again') { S.again = it.uri; render(); root.querySelector('[data-rs-form="turnin"] input')?.focus(); return; }
+      if (name === 'sprout') { await S.source.update(it, { state: 'sprouted' }); S.seed = await reread(it); S.board = null; loadBoard(); toast('Sprouted'); render(); return; }
       if (name === 'drop') {
         if (!confirm('Drop this seed? Your take is deleted, so others can see it’s free.')) return;
         await S.source.drop(it); S.launch = null; toast('Dropped');
@@ -658,18 +718,20 @@ export function createRainshare({ root, base = '/', host }){
       }
       if (name === 'add-setup') { stash(); S.form.profile.setups = [...(S.form.profile.setups?.length ? S.form.profile.setups : [{ harness: 'claude-code', models: [] }]), { harness: 'codex', models: [] }]; render(); return; }
       if (name === 'reset-demo') { S.source.reset(); S.form = null; S.board = null; poster.reset(); await loadMine(true); toast('The example circle is back to how it started'); go(''); return; }
-      if (it && ['drop', 'close', 'reopen'].includes(name)) { S.seed = await S.source.seed(it.uri, { force: true }) || it; S.board = null; loadBoard(); render(); }
+      if (it && ['drop', 'close', 'reopen'].includes(name)) { S.seed = await reread(it); S.board = null; loadBoard(); render(); }
     } catch (e) { console.warn('rainshare', name, e); toast(plainText(e)); if (el) el.disabled = false; }
   }
+  // The command that suits what they run. For anything else, and for a seed with no repo to
+  // clone, there isn't one: the brief is what gets copied, to paste into whatever they use.
   function pickLauncher(ls){
-    const h = mySetup()?.harness;
-    return (h === 'codex' && ls.find(l => l.id === 'codex')) || (h && h !== 'claude-code' && ls.find(l => l.id === 'mcp')) || ls[0] || null;
+    const want = { 'claude-code': 'claude', codex: 'codex' }[mySetup()?.harness];
+    return ls.find(l => l.id === want) || null;
   }
   async function sproutWith(uri){
     const it = S.seed, dl = (it.deliveries || []).find(d => d.uri === uri); if (!dl) return;
     try {
       await S.source.update(it, { state: 'sprouted', sproutedWith: [strongRef(dl)] });
-      S.seed = await S.source.seed(it.uri, { force: true }) || it; S.board = null; loadBoard();
+      S.seed = await reread(it); S.board = null; loadBoard();
       toast('Sprouted. Thank them!'); render();
     } catch (e) { toast(plainText(e)); }
   }
@@ -689,12 +751,13 @@ export function createRainshare({ root, base = '/', host }){
     try {
       const pullAt = /^at:\/\//.test(v.url) ? v.url : undefined, setup = { harness: v.harness, models: v.model ? [v.model] : [] };
       // Turning in something you hadn't said you were on (an agent handed it back): say so first, so the two records agree.
-      if (!myTake(S.seed)) { await S.source.take(S.seed, { setup }); S.seed = await S.source.seed(S.seed.uri, { force: true }) || S.seed; }
+      if (!myTake(S.seed)) { await S.source.take(S.seed, { setup }); S.seed = carry(S.seed, await S.source.seed(S.seed.uri, { force: true }) || S.seed); }
       await S.source.turnIn(S.seed, { url: pullAt ? undefined : v.url, pull: pullAt, sessionUrl: v.sessionUrl, note: v.note, setup });
-      S.drafts.turnIn = null; S.launch = null;
+      S.drafts.turnIn = null; S.launch = null; S.again = null;
       if (S.handBack) { S.handBack = null; try { history.replaceState(history.state, '', location.pathname); } catch (_) {} }
-      S.seed = await S.source.seed(S.seed.uri, { force: true }) || S.seed; S.board = null; loadBoard();
-      toast('Turned in. Nice work.'); render();
+      const who = firstName(S.seed.author);
+      S.seed = await reread(S.seed); S.board = null; loadBoard();
+      toast(`Turned in. It’s with ${who} now.`); render();
     } catch (e) { toast(plainText(e)); btn.disabled = false; }
   }
 
@@ -717,11 +780,20 @@ export function createRainshare({ root, base = '/', host }){
     }
     const tgl = t.closest('[data-rs-toggles] button'); if (tgl) { tgl.setAttribute('aria-pressed', String(tgl.getAttribute('aria-pressed') !== 'true')); return; }
     const pl = t.closest('[data-rs-launch]');
-    if (pl && !t.closest('button')) { const l = launchers(S.seed)[+pl.dataset.rsLaunch]; if (l) { S.launch = l.id; root.querySelectorAll('.rs-launchers li').forEach(li => li.classList.toggle('on', li === pl)); } return; }
-    const cp = t.closest('[data-rs-copy]'); if (cp) { const l = launchers(S.seed)[+cp.dataset.rsCopy]; if (l) { S.launch = l.id; copy(l.command, `Copied the ${l.label} command`); root.querySelectorAll('.rs-launchers li').forEach((li, i) => li.classList.toggle('on', i === +cp.dataset.rsCopy)); } return; }
+    if (pl && !t.closest('button')) { const l = ways(S.seed)[+pl.dataset.rsLaunch]; if (l) { S.launch = l.id; root.querySelectorAll('.rs-launchers li').forEach(li => li.classList.toggle('on', li === pl)); } return; }
+    const cp = t.closest('[data-rs-copy]'); if (cp) { const l = ways(S.seed)[+cp.dataset.rsCopy]; if (l) { S.launch = l.id; copy(l.command, l.copied); root.querySelectorAll('.rs-launchers li').forEach((li, i) => li.classList.toggle('on', i === +cp.dataset.rsCopy)); } return; }
     const md = t.closest('[data-rs-md]');
-    if (md) { const it = S.seed?.uri === md.dataset.rsMd ? S.seed : S.shown.find(i => i.uri === md.dataset.rsMd) || S.board?.items.find(i => i.uri === md.dataset.rsMd); if (it) copy(brief(it), 'Copied as Markdown. Paste it into your agent.'); return; }
-    const ct = t.closest('[data-rs-copy-text]'); if (ct) { copy(ct.dataset.rsCopyText, ct.dataset.rsCopyText.startsWith('git ') ? 'Copied the clone command' : 'Copied the link'); return; }
+    if (md) {
+      const it = S.seed?.uri === md.dataset.rsMd ? S.seed : S.shown.find(i => i.uri === md.dataset.rsMd) || S.board?.items.find(i => i.uri === md.dataset.rsMd);
+      // Copying is free; starting on it is worth saying, so two people don't do the same work.
+      const free = it && signedIn() && isOpen(it) && it.repo !== viewer() && !myTake(it);
+      if (it) copy(briefFor(it), free ? 'Copied. Paste it into your agent. If you start on it, press “Send my agent” so nobody doubles up.' : 'Copied as Markdown. Paste it into your agent.');
+      return;
+    }
+    const ct = t.closest('[data-rs-copy-text]'); if (ct) { copy(ct.dataset.rsCopyText, ct.dataset.rsCopied || (ct.dataset.rsCopyText.startsWith('git ') ? 'Copied the clone command' : 'Copied the link')); return; }
+    // A pull request found on the forge, claimed by the person whose agent opened it.
+    const cl = t.closest('[data-rs-claim]');
+    if (cl && S.seed) { stash(); S.drafts.turnIn = { ...(S.drafts.turnIn || {}), url: cl.dataset.rsClaim }; S.handBack = S.again = S.seed.uri; render(); root.querySelector('[data-rs-form="turnin"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
     const sp = t.closest('[data-rs-sprout]'); if (sp) { sproutWith(sp.dataset.rsSprout); return; }
     const rm = t.closest('[data-rs-remove-setup]'); if (rm) { stash(); S.form.profile.setups.splice(+rm.dataset.rsRemoveSetup, 1); render(); return; }
     const ac = t.closest('[data-rs-act]'); if (ac) { act(ac.dataset.rsAct, ac); }

@@ -123,43 +123,99 @@ they'd like, and who's on it. On a phone the details come up as a sheet.
 
 ## Sending an agent
 
-**With nothing set up.** Every seed has a "Copy as Markdown" button, which copies the brief
-for pasting into any agent. An agent with no Rainshare of its own is asked to finish with a
-link back to the seed that carries the pull request:
-`rainshare.dev/seed/<handle>/<key>?pr=<pull request>&model=<model>`. Opening that link fills
-in the turn-in form, and sending it writes your take and the delivery together
-(`handBack` and `readHandBack` in `core/brief.js`).
+However a seed reaches an agent, the agent is handed the same brief (`core/brief.js`):
 
-**With the CLI or MCP server.** "Send my agent" writes your take, then offers commands that
-each paste as one line into a terminal (`core/brief.js`):
+1. **Where** the code is, and the issue if there is one.
+2. **Where it stands** on the day it was copied: who has taken it on, what's been turned in,
+   and what the forge says. If something is in the way (someone else is on it, a pull request
+   is already up, the issue was closed), the brief says so outright.
+3. **Before you start**: look again, because a brief can sit in a clipboard for days. It names
+   the commands (`gh issue view`, `gh pr list`, `rainshare.mjs check`) and tells the agent to
+   stop and say so rather than do the work twice.
+4. **What they want**, and their guidelines. This part is framed as another person's request,
+   not as instructions that override the agent's own rules: stay inside the repository, and
+   ask before anything that reaches outside it.
+5. **Turning it in**: open the pull request (on GitHub with "Fixes #N", so that merging it
+   closes the issue) and put the seed's link in it. That link is how the seed and the pull
+   request find each other later.
+6. **When you're done**: tell your user the pull request's address, whether it has been turned
+   in on Rainshare, and that the rest is the requester's to do.
 
-- **Rainshare CLI**: `run` takes it on, clones the repo, writes the brief to
-  `.rainshare/SEED.md` (kept out of git) and starts Claude Code (or `--with codex`, or
-  `--with cloud` for a Claude Code cloud session on a fork).
-- **Claude Code** and **Codex**: `git clone … && claude "<brief>"`, with no install.
-- **Claude Code in the cloud** (GitHub): `gh repo fork … --clone && claude --cloud "<brief>"`.
-- **Any agent, through MCP**: add the server once, then ask your agent to take it on.
+There are four ways to hand it over. They differ in what has to be set up, and in who does the
+Rainshare side of things.
 
-The brief tells the agent where the code is, what the requester wants, how to turn it in, and
-that the spec is another person's request rather than instructions that override its own rules:
-it should stay inside the repository and check before anything that reaches outside it.
+| Route | Needs | Who says "I'm on it" | Who turns it in |
+| --- | --- | --- | --- |
+| **Paste the brief** into any agent | nothing | you, with "Send my agent" (or nobody, with "Copy as Markdown") | you, by opening the link the agent hands back |
+| **One command in a terminal**: `git clone … && claude "<brief>"`, or `codex`, or a Claude Code cloud session on a fork | that agent's own CLI | you, with "Send my agent" | you, by the same link |
+| **Rainshare CLI**: `run <seed>` | the one file and an app password | the CLI, after checking | the CLI: when the agent exits it finds the pull request with `gh` and offers to turn it in |
+| **MCP server**, inside your agent | the one file and an app password | the agent, with `rainshare_take`, which checks first | the agent, with `rainshare_turn_in` |
+
+"Send my agent" reads the seed again and asks the forge before it writes your take. If that
+turns up something the screen wasn't already showing, it asks before going on. Then it copies
+whatever suits the setup in your profile: the Claude Code or Codex command, or the brief by
+itself for anything else.
+
+The link an agent hands back is
+`rainshare.dev/seed/<handle>/<key>?pr=<pull request>&model=<model>`. Opening it fills in the
+turn-in form, and sending it writes your take (if there wasn't one) and the delivery together
+(`handBack` and `readHandBack` in `core/brief.js`). Once you've turned something in, the form
+steps aside and the page says what's left: nothing, unless the requester asks.
+
+## Where a seed stands
+
+`core/status.js` answers one question for the app, the brief, the CLI and the MCP server alike:
+where does this seed stand, and what should happen next? `look` asks the forge what Rainshare's
+own records can't say, and `standing` puts the two together.
+
+| What it finds | A helper is told | The requester is told |
+| --- | --- | --- |
+| Nobody is on it | It's clear to start | |
+| Someone has taken it on | Check with them first (unless the seed welcomes more than one helper) | |
+| A pull request has been turned in, or one on GitHub mentions the issue or the seed's link | Read that one before making another | |
+| A turned-in pull request has been merged | It's probably done | Mark it sprouted, with one button |
+| A pull request nobody turned in has been merged | It's probably done | Mark it sprouted |
+| The issue was closed on the forge | Ask before starting | Mark it sprouted, or close it |
+| The seed has sprouted and the issue is still open | | Close the issue on the forge |
+
+Nothing is closed automatically. Rainshare reads GitHub and Tangled but can't write to them, and
+whether a pull request did the job is the requester's call. So each side is shown what's left
+for them at the moment they're looking: on the seed's page, in `check`, and in the brief.
+
+A pull request that mentions a seed without having been turned in is listed on the seed's page
+under "Also on GitHub". Whoever's agent opened it can turn it in from there.
 
 ## The CLI and MCP server
 
 ```sh
 curl -fsSL https://rainshare.dev/rainshare.mjs -o ~/.rainshare.mjs
+node ~/.rainshare.mjs doctor                     # what's set up here, and what will work
 node ~/.rainshare.mjs login you.bsky.social      # with an app password
 node ~/.rainshare.mjs board                      # your circle, best first for you
-node ~/.rainshare.mjs run <seed>            # take, clone, start your agent
+node ~/.rainshare.mjs check <seed>               # where it stands (no sign-in needed)
+node ~/.rainshare.mjs run <seed>                 # check, take, clone, start your agent, turn it in
 node ~/.rainshare.mjs turn-in <seed> --url <pull request>
+node ~/.rainshare.mjs sprout <seed>              # your own seed: the work landed
 claude mcp add rainshare -- node ~/.rainshare.mjs mcp
 ```
 
-The MCP tools are `rainshare_board`, `rainshare_show` (with the brief), `rainshare_take`,
-`rainshare_drop`, `rainshare_turn_in`, `rainshare_plant`, `rainshare_profile` and
-`rainshare_set_forecast`. It signs in with an app password (saved to `~/.config/rainshare`, or
-from `RAINSHARE_HANDLE` and `RAINSHARE_APP_PASSWORD`), and reaches public seeds only for
-now: private ones are taken on in the app.
+`take` and `run` look before they write. If someone else is on the seed, or a pull request is
+already up, nothing is written and you're told why; `--anyway` goes ahead regardless. `run`
+writes the brief to `.rainshare/SEED.md` (kept out of git), starts Claude Code (or
+`--with codex`, or `--with cloud`), and when the agent exits it looks for the pull request and
+offers to turn it in. `turn-in` writes a take first if you hadn't said you were on it.
+
+The MCP tools are `rainshare_board`, `rainshare_show` (with the brief), `rainshare_check`,
+`rainshare_take`, `rainshare_drop`, `rainshare_turn_in`, `rainshare_plant`,
+`rainshare_close_out` (mark your own seed sprouted, closed or open again), `rainshare_profile`,
+`rainshare_set_forecast` and `rainshare_whoami`. The server's instructions give an agent the
+order: check, take, do the work, open the pull request with the seed's link in it, check again,
+turn it in, and tell its user what's left. Without a sign-in the read-only tools still work, and
+the agent is told to finish the work and hand its user the link instead.
+
+Both sign in with an app password (saved to `~/.config/rainshare`, or from `RAINSHARE_HANDLE`
+and `RAINSHARE_APP_PASSWORD`), and reach public seeds only for now: private ones are taken on
+in the app.
 
 ## Bluesky, Tangled and GitHub
 
@@ -168,9 +224,12 @@ now: private ones are taken on in the app.
   open the composer with a link.
 - **Tangled**: pick an open issue from your own Tangled repos (through Tangled's public API,
   `api.tangled.org`), or paste any tangled.org link. Repos clone over https, a delivery can be a
-  Tangled pull's at:// URI, and its state is read back from Tangled.
-- **GitHub**: paste an issue or repo link. The issue's title and body start you off, and a
-  delivered pull request shows as open, merged or closed (GitHub's public API).
+  Tangled pull's at:// URI, and its state is read back from Tangled. An issue counts as closed
+  when it's no longer among the repo's open issues.
+- **GitHub**: paste an issue or repo link. The issue's title and body start you off, and its
+  state is read back, along with each delivered pull request's (open, merged or closed). The
+  repo's 50 most recently updated pull requests are also searched for the issue's number or
+  the seed's link, to find work that wasn't turned in. All of it is GitHub's public API.
 
 ## Files
 
@@ -186,11 +245,12 @@ now: private ones are taken on in the app.
 | `core/ns.js` | Collection names, and the words people see for every known value |
 | `core/records.js` | Building each record from what people type, within the lexicons' limits |
 | `core/net.js` | Public reads: identity, records from each PDS, the relay, the Bluesky graph |
-| `core/subjects.js` | Tangled and GitHub: parsing links, clone URLs, issue titles, pull request states |
+| `core/subjects.js` | Tangled and GitHub: parsing links, clone URLs, issue titles and states, pull request states, pull requests that mention a seed |
 | `core/circle.js` | Audiences and closeness |
 | `core/rank.js` | A helper's board in order, and how well each seed fits them, with reasons |
 | `core/words.js` | A seed in plain lines: where, the job, what they'd like, who's on it |
-| `core/brief.js` | The agent brief, and the one-paste launch commands |
+| `core/status.js` | Where a seed stands: who's on it, what's been turned in, what the forge says, and what each side should do next |
+| `core/brief.js` | The agent brief, the link an agent hands back, and the one-paste launch commands |
 | `core/markdown.js` | A small, safe Markdown renderer for specs |
 | `core/source.js` | Rainshare over atproto: the board, a seed, profiles and every write, public and in group spaces |
 | `core/demo.js` | The example circle, answering the same calls from fixtures and your browser's storage |
@@ -239,7 +299,9 @@ profiles, takes and deliveries) validate against the lexicons with `@atproto/lex
 was a one-off check and isn't part of `npm test` yet. In a headless browser: the
 landing in light and dark from 360 to 1680 pixels wide with no sideways scrolling; looking
 closer at each part by its pin, by tapping the scene and from the keyboard; Next, Whole view
-and Escape; pause, reduced motion, the fallback without WebGL; and the example circle.
+and Escape; pause, reduced motion, the fallback without WebGL; and the example circle,
+including sending an agent, turning a pull request in, the warning when someone is already on
+a seed, and marking your own seed sprouted after a merge.
 
 Not yet checked:
 
@@ -248,5 +310,13 @@ Not yet checked:
   `dev.rainshare.board` space; if it doesn't yet, public seeds still work.
 - The signed-out board against the live relay and AppView from this repo. The code that reads
   them is unchanged from the prototype, where it was checked.
+- What the forges say (`look` in `core/status.js`) has only been run against made-up answers,
+  never against GitHub or Tangled themselves. Three things to watch when it is: GitHub lets a
+  browser that isn't signed in ask 60 things an hour, after which the forge's side is left
+  unknown rather than guessed; matching by "#N" finds any pull request whose text mentions the
+  issue, including ones that only refer to it in passing; and on Tangled, pull requests that
+  weren't turned in aren't looked for at all.
+- The CLI's `run` end to end with a real agent: starting it, finding the pull request with
+  `gh` afterwards, and turning it in.
 - How smoothly the scene runs on real phones and older laptops. It has only been run on a
   software renderer so far, which says it draws correctly and nothing about frame rate.

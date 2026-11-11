@@ -12,6 +12,8 @@ import { brief, launchers, handBack, readHandBack } from '../core/brief.js';
 import { createDemoSource } from '../core/demo.js';
 import { splitSpaceUri } from '../core/source.js';
 import { lifeOf } from '../ui/bits.js';
+import { standing, since, carry } from '../core/status.js';
+import { pullsAbout } from '../core/subjects.js';
 
 test('parses GitHub, Tangled and other links into subjects', () => {
   const gi = parseSubject('https://github.com/dame-is/atmosphere-online/issues/42');
@@ -160,11 +162,25 @@ test('the brief frames the request and the launchers paste as one command', () =
   assert.match(b, /Repository: https:\/\/github.com\/o\/r.git/);
   assert.match(b, /Fixes #5/);
   assert.match(b, /Tests required/);
+  // It says where things stood, what to check first, and what to tell the person at the end.
+  assert.match(b, /## Where it stands\n\nAs of \d+ \w+ \d{4}, when this was copied from Rainshare:\n\n- It’s open\.\n- Nobody has taken it on yet\./);
+  assert.match(b, /## Before you start[\s\S]*gh issue view 5 --repo o\/r --comments[\s\S]*rainshare\.mjs check at:\/\/did:plc:abc/);
+  assert.match(b, /include the seed’s link: https:\/\/rainshare\.dev\/seed\/friend\.example\/3k1/);
+  assert.match(b, /## When you’re done[\s\S]*@friend\.example marks the seed sprouted once the pull request is merged/);
+  // Whoever it's made for reads as "your user", and what the forge said comes along.
+  const taken = { ...item, takes: [{ repo: 'did:plc:me', author: { handle: 'me.example' }, value: { createdAt: new Date().toISOString(), setup: { harness: 'codex' } } }], issue: { state: 'open' } };
+  assert.match(brief(taken, { viewer: 'did:plc:me' }), /- The issue is still open on GitHub\.\n- Your user took it on today, with Codex\./);
+  // Someone else got there first: the brief says so outright, before the agent starts.
+  const theirs = { ...item, takes: [{ repo: 'did:plc:kai', author: { handle: 'kai.example' }, value: { createdAt: new Date().toISOString() } }] };
+  assert.match(brief(theirs, { viewer: 'did:plc:me' }), /- @kai\.example took it on today\.\n\n@kai\.example is already on it\. Check with them, or with your user, before starting/);
+  assert.doesNotMatch(brief(taken, { viewer: 'did:plc:me' }), /is already on it\. Check with them/);
+  assert.match(brief({ ...item, value: { title: 'An idea' } }), /No repository is named/);
+  assert.match(brief({ ...item, value: { title: 't', subject: parseSubject('https://tangled.org/a/b/issues/2') } }), /pull request against a\/b on tangled\.org, linking the issue[\s\S]*git format-patch/);
   // With nothing set up, the agent hands back a link that carries the pull request.
   assert.match(b, /rainshare\.dev\/seed\/friend\.example\/3k1\?pr=<pull request URL>&model=<model>/);
   assert.doesNotMatch(brief({ ...item, space: 'at://g/space/x/y' }), /\?pr=/);
   const ls = launchers(item);
-  assert.deepEqual(ls.map(l => l.id), ['cli', 'claude', 'cloud', 'codex', 'mcp']);
+  assert.deepEqual(ls.map(l => l.id), ['claude', 'cloud', 'codex', 'cli', 'mcp']);
   const claude = ls.find(l => l.id === 'claude').command;
   // The brief mentions the default delimiter, so the heredoc picks a longer one.
   assert.match(claude, /<<'RAINSHARE_BRIEF_'\n/);
@@ -202,6 +218,13 @@ test('the example circle answers like the real source', async () => {
   assert.equal(mineNow.group.name, 'Weekend Hackers'); assert.equal(mineNow.value.audience.group, hackers.did);
   const fresh = createDemoSource({ store });
   assert.equal((await fresh.seed(juniper.uri)).deliveries.length, 1);
+  // One of your own is most of the way round: a friend's pull request has been merged, so it's
+  // yours to mark sprouted. After that, the issue is the last thing left open.
+  const yours = items.find(i => i.rkey === '3sq-you'), dl = yours.deliveries[0];
+  assert.deepEqual([standing(yours, { viewer: src.viewer }).planter.do, standing(yours, { viewer: src.viewer }).planter.delivery], ['sprout', dl.uri]);
+  await src.update(yours, { state: 'sprouted', sproutedWith: [{ uri: dl.uri, cid: dl.cid }] });
+  const done = standing(await src.seed(yours.uri), { viewer: src.viewer });
+  assert.equal(done.planter.do, 'close-issue'); assert.equal(done.deliveries[0].accepted, true);
 });
 
 test('records from other people can’t smuggle links or shell into the page or a command', () => {
@@ -212,6 +235,8 @@ test('records from other people can’t smuggle links or shell into the page or 
   const ls = launchers(evil);
   assert.deepEqual(ls.map(l => l.id), ['cli', 'mcp']);
   assert.match(ls[0].command, /run 'at:\/\/did:plc:abc\/dev\.rainshare\.seed\/3k1'$/);
+  // The brief offers commands only for a repo name that passed the check.
+  assert.doesNotMatch(brief(evil), /curl evil|gh issue view|--repo/);
   const repo = { $type: SEED + '#repo', url: "https://x.example/r'$(id)", forge: 'other' };
   assert.equal(cloneUrlOf(repo), null);
   assert.equal(cloneUrlOf({ $type: SEED + '#repo', url: 'https://codeberg.org/a/b', forge: 'codeberg' }), 'https://codeberg.org/a/b');
@@ -240,4 +265,58 @@ test('a hand-back link carries the pull request into the turn-in form', () => {
   assert.equal(readHandBack('?model=x'), null);
   assert.equal(readHandBack(''), null);
   assert.equal(handBack({ ...item, space: 'at://g/space/x/y' }, 'https://x/pull/1'), null);
+});
+
+test('where a seed stands says whether it’s clear to start, and why not', () => {
+  const now = Date.parse('2026-11-11T12:00:00Z'), ago = d => new Date(now - d * 864e5).toISOString();
+  const seed = { uri: 'at://did:plc:abc/dev.rainshare.seed/3k1', repo: 'did:plc:abc', author: { handle: 'friend.example' }, value: { title: 'Fix it', subject: parseSubject('https://github.com/o/r/issues/5') } };
+  const kai = { repo: 'did:plc:kai', author: { handle: 'kai.example' } };
+  const take = { ...kai, uri: 'at://did:plc:kai/dev.rainshare.take/1', value: { createdAt: ago(3), setup: { harness: 'claude-code' } } };
+  const delivery = (state, by = kai) => ({ ...by, uri: 'at://did:plc:kai/dev.rainshare.delivery/1', value: { url: 'https://github.com/o/r/pull/12', createdAt: ago(1) }, state });
+  const of = (extra, o) => standing({ ...seed, ...extra }, { now, ...o });
+
+  assert.equal(of({}).verdict, 'clear');
+  assert.deepEqual(of({ issue: { state: 'open' }, linked: [] }).lines, ['It’s open.', 'The issue is still open on GitHub.', 'Nobody has taken it on yet.']);
+  // someone's on it
+  const on = of({ takes: [take] });
+  assert.equal(on.verdict, 'on-it'); assert.equal(on.clear, false);
+  assert.match(on.lines.join(' '), /@kai\.example took it on 3 days ago, with Claude Code\./);
+  assert.match(on.advice, /@kai\.example is already on it/);
+  assert.equal(of({ takes: [take], value: { ...seed.value, parallel: true } }).verdict, 'clear');
+  // it's yours
+  const mine = of({ takes: [take] }, { viewer: 'did:plc:kai' });
+  assert.equal(mine.verdict, 'clear'); assert.match(mine.advice, /You’re on it/); assert.match(mine.lines.join(' '), /You took it on 3 days ago/);
+  assert.match(of({ takes: [take], deliveries: [delivery('open')] }, { viewer: 'did:plc:kai' }).advice, /You’ve turned it in/);
+  assert.match(of({ deliveries: [delivery('closed')] }, { viewer: 'did:plc:kai' }).advice, /closed without being merged/);
+  // a pull request is in, or has landed
+  assert.equal(of({ takes: [take], deliveries: [delivery('open')] }).verdict, 'turned-in');
+  assert.equal(of({ deliveries: [delivery(null)] }).verdict, 'turned-in');
+  assert.equal(of({ deliveries: [delivery('closed')] }).verdict, 'clear');
+  const merged = of({ deliveries: [delivery('merged')] });
+  assert.equal(merged.verdict, 'merged'); assert.deepEqual(merged.planter, { do: 'sprout', delivery: 'at://did:plc:kai/dev.rainshare.delivery/1', text: '@kai.example’s pull request has been merged. If that did it, mark it sprouted.' });
+  // a pull request on the forge that nobody turned in still counts, once
+  const stray = { url: 'https://github.com/o/r/pull/14', number: 14, by: 'sam', state: 'open' };
+  const seen = of({ linked: [stray, { url: 'https://github.com/o/r/pull/12/', number: 12, by: 'kai', state: 'open' }], deliveries: [delivery('open')] });
+  assert.equal(seen.linked.length, 1); assert.match(seen.lines.join(' '), /pull request #14 by @sam mentions it \(open\) and hasn’t been turned in on Rainshare/);
+  assert.equal(of({ linked: [stray] }).verdict, 'turned-in');
+  assert.equal(of({ linked: [{ ...stray, state: 'merged' }] }).planter.do, 'look');
+  // the issue was closed, or the seed is finished
+  assert.equal(of({ issue: { state: 'closed' } }).verdict, 'issue-closed'); assert.equal(of({ issue: { state: 'closed' } }).planter.do, 'close');
+  assert.equal(of({ value: { ...seed.value, state: 'sprouted' }, issue: { state: 'open' } }).planter.do, 'close-issue');
+  assert.equal(of({ value: { ...seed.value, state: 'closed' }, takes: [take] }).verdict, 'closed');
+  // what the forge said goes along to a fresher copy of the same seed, for a little while
+  const looked = { ...seed, issue: { state: 'open' }, linked: [stray], deliveries: [delivery('merged')], lookedAt: now - 5e3 };
+  const again = carry(looked, { ...seed, deliveries: [delivery(undefined)] }, { now });
+  assert.deepEqual([again.issue.state, again.linked.length, again.deliveries[0].state], ['open', 1, 'merged']);
+  assert.equal(carry({ ...looked, lookedAt: now - 600e3 }, { ...seed }, { now }).issue, undefined);
+  assert.equal(carry(looked, { ...seed, uri: 'at://did:plc:abc/dev.rainshare.seed/other' }, { now }).linked, undefined);
+  assert.equal(since(ago(0), now), 'today'); assert.equal(since(ago(1), now), 'yesterday'); assert.equal(since(ago(20), now), '2 weeks ago'); assert.equal(since('nonsense', now), '');
+});
+
+test('pull requests on GitHub are matched to an issue or a seed', () => {
+  const pr = (number, body, extra = {}) => ({ html_url: `https://github.com/o/r/pull/${number}`, number, title: 'A change', body, user: { login: 'kai' }, state: 'open', merged_at: null, ...extra });
+  const list = [pr(12, 'Fixes #5'), pr(13, 'see #55 and o/r/issues/51'), pr(14, 'https://github.com/o/r/issues/5', { state: 'closed' }), pr(15, 'from https://rainshare.dev/seed/did:plc:abc/3k1.', { state: 'closed', merged_at: '2026-01-01' }), pr(16, null)];
+  assert.deepEqual(pullsAbout(list, { repo: 'o/r', number: 5, rkey: '3k1' }).map(p => [p.number, p.state]), [[12, 'open'], [14, 'closed'], [15, 'merged']]);
+  assert.deepEqual(pullsAbout(list, { repo: 'o/r', rkey: '3k1' }).map(p => p.number), [15]);
+  assert.deepEqual(pullsAbout({ message: 'rate limited' }, { repo: 'o/r', number: 5 }), []);
 });

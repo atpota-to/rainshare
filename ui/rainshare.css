@@ -62,6 +62,10 @@
 .rs-note.rs-bad{background:rgba(179,38,30,.1)}
 .rs-note.rs-on{background:var(--rs-ok-soft)}
 .rs-note.rs-on .rs-i{color:var(--rs-ok)}
+/* something to weigh before starting: someone's on it, a pull request is up, the issue was closed */
+.rs-note.rs-heed{background:var(--rs-down-soft)}
+.rs-note.rs-heed .rs-i{color:var(--rs-down)}
+.rs-note .rs-btn{flex:none}
 .rs-empty{padding:28px 20px;text-align:center;color:var(--rs-muted);background:var(--rs-sunk);border-radius:var(--rs-radius);text-wrap:balance}
 
 /* the board: short cards in a list, and the one you pick beside them */
@@ -204,10 +208,10 @@
 .rs-launchers li:not(.on) pre{display:none}
 .rs-launchers li:not(.on):hover{background:var(--rs-accent-soft)}
 .rs-l-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
-.rs-launchers pre,.rs-brief pre,.rs-cmd pre{margin:0;padding:10px 12px;border-radius:10px;background:#0F1A2E;color:#E2E9F7;font:12.5px/1.5 var(--rs-mono);overflow:auto;max-height:180px;white-space:pre-wrap;word-break:break-all}
+.rs-launchers pre,.rs-cmd pre{margin:0;padding:10px 12px;border-radius:10px;background:#0F1A2E;color:#E2E9F7;font:12.5px/1.5 var(--rs-mono);overflow:auto;max-height:180px;white-space:pre-wrap;word-break:break-all}
 .rs-launchers pre code,.rs-cmd pre code{background:none;padding:0;color:inherit}
-.rs-brief summary{cursor:pointer;font-weight:600;font-size:14px}
-.rs-brief pre{max-height:320px;margin:8px 0;white-space:pre-wrap;word-break:normal;overflow-wrap:anywhere}
+/* the brief is prose, so it wraps like prose */
+.rs-launchers .rs-l-brief pre{max-height:260px;word-break:normal;overflow-wrap:anywhere}
 
 /* forms */
 .rs-form{padding:24px;display:flex;flex-direction:column;gap:16px;max-width:760px;width:100%}

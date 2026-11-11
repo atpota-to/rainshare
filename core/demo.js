@@ -68,18 +68,27 @@ const SEEDS = [
     subject: { $type: sq('repo'), url: 'https://github.com/example/spine-club-site', forge: 'github', name: 'example/spine-club-site' },
     spec: 'We keep our shelf in a Google Sheet and it’s a mess. Goodreads exports a CSV: a page where I upload it and it fills `books.json` would save me hours.\n\nI’m still learning, so please explain what you did in the PR.',
     wants: { tests: 'welcome' }, tags: ['javascript'], values: ['education'], size: 'small', audience: { $type: sq('group'), group: GROUP.did } } },
-  { id: '3sq-sam', by: 'did:example:sam', at: 8 * day, state: 'sprouted', value: {
+  { id: '3sq-sam', by: 'did:example:sam', at: 8 * day, state: 'sprouted', forge: { issue: { title: 'Show the hint we already have', state: 'closed' } }, value: {
     title: 'Give the quiz app a “show me a hint” button',
     subject: { $type: sq('githubIssue'), url: 'https://github.com/example/quizbowl/issues/3', repo: 'example/quizbowl', number: 3 },
     spec: 'Each question has a `hint` field we never show. A button that reveals it (and marks the answer as hinted) would help my students.',
-    wants: { tests: 'welcome' }, tags: ['javascript', 'education'], values: ['education'], size: 'tiny', audience: { $type: sq('anyone') } } }
+    wants: { tests: 'welcome' }, tags: ['javascript', 'education'], values: ['education'], size: 'tiny', audience: { $type: sq('anyone') } } },
+  // One of your own, most of the way round: a friend's pull request has been merged, and it's
+  // waiting for you to mark it sprouted.
+  { id: '3sq-you', by: ME, at: 6 * day, forge: { issue: { title: 'README screenshots are out of date', state: 'open' } }, value: {
+    title: 'Fresh screenshots for the README, light and dark',
+    subject: { $type: sq('githubIssue'), url: 'https://github.com/example/pocket-almanac/issues/12', repo: 'example/pocket-almanac', number: 12 },
+    spec: 'The README still shows the old look. Two new screenshots of the main screen, one in each theme, at the same window size.',
+    wants: { tests: 'none' }, tags: ['docs'], size: 'tiny', audience: { $type: sq('mutuals') } } }
 ];
 const TAKES = [
   { id: '3tk-kai-amara', by: 'did:example:kai', on: '3sq-amara', at: 2 * day, value: { setup: { harness: 'claude-code', models: ['claude-opus-5-5'] }, note: 'On it this weekend' } },
-  { id: '3tk-kai-sam', by: 'did:example:kai', on: '3sq-sam', at: 7 * day, value: { setup: { harness: 'claude-code', models: ['claude-opus-5-5'] } } }
+  { id: '3tk-kai-sam', by: 'did:example:kai', on: '3sq-sam', at: 7 * day, value: { setup: { harness: 'claude-code', models: ['claude-opus-5-5'] } } },
+  { id: '3tk-juniper-you', by: 'did:example:juniper', on: '3sq-you', at: 5 * day, value: { setup: { harness: 'claude-code', models: ['claude-sonnet-5-5'] } } }
 ];
 const DELIVERIES = [
-  { id: '3dl-kai-sam', by: 'did:example:kai', on: '3sq-sam', at: 6 * day, value: { url: 'https://github.com/example/quizbowl/pull/4', setup: { harness: 'claude-code', models: ['claude-opus-5-5'] }, note: 'Hint button plus a little “hinted” badge on the score screen.' } }
+  { id: '3dl-kai-sam', by: 'did:example:kai', on: '3sq-sam', at: 6 * day, state: 'merged', value: { url: 'https://github.com/example/quizbowl/pull/4', setup: { harness: 'claude-code', models: ['claude-opus-5-5'] }, note: 'Hint button plus a little “hinted” badge on the score screen.' } },
+  { id: '3dl-juniper-you', by: 'did:example:juniper', on: '3sq-you', at: 4 * day, state: 'merged', value: { url: 'https://github.com/example/pocket-almanac/pull/13', setup: { harness: 'claude-code', models: ['claude-sonnet-5-5'] }, note: 'Both themes, taken at the same window size.' } }
 ];
 const MY_PROFILE = {
   bio: 'Here to put my leftover usage to good use.', budget: 'medium', values: ['accessibility', 'open-source', 'climate'], priorities: ['low-budget', 'students', 'values-aligned'], offering: ['javascript', 'css', 'python'],
@@ -105,14 +114,16 @@ export function createDemoSource({ store = null, me: meOverride = null } = {}){
     // The example takes and deliveries point at their seed the way real ones do: a strong ref.
     const on = x => { const s = SEEDS.find(q => q.id === x.on); return { ...x, value: { ...x.value, seed: { uri: uriOf(s.by, SEED, s.id, groupOf(s)), cid: cidOf(s.id) } } }; };
     const takes = [...TAKES.map(t => rec(on(t), TAKE)), ...state.takes.map(t => ({ ...t, author: me }))];
-    const dels = [...DELIVERIES.map(d => rec(on(d), DELIVERY)), ...state.deliveries.map(d => ({ ...d, author: me }))];
+    // What the forge would say is part of the pretence (`state` on a delivery, `forge` on a
+    // seed): for real seeds it's asked of GitHub or Tangled, in status.js.
+    const dels = [...DELIVERIES.map(d => ({ ...rec(on(d), DELIVERY), ...(d.state ? { state: d.state } : {}) })), ...state.deliveries.map(d => ({ ...d, author: me }))];
     return all.map(x => {
       const r = rec(x, SEED);
       const mine = x.by === ME, priv = !!x.private, g = groupOf(x);
       if (x.value.createdAt) r.value = x.value;
       const sqUri = r.uri;
       return {
-        ...r, example: true, space: g?.space || null, group: g,
+        ...r, example: true, space: g?.space || null, group: g, ...(x.forge || {}),
         closeness: mine ? 'self' : priv ? 'group' : closeness({ viewer: ME, author: x.by, rel: relOf(x.by) }),
         profile: mine ? state.profile : PEOPLE[x.by]?.profile || null,
         takes: takes.filter(t => t.value.seed?.uri === sqUri),

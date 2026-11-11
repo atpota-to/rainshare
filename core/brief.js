@@ -4,6 +4,7 @@
 import { SITE, labelOf, TESTS } from './ns.js';
 import { describeSubject, cloneUrlOf, kindOf, FORGE_NAMES, REPO_NAME } from './subjects.js';
 import { parseUri } from './net.js';
+import { standing } from './status.js';
 
 const CLI_URL = SITE + '/rainshare.mjs';
 export const CLI_HOME = '~/.rainshare.mjs';
@@ -32,9 +33,16 @@ export function readHandBack(search){
   return { url, model: short('model'), harness: short('harness'), sessionUrl: /^https?:\/\//i.test(short('session')) ? (q.get('session') || '').trim().slice(0, 600) : '' };
 }
 
-export function brief(item){
-  const sq = item.value || {}, sub = sq.subject, d = describeSubject(sub), clone = cloneUrlOf(sub);
-  const w = sq.wants || {}, page = pageOf(item);
+/**
+ * The brief: a seed written up for an agent. It says where the code is and what's wanted,
+ * where things stood when it was made, what to check before starting (someone else may have
+ * got there first), how to turn the work in, and what to tell the person at the end.
+ * `viewer` is the DID of whoever it's being made for, so their own take reads as theirs.
+ */
+export function brief(item, { viewer, now = Date.now() } = {}){
+  const sq = item.value || {}, sub = sq.subject, d = describeSubject(sub), clone = cloneUrlOf(sub), kind = kindOf(sub);
+  const w = sq.wants || {}, page = pageOf(item), pub = !!item.uri && !item.space, n = parseInt(sub?.number, 10) || '';
+  const forge = d ? FORGE_NAMES[d.forge] || 'the forge' : 'the forge';
   const lines = [
     `# Seed: ${sq.title}`,
     '',
@@ -50,6 +58,25 @@ export function brief(item){
     if (sq.specUrl) lines.push(`- Longer spec: ${sq.specUrl}`);
     lines.push('');
   }
+
+  // Where it stood when this was made, and what to check now: a brief can sit in a clipboard for days.
+  const st = standing(item, { viewer, now, asker: who(item) });
+  lines.push('## Where it stands', '',
+    `As of ${new Date(now).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}, when this was copied from Rainshare:`, '',
+    ...st.lines.map(l => '- ' + l.replace(/^You /, 'Your user ')), '',
+    // If something's in the way of starting, it's said outright rather than left to be worked out.
+    ...(st.clear || st.yours ? [] : [st.advice, '']));
+  const checks = [
+    kind === 'githubIssue' && d.repo && n ? `Look at the issue. Is it still open? Is there a linked pull request, or a comment from someone already working on it? \`gh issue view ${n} --repo ${d.repo} --comments\` shows it, and \`gh pr list --repo ${d.repo}\` lists the open pull requests.`
+      : d?.forge === 'github' && d.repo ? `Look through the repository’s open pull requests for one that already does this: \`gh pr list --repo ${d.repo}\`.`
+        : d?.forge === 'tangled' ? `Look at ${d.issue ? 'the issue, and at ' : ''}the repository’s pull requests on tangled.org, for one that already does this${d.href ? `: ${d.href}` : ''}.`
+          : d ? 'Look in the repository for a branch or pull request that already does this.' : null,
+    pub ? `Look at the seed itself: \`node ${CLI_HOME} check ${item.uri}\` if the Rainshare CLI is here, or the MCP tool \`rainshare_check\`. With neither, ask your user to glance at its page.`
+      : 'Ask your user to glance at the seed’s page in Rainshare.',
+    'If someone is already on it, or it’s already done, stop and tell your user rather than doing it twice.'
+  ].filter(Boolean);
+  lines.push('## Before you start', '', 'Things may have moved on since then, so check first:', '', ...checks.map((c, i) => `${i + 1}. ${c}`), '');
+
   lines.push('## What they want', '', sq.spec?.trim() || '(No details beyond the title. Read the issue, and keep it small.)', '');
   const g = [];
   if (w.models?.length) g.push(`- Models they’d like used: ${w.models.join(', ')}`);
@@ -59,18 +86,26 @@ export function brief(item){
   if (w.notes) g.push(`- ${w.notes.replace(/\n+/g, ' ')}`);
   if (sq.tags?.length) g.push(`- Tags: ${sq.tags.join(', ')}`);
   if (g.length) lines.push('## Their guidelines', '', ...g, '');
-  const forge = d ? FORGE_NAMES[d.forge] || 'the forge' : 'the forge';
+
   lines.push('## Turning it in', '',
-    kindOf(sub) === 'githubIssue' || d?.forge === 'github'
-      ? `- Push a branch to your fork on GitHub and open a pull request against ${d?.repo || 'their repository'}${d?.issue ? `, with "Fixes #${sub.number}" in its description` : ''}.`
+    kind === 'githubIssue' || d?.forge === 'github'
+      ? `- Push a branch to your fork on GitHub and open a pull request against ${d?.repo || 'their repository'}${d?.issue ? `, with "Fixes #${n}" in its description so that merging it closes the issue` : ''}.`
       : d?.forge === 'tangled'
-        ? `- Push a branch to your fork on Tangled and open a pull request against ${d.repo || 'their repository'} at tangled.org${d.issue ? ', linking the issue' : ''}.`
-        : `- Push a branch somewhere they can see it and open a pull request on ${forge}.`,
-    `- Say in the pull request that it came from Rainshare and which model did the work.`,
-    ...(item.uri && !item.space
-      ? [`- Then turn it in. If the Rainshare CLI or MCP server is set up here, do it yourself: \`node ${CLI_HOME} turn-in ${item.uri} --url <pull request URL> --model <model>\`, or the MCP tool \`rainshare_turn_in\`.`,
-        ...(page ? [`- If neither is set up, finish by giving the person this link with the pull request’s address on the end. It opens the seed with the turn-in form filled in, for them to send: ${handBack(item, '<pull request URL>', '<model>')}`] : [])]
-      : [`- Then turn it in from the seed’s page in Rainshare.`]),
+        ? `- Open a pull request against ${d.repo || 'their repository'} on tangled.org${d.issue ? ', linking the issue' : ''}. If you can’t open it yourself, leave your branch pushed (or make a patch with \`git format-patch\`) and tell your user exactly what to open, and where.`
+        : d ? `- Push a branch somewhere they can see it and open a pull request on ${forge}.`
+          : '- No repository is named. Ask your user where the person would like the work to go, or put it in a new repository, and turn in its address.',
+    `- In the pull request, say that it came from Rainshare and which model did the work${page ? `, and include the seed’s link: ${page} (that link is how the seed and the pull request find each other)` : ''}.`,
+    ...(pub
+      ? [`- Then turn it in on Rainshare. If the Rainshare CLI or MCP server is set up here, do it yourself: \`node ${CLI_HOME} turn-in ${item.uri} --url <pull request URL> --model <model>\`, or the MCP tool \`rainshare_turn_in\`.`,
+        ...(page ? [`- If neither is set up, your user turns it in with one click. Give them this link with the pull request’s address on the end; it opens the seed with the turn-in form filled in: ${handBack(item, '<pull request URL>', '<model>')}`] : [])]
+      : ['- Then your user turns it in from the seed’s page in Rainshare.']),
+    '');
+
+  lines.push('## When you’re done', '', 'End by telling your user:', '',
+    '1. The pull request’s address.',
+    pub ? '2. Whether it’s turned in on Rainshare. If you turned it in yourself, say so. If you didn’t, give them the link above to open.' : '2. That it still needs turning in on the seed’s page in Rainshare.',
+    `3. That nothing more is needed after that: ${who(item)} marks the seed sprouted once the pull request is merged.`, '',
+    `If you stop before finishing, say so plainly, so the seed can be dropped and someone else can pick it up${pub ? ` (\`node ${CLI_HOME} drop ${item.uri}\`, the MCP tool \`rainshare_drop\`, or the seed’s page)` : ''}.`,
     '');
   return lines.join('\n');
 }
@@ -86,22 +121,24 @@ const dirOf = item => 'seed-' + (parseUri(item.uri)?.rkey || 'work').slice(-8);
 export const sh = s => `'${String(s).replace(/'/g, `'\\''`)}'`;
 
 /**
- * Ways to send an agent, best first: [{ id, label, note, command }].
- * Each is a single paste into a terminal.
+ * Ways to start an agent on a seed from a terminal: [{ id, label, note, command }]. Each is a
+ * single paste, safe for a shell whatever the seed says. The first ones need nothing of
+ * Rainshare's; the last two use its own file, signed in. (The brief by itself, for pasting
+ * into an agent rather than a terminal, isn't one of these: see `brief`.)
  */
-export function launchers(item){
+export function launchers(item, opts){
   const clone = cloneUrlOf(item.value?.subject), d = describeSubject(item.value?.subject), out = [];
-  const text = brief(item), dir = dirOf(item), pub = item.uri && !item.space;
-  if (pub) out.push({
-    id: 'cli', label: 'Rainshare CLI',
-    note: 'Takes it on for you, clones the repo, writes the brief to .rainshare/SEED.md and starts Claude Code there. Add --with codex for Codex.',
-    command: `${INSTALL} && node ${CLI_HOME} run ${sh(item.uri)}`
-  });
+  const text = brief(item, opts), dir = dirOf(item), pub = item.uri && !item.space;
   if (clone) {
     out.push({ id: 'claude', label: 'Claude Code', note: 'Clones the repo and starts Claude Code with the brief.', command: `git clone ${sh(clone)} ${dir} && cd ${dir} && claude ${heredoc(text)}` });
     if (d?.forge === 'github' && REPO_NAME.test(d.repo || '')) out.push({ id: 'cloud', label: 'Claude Code in the cloud', note: 'Forks it with the GitHub CLI, then runs the work as a cloud session on your fork, so it keeps going after you close your laptop.', command: `gh repo fork ${sh(d.repo)} --clone && cd ${sh(d.repo.split('/')[1])} && claude --cloud ${heredoc(text)}` });
     out.push({ id: 'codex', label: 'Codex', note: 'Clones the repo and starts Codex with the brief.', command: `git clone ${sh(clone)} ${dir} && cd ${dir} && codex ${heredoc(text)}` });
   }
+  if (pub) out.push({
+    id: 'cli', label: 'Rainshare CLI',
+    note: 'Checks nobody else is on it, clones the repo, starts your agent with the brief, and turns the pull request in when it’s done. Needs the CLI signed in once.',
+    command: `${INSTALL} && node ${CLI_HOME} run ${sh(item.uri)}`
+  });
   if (pub) out.push({ id: 'mcp', label: 'Any agent, through MCP', note: 'Add Rainshare to your agent once, then ask it to take this seed on.', command: `${INSTALL} && ${MCP_ADD}\n# then ask: "Take on the Rainshare seed ${String(item.uri).replace(/[^\w:./-]/g, '')}"` });
   return out;
 }
