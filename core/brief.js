@@ -73,6 +73,8 @@ export function brief(item, { viewer, now = Date.now() } = {}){
   if (d) {
     lines.push('## Where', '');
     if (clone) lines.push(`- Repository: ${clone}`);
+    // A link that can't be used safely isn't printed: what's left after cloneUrlOf tidies one up is a link with shell characters in it.
+    else if (!d.issue) lines.push('- Repository: the link given isn’t one that can be used safely here. Ask your user where the code is.');
     if (d.issue && d.href) lines.push(`- Issue: ${d.href}`);
     if (specUrl) lines.push(`- Longer spec: ${specUrl}`);
     lines.push('');

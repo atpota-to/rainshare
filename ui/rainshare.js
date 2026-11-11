@@ -71,7 +71,9 @@ export function createRainshare({ root, base = '/', host }){
   // The whole seed as Markdown (the brief an agent gets), for pasting into any agent's session.
   const mdBtn = (it, cls = 'rs-quiet') => `<button class="rs-btn ${cls}" type="button" data-rs-md="${esc(it.uri)}">${ico('copy')}Copy as Markdown</button>`;
   // A forecast that ran out (its "until" has passed) isn't shown as if it were still true.
-  const forecastOf = p => p?.forecast?.level && !(Date.parse(p.forecast.until) < Date.now()) ? FORECAST.find(f => f[0] === p.forecast.level) : null;
+  // (Older CLIs saved a bare date as midnight UTC, so that's read as the end of that date.)
+  const endsAt = until => { const t = Date.parse(until); return /T00:00(:00(\.0+)?)?Z$/.test(String(until)) ? t + 86400e3 : t; };
+  const forecastOf = p => p?.forecast?.level && !(endsAt(p.forecast.until) < Date.now()) ? FORECAST.find(f => f[0] === p.forecast.level) : null;
   const isOpen = it => !it.value?.state || it.value.state === 'open';
   // The note that Rainshare is early, shown on the board until it's dismissed (in this browser only).
   const STAGE_SEEN = 'rs:stage-seen:' + STAGE;

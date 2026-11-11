@@ -3,10 +3,7 @@
 *Got rain to spare? Your friends' ideas and projects could use it.*
 
 > **Early alpha.** Rainshare works end to end, but expect rough edges, and changes to the
-> screens, the CLI and the records. Everything people post stays in their own accounts, so
-> nothing is lost if Rainshare changes. The app says so in a badge beside the logo, on the
-> landing, once on the signed-in board, and where you post an ask; the CLI and MCP server say
-> so too. `STAGE` in `core/ns.js` (and the badge in `index.html`) is the one word to change.
+> screens, the CLI and the record format. What you post is saved in your own account.
 
 AI plans reset whether you use them or not. On Rainshare, the people you trust share the
 ideas and projects they'd like a hand with. The agent usage you have left over is the rain. It's
@@ -399,6 +396,12 @@ npm test            # node --test, no extra dependencies
 npm run build       # the site in dist/, with the CLI bundled at dist/rainshare.mjs
 npm run build:cli   # just the CLI, at dist-cli/rainshare.mjs
 ```
+
+The app says it's an early alpha in a badge beside the logo, on the landing, once on the
+signed-in board, and where you post an ask; the CLI's help and version and the MCP server's
+title say so too. `STAGE` in `core/ns.js` drives the board note, the ask screen and the CLI and
+MCP text. `index.html` writes the word out by hand in three places (the badge, the badge's
+title, and the landing line), so change those with it.
 
 Sign-in in dev uses atproto's loopback client, so open the dev server at `http://127.0.0.1:<port>`
 rather than `localhost`.
