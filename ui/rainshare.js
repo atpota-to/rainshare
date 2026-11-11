@@ -11,7 +11,7 @@
 //   me                 your profile: setups, budget, forecast, who you'd like to help first
 //   u/<did>            someone's profile and their seeds
 //   agents             the CLI and MCP server, for sending agents from a terminal
-import { SEED, HARNESSES, MODELS, RUNS_ON, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, labelOf, audienceOf, modelName } from '../core/ns.js';
+import { SEED, STAGE, HARNESSES, MODELS, RUNS_ON, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, labelOf, audienceOf, modelName } from '../core/ns.js';
 import { describeSubject, cloneUrlOf, safeHttp, pullPageOf, FORGE_NAMES } from '../core/subjects.js';
 import { look, carry, standing } from '../core/status.js';
 import { newRepoPlaces, placesFor } from '../core/forges.js';
@@ -73,6 +73,10 @@ export function createRainshare({ root, base = '/', host }){
   // A forecast that ran out (its "until" has passed) isn't shown as if it were still true.
   const forecastOf = p => p?.forecast?.level && !(Date.parse(p.forecast.until) < Date.now()) ? FORECAST.find(f => f[0] === p.forecast.level) : null;
   const isOpen = it => !it.value?.state || it.value.state === 'open';
+  // The note that Rainshare is early, shown on the board until it's dismissed (in this browser only).
+  const STAGE_SEEN = 'rs:stage-seen:' + STAGE;
+  let stageDismissed = false;
+  const stageSeen = () => { if (stageDismissed) return true; try { return localStorage.getItem(STAGE_SEEN) === '1'; } catch (_) { return false; } };
   const myTake = it => (it.takes || []).find(t => t.repo === viewer());
   const mySetup = () => S.mine?.merged?.setups?.[0] || null;
   // Where a seed stands for whoever's looking (../core/status.js), and the brief made for them.
@@ -234,6 +238,7 @@ export function createRainshare({ root, base = '/', host }){
         </div>
       </header>
       ${S.source?.demo ? `<p class="rs-note rs-demo">${ico('sky')}<span>This is an example circle with made-up people. Anything you do here stays in this browser.</span>${host.exitDemo ? `<button class="rs-link" type="button" data-rs-act="exit-demo">${host.exitDemo}</button>` : ''}</p>` : ''}
+      ${signedIn() && !S.source?.demo && !stageSeen() ? `<p class="rs-note rs-stage-note">${ico('info')}<span>Rainshare is in early ${esc(STAGE)}. Some things will change, and some may break while it settles. What you post stays in your own account either way.</span><button class="rs-link" type="button" data-rs-act="stage-seen">Got it</button></p>` : ''}
       ${signedIn() && S.mine && !S.mine.merged ? `<p class="rs-note">${ico('person')}<span>Tell your circle what you run and who you’d like to help, so the right ones rise to the top.</span>${a('me', 'Set up your profile', 'rs-link')}</p>` : ''}
       <div class="rs-board-head">
         ${tabs.length ? `<nav class="rs-tabs" aria-label="Ideas and projects">${tabs.map(([k, l]) => `<button type="button" data-rs-tab="${k}" aria-pressed="${S.tab === k}">${l}</button>`).join('')}
@@ -758,6 +763,7 @@ export function createRainshare({ root, base = '/', host }){
       if (name === 'signin') { S.signin = S.signin || {}; S.sheet = false; render(); root.querySelector('[data-rs-form="signin"] input')?.focus(); window.scrollTo?.({ top: 0, behavior: 'smooth' }); return; }
       if (name === 'signin-cancel') { S.signin = null; render(); return; }
       if (name === 'exit-demo') return host.onExitDemo?.();
+      if (name === 'stage-seen') { stageDismissed = true; try { localStorage.setItem(STAGE_SEEN, '1'); } catch (_) {} root.querySelector('.rs-stage-note')?.remove(); return; }
       if (name === 'refresh') { await loadBoard(true); return; }
       if (name === 'take') {
         const r = await takeIt(it, el); if (!r) return;

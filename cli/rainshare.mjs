@@ -16,7 +16,7 @@ import { look, standing } from '../core/status.js';
 import { rank } from '../core/rank.js';
 import { parseSubject, describeSubject, cloneUrlOf, FORGE_NAMES } from '../core/subjects.js';
 import { audienceLine, CLOSENESS } from '../core/circle.js';
-import { SEED, FORECAST, BUDGETS, TESTS, HARNESSES, labelOf, audienceOf } from '../core/ns.js';
+import { SEED, STAGE, FORECAST, BUDGETS, TESTS, HARNESSES, labelOf, audienceOf } from '../core/ns.js';
 import { strongRef } from '../core/records.js';
 import { stateText } from '../core/words.js';
 import * as net from '../core/net.js';
@@ -404,7 +404,7 @@ function mcp(){
     const { id, method, params } = msg;
     if (id === undefined) return; // notifications
     try {
-      if (method === 'initialize') return send({ jsonrpc: '2.0', id, result: { protocolVersion: ['2025-06-18', '2025-03-26', '2024-11-05'].includes(params?.protocolVersion) ? params.protocolVersion : '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'rainshare', title: 'Rainshare', version: VERSION }, instructions: INSTRUCTIONS } });
+      if (method === 'initialize') return send({ jsonrpc: '2.0', id, result: { protocolVersion: ['2025-06-18', '2025-03-26', '2024-11-05'].includes(params?.protocolVersion) ? params.protocolVersion : '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'rainshare', title: `Rainshare (${STAGE})`, version: VERSION }, instructions: INSTRUCTIONS } });
       if (method === 'ping') return send({ jsonrpc: '2.0', id, result: {} });
       if (method === 'tools/list') return send({ jsonrpc: '2.0', id, result: { tools: TOOLS.map(({ run: _, ...t }) => t) } });
       if (method === 'tools/call') {
@@ -435,7 +435,8 @@ function parseArgs(argv){
   }
   return { pos, opts };
 }
-const HELP = `Rainshare ${VERSION}: friends' ideas and projects, for spare agent usage
+const HELP = `Rainshare ${VERSION} (early ${STAGE}): friends' ideas and projects, for spare agent usage
+Expect rough edges, and commands and records that may still change.
 
   login <handle>             sign in with an app password (or set RAINSHARE_HANDLE and RAINSHARE_APP_PASSWORD)
   logout                     forget the saved sign-in
@@ -472,7 +473,7 @@ async function main(){
   switch (cmd) {
     case 'mcp': return mcp();
     case 'help': case '--help': case '-h': return out(HELP);
-    case 'version': case '--version': return out(VERSION);
+    case 'version': case '--version': return out(`${VERSION} (${STAGE})`);
     case 'login': {
       const handle = pos[0] || await ask('Your handle: ');
       const password = process.env.RAINSHARE_APP_PASSWORD || await ask('An app password (Bluesky: Settings → Privacy and security → App passwords): ', { hidden: true });

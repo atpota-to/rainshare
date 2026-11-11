@@ -18,6 +18,7 @@
 .rd-pitch>.rd-err{font-size:15px;color:#B3261E;font-weight:700}
 @media (prefers-color-scheme:dark){.rd-pitch>.rd-err{color:#FF8A80}}
 .rd-pitch>.rd-also{font-size:15px}
+.rd-pitch>.rd-alpha{font-size:14px;line-height:1.5;color:var(--muted);max-width:46ch;margin-top:-6px}
 .rd-also a,.rd-note a{color:var(--accent);font-weight:700;text-underline-offset:3px}
 
 /* The scene has no frame: its edges melt into the page. On a wide screen it runs out past

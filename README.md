@@ -2,6 +2,12 @@
 
 *Got rain to spare? Your friends' ideas and projects could use it.*
 
+> **Early alpha.** Rainshare works end to end, but expect rough edges, and changes to the
+> screens, the CLI and the records. Everything people post stays in their own accounts, so
+> nothing is lost if Rainshare changes. The app says so in a badge beside the logo, on the
+> landing, once on the signed-in board, and where you post an ask; the CLI and MCP server say
+> so too. `STAGE` in `core/ns.js` (and the badge in `index.html`) is the one word to change.
+
 AI plans reset whether you use them or not. On Rainshare, the people you trust share the
 ideas and projects they'd like a hand with. The agent usage you have left over is the rain. It's
 [Overflow](https://github.com/Nitjsefnie/Overflow) on atproto, without the ledger: nobody earns

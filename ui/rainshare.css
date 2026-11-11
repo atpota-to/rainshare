@@ -66,8 +66,8 @@
 .rs-note.rs-heed{background:var(--rs-down-soft)}
 .rs-note.rs-heed .rs-i{color:var(--rs-down)}
 .rs-note .rs-btn{flex:none}
-.rs-note.rs-demo{align-items:center}
-.rs-note.rs-demo .rs-i{margin-top:0}
+.rs-note.rs-demo,.rs-note.rs-stage-note{align-items:center}
+.rs-note.rs-demo .rs-i,.rs-note.rs-stage-note .rs-i{margin-top:0}
 .rs-empty{padding:28px 20px;text-align:center;color:var(--rs-muted);background:var(--rs-sunk);border-radius:var(--rs-radius);text-wrap:balance}
 
 /* the board: short cards in a list, and the one you pick beside them */
