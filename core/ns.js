@@ -67,13 +67,14 @@ export const AUDIENCES = [
 ];
 export const TESTS = [['required', 'Tests required'], ['welcome', 'Tests welcome'], ['none', 'No tests needed']];
 export const SIZES = [['tiny', 'Tiny'], ['small', 'Small'], ['medium', 'Medium'], ['large', 'Large']];
-// What's being asked about, by how far along it is. A seed is an idea with no repo; the rest
-// are plants: projects that exist. [value, name, what it means]
+// What's being asked about, by how far along it is: an idea (no repo), or a project that
+// exists. The keys are the records' own words (a seed, then a plant's stages), and are drawn
+// as one, but what people read is plain. [value, name, what it means]
 export const STAGES = [
-  ['seed', 'Seed', 'An idea. Nothing’s been built yet.'],
-  ['seedling', 'Seedling', 'Just started. There’s a repo and a first sketch.'],
-  ['young', 'Young plant', 'It works, and it’s still taking shape.'],
-  ['established', 'Established plant', 'People use it and rely on it.']
+  ['seed', 'Idea', 'Nothing’s been built yet.'],
+  ['seedling', 'Just started', 'There’s a repo and a first sketch.'],
+  ['young', 'Taking shape', 'It works, and it’s still changing.'],
+  ['established', 'Established', 'People use it and rely on it.']
 ];
 // An idea with no repo yet: who keeps what gets built.
 export const OWNERS = [['helper', 'Whoever builds it keeps it'], ['requester', 'Started for the person who asked']];

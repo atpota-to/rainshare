@@ -1,5 +1,5 @@
 // Asking for rain, in three short steps with a preview beside them of how it will look:
-// what needs it (a seed, or a plant and where it lives), what you'd like done (with how,
+// what it is (an idea, or a project and where it lives), what you'd like done (with how,
 // folded away under "More options"), and who it's for. Then a confirmation that says who
 // can see it and what happens next.
 //
@@ -14,7 +14,7 @@ import { pageOf } from '../core/brief.js';
 import { esc, ago, ico, forgeIco, face, people, pathOf, plantPic } from './bits.js';
 
 const STEPS = ['What', 'Details', 'Who'];
-// A plant is a project that exists, and says how far along it is.
+// A project says how far along it is (and is drawn as a plant that far grown).
 const PLANT_STAGES = STAGES.filter(([k]) => k !== 'seed');
 const KINDS = [
   ['tangled', 'A Tangled issue', 'Pick from your Tangled repos'],
@@ -191,7 +191,7 @@ export function createPoster(ui){
   /* ---------- moving between steps ---------- */
   function problem(step){
     if (step === 1) {
-      if (!P.stage) return 'Pick what needs rain: a seed or a plant.';
+      if (!P.stage) return 'Pick one: an idea or a project.';
       if (P.stage === 'seed') return '';
       if (!P.kind || P.kind === 'idea') return 'Pick where it lives.';
       if (P.link.trim() && !P.subject) return 'That link isn’t one we understand. Paste the issue’s or the repo’s address.';
@@ -280,15 +280,15 @@ export function createPoster(ui){
         <p class="rs-muted">${P.owner === 'helper' ? 'You don’t need to be a developer for this one. Say what it should do in the next step, in your own words.'
           : `Or make the empty repo yourself first and point at it: ${newRepoPlaces({ title: P.title }).map(p => `<a href="${esc(p.href)}" target="_blank" rel="noopener">${esc(p.name)}</a>`).join(', ')}.`}</p>`;
     }
-    // First what it is that needs rain: a seed (an idea) or a plant someone already has. Then,
-    // for a plant, where it lives and how far along it is.
+    // First what it is: an idea, or a project someone already has. Then, for a project, where
+    // it lives and how far along it is. The pictures are the seed and the plant it'd be.
     const plant = !!P.stage && P.stage !== 'seed';
     const stageTile = (v, pic, on, t, n) => `<button type="button" class="rs-tile rs-stage" data-rs-stage="${v}" role="radio" aria-checked="${on}">${plantPic(pic, 84)}<b>${esc(t)}</b><small>${esc(n)}</small></button>`;
-    return `<h1 tabindex="-1">What needs rain?</h1>
-      <p class="rs-lede">A seed is an idea, with nothing built yet. A plant is a project you already have, however far along it is.</p>
-      <div class="rs-tiles rs-stages rs-stages-2" role="radiogroup" aria-label="What needs rain?">
-        ${stageTile('seed', 'seed', P.stage === 'seed', 'A seed', 'An idea. Nothing’s been built yet.')}
-        ${stageTile('plant', plant ? P.stage : 'young', plant, 'A plant', 'A project you already have.')}
+    return `<h1 tabindex="-1">What would you like a hand with?</h1>
+      <p class="rs-lede">An idea that nothing’s been built for yet, or a project you already have, however far along.</p>
+      <div class="rs-tiles rs-stages rs-stages-2" role="radiogroup" aria-label="An idea or a project">
+        ${stageTile('seed', 'seed', P.stage === 'seed', 'An idea', 'Nothing’s been built yet.')}
+        ${stageTile('plant', plant ? P.stage : 'young', plant, 'A project', 'Something you already have.')}
       </div>
       ${plant ? `<div class="rs-field"><span>Where does it live?</span>
         <div class="rs-tiles" role="radiogroup" aria-label="Where does it live?">${KINDS.map(([k, t, n]) => tile('data-rs-kind', k, P.kind === k, t, n)).join('')}</div></div>` : ''}
@@ -387,7 +387,7 @@ export function createPoster(ui){
   // step) the details a helper sees when they open it, and who could see it.
   function side(){
     const sq = input(), me = ui.self();
-    const line = P.step < 2 ? (!P.stage ? 'A seed or a plant' : P.stage !== 'seed' && !sq.subject ? 'Where it lives goes here' : whereText(sq))
+    const line = P.step < 2 ? (!P.stage ? 'An idea or a project' : P.stage !== 'seed' && !sq.subject ? 'Where it lives goes here' : whereText(sq))
       : [shortWhere(sq), jobShort(sq), wantsShort(sq)].filter(Boolean).join(' · ');
     const card = `<div class="rs-mini${P.stage ? ' rs-mini-pic' : ''}">
       <div class="rs-mini-top">${face(me, 'xs')}<b>You</b><span>· ${esc(P.step >= 3 ? whoFor() : 'just now')}</span></div>
@@ -401,7 +401,7 @@ export function createPoster(ui){
         <dl class="rs-facts rs-facts-sm"><dt>Where</dt><dd>${esc(whereText(sq))}</dd><dt>The job</dt><dd>${esc(jobText(sq))}</dd><dt>Would like</dt><dd>${esc(wantsText(sq))}</dd></dl>
       </div>
       <p class="rs-muted">${esc(reachText())}</p>`;
-    return `<span class="rs-side-label">How it will look on the board</span>${card}<p class="rs-muted">${esc(P.step === 1 && P.kind === 'idea' ? 'An idea needs no repo, and you don’t need to be a developer to plant one.' : HINTS[P.step])}</p>`;
+    return `<span class="rs-side-label">How it will look on the board</span>${card}<p class="rs-muted">${esc(P.step === 1 && P.kind === 'idea' ? 'An idea needs no repo, and you don’t need to be a developer to share one.' : HINTS[P.step])}</p>`;
   }
   // Typing only repaints the preview and the line under the link, so fields keep their focus.
   function paint(){
@@ -414,7 +414,7 @@ export function createPoster(ui){
     const intent = pub && P.bsky && d.page ? `https://bsky.app/intent/compose?text=${encodeURIComponent(`${bskyText()} ${d.page}`)}` : null;
     return `<section class="rs-post-done" aria-live="polite">
       <span class="rs-done-mark">${ico('check')}</span>
-      <h1 tabindex="-1">${P.stage === 'seed' ? 'It’s in the ground.' : 'It’s on the board.'}</h1>
+      <h1 tabindex="-1">It’s on the board.</h1>
       <p class="rs-lede">${esc(doneText())}</p>
       <div class="rs-mini">
         <div class="rs-mini-top">${face(ui.self(), 'xs')}<b>You</b><span>· ${esc(whoFor())} · just now</span></div>
@@ -428,11 +428,11 @@ export function createPoster(ui){
       </div>` : ''}
       <div class="rs-next"><h2>What happens next</h2><ol>
         <li><b>A friend sends their agent.</b> <span>You’ll see who’s on it, and what they’re running.</span></li>
-        ${P.kind === 'idea' ? '<li><b>They turn in what they built.</b> <span>A link to it shows up on your seed’s page, with the model that did the work.</span></li>'
-          : '<li><b>They turn in a pull request.</b> <span>It shows up on your plant’s page, with the model that did the work.</span></li>'}
-        <li><b>You mark it sprouted.</b> <span>And thank them on Bluesky, if you like.</span></li>
+        ${P.kind === 'idea' ? '<li><b>They turn in what they built.</b> <span>A link to it shows up on its page, with the model that did the work.</span></li>'
+          : '<li><b>They turn in a pull request.</b> <span>It shows up on its page, with the model that did the work.</span></li>'}
+        <li><b>You mark it done.</b> <span>And thank them on Bluesky, if you like.</span></li>
       </ol></div>
-      <div class="rs-row">${ui.a(d.path, P.stage === 'seed' ? 'See your seed' : 'See it on the board', 'rs-btn rs-primary')}<button class="rs-btn rs-quiet" type="button" data-rs-again>Ask about something else</button></div>
+      <div class="rs-row">${ui.a(d.path, 'See its page', 'rs-btn rs-primary')}<button class="rs-btn rs-quiet" type="button" data-rs-again>Ask about something else</button></div>
     </section>`;
   }
 
@@ -440,7 +440,7 @@ export function createPoster(ui){
     ui.title('Ask for rain');
     if (P.done) return `<div class="rs-post">${done()}</div>`;
     const body = [, stepWhere, stepWhat, stepWho][P.step]();
-    const next = { 1: P.stage === 'seed' ? 'Next: the idea' : 'Next: what you’d like done', 2: 'Next: who it’s for', 3: P.stage === 'seed' ? (P.busy ? 'Planting…' : 'Plant it') : (P.busy ? 'Asking…' : 'Ask for rain') }[P.step];
+    const next = { 1: P.stage === 'seed' ? 'Next: the idea' : 'Next: what you’d like done', 2: 'Next: who it’s for', 3: P.busy ? 'Asking…' : 'Ask for rain' }[P.step];
     return `<div class="rs-post">
       <header class="rs-post-head"><span>Ask for rain</span><button class="rs-link" type="button" data-rs-post-cancel>Cancel</button></header>
       <ol class="rs-stepper" aria-label="Steps">${STEPS.map((l, i) => {
