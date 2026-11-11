@@ -33,7 +33,14 @@ export function safeHttp(raw){
 }
 // What git is pointed at: a host and a plain path, and nothing a shell would read as more than one word.
 const CLONEABLE = /^https?:\/\/[A-Za-z0-9.-]+(:\d{1,5})?(\/[A-Za-z0-9._~%+@:\/-]*)?$/;
-const cloneable = raw => { const u = safeHttp(raw); return u && CLONEABLE.test(u) ? u : null; };
+// A pasted page often carries more than git needs: a user name (Bitbucket's clone links), a query
+// or fragment, or a GitLab page under /-/. That's dropped rather than the whole link refused.
+const repoRoot = u => (u.origin + u.pathname.replace(/\/-\/.*$/, '')).replace(/\/+$/, '');
+const cloneable = raw => {
+  const u = safeHttp(raw); if (!u) return null;
+  const root = repoRoot(new URL(u));
+  return CLONEABLE.test(root) ? root : null;
+};
 // A path segment, decoded where it can be: a stray % in a pasted link isn't worth a crash.
 const decode = s => { try { return decodeURIComponent(s); } catch (_) { return s; } };
 export const REPO_NAME = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
@@ -70,7 +77,7 @@ export function parseSubject(raw){
     if (parts[2] === 'issue' && /^did:[a-z]+:[A-Za-z0-9._:%-]+$/.test(parts[3] || '') && new RegExp(`^${KEY}$`).test(parts[4] || '')) return { $type: T('knotlessIssue'), url: `${repoUrl}/issue/${parts[3]}/${parts[4]}`, repoUrl, uri: `at://${parts[3]}/${K_ISSUE}/${parts[4]}` };
     return { $type: T('repo'), url: repoUrl, forge, name: `${owner}/${name}` };
   }
-  if (parts.length >= 1) return { $type: T('repo'), url: u.href.replace(/\/+$/, ''), forge, name: parts.slice(0, 2).join('/').replace(/\.git$/, '') };
+  if (parts.length >= 1) return { $type: T('repo'), url: repoRoot(u), forge, name: parts.slice(0, 2).join('/').replace(/\.git$/, '') };
   return null;
 }
 

@@ -252,7 +252,8 @@ async function doForecast(level, { until, models, note } = {}){
   if (!FORECAST.some(f => f[0] === level)) throw new CliError(`Forecast is one of: ${FORECAST.map(f => f[0]).join(', ')}.`);
   const { src, session } = await source({ required: true });
   const now = await src.profileOf(session.did);
-  const t = until ? new Date(until) : null;
+  // A bare date means the end of that day where you are, the same as the web form.
+  const t = until ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(String(until)) ? until + 'T23:59:00' : until) : null;
   const profile = { ...(now.merged || {}), forecast: { level, until: t && !isNaN(t) ? t.toISOString() : undefined, models: models ? String(models).split(',').map(s => s.trim()).filter(Boolean) : now.merged?.forecast?.models, note } };
   await src.saveProfile(profile, { hidden: now.hidden, share: now.groups.map(g => g.did) });
   return profile.forecast;

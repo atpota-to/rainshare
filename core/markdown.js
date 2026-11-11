@@ -17,7 +17,7 @@ function inline(s){
     .replace(/`([^`]+)`/g, (_, c) => keep(`<code>${c}</code>`))
     .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_, text, href) => keep(`<a href="${href}" ${LINK}>${emphasis(text)}</a>`))
     // A bare address stops before the punctuation that ends a sentence.
-    .replace(/(^|[\s(])(https?:\/\/(?:(?!&quot;|&#39;|&lt;|&gt;)[^\s<)])*(?:(?!&quot;|&#39;)[^\s<).,;:!?]))/g, (_, pre, href) => pre + keep(`<a href="${href}" ${LINK}>${href}</a>`));
+    .replace(/(^|[\s(])(https?:\/\/(?:(?!&quot;|&#39;|&lt;|&gt;)[^\s<)])*(?:(?!&quot;|&#39;|&lt;|&gt;)[^\s<).,;:!?]))/g, (_, pre, href) => pre + keep(`<a href="${href}" ${LINK}>${href}</a>`));
   t = emphasis(t);
   for (let i = 0; i < 3 && /\u0000\d+\u0000/.test(t); i++) t = t.replace(/\u0000(\d+)\u0000/g, (_, k) => kept[k] ?? '');
   return t;

@@ -132,3 +132,28 @@ test('a face: only a colour and an https avatar get into the markup', () => {
   assert.match(f, /<span>A<\/span>/);
   assert.match(face({ did: 'did:plc:y', handle: 'bo.test', avatar: 'https://cdn.example/a.jpg' }), /<img src="https:\/\/cdn\.example\/a\.jpg"[^>]*data-rs-initial="B"/);
 });
+
+test('a clone link is tidied, not refused: a user name, a query, a fragment or a GitLab page', () => {
+  const clone = link => cloneUrlOf(parseSubject(link));
+  assert.equal(clone('https://jdoe@bitbucket.org/team/repo.git'), 'https://bitbucket.org/team/repo.git');
+  assert.equal(clone('https://gitlab.com/group/project/-/tree/main?ref_type=heads'), 'https://gitlab.com/group/project');
+  assert.equal(clone('https://codeberg.org/user/repo#readme'), 'https://codeberg.org/user/repo');
+  // A record saved before links were tidied still clones.
+  assert.equal(cloneUrlOf({ $type: `${SEED}#repo`, url: 'https://jdoe@bitbucket.org/team/repo.git?x=1', forge: 'other' }), 'https://bitbucket.org/team/repo.git');
+  // Each of those gets its Repository line and the Claude Code and Codex commands.
+  for (const link of ['https://jdoe@bitbucket.org/team/repo.git', 'https://gitlab.com/group/project/-/tree/main?ref_type=heads']) {
+    const it = item(`at://did:plc:x/${SEED}/3kabc`, { subject: parseSubject(link) });
+    assert.match(brief(it), /^- Repository: https:\/\/[^ ]+$/m, link);
+    assert.deepEqual(launchers(it).map(l => l.id), ['claude', 'codex', 'cli', 'mcp'], link);
+  }
+  // A link that still isn't safe isn't printed, but the brief still says what to do.
+  const bad = brief(item(`at://did:plc:x/${SEED}/3kabc`, { subject: { $type: `${SEED}#repo`, url: 'https://git.example/a;id', forge: 'other' } }));
+  assert.doesNotMatch(bad, /a;id/);
+  assert.match(bad, /^- Repository: the link given isn’t one that can be used safely here/m);
+});
+
+test('Markdown: an address followed by <placeholder> ends before the bracket', () => {
+  const out = renderMarkdown('GET https://api.example.com/users/<id>/posts returns them');
+  assert.match(out, /href="https:\/\/api\.example\.com\/users\/"/);
+  assert.match(out, /<\/a>&lt;id&gt;\/posts returns them/);
+});
