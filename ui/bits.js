@@ -3,6 +3,15 @@ export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;'
 export const b64url = s => btoa(String.fromCharCode(...new TextEncoder().encode(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 export const unb64url = s => { try { return new TextDecoder().decode(Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0))); } catch (_) { return ''; } };
 
+/**
+ * Text with the "ai" inside every "rain" lit, the way the wordmark's is. What's read aloud is
+ * the plain sentence; the lit copy is for the eye only.
+ */
+export function lit(text){
+  const safe = esc(text), marked = safe.replace(/\b([Rr])(ai)(n)/g, '$1<span class="rs-ai">$2</span>$3');
+  return marked === safe ? safe : `<span class="rs-sr">${safe}</span><span aria-hidden="true">${marked}</span>`;
+}
+
 const HOUR = 3600e3;
 export const ago = iso => { const d = Date.now() - Date.parse(iso); if (!(d >= 0)) return ''; if (d < 60e3) return 'just now'; if (d < HOUR) return Math.floor(d / 60e3) + 'm ago'; if (d < 24 * HOUR) return Math.floor(d / HOUR) + 'h ago'; if (d < 30 * 24 * HOUR) return Math.floor(d / (24 * HOUR)) + 'd ago'; return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); };
 export const until = iso => { const t = Date.parse(iso); return t ? new Date(t).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : ''; };

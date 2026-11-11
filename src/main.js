@@ -44,7 +44,8 @@ const host = kind => ({
   navigate,
   toast,
   onTitle: t => { document.title = t ? `${t} · Rainshare` : 'Rainshare'; },
-  signIn: kind === 'real' ? (handle, sub) => oauth.signIn(handle, '/' + (sub || '')) : null,
+  // The query comes along, so a link an agent handed back still has its pull request after signing in.
+  signIn: kind === 'real' ? (handle, sub) => oauth.signIn(handle, '/' + (sub || '') + location.search) : null,
   ...(kind === 'example' ? { exitDemo: session ? 'Back to your circle' : 'Sign in for your real circle', onExitDemo: () => navigate('/') } : {})
 });
 let real = null, example = null;

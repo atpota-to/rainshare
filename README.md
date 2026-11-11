@@ -74,8 +74,10 @@ more and more rain (`skyIco` in `ui/bits.js`). A seed is drawn where it is in it
 ground, being rained on once someone's on it, up once it's turned in, and sprouted (`lifeIco`).
 The board counts them the same way under its heading.
 
-The "ai" inside the name is lit in its own colour wherever the wordmark appears. It's one
-variable, `--lit`, in `src/theme.css`, with a second value for dark.
+The "ai" inside the name is lit in its own colour wherever the wordmark appears, and so is
+the "ai" inside "rain" where the word is prominent: the headline, the pitch under it, and the
+line under the board's heading (`lit` in `ui/bits.js`). It's one variable, `--lit`, in
+`src/theme.css`, with a second value for dark. A screen reader hears the plain sentence.
 
 The site is set in one typeface, Zen Maru Gothic, the same one atmosphere.online uses
 (`--body` in `src/theme.css`).
@@ -121,8 +123,15 @@ they'd like, and who's on it. On a phone the details come up as a sheet.
 
 ## Sending an agent
 
-"Send my agent" writes your take, then offers commands that each paste as one line into a
-terminal (`core/brief.js`):
+**With nothing set up.** Every seed has a "Copy as Markdown" button, which copies the brief
+for pasting into any agent. An agent with no Rainshare of its own is asked to finish with a
+link back to the seed that carries the pull request:
+`rainshare.dev/seed/<handle>/<key>?pr=<pull request>&model=<model>`. Opening that link fills
+in the turn-in form, and sending it writes your take and the delivery together
+(`handBack` and `readHandBack` in `core/brief.js`).
+
+**With the CLI or MCP server.** "Send my agent" writes your take, then offers commands that
+each paste as one line into a terminal (`core/brief.js`):
 
 - **Rainshare CLI**: `run` takes it on, clones the repo, writes the brief to
   `.rainshare/SEED.md` (kept out of git) and starts Claude Code (or `--with codex`, or

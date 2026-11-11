@@ -16,6 +16,21 @@ export function pageOf(item){
   return p && !item.space ? `${SITE}/seed/${item.author?.handle || p.repo}/${p.rkey}` : null;
 }
 const who = item => item.author?.handle ? '@' + item.author.handle : item.repo;
+/**
+ * A link that opens a seed's page with the turn-in form filled in: what an agent with no
+ * Rainshare of its own hands back when the pull request is up. Null for a private seed.
+ */
+export function handBack(item, pr, model){
+  const page = pageOf(item);
+  return page ? `${page}?pr=${pr}${model ? `&model=${model}` : ''}` : null;
+}
+/** What a hand-back link carries, from a page address's query string: { url, model, harness, sessionUrl }, or null. */
+export function readHandBack(search){
+  const q = new URLSearchParams(search || ''), url = (q.get('pr') || '').trim();
+  if (!/^(https?:\/\/|at:\/\/)\S+$/i.test(url) || url.length > 600) return null;
+  const short = k => (q.get(k) || '').trim().slice(0, 120);
+  return { url, model: short('model'), harness: short('harness'), sessionUrl: /^https?:\/\//i.test(short('session')) ? (q.get('session') || '').trim().slice(0, 600) : '' };
+}
 
 export function brief(item){
   const sq = item.value || {}, sub = sq.subject, d = describeSubject(sub), clone = cloneUrlOf(sub);
@@ -52,9 +67,10 @@ export function brief(item){
         ? `- Push a branch to your fork on Tangled and open a pull request against ${d.repo || 'their repository'} at tangled.org${d.issue ? ', linking the issue' : ''}.`
         : `- Push a branch somewhere they can see it and open a pull request on ${forge}.`,
     `- Say in the pull request that it came from Rainshare and which model did the work.`,
-    item.uri && !item.space
-      ? `- Then turn it in: \`node ${CLI_HOME} turn-in ${item.uri} --url <pull request URL> --model <model>\`, or with the Rainshare MCP tool \`rainshare_turn_in\`.`
-      : `- Then turn it in from the seed’s page in Rainshare.`,
+    ...(item.uri && !item.space
+      ? [`- Then turn it in. If the Rainshare CLI or MCP server is set up here, do it yourself: \`node ${CLI_HOME} turn-in ${item.uri} --url <pull request URL> --model <model>\`, or the MCP tool \`rainshare_turn_in\`.`,
+        ...(page ? [`- If neither is set up, finish by giving the person this link with the pull request’s address on the end. It opens the seed with the turn-in form filled in, for them to send: ${handBack(item, '<pull request URL>', '<model>')}`] : [])]
+      : [`- Then turn it in from the seed’s page in Rainshare.`]),
     '');
   return lines.join('\n');
 }

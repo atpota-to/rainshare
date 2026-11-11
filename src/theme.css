@@ -22,7 +22,8 @@ a{color:inherit}
 
 .rs{
   --rs-ink:var(--ink); --rs-muted:var(--muted); --rs-line:var(--line); --rs-bg-card:var(--card); --rs-field:var(--card);
-  --rs-accent:var(--accent); --rs-accent-soft:var(--accent-soft); --rs-font:var(--body); --rs-display:var(--display)
+  --rs-accent:var(--accent); --rs-accent-soft:var(--accent-soft); --rs-font:var(--body); --rs-display:var(--display);
+  --rs-lit:var(--lit); --rs-lit-glow:var(--lit-glow)
 }
 @media (prefers-color-scheme:dark){
   .rs{

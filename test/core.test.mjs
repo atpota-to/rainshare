@@ -8,7 +8,7 @@ import { meantFor, closeness } from '../core/circle.js';
 import { rank, score, fit } from '../core/rank.js';
 import { whereText, shortWhere, jobText, jobShort, wantsText, onItText, takenShort, askExcerpt } from '../core/words.js';
 import { renderMarkdown } from '../core/markdown.js';
-import { brief, launchers } from '../core/brief.js';
+import { brief, launchers, handBack, readHandBack } from '../core/brief.js';
 import { createDemoSource } from '../core/demo.js';
 import { splitSpaceUri } from '../core/source.js';
 import { lifeOf } from '../ui/bits.js';
@@ -160,6 +160,9 @@ test('the brief frames the request and the launchers paste as one command', () =
   assert.match(b, /Repository: https:\/\/github.com\/o\/r.git/);
   assert.match(b, /Fixes #5/);
   assert.match(b, /Tests required/);
+  // With nothing set up, the agent hands back a link that carries the pull request.
+  assert.match(b, /rainshare\.dev\/seed\/friend\.example\/3k1\?pr=<pull request URL>&model=<model>/);
+  assert.doesNotMatch(brief({ ...item, space: 'at://g/space/x/y' }), /\?pr=/);
   const ls = launchers(item);
   assert.deepEqual(ls.map(l => l.id), ['cli', 'claude', 'cloud', 'codex', 'mcp']);
   const claude = ls.find(l => l.id === 'claude').command;
@@ -222,4 +225,19 @@ test('a seed’s life reads from who is on it, what was turned in, and whether i
   assert.equal(lifeOf({ value: {}, takes: [{}] }), 'rain');
   assert.equal(lifeOf({ value: {}, takes: [{}], deliveries: [{}] }), 'up');
   assert.equal(lifeOf({ value: { state: 'sprouted' }, deliveries: [{}] }), 'sprouted');
+});
+
+test('a hand-back link carries the pull request into the turn-in form', () => {
+  const item = { uri: 'at://did:plc:abc/dev.rainshare.seed/3k1', repo: 'did:plc:abc', author: { handle: 'friend.example' }, value: { title: 'Fix it' } };
+  const link = handBack(item, 'https://github.com/o/r/pull/12', 'claude-opus-5-5');
+  assert.equal(link, 'https://rainshare.dev/seed/friend.example/3k1?pr=https://github.com/o/r/pull/12&model=claude-opus-5-5');
+  assert.deepEqual(readHandBack(new URL(link).search), { url: 'https://github.com/o/r/pull/12', model: 'claude-opus-5-5', harness: '', sessionUrl: '' });
+  // Encoded works too, and so does a Tangled pull's at:// address.
+  assert.equal(readHandBack('?pr=' + encodeURIComponent('https://github.com/o/r/pull/12') + '&session=https%3A%2F%2Fclaude.ai%2Fcode%2Fs1').sessionUrl, 'https://claude.ai/code/s1');
+  assert.equal(readHandBack('?pr=at://did:plc:abc/sh.tangled.repo.pull/3k2').url, 'at://did:plc:abc/sh.tangled.repo.pull/3k2');
+  // Anything that isn't a link is ignored, so a page can't be made to fill the form with script.
+  assert.equal(readHandBack('?pr=javascript:alert(1)'), null);
+  assert.equal(readHandBack('?model=x'), null);
+  assert.equal(readHandBack(''), null);
+  assert.equal(handBack({ ...item, space: 'at://g/space/x/y' }, 'https://x/pull/1'), null);
 });
