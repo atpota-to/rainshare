@@ -6,6 +6,8 @@ export const COLLECTIONS = [PROFILE, SEED, TAKE, DELIVERY];
 // The space type a group's Rainshare lives in (its private seeds, takes, deliveries and profiles).
 export const BOARD = NS + '.board';
 export const SITE = 'https://rainshare.dev';
+// How far along Rainshare itself is. The badge in index.html says the same; change both together.
+export const STAGE = 'alpha';
 // Private seeds in a group's space. Spaces are still an alpha on the group host, so for now
 // every seed is public: sign-in asks only for Rainshare's own records, and the app shows
 // groups as coming. Turning this on brings back everything private (src/scope.js, the

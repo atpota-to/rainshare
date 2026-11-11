@@ -5,7 +5,7 @@
 //
 // rainshare.js owns the screen and hands in what this needs as `ui`; this keeps the draft
 // (so it survives leaving and coming back) and draws the steps.
-import { SEED, STAGES, MODEL_PICKS, GROUPS, modelName } from '../core/ns.js';
+import { SEED, STAGE, STAGES, MODEL_PICKS, GROUPS, modelName } from '../core/ns.js';
 import { parseSubject, describeSubject, kindOf, subjectInfo, knotlessIssueSubject } from '../core/subjects.js';
 import { newRepoPlaces } from '../core/forges.js';
 import { whereText, shortWhere, jobText, jobShort, wantsText, wantsShort, askExcerpt, stageOf, aNoun } from '../core/words.js';
@@ -381,7 +381,8 @@ export function createPoster(ui){
         <label class="rs-check"><input type="checkbox" name="bsky"${P.bsky ? ' checked' : ''}> Also post it on Bluesky, so ${P.audience === 'anyone' ? 'people' : FOR[P.audience]} notice</label>
         ${P.bsky ? `<textarea name="bskyText" rows="3" maxlength="230" aria-label="Your Bluesky post">${esc(bskyText())}</textarea><small>The link to it goes on the end. Bluesky opens with this ready, and you post it there.</small>` : ''}
       </div>` : ''}
-      <p class="rs-muted">${pub ? 'It’s saved as a record in your own account.' : `It’s saved in your own account, inside ${esc(groupNow()?.name || 'the group')}’s private Rainshare space.`} You can close it, reopen it or delete it whenever you like.</p>`;
+      <p class="rs-muted">${pub ? 'It’s saved as a record in your own account.' : `It’s saved in your own account, inside ${esc(groupNow()?.name || 'the group')}’s private Rainshare space.`} You can close it, reopen it or delete it whenever you like.</p>
+      <p class="rs-muted">Rainshare is in early ${STAGE}: if something here breaks, your ask is still safe in your own account.</p>`;
   }
 
   // The preview beside the steps: the card as the board will show it, then (on the last
