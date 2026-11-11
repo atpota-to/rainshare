@@ -65,6 +65,12 @@ const FORGE_ICON = {
   knotless: '<path d="M4 13c2.4-4.5 5.6-4.5 8 0s5.6 4.5 8 0"/>',
   other: '<circle cx="6" cy="6" r="2.2"/><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="8" r="2.2"/><path d="M6 8.2v7.6M18 10.2c0 4-6 3-12 6"/>'
 };
+// The four plants (../src/plants). A picture of each is at <base><stage>.webp; with `live`, a
+// canvas sits over it for the host to draw the turning model on, where it can.
+let plantBase = '/plants/';
+export const setPlantBase = base => { plantBase = base; };
+export const plantPic = (stage, px = 40, { live = false, cls = '' } = {}) =>
+  `<span class="rs-plant${cls ? ' ' + cls : ''}" style="--rs-plant:${px}px">${live ? `<canvas data-rs-plant="${esc(stage)}" aria-hidden="true"></canvas>` : ''}<img src="${esc(plantBase + stage + '.webp')}" width="${px}" height="${px}" alt="" decoding="async"></span>`;
 export const forgeIco = f => `<svg class="rs-i rs-forge" viewBox="0 0 24 24" aria-hidden="true">${FORGE_ICON[f] || FORGE_ICON.other}</svg>`;
 
 export function face(p, cls = ''){

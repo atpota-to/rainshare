@@ -8,6 +8,15 @@ import { join, modelsOf, modelMatch } from './rank.js';
 const firstName = p => String(p?.displayName || '').trim().split(/\s+/)[0] || (p?.handle ? '@' + p.handle : 'Someone');
 const harnessName = h => labelOf(HARNESSES, h);
 
+/** Which of the four it is: 'seed' (an idea, no repo), 'seedling', 'young' or 'established'. One with a repo that doesn't say is drawn as a young plant. */
+export const stageOf = sq => !describeSubject(sq?.subject) ? 'seed' : ['seedling', 'young', 'established'].includes(sq?.stage) ? sq.stage : 'young';
+/** What to call it: "seed", "seedling", "young plant", "established plant", or just "plant" for one that doesn't say how far along it is. */
+export const nounOf = sq => !describeSubject(sq?.subject) ? 'seed' : { seedling: 'seedling', young: 'young plant', established: 'established plant' }[sq?.stage] || 'plant';
+/** Which plant to draw for it: its own stage, or the next one on once it has sprouted (a seed that sprouted is a seedling now). */
+export const pictureOf = sq => { const st = stageOf(sq); return sq?.state === 'sprouted' ? { seed: 'seedling', seedling: 'young', young: 'established' }[st] || st : st; };
+/** The same with its article: "a seed", "an established plant". */
+export const aNoun = sq => { const n = nounOf(sq); return (/^[aeiou]/.test(n) ? 'an ' : 'a ') + n; };
+
 /** "GitHub issue #14, example/flashdeck", "Tangled, kai.example/almanac", or for an idea "No repo yet". */
 export function whereText(sq){
   const s = sq?.subject, d = describeSubject(s);

@@ -4,21 +4,20 @@
 //
 // rainshare.js owns the screen and hands in what this needs as `ui`; this keeps the draft
 // (so it survives leaving and coming back) and draws the steps.
-import { SEED, MODEL_PICKS, modelName } from '../core/ns.js';
+import { SEED, STAGES, MODEL_PICKS, modelName } from '../core/ns.js';
 import { parseSubject, describeSubject, kindOf, subjectInfo, knotlessIssueSubject } from '../core/subjects.js';
 import { newRepoPlaces } from '../core/forges.js';
-import { whereText, shortWhere, jobText, jobShort, wantsText, wantsShort, askExcerpt } from '../core/words.js';
+import { whereText, shortWhere, jobText, jobShort, wantsText, wantsShort, askExcerpt, stageOf, aNoun } from '../core/words.js';
 import { join } from '../core/rank.js';
 import { pageOf } from '../core/brief.js';
-import { esc, ago, ico, forgeIco, face, people, pathOf } from './bits.js';
+import { esc, ago, ico, forgeIco, face, people, pathOf, plantPic } from './bits.js';
 
-const STEPS = ['Where', 'What', 'How', 'Who', 'Look it over'];
+const STEPS = ['Which', 'What', 'How', 'Who', 'Look it over'];
 const KINDS = [
   ['tangled', 'A Tangled issue', 'Pick from your Tangled repos'],
   ['knotless', 'A knotless issue', 'Pick from your knotless repos'],
   ['github', 'A GitHub issue', 'Paste its link'],
-  ['repo', 'Any git repo', 'Codeberg, GitLab, your own server'],
-  ['idea', 'Just an idea', 'No repo. Someone else can build it']
+  ['repo', 'Any git repo', 'Codeberg, GitLab, your own server']
 ];
 const TEST_PICKS = [['required', 'Required'], ['welcome', 'Welcome'], ['none', 'Not needed']];
 const SIZE_PICKS = [['tiny', 'Tiny', 'minutes'], ['small', 'Small', 'an evening'], ['medium', 'Medium', 'a weekend'], ['large', 'Large', 'longer']];
@@ -42,6 +41,7 @@ const list = s => String(s || '').split(',').map(x => x.trim().replace(/^#/, '')
 
 const fresh = () => ({
   step: 1, reached: 1, done: null, busy: false, err: '',
+  stage: null,       // what's being planted: 'seed' (an idea), or a plant: 'seedling', 'young' or 'established'
   kind: null, link: '', subject: null, info: null, prefilled: false,
   repos: null, repo: null, issues: null,
   title: '', spec: '', specUrl: '',
@@ -128,7 +128,7 @@ export function createPoster(ui){
   const listNow = () => (P.lists || []).find(l => l.uri === P.list) || null;
   function input(){
     return {
-      title: P.title, subject: subjectNow(), owner: P.kind === 'idea' ? P.owner : undefined, spec: P.spec, specUrl: P.specUrl, tags: P.tags, values: P.values, size: P.size, parallel: P.parallel,
+      title: P.title, subject: subjectNow(), stage: P.stage || undefined, owner: P.kind === 'idea' ? P.owner : undefined, spec: P.spec, specUrl: P.specUrl, tags: P.tags, values: P.values, size: P.size, parallel: P.parallel,
       wants: P.kind === 'idea' && P.owner === 'helper' ? { notes: P.notes.trim() }
         : { models: [...new Set([...P.models, ...list(P.otherModel)])], tests: P.tests, maxDiffLines: parseInt(P.maxDiffLines, 10) || undefined, notes: P.notes.trim() },
       audience: P.audience, list: P.audience === 'list' ? P.list : undefined
@@ -187,8 +187,9 @@ export function createPoster(ui){
   /* ---------- moving between steps ---------- */
   function problem(step){
     if (step === 1) {
-      if (!P.kind) return 'Pick where the work is, or “Nowhere yet”.';
-      if (P.kind === 'idea') return '';
+      if (!P.stage) return 'Pick what you’re planting: a seed, or a plant.';
+      if (P.stage === 'seed') return '';
+      if (!P.kind || P.kind === 'idea') return 'Pick where it lives.';
       if (P.link.trim() && !P.subject) return 'That link isn’t one we understand. Paste the issue’s or the repo’s address.';
       if (!P.subject) return { tangled: 'Pick one of your repos, or paste a Tangled link.', knotless: 'Pick one of your repos, or paste a knotless link.', github: 'Paste the issue’s link, or the repo’s.', repo: 'Paste where to clone it from.' }[P.kind];
     }
@@ -275,9 +276,13 @@ export function createPoster(ui){
         <p class="rs-muted">${P.owner === 'helper' ? 'You don’t need to be a developer for this one. Say what it should do in the next step, in your own words.'
           : `Or make the empty repo yourself first and point at it: ${newRepoPlaces({ title: P.title }).map(p => `<a href="${esc(p.href)}" target="_blank" rel="noopener">${esc(p.name)}</a>`).join(', ')}.`}</p>`;
     }
-    return `<h1 tabindex="-1">Where’s the work?</h1>
-      <p class="rs-lede">Point at the issue or the repo, and Rainshare brings in its title and details. Or plant an idea with no repo at all.</p>
-      <div class="rs-tiles" role="radiogroup" aria-label="Where’s the work?">${KINDS.map(([k, t, n]) => tile('data-rs-kind', k, P.kind === k, t, n)).join('')}</div>
+    // First what it is: a seed (an idea) or a plant, by how far along it is. Then, for a plant, where it lives.
+    return `<h1 tabindex="-1">What are you planting?</h1>
+      <p class="rs-lede">A seed is an idea, with nothing built yet. A plant is a project that exists, however far along it is.</p>
+      <div class="rs-tiles rs-stages" role="radiogroup" aria-label="What are you planting?">${STAGES.map(([k, t, n]) =>
+        `<button type="button" class="rs-tile rs-stage" data-rs-stage="${k}" role="radio" aria-checked="${P.stage === k}">${plantPic(k, 84)}<b>${esc(t)}</b><small>${esc(n)}</small></button>`).join('')}</div>
+      ${P.stage && P.stage !== 'seed' ? `<div class="rs-field"><span>Where does it live?</span>
+        <div class="rs-tiles" role="radiogroup" aria-label="Where does it live?">${KINDS.map(([k, t, n]) => tile('data-rs-kind', k, P.kind === k, t, n)).join('')}</div></div>` : ''}
       ${more}
       <p class="rs-found" data-rs-found aria-live="polite">${found()}</p>`;
   }
@@ -342,7 +347,7 @@ export function createPoster(ui){
       const lists = P.lists;
       body = `<div class="rs-options" role="radiogroup" aria-label="Who it’s for">${AUDIENCE_PICKS.map(([k, t, n]) => row('data-rs-aud', k, P.audience === k, t, k === 'list' && listNow() ? listNow().name : n, people(countFor(k)))).join('')}</div>
         ${P.audience === 'list' ? (lists == null ? '<p class="rs-muted">Finding your lists…</p>' : lists.length ? `<label>Which list<select name="list">${lists.map(l => `<option value="${esc(l.uri)}"${P.list === l.uri ? ' selected' : ''}>${esc(l.name)} (${people(l.count)})</option>`).join('')}</select></label>` : '<p class="rs-muted">You don’t have any Bluesky lists yet. Make one at bsky.app, then come back.</p>') : ''}
-        <p class="rs-muted">Public seeds are records anyone could look up. This says who it’s meant for: Rainshare shows it only to them and only offers it to them. For something truly private, plant it in a group.</p>`;
+        <p class="rs-muted">What’s planted in public is a record anyone could look up. This says who it’s meant for: Rainshare shows it only to them and only offers it to them. For something truly private, plant it in a group.</p>`;
     }
     return `<h1 tabindex="-1">Who’s it for?</h1>
       <p class="rs-lede">Only the people you pick see it on their board and can take it on.</p>
@@ -359,7 +364,7 @@ export function createPoster(ui){
     return `<h1 tabindex="-1">Look it over</h1>
       <p class="rs-lede">This is everything a helper and their agent will get.</p>
       <dl class="rs-review">
-        ${rowOf(1, 'Where', esc(whereLong(sq)))}
+        ${rowOf(1, 'Which', `<span class="rs-row">${plantPic(stageOf(sq), 44)}<span>${esc(cap(aNoun(sq)))}. ${esc(whereLong(sq))}</span></span>`)}
         ${rowOf(2, 'What', `<b>${esc(sq.title)}</b>${sq.spec ? `<br>${esc(askExcerpt(sq.spec, 360))}` : '<br><span class="rs-muted">No details beyond the title.</span>'}${sq.specUrl ? '<br><span class="rs-muted">And a longer spec, linked.</span>' : ''}`)}
         ${rowOf(3, 'How', esc(howText(sq)))}
         ${rowOf(4, 'Who', esc(whoText()))}
@@ -375,12 +380,12 @@ export function createPoster(ui){
   // step) the details a helper sees when they open it.
   function side(){
     const sq = input(), me = ui.self();
-    const line = P.step < 3 ? (P.kind === 'idea' || !sq.subject ? (P.kind ? whereText(sq) : 'Where it is goes here') : whereText(sq))
+    const line = P.step < 3 ? (!P.stage ? 'A seed or a plant' : P.stage !== 'seed' && !sq.subject ? 'Where it lives goes here' : whereText(sq))
       : [shortWhere(sq), jobShort(sq), wantsShort(sq)].filter(Boolean).join(' · ');
-    const card = `<div class="rs-mini">
+    const card = `<div class="rs-mini${P.stage ? ' rs-mini-pic' : ''}">
       <div class="rs-mini-top">${face(me, 'xs')}<b>You</b><span>· ${esc(P.step >= 4 ? whoFor() : 'just now')}</span></div>
       <b class="rs-mini-title">${esc(sq.title.trim() || 'Your title goes here')}</b>
-      <span class="rs-mini-line">${esc(line)}</span></div>`;
+      <span class="rs-mini-line">${esc(line)}</span>${P.stage ? plantPic(P.stage, 96, { live: true }) : ''}</div>`;
     if (P.step === 5) return `<span class="rs-side-label">What a helper sees when they open it</span>
       <div class="rs-mini rs-mini-open">
         <div class="rs-mini-top">${face(me, 'xs')}<b>You</b><span>· ${esc(whoFor())} · just now</span></div>
@@ -392,7 +397,7 @@ export function createPoster(ui){
   }
   // Typing only repaints the preview and the line under the link, so fields keep their focus.
   function paint(){
-    const s = ui.root.querySelector('.rs-post-side'); if (s) s.innerHTML = side();
+    const s = ui.root.querySelector('.rs-post-side'); if (s) { s.innerHTML = side(); ui.live?.(); }
     const f = ui.root.querySelector('[data-rs-found]'); if (f) f.innerHTML = found();
   }
 
@@ -415,8 +420,8 @@ export function createPoster(ui){
       </div>` : ''}
       <div class="rs-next"><h2>What happens next</h2><ol>
         <li><b>A friend sends their agent.</b> <span>You’ll see who’s on it, and what they’re running.</span></li>
-        ${P.kind === 'idea' ? '<li><b>They turn in what they built.</b> <span>A link to it shows up on your seed, with the model that did the work.</span></li>'
-          : '<li><b>They turn in a pull request.</b> <span>It shows up on your seed, with the model that did the work.</span></li>'}
+        ${P.kind === 'idea' ? '<li><b>They turn in what they built.</b> <span>A link to it shows up on your seed’s page, with the model that did the work.</span></li>'
+          : '<li><b>They turn in a pull request.</b> <span>It shows up on your plant’s page, with the model that did the work.</span></li>'}
         <li><b>You mark it sprouted.</b> <span>And thank them on Bluesky, if you like.</span></li>
       </ol></div>
       <div class="rs-row">${ui.a(d.path, 'See your seed', 'rs-btn rs-primary')}<button class="rs-btn rs-quiet" type="button" data-rs-again>Plant another</button></div>
@@ -424,12 +429,12 @@ export function createPoster(ui){
   }
 
   function view(){
-    ui.title('Plant a seed');
+    ui.title('Plant something');
     if (P.done) return `<div class="rs-post">${done()}</div>`;
     const body = [, stepWhere, stepWhat, stepHow, stepWho, stepLook][P.step]();
-    const next = { 1: P.kind === 'idea' ? 'Next: the idea' : 'Next: what you’d like done', 2: P.kind === 'idea' && P.owner === 'helper' ? 'Next: anything to add' : 'Next: how it should be done', 3: 'Next: who it’s for', 4: 'Next: look it over', 5: P.busy ? 'Planting…' : 'Plant it' }[P.step];
+    const next = { 1: P.stage === 'seed' ? 'Next: the idea' : 'Next: what you’d like done', 2: P.kind === 'idea' && P.owner === 'helper' ? 'Next: anything to add' : 'Next: how it should be done', 3: 'Next: who it’s for', 4: 'Next: look it over', 5: P.busy ? 'Planting…' : 'Plant it' }[P.step];
     return `<div class="rs-post">
-      <header class="rs-post-head"><span>Plant a seed</span><button class="rs-link" type="button" data-rs-post-cancel>Cancel</button></header>
+      <header class="rs-post-head"><span>Plant something</span><button class="rs-link" type="button" data-rs-post-cancel>Cancel</button></header>
       <ol class="rs-stepper" aria-label="Steps">${STEPS.map((l, i) => {
         const n = i + 1, state = n < P.step ? 'done' : n === P.step ? 'on' : '';
         return `<li class="${state}"><button type="button" data-rs-step="${n}"${n > P.reached ? ' disabled' : ''}${n === P.step ? ' aria-current="step"' : ''}><span class="rs-step-n" aria-hidden="true">${n < P.step ? ico('check') : n}</span><span>${l}</span></button></li>`;
@@ -456,6 +461,14 @@ export function createPoster(ui){
         if (picker() && (P.reposOf !== k || P.repos === null || P.repos?.error)) return loadRepos();
         if (picker() && Array.isArray(P.repos) && P.repos.length === 1) return loadIssues(picker().id(P.repos[0]));
         ui.render(); ui.root.querySelector('.rs-post [name="link"]')?.focus();
+      })
+      // A seed has nowhere to live yet; a plant keeps whatever repo was already picked for it.
+      || pick('[data-rs-stage]', el => {
+        const st = el.dataset.rsStage; if (P.stage === st) return;
+        const was = P.stage; P.stage = st; P.err = '';
+        if (st === 'seed') Object.assign(P, { kind: 'idea', link: '', subject: null, info: null, repo: null, issues: null, parallel: P.owner === 'helper' });
+        else if (was === 'seed' || P.kind === 'idea') Object.assign(P, { kind: null, parallel: false });
+        ui.render();
       })
       || pick('[data-rs-issue]', el => { pickIssue(el.dataset.rsIssue); P.err = ''; ui.render(); })
       // An idea given away can be built by more than one person; one started for you is one job.

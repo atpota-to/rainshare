@@ -13,6 +13,7 @@ import * as net from './net.js';
 import * as R from './records.js';
 import { closeness, meantFor } from './circle.js';
 import { completeTangled, tangledRepos, tangledIssues, knotlessRepos, knotlessIssues } from './subjects.js';
+import { wateredBy } from './garden.js';
 
 const TTL = 60e3;
 /** A record URI inside a space: the space, then repo/collection/rkey. */
@@ -185,6 +186,18 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
   }
 
   /** Someone's profile: the public copy, made fuller by any group copy you can read. */
+  // What someone has watered: their own deliveries say which seeds and plants they worked on,
+  // and each of those says whether its planter marked it sprouted with that work. Public ones only.
+  const gardenOf = did => memo('garden:' + did, async () => {
+    const mine = await net.listRecords(did, DELIVERY, { pages: 2 }).catch(() => []), on = new Map();
+    for (const d of mine) { const u = d.value?.seed?.uri, p = net.parseUri(u); if (p?.collection === SEED) on.set(u, [...(on.get(u) || []), { uri: d.uri, repo: did }]); }
+    const found = await net.pool([...on.keys()].slice(0, 80), 6, async u => {
+      const p = net.parseUri(u), rec = await net.getRecordOrNull(p.repo, SEED, p.rkey).catch(() => null);
+      return rec ? { uri: u, repo: p.repo, rkey: p.rkey, value: rec.value, deliveries: on.get(u) } : null;
+    });
+    const garden = wateredBy(did, found.filter(Boolean)), people = await net.profiles(garden.map(g => g.repo)).catch(() => new Map());
+    return garden.map(g => ({ ...g, author: people.get(g.repo) || net.knownPerson(g.repo) || { did: g.repo } }));
+  });
   async function profileOf(did, { force } = {}){
     if (force) forget('profile:' + did);
     const [pub, who] = await Promise.all([publicProfile(did).catch(() => null), people([did])]);
@@ -278,6 +291,7 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     tangledRepos: () => viewer ? tangledRepos(viewer) : Promise.resolve([]),
     tangledIssues,
     knotlessRepos: () => viewer ? knotlessRepos(viewer) : Promise.resolve([]),
-    knotlessIssues
+    knotlessIssues,
+    gardenOf
   };
 }

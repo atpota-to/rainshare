@@ -1,0 +1,23 @@
+<!doctype html>
+<!-- Not part of the site: scripts/render-plants.mjs opens this through the dev server to take
+     the plants' pictures (public/plants/*.webp). Open it yourself to see them turning. -->
+<meta charset="utf-8">
+<title>Rainshare's plants</title>
+<style>
+  body{margin:0;padding:24px;font:15px system-ui;background:#eef3ff;color:#12203a;display:flex;gap:24px;flex-wrap:wrap}
+  body.dark{background:#0b1220;color:#e2e9f7}
+  figure{margin:0;text-align:center}
+  canvas{width:192px;height:192px;display:block}
+</style>
+<body>
+<script type="module">
+  import { mountPlant, stillOf } from './live.js';
+  import { PLANT_STAGES } from './models.js';
+  if (new URLSearchParams(location.search).has('dark')) document.body.classList.add('dark');
+  for (const s of PLANT_STAGES) {
+    const f = document.createElement('figure'), c = document.createElement('canvas');
+    f.append(c, s); document.body.append(f); mountPlant(c, s);
+  }
+  window.plantStills = size => Object.fromEntries(PLANT_STAGES.map(s => [s, stillOf(s, size)]));
+  window.plantsReady = true;
+</script>

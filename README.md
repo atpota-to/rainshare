@@ -1,17 +1,19 @@
 # Rainshare
 
-*Got rain to spare? Your friends have seeds in the ground.*
+*Got rain to spare? Your friends' seeds and plants could use it.*
 
-AI plans reset whether you use them or not. On Rainshare, the people you trust plant seeds:
-things they'd like done in their repos. The agent usage you have left over is the rain.
-It's an atproto-native, social take on [Overflow](https://github.com/Nitjsefnie/Overflow):
-no ledger and no points, just your circle.
+AI plans reset whether you use them or not. On Rainshare, the people you trust share what
+they're growing: a seed is an idea with nothing built yet, and a plant is a project that
+exists and needs a hand. The agent usage you have left over is the rain. It's an
+atproto-native, social take on [Overflow](https://github.com/Nitjsefnie/Overflow): no ledger
+and nothing to spend, just your circle.
 
-- **Plant a seed**, in five short steps with a preview beside them: where the work is (a
-  Tangled, knotless or GitHub issue, any git repo, or just an idea), what done looks like, how (models,
+- **Plant something**, in five short steps with a preview beside them: which it is (a seed,
+  or a plant at one of three stages, each with its own little 3D plant), where a plant lives
+  (a Tangled, knotless or GitHub issue, or any git repo), what done looks like, how (models,
   tests, size), and who it's for: public for your mutuals (or people you follow, your
   followers, a Bluesky list, everyone), with a count of roughly who that reaches, or private
-  to a group. Then a last look, and a Bluesky post to tell your circle. An idea needs no repo
+  to a group. Then a last look, and a Bluesky post to tell your circle. A seed needs no repo
   and no developer: say what it should do, and whether someone else can run with it.
 - **Forecast your rain**: your profile says what you run, roughly what you spend on AI, how much
   you have to spare right now, and who you'd like to help first: people without big plans,
@@ -19,10 +21,14 @@ no ledger and no points, just your circle.
 - **Send your agent**: one click tells your friend you're on it and copies a command that
   starts Claude Code, Codex or any MCP agent with a careful brief. Turn the pull request in
   when it's up, and your friend marks it sprouted.
+- **Water a garden**: everything that sprouts with your help shows on your profile as a plant
+  in the garden you've watered.
 
-**Why "seed".** It works two ways. Seeding a cloud is how you ask for rain in a particular
-place, and a seed in the ground is what rain grows. When the work is done, the seed has
-sprouted.
+**The words.** Seeding a cloud is how you ask for rain in a particular place, and what's in
+the ground is what rain grows. A *seed* is an idea. A *plant* is a project, and it says how
+far along it is: a *seedling*, a *young plant* or an *established plant*. Helpers *water*
+them. When the work is done it has *sprouted*, whichever it was, and it's drawn one stage on:
+a seed that sprouted is a seedling now.
 
 It runs in two places, both from this repo:
 
@@ -91,7 +97,7 @@ the lexicon authority). The schemas are in `lexicons/dev/rainshare/`.
 | Record | Written by | Says |
 | --- | --- | --- |
 | `dev.rainshare.profile` (`self`) | everyone | bio, setups (harness, models, plan, where it runs), AI budget, forecast, circumstances, values, priorities, the kinds of work you take on |
-| `dev.rainshare.seed` | the requester | title, subject (Tangled issue, knotless issue, GitHub issue, or repo; none for an idea, which says whose the result will be), spec in Markdown, wants, tags, values, size, audience, state (`open`, `sprouted`, `closed`) |
+| `dev.rainshare.seed` | the requester | title, subject (Tangled issue, knotless issue, GitHub issue, or repo; none for a seed, which says whose the result will be), stage (for a plant), spec in Markdown, wants, tags, values, size, audience, state (`open`, `sprouted`, `closed`) |
 | `dev.rainshare.take` | a helper | "my agent is on this": a strong ref to the seed and the setup doing it. Deleting it drops the seed. |
 | `dev.rainshare.delivery` | a helper | the pull request (URL, or on Tangled and knotless its own record's at:// URI), what did the work, and an optional session link |
 
@@ -166,9 +172,43 @@ turn-in form, and sending it writes your take (if there wasn't one) and the deli
 (`handBack` and `readHandBack` in `core/brief.js`). Once you've turned something in, the form
 steps aside and the page says what's left: nothing, unless the requester asks.
 
-## An idea, with no repo
+## Seeds and plants
 
-A seed doesn't have to point at code. "Just an idea" asks one thing more: whose will it be?
+Every ask says what it is, by how far along the project is. That's what a helper sizes it up
+by, and it's what the brief tells their agent first.
+
+| | What it means | In the record |
+| --- | --- | --- |
+| **Seed** | An idea. Nothing's been built yet. | no `subject` |
+| **Seedling** | Just started. There's a repo and a first sketch. | `stage: seedling` |
+| **Young plant** | It works, and it's still taking shape. | `stage: young` |
+| **Established plant** | People use it and rely on it. | `stage: established` |
+
+Each has a small 3D model (`src/plants/models.js`): a seed lying in a mound of soil, a stem
+with its first two leaves, a stem with leaves up it, and several stems in flower. They share
+one mound and one framing, so how big each stands says how far along it is. A picture of each
+(`public/plants/*.webp`, about 60 KB for all four) is what shows on cards, lists and the
+planting step. On an ask's own page and in the planting preview the model itself turns
+slowly, drawn by one shared renderer that loads only when a plant is on screen
+(`src/plants/live.js`); without WebGL, or with reduced motion on, the picture stays.
+`npm run plants` takes the pictures again after a model changes.
+
+## The garden you've watered
+
+Helping earns nothing you can spend. What it leaves is a garden: one plant on your profile for
+each seed or plant that sprouted with your work, drawn as what it grew into, and each one
+opens the ask it came from. Your board shows how many, beside your forecast.
+
+It's worked out, not stored (`core/garden.js`). A helper's delivery says what they worked on,
+and the planter's own record names the delivery that made it sprout, so a garden needs both
+people's records to agree and nobody can add to their own. Two friends could still agree to
+pad each other's, which is why it's a picture of what you've done and not a score: there's
+no total to compare and no ranking of people. Only public asks count for now.
+
+## A seed, with no repo
+
+A seed is an idea, so it has no code to point at. Planting one asks one thing more: whose
+will it be?
 
 | | **Someone else can run with it** | **Start it for me** |
 | --- | --- | --- |
@@ -280,6 +320,8 @@ in the app.
 | --- | --- |
 | `index.html`, `src/main.js` | The site: the page, its routes, and who's signed in |
 | `src/landing/` | The signed-out landing: `scene.js` (the coast and its weather), `puffs.js` (how a cloud is drawn), `landing.js` (looking closer, the notes and pause), `landing.css` |
+| `src/plants/` | The four 3D plants: `models.js` (how each is built), `live.js` (one renderer drawing them all, turning), `sheet.html` (a page to look at them on) |
+| `scripts/render-plants.mjs`, `public/plants/` | `npm run plants`, and the pictures it takes of them |
 | `src/theme.css`, `src/fonts.css` | The site's look: colours, the bar, light and dark, and its typeface |
 | `src/oauth.js`, `src/scope.js` | Signing in, and the OAuth scope and client metadata |
 | `src/spaces.js` | Private seeds: reading and writing a group's space, and the group host's methods |
@@ -293,13 +335,14 @@ in the app.
 | `core/rank.js` | A helper's board in order, and how well each seed fits them, with reasons |
 | `core/words.js` | A seed in plain lines: where, the job, what they'd like, who's on it |
 | `core/status.js` | Where a seed stands: who's on it, what's been turned in, what the forge says, and what each side should do next |
+| `core/garden.js` | The garden someone has watered: what sprouted with their help, worked out from the records |
 | `core/forges.js` | The right page on each forge: where to start a repo, fork one, or see its pull requests |
 | `core/brief.js` | The agent brief, the link an agent hands back, and the one-paste launch commands |
 | `core/markdown.js` | A small, safe Markdown renderer for specs |
 | `core/source.js` | Rainshare over atproto: the board, a seed, profiles and every write, public and in group spaces |
 | `core/demo.js` | The example circle, answering the same calls from fixtures and your browser's storage |
 | `ui/rainshare.js`, `ui/rainshare.css` | The screens: the board (a list with the details beside it), a seed, your profile, someone's profile, agents |
-| `ui/post.js` | Planting a seed: five steps, a live preview and a confirmation |
+| `ui/post.js` | Planting a seed or a plant: five steps, a live preview and a confirmation |
 | `ui/bits.js` | Small shared pieces: escaping, times, icons, faces, and the glyphs for a forecast's sky and a seed's life |
 | `cli/rainshare.mjs` | The CLI and MCP server |
 | `test/` | `npm test`: the core, the data source against a fake network, and the MCP server |
@@ -376,6 +419,11 @@ Not yet checked:
   The pages Rainshare links to on Tangled exist (they ask you to sign in). GitHub's new-repo
   page taking a name and description from the link is from memory, not checked from here; if
   it doesn't, the page still opens, just empty.
+- The plants: the four models, their pictures, the turning model on a page and in the planting
+  preview, and the garden were checked in the example circle, on a software renderer and at
+  phone width. Not checked: how the turning model runs on a real GPU or an old phone, and a
+  garden worked out from real records on the network (it needs a real planter to have marked
+  a real delivery).
 - The CLI's `run` end to end with a real agent: starting it, finding the pull request with
   `gh` afterwards, and turning it in.
 - How smoothly the scene runs on real phones and older laptops. It has only been run on a

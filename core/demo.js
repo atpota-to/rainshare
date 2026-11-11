@@ -2,6 +2,7 @@
 // without signing in (the Example tab on rainshare.dev).
 // It answers the same calls as the real source (source.js); what you do is kept in this
 // browser through `store`, and nothing is written anywhere.
+import { wateredBy } from './garden.js';
 import { PROFILE, SEED, TAKE, DELIVERY } from './ns.js';
 import * as R from './records.js';
 import { closeness } from './circle.js';
@@ -35,41 +36,41 @@ const PEOPLE = {
 
 const SEEDS = [
   { id: '3sq-juniper', by: 'did:example:juniper', at: 2 * 3600e3, value: {
-    title: 'Keyboard navigation for the flashcard grid',
+    title: 'Keyboard navigation for the flashcard grid', stage: 'seedling',
     subject: { $type: sq('githubIssue'), url: 'https://github.com/example/flashdeck/issues/14', repo: 'example/flashdeck', number: 14 },
     spec: 'Right now the card grid only works with a mouse, so a couple of my classmates can’t use it.\n\n**Done looks like**\n- Arrow keys move between cards, Enter flips one\n- Focus is visible (the outline is currently removed in `grid.css`)\n- Screen readers announce “card 3 of 20, front”\n\nPlease don’t pull in a component library: it’s plain JS on purpose.',
     wants: { tests: 'welcome', maxDiffLines: 250, notes: 'I’d love to learn from it, so small commits with clear messages please.' },
     tags: ['javascript', 'accessibility', 'css'], values: ['accessibility'], size: 'small', audience: { $type: sq('mutuals') } } },
   { id: '3sq-tomas', by: 'did:example:tomas', at: 26 * 3600e3, value: {
-    title: 'Add a --json flag to tidepool status',
+    title: 'Add a --json flag to tidepool status', stage: 'established',
     subject: { $type: sq('tangledIssue'), url: 'https://tangled.org/tomas.example/tidepool/issues/31', repoUrl: 'https://tangled.org/tomas.example/tidepool' },
     spec: 'Scripts keep scraping the human output. A `--json` flag should print one object per peer: `{ "peer", "lastSync", "pending" }`.\n\nKeep the human output byte-for-byte identical.',
     wants: { models: ['claude-opus-5-5', 'claude-sonnet-5-5'], tests: 'required', maxDiffLines: 200 },
     tags: ['rust', 'cli'], values: ['local-first'], size: 'small', audience: { $type: sq('following') } } },
   { id: '3sq-amara', by: 'did:example:amara', at: 3 * day, value: {
-    title: 'Export volunteer shifts to a calendar file',
+    title: 'Export volunteer shifts to a calendar file', stage: 'young',
     subject: { $type: sq('githubIssue'), url: 'https://github.com/example/foodshare-volunteers/issues/7', repo: 'example/foodshare-volunteers', number: 7 },
     spec: 'Volunteers want their shifts in their own calendars. A “Add to calendar” link per person that serves an `.ics` with their upcoming shifts would be perfect.\n\nIt’s a small Django app. Please keep it boring and well commented: I’m the only maintainer.',
     wants: { tests: 'welcome', notes: 'No new paid services.' },
     tags: ['python', 'django'], values: ['mutual-aid', 'civic'], size: 'medium', audience: { $type: sq('anyone') } } },
   { id: '3sq-kai', by: 'did:example:kai', at: 5 * day, value: {
-    title: 'Fix the flaky timezone test',
+    title: 'Fix the flaky timezone test', stage: 'established',
     subject: { $type: sq('knotlessIssue'), url: 'https://knotless.dev/kai.example/almanac/issue/did:example:kai/3mzissue88', repoUrl: 'https://knotless.dev/kai.example/almanac', uri: 'at://did:example:kai/dev.knotless.issue/3mzissue88' },
     spec: '`TestNextOccurrence` fails about one run in twenty around midnight UTC. I suspect it reads the wall clock somewhere.',
     wants: { tests: 'required' }, tags: ['go', 'testing'], size: 'tiny', parallel: true, audience: { $type: sq('mutuals') } } },
   { id: '3sq-priya', by: 'did:example:priya', at: 9 * 3600e3, value: {
-    title: 'Dark mode for the carbon calculator',
+    title: 'Dark mode for the carbon calculator', stage: 'young',
     subject: { $type: sq('repo'), url: 'https://github.com/example/footprint', forge: 'github', name: 'example/footprint' },
     spec: 'The calculator is unreadable at night. Respect `prefers-color-scheme`, and add a toggle that remembers the choice.\n\nThe charts use hard-coded colours in `charts.js`: those need tokens too.',
     wants: { models: ['claude-sonnet-5-5'], tests: 'none', maxDiffLines: 400 },
     tags: ['css', 'javascript'], values: ['climate'], size: 'small', audience: { $type: sq('mutuals') } } },
   { id: '3sq-mo', by: 'did:example:mo', at: 30 * 3600e3, private: true, value: {
-    title: 'Import our reading list from a Goodreads export',
+    title: 'Import our reading list from a Goodreads export', stage: 'seedling',
     subject: { $type: sq('repo'), url: 'https://github.com/example/spine-club-site', forge: 'github', name: 'example/spine-club-site' },
     spec: 'We keep our shelf in a Google Sheet and it’s a mess. Goodreads exports a CSV: a page where I upload it and it fills `books.json` would save me hours.\n\nI’m still learning, so please explain what you did in the PR.',
     wants: { tests: 'welcome' }, tags: ['javascript'], values: ['education'], size: 'small', audience: { $type: sq('group'), group: GROUP.did } } },
   { id: '3sq-sam', by: 'did:example:sam', at: 8 * day, state: 'sprouted', forge: { issue: { title: 'Show the hint we already have', state: 'closed' } }, value: {
-    title: 'Give the quiz app a “show me a hint” button',
+    title: 'Give the quiz app a “show me a hint” button', stage: 'young',
     subject: { $type: sq('githubIssue'), url: 'https://github.com/example/quizbowl/issues/3', repo: 'example/quizbowl', number: 3 },
     spec: 'Each question has a `hint` field we never show. A button that reveals it (and marks the answer as hinted) would help my students.',
     wants: { tests: 'welcome' }, tags: ['javascript', 'education'], values: ['education'], size: 'tiny', audience: { $type: sq('anyone') } } },
@@ -78,10 +79,20 @@ const SEEDS = [
     title: 'Bookmarks we can print from our reading list',
     spec: 'I’m not going to build this, but our book club would use it every month.\n\nPaste in a list of titles and authors, and get a page of bookmarks to print and cut out, one per book. Six to a page would be perfect.\n\nIt doesn’t need accounts or anything clever. A single web page is plenty.',
     owner: 'helper', parallel: true, tags: ['printing', 'books'], values: ['education'], size: 'small', audience: { $type: sq('anyone') } } },
+  // Two you helped finish a while back: they're what's in the garden you've watered.
+  { id: '3sq-priya-done', by: 'did:example:priya', at: 21 * day, state: 'sprouted', value: {
+    title: 'A carbon label for recipes',
+    spec: 'Paste in a recipe and get a rough footprint per serving, with the biggest ingredient called out. I’d use it on my blog.',
+    owner: 'helper', parallel: true, tags: ['climate'], values: ['climate'], size: 'small', audience: { $type: sq('mutuals') } } },
+  { id: '3sq-tomas-done', by: 'did:example:tomas', at: 30 * day, state: 'sprouted', forge: { issue: { title: 'Sync gives up on the first dropped connection', state: 'closed' } }, value: {
+    title: 'Retry sync when the network drops', stage: 'established',
+    subject: { $type: sq('tangledIssue'), url: 'https://tangled.org/tomas.example/tidepool/issues/27', repoUrl: 'https://tangled.org/tomas.example/tidepool' },
+    spec: 'A dropped connection ends the whole sync. Three tries with a short wait between them would cover almost every case.',
+    wants: { tests: 'required' }, tags: ['rust'], values: ['local-first'], size: 'small', audience: { $type: sq('following') } } },
   // One of your own, most of the way round: a friend's pull request has been merged, and it's
   // waiting for you to mark it sprouted.
   { id: '3sq-you', by: ME, at: 6 * day, forge: { issue: { title: 'README screenshots are out of date', state: 'open' } }, value: {
-    title: 'Fresh screenshots for the README, light and dark',
+    title: 'Fresh screenshots for the README, light and dark', stage: 'seedling',
     subject: { $type: sq('githubIssue'), url: 'https://github.com/example/pocket-almanac/issues/12', repo: 'example/pocket-almanac', number: 12 },
     spec: 'The README still shows the old look. Two new screenshots of the main screen, one in each theme, at the same window size.',
     wants: { tests: 'none' }, tags: ['docs'], size: 'tiny', audience: { $type: sq('mutuals') } } }
@@ -93,7 +104,9 @@ const TAKES = [
 ];
 const DELIVERIES = [
   { id: '3dl-kai-sam', by: 'did:example:kai', on: '3sq-sam', at: 6 * day, state: 'merged', value: { url: 'https://github.com/example/quizbowl/pull/4', setup: { harness: 'claude-code', models: ['claude-opus-5-5'] }, note: 'Hint button plus a little “hinted” badge on the score screen.' } },
-  { id: '3dl-juniper-you', by: 'did:example:juniper', on: '3sq-you', at: 4 * day, state: 'merged', value: { url: 'https://github.com/example/pocket-almanac/pull/13', setup: { harness: 'claude-code', models: ['claude-sonnet-5-5'] }, note: 'Both themes, taken at the same window size.' } }
+  { id: '3dl-juniper-you', by: 'did:example:juniper', on: '3sq-you', at: 4 * day, state: 'merged', value: { url: 'https://github.com/example/pocket-almanac/pull/13', setup: { harness: 'claude-code', models: ['claude-sonnet-5-5'] }, note: 'Both themes, taken at the same window size.' } },
+  { id: '3dl-you-priya', by: ME, on: '3sq-priya-done', at: 18 * day, value: { url: 'https://github.com/you-example/recipe-footprint', setup: { harness: 'claude-code', models: ['claude-sonnet-5-5'] }, note: 'One page, no accounts. The numbers are rough and say so.' } },
+  { id: '3dl-you-tomas', by: ME, on: '3sq-tomas-done', at: 27 * day, state: 'merged', value: { url: 'https://tangled.org/tomas.example/tidepool/pulls/29', setup: { harness: 'claude-code', models: ['claude-sonnet-5-5'] } } }
 ];
 const MY_PROFILE = {
   bio: 'Here to put my leftover usage to good use.', budget: 'medium', values: ['accessibility', 'open-source', 'climate'], priorities: ['low-budget', 'students', 'values-aligned'], offering: ['javascript', 'css', 'python'],
@@ -134,6 +147,10 @@ export function createDemoSource({ store = null, me: meOverride = null } = {}){
         takes: takes.filter(t => t.value.seed?.uri === sqUri),
         deliveries: dels.filter(d => d.value.seed?.uri === sqUri)
       };
+    }).map(it => {
+      // One that sprouted before you arrived names the work that did it, as a real one would.
+      if (it.value.state === 'sprouted' && !it.value.sproutedWith && it.deliveries.length) it.value = { ...it.value, sproutedWith: it.deliveries.map(d => ({ uri: d.uri, cid: d.cid })) };
+      return it;
     }).sort((a, b) => String(b.value.createdAt).localeCompare(String(a.value.createdAt)));
   }
   const relOf = did => ({ mutual: { following: true, followedBy: true }, 'follows-you': { followedBy: true }, 'you-follow': { following: true } })[PEOPLE[did]?.rel] || null;
@@ -194,6 +211,7 @@ export function createDemoSource({ store = null, me: meOverride = null } = {}){
       { uri: 'at://did:example:garden/org.tangled.track.ticket/3iss1', cid: 'bafyexampleiss1', title: 'RSS feed skips drafts incorrectly', body: '' },
       { uri: 'at://did:example:garden/org.tangled.track.ticket/3iss2', cid: 'bafyexampleiss2', title: 'Add a sitemap.xml', body: '' }
     ]),
+    gardenOf: did => pause(wateredBy(did, items())),
     knotlessRepos: () => Promise.resolve([{ uri: 'at://did:example:you/dev.knotless.repo/tally', name: 'tally', url: 'https://knotless.dev/you.example/tally', description: 'Adds up receipts' }]),
     knotlessIssues: () => Promise.resolve([
       { uri: 'at://did:example:you/dev.knotless.issue/3iss3', title: 'Dates in ISO 8601 are read as text', body: '' },

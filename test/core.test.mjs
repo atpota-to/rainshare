@@ -6,7 +6,8 @@ import { parseSubject, describeSubject, cloneUrlOf } from '../core/subjects.js';
 import * as R from '../core/records.js';
 import { meantFor, closeness } from '../core/circle.js';
 import { rank, score, fit } from '../core/rank.js';
-import { whereText, shortWhere, jobText, jobShort, wantsText, onItText, takenShort, askExcerpt } from '../core/words.js';
+import { whereText, shortWhere, jobText, jobShort, wantsText, onItText, takenShort, askExcerpt, stageOf, nounOf, aNoun, pictureOf } from '../core/words.js';
+import { wateredBy, wateredText } from '../core/garden.js';
 import { renderMarkdown } from '../core/markdown.js';
 import { brief, launchers, handBack, readHandBack } from '../core/brief.js';
 import { createDemoSource } from '../core/demo.js';
@@ -182,8 +183,8 @@ test('the brief frames the request and the launchers paste as one command', () =
   // It says where things stood, what to check first, and what to tell the person at the end.
   assert.match(b, /## Where it stands\n\nAs of \d+ \w+ \d{4}, when this was copied from Rainshare:\n\n- It’s open\.\n- Nobody has taken it on yet\./);
   assert.match(b, /## Before you start[\s\S]*gh issue view 5 --repo o\/r --comments[\s\S]*rainshare\.mjs check at:\/\/did:plc:abc/);
-  assert.match(b, /include the seed’s link: https:\/\/rainshare\.dev\/seed\/friend\.example\/3k1/);
-  assert.match(b, /## When you’re done[\s\S]*@friend\.example marks the seed sprouted once the pull request is merged/);
+  assert.match(b, /include its Rainshare link: https:\/\/rainshare\.dev\/seed\/friend\.example\/3k1/);
+  assert.match(b, /## When you’re done[\s\S]*@friend\.example marks it sprouted once the pull request is merged/);
   // Whoever it's made for reads as "your user", and what the forge said comes along.
   const taken = { ...item, takes: [{ repo: 'did:plc:me', author: { handle: 'me.example' }, value: { createdAt: new Date().toISOString(), setup: { harness: 'codex' } } }], issue: { state: 'open' } };
   assert.match(brief(taken, { viewer: 'did:plc:me' }), /- The issue is still open on GitHub\.\n- Your user took it on today, with Codex\./);
@@ -485,7 +486,7 @@ test('an idea with no repo says whose it will be, and is briefed and turned in a
   assert.match(b, /What gets turned in is the repository’s address\. There’s no pull request to open\./);
   assert.match(b, /turn-in at:\/\/did:plc:mo\/dev\.rainshare\.seed\/3kidea12345 --url <repository URL>/);
   assert.match(b, /\?pr=<repository URL>&model=<model>/);
-  assert.match(b, /1\. Where the new repository is\.[\s\S]*@mo\.example marks the seed sprouted once they’ve seen it, and the project is your user’s to keep\./);
+  assert.match(b, /1\. Where the new repository is\.[\s\S]*@mo\.example marks it sprouted once they’ve seen it, and the project is your user’s to keep\./);
   assert.doesNotMatch(b, /open a pull request|Fixes #|gh pr list/);
   // One started for the person who asked is theirs to place.
   assert.match(brief({ ...idea, value: { ...idea.value, owner: 'requester' } }), /@mo\.example would like one started for them, so where it lives is theirs to say/);
@@ -518,4 +519,51 @@ test('each forge has a right place to start a repo, fork one, or see its pull re
   assert.equal(placesFor(parseSubject('https://gitlab.com/a/b')).pulls, 'https://gitlab.com/a/b/-/merge_requests');
   assert.deepEqual(placesFor(parseSubject('https://git.example.org/a/b')), { repo: 'https://git.example.org/a/b' });
   assert.deepEqual(placesFor(undefined), {});
+});
+
+test('a seed is an idea and a plant says how far along it is', () => {
+  const repo = parseSubject('https://github.com/o/r');
+  // The stage is kept only for a plant: with no repo it's a seed, and needn't say so.
+  assert.equal(R.seed({ title: 't', subject: repo, stage: 'seedling' }).stage, 'seedling');
+  assert.equal(R.seed({ title: 't', subject: repo, stage: 'seed' }).stage, undefined);
+  assert.equal(R.seed({ title: 't', subject: repo, stage: 'ancient' }).stage, undefined);
+  assert.equal(R.seed({ title: 't', stage: 'established' }).stage, undefined);
+  const said = sq => [stageOf(sq), nounOf(sq), aNoun(sq), pictureOf(sq)];
+  assert.deepEqual(said({ title: 't' }), ['seed', 'seed', 'a seed', 'seed']);
+  assert.deepEqual(said({ subject: repo, stage: 'seedling' }), ['seedling', 'seedling', 'a seedling', 'seedling']);
+  assert.deepEqual(said({ subject: repo, stage: 'established' }), ['established', 'established plant', 'an established plant', 'established']);
+  assert.deepEqual(said({ subject: repo }), ['young', 'plant', 'a plant', 'young']);                        // one that doesn't say is just a plant
+  // Once it has sprouted it's drawn one stage on: a seed that sprouted is a seedling now.
+  assert.deepEqual([{ state: 'sprouted' }, { subject: repo, stage: 'seedling', state: 'sprouted' }, { subject: repo, stage: 'established', state: 'sprouted' }].map(pictureOf), ['seedling', 'young', 'established']);
+  // The brief leads with what it is.
+  const item = v => ({ uri: 'at://did:plc:abc/dev.rainshare.seed/3k1', repo: 'did:plc:abc', author: { handle: 'friend.example' }, value: { title: 'Fix it', ...v } });
+  assert.match(brief(item({ subject: repo, stage: 'established' })), /^# Established plant: Fix it\n\nOn Rainshare, people ask for a hand with what they’re growing\. A seed is an idea with nothing built yet; a plant is a project that exists\. @friend\.example planted this established plant \(people use it and rely on it\) and would like some help with it: https:\/\/rainshare\.dev\/seed\/friend\.example\/3k1\./);
+  assert.match(brief(item({ owner: 'helper' })), /^# Seed: Fix it\n\n[^\n]*@friend\.example planted this seed and would like some help with it/);
+  assert.match(brief(item({ subject: repo })), /^# Young plant: Fix it\n\n[^\n]*planted this plant \(it works, and it’s still taking shape\)/);
+});
+
+test('the garden someone has watered is what sprouted with their help, and nothing else', async () => {
+  const repo = parseSubject('https://github.com/o/r');
+  const dl = (id, by) => ({ uri: `at://${by}/dev.rainshare.delivery/${id}`, cid: 'bafy' + id, repo: by });
+  const ask = (rkey, value, deliveries) => ({ uri: `at://did:plc:planter/dev.rainshare.seed/${rkey}`, repo: 'did:plc:planter', rkey, author: { handle: 'p.example' }, value: { title: rkey, createdAt: '2026-11-0' + rkey.slice(-1) + 'T00:00:00Z', ...value }, deliveries });
+  const mine = dl('1', 'did:plc:me'), theirs = dl('2', 'did:plc:kai'), ref = d => ({ uri: d.uri, cid: d.cid });
+  const items = [
+    ask('a1', { state: 'sprouted', sproutedWith: [ref(mine)] }, [mine]),                                   // a seed that sprouted with my work
+    ask('a2', { subject: repo, stage: 'young', state: 'sprouted', sproutedWith: [ref(theirs)] }, [mine, theirs]),   // I turned something in, but another's work did it
+    ask('a3', { subject: repo, stage: 'seedling' }, [mine]),                                                // turned in, not yet sprouted
+    ask('a4', { subject: repo, stage: 'established', state: 'sprouted', sproutedWith: [ref(mine)] }, [mine]),
+    ask('a5', { state: 'sprouted', sproutedWith: [{ uri: 'at://did:plc:me/dev.rainshare.delivery/made-up', cid: 'x' }] }, []),   // names a delivery that isn't there
+    ask('a6', { state: 'closed', sproutedWith: [ref(mine)] }, [mine])
+  ];
+  const garden = wateredBy('did:plc:me', items);
+  assert.deepEqual(garden.map(g => [g.rkey, g.stage, g.picture]), [['a4', 'established', 'established'], ['a1', 'seed', 'seedling']]);
+  assert.equal(wateredText(garden), '1 seed and 1 plant');
+  assert.deepEqual([wateredText([]), wateredText(wateredBy('did:plc:kai', items))], ['Nothing yet', '1 plant']);
+  // In the example circle: you start with two, and a friend gains one when you mark their work as what did it.
+  const src = createDemoSource({});
+  assert.deepEqual((await src.gardenOf(src.viewer)).map(g => g.stage).sort(), ['established', 'seed']);
+  assert.equal((await src.gardenOf('did:example:juniper')).length, 0);
+  const yours = (await src.board()).items.find(i => i.rkey === '3sq-you'), by = yours.deliveries[0];
+  await src.update(yours, { state: 'sprouted', sproutedWith: [{ uri: by.uri, cid: by.cid }] });
+  assert.deepEqual((await src.gardenOf('did:example:juniper')).map(g => [g.stage, g.picture]), [['seedling', 'young']]);
 });

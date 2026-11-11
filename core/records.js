@@ -1,6 +1,6 @@
 // Building the four records from what people type, so every app writes the same shapes.
 // Each builder trims, clips to the lexicon's limits and leaves out what's empty.
-import { PROFILE, SEED, TAKE, DELIVERY, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, HARNESSES, RUNS_ON, AUDIENCES, TESTS, SIZES, OWNERS } from './ns.js';
+import { PROFILE, SEED, TAKE, DELIVERY, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, HARNESSES, RUNS_ON, AUDIENCES, TESTS, SIZES, OWNERS, STAGES } from './ns.js';
 import { parseUri } from './net.js';
 import { kindOf } from './subjects.js';
 
@@ -75,6 +75,7 @@ export function seed(input = {}, prev){
     tags: tags(input.tags, 10),
     values: tags(input.values, 8),
     size: known(SIZES, input.size),
+    stage: subject && input.stage !== 'seed' ? known(STAGES, input.stage) : undefined,   // with no repo it's a seed, and needn't say so
     owner: subject ? undefined : known(OWNERS, input.owner),   // only an idea with no repo needs to say whose the result will be
     audience,
     parallel: input.parallel ? true : undefined,

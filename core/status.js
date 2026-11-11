@@ -109,7 +109,7 @@ export function standing(item, { viewer, now = Date.now(), asker = 'the person w
   const own = deliveries.filter(x => x.mine);
   const yours = state !== 'open' ? null
     : own.some(x => x.state === 'merged') ? `Your pull request has been merged. It’s waiting for ${asker} to mark it sprouted: nothing more is needed from you.`
-      : own.length && own.every(x => x.state === 'closed') ? 'Your pull request was closed without being merged. Ask what was missing, or drop the seed so someone else can pick it up.'
+      : own.length && own.every(x => x.state === 'closed') ? 'Your pull request was closed without being merged. Ask what was missing, or drop it so someone else can pick it up.'
         : own.length ? `You’ve turned it in. It’s with ${asker} now: nothing more is needed unless they ask.`
           : takes.some(t => t.mine) && verdict === 'clear' ? (idea ? 'You’re on it. When there’s something to show, turn in where it lives.' : 'You’re on it. When the pull request is up, turn it in.') : null;
 
