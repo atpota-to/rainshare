@@ -294,7 +294,7 @@ export function createPoster(ui){
         <div class="rs-tiles" role="radiogroup" aria-label="Where does it live?">${KINDS.map(([k, t, n]) => tile('data-rs-kind', k, P.kind === k, t, n)).join('')}</div></div>` : ''}
       ${more}
       <p class="rs-found" data-rs-found aria-live="polite">${found()}</p>
-      ${plant ? `<div class="rs-field" role="radiogroup" aria-label="How far along is it?"><span>How far along is it?</span><div class="rs-options">
+      ${plant ? `<div class="rs-field" role="radiogroup" aria-label="How far along is the project as a whole?"><span>How far along is the project as a whole?</span><div class="rs-options">
         ${PLANT_STAGES.map(([k, t, n]) => row('data-rs-stage', k, P.stage === k, t, n)).join('')}</div></div>` : ''}`;
   }
   // How it should be done: all optional, so it's folded away under the description.
