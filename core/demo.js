@@ -126,7 +126,7 @@ const VOUCHED = {
 const TIE = { mutual: { following: true, followedBy: true }, 'follows-you': { following: false, followedBy: true }, 'you-follow': { following: true, followedBy: false } };
 const tiesOf = did => did === ME || !PEOPLE[did] ? null : { bsky: TIE[PEOPLE[did].rel] || { following: false, followedBy: false }, tangled: TIE[PEOPLE[did].tangled] || { following: false, followedBy: false } };
 const MY_PROFILE = {
-  bio: 'Here to put my agent’s spare time to good use.', plans: ['claude'], budget: 'medium', values: ['accessibility', 'open-source', 'climate'], priorities: ['low-budget', 'students', 'values-aligned'], offering: ['javascript', 'css', 'python'],
+  bio: 'I build small web things, and my plan usually has some left at the reset.', plans: ['claude'], budget: 'medium', values: ['accessibility', 'open-source', 'climate'], priorities: ['low-budget', 'students', 'values-aligned'], offering: ['javascript', 'css', 'python'],
   setups: [{ harness: 'claude-code', models: ['claude-sonnet-5-5'], plan: 'Claude Pro', runsOn: 'local' }], forecast: { level: 'showers', models: ['claude-sonnet-5-5'] }
 };
 

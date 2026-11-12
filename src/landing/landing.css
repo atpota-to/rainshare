@@ -69,6 +69,9 @@
 .rd-note{background:var(--pin);box-shadow:0 0 0 1px var(--pin-edge);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 
 /* ---- the garden ---- */
+/* Its labels move with what they name, and your cloud can be dragged to the scene's edge, so
+   their layer is clipped to the scene: anything past its edge would make the page wider. */
+.rd-garden .rd-pins{overflow:hidden;overflow:clip}
 /* under each plot: whose it is. It's lit while your cloud is raining there, and wears the spark once the work's done. */
 .rd-plot{margin:-14px 0 0;padding:0 11px 0 4px}
 .rd-plot i,.rd-friend i{flex:none;width:20px;height:20px;border-radius:50%;background:var(--c);color:#12203A;font:800 11px/20px var(--body);text-align:center}

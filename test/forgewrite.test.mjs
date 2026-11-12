@@ -299,8 +299,8 @@ test('a pull request whose changes Tangled refuses is taken back, not left on so
 
 test('a description to start a pull request from', () => {
   assert.equal(pullText({ issue: 'https://knotless.dev/a/b/issue/did:plc:a/3k', page: 'https://rainshare.dev/seed/alice.test/3k', asker: '@alice.test', model: 'Opus' }),
-    'Fixes https://knotless.dev/a/b/issue/did:plc:a/3k\n\nThis came through Rainshare, where @alice.test asked for a hand with it: https://rainshare.dev/seed/alice.test/3k\nDone with Opus.');
-  assert.equal(pullText({ template: '## Why\n', page: 'https://rainshare.dev/seed/a/3k' }), '## Why\n\nThis came through Rainshare, where someone asked for a hand with it: https://rainshare.dev/seed/a/3k');
+    'Fixes https://knotless.dev/a/b/issue/did:plc:a/3k\n\nThis came through Rainshare, where @alice.test asked for help with it: https://rainshare.dev/seed/alice.test/3k\nDone with Opus.');
+  assert.equal(pullText({ template: '## Why\n', page: 'https://rainshare.dev/seed/a/3k' }), '## Why\n\nThis came through Rainshare, where someone asked for help with it: https://rainshare.dev/seed/a/3k');
   assert.equal(pullText(), 'This came through Rainshare.');
 });
 

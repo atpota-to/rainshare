@@ -269,7 +269,7 @@ export function pickSource(choices, { from, branch } = {}){
 }
 /** A description to start a pull request from: the repo's template if it has one, what it settles, and where it came from. */
 export function pullText({ template, issue, page, asker, model } = {}){
-  const from = page ? `This came through Rainshare, where ${asker || 'someone'} asked for a hand with it: ${page}` : 'This came through Rainshare.';
+  const from = page ? `This came through Rainshare, where ${asker || 'someone'} asked for help with it: ${page}` : 'This came through Rainshare.';
   return [String(template || '').trim(), issue ? `Fixes ${issue}` : '', from + (model ? `\nDone with ${model}.` : '')].filter(Boolean).join('\n\n');
 }
 /**

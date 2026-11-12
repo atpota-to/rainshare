@@ -131,7 +131,7 @@ const FRAME = { wide: { reach: 6.23, aim: 2.55 }, close: { reach: 5.35, aim: 3.1
  * `onFrame(at)` is called after each drawn frame with where things are, in CSS pixels from the
  * canvas's top left: `plots` (x, y for the label under each), `cloud` (x, y of its middle, its
  * width and height), `friend` (x, y above the friend's cloud, and how much of it is left to
- * see), then `left` (how much of the time to the next reset is left, 0 to 1), `charge` (how
+ * see) and `width` (how wide the canvas is), then `left` (how much of the time to the next reset is left, 0 to 1), `charge` (how
  * much rain is left in your cloud) and `fresh` (true while a new cloud is forming).
  * `onEvent(what, n)` says what happened: 'rain' and 'dry' (your rain started or stopped on
  * plot n), 'done' (plot n came on a stage) and 'reset' (your plan reset, with n of a cloud
@@ -307,9 +307,10 @@ export function createGarden(canvas, { dark = false, close = false, plots: plant
     const p0 = PLOTS[0];
     if (!p0.done) { p0.wet = Math.min(1, p0.wet + dt / FRIEND_RAIN * (1 - FRIEND_WET)); if (p0.wet >= 1) finish(p0, false); }
     else {
-      // its work done, the friend's cloud stops raining, and drifts off
+      // its work done, the friend's cloud stops raining, drifts a little way off as it thins,
+      // and stays where it was when the last of it went
       friend.away += dt;
-      if (friend.away > 1.4) { friend.x += dt * .6; friend.y += dt * .13; friend.fade = Math.max(0, friend.fade - dt / 4.5); }
+      if (friend.away > 1.4 && friend.fade > 0) { friend.x += dt * .6; friend.y += dt * .13; friend.fade = Math.max(0, friend.fade - dt / 4.5); }
     }
     friend.rain = snap ? (p0.done ? 0 : 1) : friend.rain + ((p0.done ? 0 : 1) - friend.rain) * (1 - Math.exp(-dt * 3));
 
@@ -411,7 +412,7 @@ export function createGarden(canvas, { dark = false, close = false, plots: plant
 
   /* drawing */
   let time = 0, raf = 0, last = 0, lost = false;
-  const at = { plots: new Float32Array(PLOTS.length * 2), cloud: new Float32Array(4), friend: new Float32Array(3), left: 1, charge: 1, fresh: false };
+  const at = { plots: new Float32Array(PLOTS.length * 2), cloud: new Float32Array(4), friend: new Float32Array(3), width: 1, left: 1, charge: 1, fresh: false };
   function draw(dt, snap, real = dt){
     if (lost) return;
     pose(time, dt, snap);
@@ -425,7 +426,7 @@ export function createGarden(canvas, { dark = false, close = false, plots: plant
     at.cloud[0] = cx; at.cloud[1] = cy; at.cloud[2] = 13 * me.size * px; at.cloud[3] = (tall + .5) * px;
     const [fx, fy] = seen(friend.x, friend.y + friend.top * friend.size + .2, friend.z);
     at.friend[0] = fx; at.friend[1] = fy; at.friend[2] = friend.fade;
-    at.left = clock / RESET; at.charge = me.charge; at.fresh = me.fading || me.fade < 1;
+    at.width = width; at.left = clock / RESET; at.charge = me.charge; at.fresh = me.fading || me.fade < 1;
     onFrame?.(at, real);
   }
   // The scene moves at most a fifteenth of a second per frame, so a slow device sees it
