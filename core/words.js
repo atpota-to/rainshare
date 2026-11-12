@@ -4,6 +4,7 @@
 import { labelOf, SIZES, HARNESSES, audienceOf, modelName } from './ns.js';
 import { describeSubject, kindOf, FORGE_NAMES } from './subjects.js';
 import { join, modelsOf, modelMatch } from './rank.js';
+import { tieOf, TIE_SHORT } from './ties.js';
 
 const firstName = p => String(p?.displayName || '').trim().split(/\s+/)[0] || (p?.handle ? '@' + p.handle : 'Someone');
 const harnessName = h => labelOf(HARNESSES, h);
@@ -98,7 +99,8 @@ export function takenShort(item, viewer){
 export function relationText(item, viewer){
   if (viewer && item?.repo === viewer) return 'you';
   if (item?.space) return item.group?.name || 'private';
-  return { mutual: 'mutual', 'follows-you': 'follows you', 'you-follow': 'you follow them', group: item.group?.name || 'your group' }[item?.closeness]
+  // A follow on Bluesky or on Tangled counts here (./ties.js); without ties, Bluesky's alone.
+  return { ...TIE_SHORT, group: item.group?.name || 'your group' }[tieOf(item?.ties) || item?.closeness]
     || (audienceOf(item?.value) === 'anyone' ? 'open to everyone' : '');
 }
 

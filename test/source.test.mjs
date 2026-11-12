@@ -4,11 +4,12 @@ import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { SEED, TAKE, DELIVERY, PROFILE } from '../core/ns.js';
 import { createSource } from '../core/source.js';
+import { FOLLOW, tieOf } from '../core/ties.js';
 
 const PDS = 'https://pds.test';
 const people = { me: 'did:plc:me', alice: 'did:plc:alice', bob: 'did:plc:bob', carol: 'did:plc:carol', dave: 'did:plc:dave', eve: 'did:plc:eve' };
 // who follows whom: [follower, followed]
-const follows = [['me', 'alice'], ['alice', 'me'], ['bob', 'me'], ['me', 'carol']];
+const follows = [['me', 'alice'], ['alice', 'me'], ['bob', 'me'], ['me', 'carol'], ['carol', 'dave'], ['alice', 'dave']];
 let repos, n, lagging;
 
 const sq = (title, audience, extra = {}) => ({ $type: SEED, title, audience: { $type: `${SEED}#${audience}` }, createdAt: new Date(Date.now() - (n++) * 1000).toISOString(), ...extra });
@@ -165,4 +166,41 @@ test('reach: how many people each audience could show it to', async () => {
   // me follows alice and carol; alice and bob follow me; alice is the one mutual.
   assert.deepEqual(await createSource({ agent: agent(people.me) }).reach(), { following: 2, followers: 2, mutuals: 1 });
   assert.equal(await createSource().reach(), null);
+});
+
+test('ties: who follows whom on Bluesky and on Tangled, beside askers, helpers and profiles', async () => {
+  // On Tangled: you and Dave follow each other, you follow Bob, and Alice follows you.
+  const tf = (by, of) => put(people[by], FOLLOW, people[of], { $type: FOLLOW, createdAt: new Date().toISOString() });
+  tf('me', 'dave'); tf('dave', 'me'); tf('me', 'bob'); tf('alice', 'me');
+  const src = createSource({ agent: agent(people.me) });
+  const { items } = await src.board();
+  const of = who => items.find(i => i.repo === people[who]).ties;
+  assert.deepEqual(of('alice'), { bsky: { following: true, followedBy: true }, tangled: { following: false, followedBy: true } });
+  assert.deepEqual(of('dave'), { bsky: { following: false, followedBy: false }, tangled: { following: true, followedBy: true } });
+  // Bob follows you on Bluesky and you follow him on Tangled: mutual, across the two.
+  assert.equal(tieOf(of('bob')), 'mutual');
+  assert.equal(tieOf(of('carol')), 'you-follow');
+  // Your own asks have none.
+  await src.plant({ title: 'Mine', audience: 'anyone' });
+  assert.equal((await src.board({ force: true })).items.find(i => i.repo === people.me).ties, null);
+
+  // On an ask's page, the people who helped carry theirs too.
+  const dave = createSource({ agent: agent(people.dave) });
+  let d1 = await dave.seed(`at://${people.dave}/${SEED}/d1`);
+  assert.equal(tieOf(d1.ties), null, 'Dave and Dave have no ties');
+  await src.take(await src.seed(d1.uri), { setup: { harness: 'claude-code' } });
+  d1 = await dave.seed(d1.uri, { force: true });
+  assert.deepEqual(d1.takes[0].ties, { bsky: { following: false, followedBy: false }, tangled: { following: true, followedBy: true } });
+
+  // A profile says the same.
+  assert.equal(tieOf((await src.profileOf(people.dave)).ties), 'mutual');
+  assert.equal((await src.profileOf(people.me)).ties, null);
+
+  // Who you follow on Bluesky that follows them: Alice and Carol follow Dave.
+  const k = await src.knownFollowers(people.dave);
+  assert.deepEqual(k.people.map(p => p.did), [people.alice, people.carol]);
+  assert.equal(k.count, 2);
+  assert.equal(k.partial, false);
+  assert.equal(await src.knownFollowers(people.me), null);
+  assert.equal(await createSource().knownFollowers(people.dave), null);
 });

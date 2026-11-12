@@ -16,6 +16,7 @@ import { completeTangled, tangledRepos, tangledIssues, knotlessRepos, knotlessIs
 import { wateredBy } from './garden.js';
 import { forgeIssue, forgeComment, forgePull, pullChoices } from './forgewrite.js';
 import { circleOf, vouchFor, unvouch, evidenceFor } from './vouch.js';
+import { tangledFollowsOf, followsOnTangled, knownFollowers } from './ties.js';
 
 const TTL = 60e3;
 /** A record URI inside a space: the space, then repo/collection/rkey. */
@@ -86,6 +87,30 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
   // so nobody you've blocked can mark something as taken to keep others off it.
   const myBlocks = () => viewer ? memo('blocks', () => net.blocksOf(viewer), 300e3).catch(() => new Set()) : Promise.resolve(new Set());
 
+  // How you and others are connected on Bluesky and on Tangled (./ties.js): beside people, and
+  // for narrowing the board. Who you follow on Tangled is one listing of your records; whether
+  // someone follows you there is one read of theirs. Both are kept a few minutes.
+  // A slow server isn't waited on for long: what it hasn't said by then is left unknown, and
+  // its answer is kept for next time.
+  const within = (p, ms) => { let t; return Promise.race([p, new Promise(r => { t = setTimeout(() => r(null), ms); })]).finally(() => clearTimeout(t)); };
+  const myTangled = () => viewer ? within(memo('tangled-follows', () => tangledFollowsOf(viewer), 5 * 60e3).catch(() => null), 8000) : Promise.resolve(null);
+  const followsMe = did => within(memo('tangled-back:' + did, () => followsOnTangled(did, viewer), 5 * 60e3).catch(() => null), 6000);
+  /** Map<did, { bsky, tangled }> for each of `dids` but you, with null for a network that didn't answer. */
+  async function tiesOf(dids){
+    const out = new Map(), todo = [...new Set(dids)].filter(d => viewer && d !== viewer && net.isDid(d));
+    if (!todo.length) return out;
+    // All at once, as their profiles are read: one slow server holds up nobody else's answer.
+    const [bsky, mine, back] = await Promise.all([net.relationships(viewer, todo).catch(() => null), myTangled(), Promise.all(todo.map(followsMe))]);
+    todo.forEach((d, i) => {
+      const r = bsky?.get(d), them = back[i] ?? null;
+      out.set(d, {
+        bsky: bsky ? { following: !!r?.following, followedBy: !!r?.followedBy } : null,
+        tangled: mine || them !== null ? { following: mine ? mine.has(d) : null, followedBy: them } : null
+      });
+    });
+    return out;
+  }
+
   // Your groups that have Rainshare, and what's in each one's space.
   const myGroups = () => memo('groups', async () => {
     if (!viewer || !groups) return [];
@@ -138,6 +163,8 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
       visible.push({ ...r, space: null, group: null, closeness: closeness({ viewer, author: r.repo, rel }), rel });
     }
     attach(visible, takes, deliveries, blocked);
+    // How you know each person who asked, read while their profiles are.
+    const tied = viewer ? tiesOf(visible.map(v => v.repo)).catch(() => new Map()) : null;
     await Promise.all([...new Set(visible.map(v => v.repo))].map(async d => {
       const p = await publicProfile(d).catch(() => null);
       visible.filter(v => v.repo === d).forEach(v => { v.profile = p?.value || null; });
@@ -163,6 +190,10 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
       }
     }
     await named(visible);
+    if (tied) {
+      const ties = await tied, rest = await tiesOf(visible.map(v => v.repo).filter(d => !ties.has(d))).catch(() => new Map());
+      for (const v of visible) v.ties = ties.get(v.repo) || rest.get(v.repo) || null;
+    }
     visible.sort((a, b) => String(b.value?.createdAt).localeCompare(String(a.value?.createdAt)));
     return { items: visible, notes };
   }
@@ -186,7 +217,11 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     const rel = viewer && viewer !== p.repo ? (await net.relationships(viewer, [p.repo]).catch(() => new Map())).get(p.repo) : null;
     const item = { ...rec, space: null, group: null, rel, closeness: closeness({ viewer, author: p.repo, rel }), profile: prof?.value || null };
     attach([item], takes, deliveries, blocked);
-    await named([item]);
+    // How you know whoever asked, and each person on it or who turned something in.
+    const helpers = [...item.takes, ...item.deliveries];
+    const [ties] = await Promise.all([viewer ? tiesOf([p.repo, ...helpers.map(r => r.repo)]).catch(() => new Map()) : new Map(), named([item])]);
+    item.ties = ties.get(p.repo) || null;
+    for (const r of helpers) r.ties = ties.get(r.repo) || null;
     return item;
   }
 
@@ -205,7 +240,7 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
   });
   async function profileOf(did, { force } = {}){
     if (force) forget('profile:' + did);
-    const [pub, who] = await Promise.all([publicProfile(did).catch(() => null), people([did])]);
+    const [pub, who, ties] = await Promise.all([publicProfile(did).catch(() => null), people([did]), tiesOf([did]).catch(() => new Map())]);
     let full = null, inGroups = [];
     for (const g of (await myGroups().catch(() => [])).filter(g => g.space)) {
       const rec = (await groupRecords(g).catch(() => [])).find(r => r.collection === PROFILE && r.repo === did && r.rkey === 'self');
@@ -213,7 +248,7 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     }
     const merged = pub || full ? { ...(pub?.value || {}), ...(full || {}) } : null;
     const hidden = full ? R.PRIVATE_FIELDS.filter(k => full[k] !== undefined && pub?.value?.[k] === undefined) : [];
-    return { person: who.get(did) || { did }, public: pub?.value || null, merged, hidden, groups: inGroups };
+    return { person: who.get(did) || { did }, public: pub?.value || null, merged, hidden, groups: inGroups, ties: ties.get(did) || null };
   }
 
   /* ---------- writes ---------- */
@@ -307,6 +342,14 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     // Tangled's vouch network (./vouch.js): what you and the people you vouch for have said
     // about others, and vouching for someone yourself. Read once and kept a few minutes.
     vouchCircle: () => viewer ? memo('vouches', () => circleOf(viewer), 5 * 60e3) : Promise.resolve(null),
+    // Which of the people you follow on Bluesky follow someone (./ties.js): { people, count,
+    // partial }, the first few named, or null when Bluesky didn't say. Past your 1,000 most
+    // recent follows it's `partial`, rather than a call for every 30 more.
+    knownFollowers: did => viewer && net.isDid(did) && did !== viewer ? memo('known:' + did, async () => {
+      const mine = await memo('bsky-follows', () => net.followsOf(viewer, { max: 1000 }), 5 * 60e3);
+      const dids = await knownFollowers(did, mine.dids, { viewer }), who = await net.profiles(dids.slice(0, 6)).catch(() => new Map());
+      return { people: dids.slice(0, 6).map(d => who.get(d) || { did: d }), count: dids.length, partial: mine.partial };
+    }, 5 * 60e3).catch(() => null) : Promise.resolve(null),
     vouchFor: async (did, input) => { const r = await vouchFor(agent, did, input); forget('vouches'); return r; },
     unvouch: async did => { await unvouch(agent, did); forget('vouches'); },
     evidenceFor

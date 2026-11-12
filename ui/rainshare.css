@@ -432,6 +432,27 @@
 .rs-vouch-why{margin:0;padding:0 0 0 26px;list-style:none;font-size:14px;color:var(--rs-muted);display:flex;flex-direction:column;gap:4px}
 .rs-form.rs-vouchform{padding:0;background:none;box-shadow:none;outline:0;-webkit-backdrop-filter:none;backdrop-filter:none;max-width:none;gap:10px}
 .rs-people .rs-vouchform{margin-top:6px}
+.rs-item-who .rs-hat{margin-left:4px;vertical-align:-2px}
+.rs-item-who .rs-hat .rs-i{width:14px;height:14px;margin:0}
+/* how you know someone: follows on Bluesky and Tangled, who you follow that follows them */
+.rs-ties{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:14px;line-height:1.4}
+.rs-ties li{display:flex;gap:8px;align-items:flex-start;min-width:0}
+.rs-ties li:empty{display:none}
+.rs-ties .rs-i,.rs-facts dd .rs-ties .rs-i{flex:none;width:16px;height:16px;margin:2px 0 0;fill:none;color:var(--rs-muted)}
+.rs-ties .rs-vouch-said .rs-i{color:var(--rs-ok)}
+.rs-ties .rs-hat-denounce .rs-i{color:var(--rs-bad)}
+.rs-ties .rs-hat-mixed .rs-i{color:var(--rs-down)}
+.rs-faces{display:inline-flex;flex:none;padding-left:2px}
+.rs-faces .rs-face.sm{width:20px;height:20px;font-size:9px}
+/* narrowing the board to who asked */
+.rs-from{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.rs-from-l{font-size:13px;font-weight:600;color:var(--rs-muted);margin-right:2px}
+.rs-from button{border:0;border-radius:999px;min-height:32px;padding:0 12px;font:600 13px var(--rs-font);background:none;color:var(--rs-muted);box-shadow:inset 0 0 0 1.5px var(--rs-line);cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.rs-from button:hover{color:var(--rs-ink)}
+.rs-from button[aria-pressed="true"]{background:var(--rs-ink);color:var(--rs-on-ink);box-shadow:none}
+.rs-from button.rs-from-none{opacity:.6}
+.rs-from-n{font-weight:500;opacity:.75;font-variant-numeric:tabular-nums}
+.rs-empty .rs-link{font:inherit;font-weight:600}
 /* opening the pull request from the ask's page */
 .rs-pull summary .rs-i{width:16px;height:16px;margin-right:6px;vertical-align:-3px}
 .rs-pull textarea{font-family:var(--rs-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:13px;line-height:1.5}

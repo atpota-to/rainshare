@@ -128,6 +128,26 @@ spaces. Helpers who can read a group copy see the fuller one.
 people who follow you and people you follow apart; lists come from `app.bsky.graph.getList`;
 anyone you block on Bluesky is left out.
 
+**How you know someone** (`core/ties.js`) shows beside the people who ask and the people who
+help, as something to weigh before you send an agent to their repo or merge what theirs sent:
+
+| | Read from | Shown |
+| --- | --- | --- |
+| Who follows whom on Bluesky | `app.bsky.graph.getRelationships`, as for audiences | "You follow each other on Bluesky." |
+| Who follows whom on Tangled | `org.tangled.graph.follow`, a public record in the follower's account keyed by who they follow: yours are one listing, and whether someone follows you is one read of theirs | "Tomás follows you on Tangled." |
+| Who you follow that follows them | `getRelationships` again, asking about your 1,000 most recent Bluesky follows 30 at a time; the ones who follow you back are named first | "Followed by Kai, Priya and 3 others you follow on Bluesky." |
+| Your Tangled circle's word | `org.tangled.graph.vouch` (see [Tangled's vouches](#tangleds-vouches)) | "Priya, who you vouch for, vouches for them on Tangled." |
+
+A card says it in a word ("mutual", "follows you", "you follow them"), where a follow on either
+network counts, and shows the vouch mark. Picking one says all of it under "You and them", and
+so do an ask's page (beside who asked, and beside each helper who turned something in) and
+someone's profile. The board can be narrowed the same way, **From**: anyone, mutuals, people you
+follow, people who follow you, or people your Tangled circle vouched for, each with a count.
+That only narrows what you see. It changes nobody's audience, nobody's ranking, and who can
+take an ask on. Anyone can follow you, so "follows you" says the least of these; a follow
+you made, and the people you follow following them, say more. Tangled follows from before its
+relaunch (`sh.tangled.graph.follow`) aren't read.
+
 **Finding seeds** needs no server of ours: a relay lists the repos that hold
 `dev.rainshare.*` records (`com.atproto.sync.listReposByCollection`), and the records come from
 each person's own PDS. Your own writes are layered over that until the relay catches up.
@@ -302,7 +322,7 @@ repo, or merge what theirs sent.
 - **Reading** needs no extra permission. A vouch is a public record in the voucher's own
   account, `org.tangled.graph.vouch`, keyed by who it's about, so your circle is worked out
   from your records and those of up to 40 people you vouched for. It's read once per sign-in,
-  on the first page that shows people. A person's profile says who in your circle vouched
+  on the first page that shows people (the board, an ask's page, or a profile). A person's profile says who in your circle vouched
   for them or denounced them, and why.
 - **Vouching** is a button on someone's profile, and beside a delivery on your own ask
   ("Vouch for them on Tangled"), where the reason starts as what they helped with and the
@@ -310,7 +330,8 @@ repo, or merge what theirs sent.
   what Tangled itself attaches). You can take a vouch back. Rainshare never writes a
   denouncement: that's done on Tangled.
 - A vouch gates nothing, on Tangled or here. It doesn't change who can take an ask on, or
-  how the board is sorted.
+  how the board is sorted. You can choose to see only the asks from people your circle has
+  vouched for (the board's "Vouched for"), the way you can choose to see only people you follow.
 
 ## Where a seed stands
 
@@ -343,6 +364,7 @@ curl -fsSL https://rainshare.dev/rainshare.mjs -o ~/.rainshare.mjs
 node ~/.rainshare.mjs doctor                     # what's set up here, and what will work
 node ~/.rainshare.mjs login you.bsky.social      # with an app password
 node ~/.rainshare.mjs board                      # your circle, best first for you
+node ~/.rainshare.mjs board --from mutuals       # only people you follow who follow you back (or following, followers, vouched)
 node ~/.rainshare.mjs check <link>               # where it stands (no sign-in needed)
 node ~/.rainshare.mjs run <link>                 # check, take, clone, start your agent, turn it in
 node ~/.rainshare.mjs turn-in <link> --url <pull request>
@@ -377,7 +399,8 @@ in the app.
 
 - **Bluesky**: your handle signs you in (OAuth with your own server), your follows make your
   circle, lists and blocks are respected, and "Share on Bluesky" and "Thank them on Bluesky"
-  open the composer with a link.
+  open the composer with a link. Who follows whom, and who you follow that follows someone,
+  show beside people.
 - **Tangled**: pick an open issue from your own Tangled repos, or paste any tangled.org link.
   It's read through Tangled's public API (`api.tangled.org`), with the `org.tangled.*` methods
   that replaced `sh.tangled.*` when Tangled relaunched on 30 October 2026. An issue and a pull
@@ -389,7 +412,8 @@ in the app.
   address. Tangled has no command for opening a pull request yet, so the brief has the agent
   push a branch and Rainshare opens the pull request as its user (see "Posting to knotless and
   Tangled"); Tangled's launch post says a CLI and agent skills are on the way, and the brief
-  should change when they arrive. Vouches from your Tangled circle show beside people.
+  should change when they arrive. Vouches from your Tangled circle, and who follows whom on
+  Tangled, show beside people.
 - **knotless**: pick an open issue from your own knotless repos, or paste any knotless.dev
   link. knotless keeps a repo, its issues and its pulls as records in people's own accounts,
   and its public API (`knotless.dev/xrpc`) says whether an issue is open, whether a pull is
@@ -454,6 +478,7 @@ take on only what you'd be happy to ask for yourself.
 | `core/forges.js` | The right page on each forge: where to start a repo, fork one, or see its pull requests |
 | `core/forgewrite.js` | Posting to knotless and Tangled as you: opening an issue, leaving a comment, opening a pull request from a pushed branch |
 | `core/vouch.js` | Tangled's vouch network: your circle's word on a person, read from public records, and vouching for someone |
+| `core/ties.js` | How you know someone: who follows whom on Bluesky and Tangled, who you follow that follows them, said in plain sentences, and narrowing the board by who asked |
 | `core/brief.js` | The agent brief, the link an agent hands back, and the one-paste launch commands |
 | `core/markdown.js` | A small, safe Markdown renderer for specs |
 | `core/source.js` | Rainshare over atproto: the board, a seed, profiles and every write, public and in group spaces |
@@ -462,7 +487,7 @@ take on only what you'd be happy to ask for yourself.
 | `ui/post.js` | Asking for rain on an idea or a project: three steps, a live preview and a confirmation |
 | `ui/bits.js` | Small shared pieces: escaping, times, icons, faces, and the glyphs for a forecast's sky and a seed's life |
 | `cli/rainshare.mjs` | The CLI and MCP server |
-| `test/` | `npm test`: the core, the data source against a fake network, the MCP server, posting to the forges and vouching against made-up ones, and what other people's records can't do (`security.test.mjs`) |
+| `test/` | `npm test`: the core, the data source against a fake network, the MCP server, posting to the forges, vouching and follows against made-up ones, and what other people's records can't do (`security.test.mjs`) |
 
 ## Security
 
@@ -595,6 +620,15 @@ Not yet checked:
   aren't reachable from where this was built), whether Rainshare's circle matches the marks
   Tangled itself shows in every case (Tangled's own method for this only answers to Tangled),
   and how Tangled displays a vouch whose evidence is a Rainshare delivery.
+- How you know someone: reading Tangled follows (yours, and whether someone follows you),
+  the board with ties, and who you follow that follows someone were run read-only against
+  real servers on 12 November 2026, from public accounts. Who you follow that follows someone
+  took about a second and a half for an account following 720 people. The board's "From", the
+  ties on cards, in the picked card, on an ask's page, beside helpers and on profiles were
+  checked in the example circle at 1280 and 390 pixels wide, light and dark. Not checked:
+  with a real signed-in account, and how quickly the board fills for someone whose board has
+  many askers (whether each follows you on Tangled is one read per asker, made while their
+  profiles are read; a server that hasn't answered in 6 seconds is left as unknown).
 - Ideas: asking for rain on one, running with one and turning it in were checked in the example circle.
   The pages Rainshare links to on Tangled exist (they ask you to sign in). GitHub's new-repo
   page taking a name and description from the link is from memory, not checked from here; if

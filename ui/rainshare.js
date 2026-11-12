@@ -3,8 +3,9 @@
 // accounts, demo.js for the example circle) and a few hooks, and calls show(subpath)
 // whenever the address changes:
 //
-//   ''                 the board: For you, Everyone, Yours. Short cards in a list, and the
-//                      one you pick in full beside them (a sheet from the bottom on phones)
+//   ''                 the board: For you, Everyone, Yours, narrowed by who asked if you like.
+//                      Short cards in a list, and the one you pick in full beside them (a
+//                      sheet from the bottom on phones), with how you know whoever asked
 //   seed/<did>/<rkey>  a public seed (a handle works in place of the DID)
 //   seed/s/<code>      a private one, in a group's space (its record URI, base64url)
 //   new                plant a seed (./post.js)
@@ -18,6 +19,7 @@ import { look, carry, standing } from '../core/status.js';
 import { newRepoPlaces, placesFor } from '../core/forges.js';
 import { writableForge, pickSource, pullText, FORGE_SAID } from '../core/forgewrite.js';
 import { wordOn, wordText } from '../core/vouch.js';
+import { tieOf, tieLines, knownText, TIE_SHORT, FROM, fromMatches } from '../core/ties.js';
 import { wateredText } from '../core/garden.js';
 import { audienceLine } from '../core/circle.js';
 import { rank, fit, join, pretty } from '../core/rank.js';
@@ -39,6 +41,8 @@ export function createRainshare({ root, base = '/', host }){
     pull: null,          // the pull request form for the ask on screen: { uri, loading, choices, error }
     circle: undefined,   // your Tangled vouch circle (../core/vouch.js): undefined until asked for, null if there's none to show
     vouching: null,      // who a vouch is being written for: { did, evidence }
+    from: 'anyone',      // whose asks the board shows (FROM in ../core/ties.js): anyone, mutuals, people you follow, …
+    known: {},           // by DID: which of the people you follow on Bluesky follow them ('loading' while asked)
     open: {}   // which folded sections are open (<details data-rs-keep>), so a redraw leaves them be
   };
   const signedIn = () => !!S.source?.signedIn;
@@ -150,7 +154,7 @@ export function createRainshare({ root, base = '/', host }){
   }
 
   /* ---------- the board: a list of short cards, and the one you pick beside them ---------- */
-  function boardItems(){
+  function tabItems(){
     const all = S.board?.items || [], mineD = viewer();
     let items;
     if (S.tab === 'yours') items = all.filter(it => it.repo === mineD || (it.takes || []).some(t => t.repo === mineD) || (it.deliveries || []).some(d => d.repo === mineD));
@@ -160,6 +164,32 @@ export function createRainshare({ root, base = '/', host }){
       return signedIn() ? rank(others, me()) : others;
     }
     return signedIn() ? items.map(it => ({ ...it, fit: it.repo === mineD || !isOpen(it) ? null : fit(it, me()) })) : items;
+  }
+  // Narrowed to who asked, if you chose to (not on Yours, which is all you).
+  const fromWho = (k, it) => fromMatches(k, it.ties, word(it.repo));
+  const narrowFrom = items => !signedIn() || S.tab === 'yours' || S.from === 'anyone' ? items : items.filter(it => fromWho(S.from, it));
+  const FROM_HINT = {
+    mutuals: 'Only people you follow who follow you back, on Bluesky or Tangled.',
+    following: 'Only people you follow, on Bluesky or Tangled.',
+    followers: 'Only people who follow you, on Bluesky or Tangled.',
+    vouched: 'Only people you, or someone you vouch for, vouched for on Tangled.'
+  };
+  const circleWaiting = () => S.circle === undefined || S.circle === 'loading';
+  function fromRow(all){
+    const opts = FROM.filter(([k]) => k !== 'vouched' || S.source?.vouchCircle);
+    return `<div class="rs-from" role="group" aria-label="Who asked"><span class="rs-from-l">From</span>${opts.map(([k, l]) => {
+      const n = k === 'anyone' ? all.length : k === 'vouched' && circleWaiting() ? null : all.filter(it => fromWho(k, it)).length;
+      return `<button type="button" data-rs-from="${k}" aria-pressed="${S.from === k}"${n === 0 && S.from !== k ? ' class="rs-from-none"' : ''}>${esc(l)}${n == null ? '' : `<span class="rs-from-n">${n}</span>`}</button>`;
+    }).join('')}</div>`;
+  }
+  function fromEmpty(){
+    const said = {
+      mutuals: 'None of your mutuals have asked for rain here yet.',
+      following: 'Nobody you follow has asked for rain here yet.',
+      followers: 'Nobody who follows you has asked for rain here yet.',
+      vouched: circleWaiting() ? 'Looking at your Tangled circle…' : S.circle ? 'Nobody your Tangled circle vouched for has asked for rain here yet.' : 'Your Tangled circle couldn’t be read just now.'
+    }[S.from];
+    return `<p class="rs-empty">${esc(said)} <button class="rs-link" type="button" data-rs-from="anyone">Show everyone’s</button></p>`;
   }
   // One card: who, the title, and one quiet line (how well it suits you, or where and how big).
   function card(it, { nav = false } = {}){
@@ -172,7 +202,7 @@ export function createRainshare({ root, base = '/', host }){
     else line = `<span>${esc([shortWhere(sq), jobShort(sq)].filter(Boolean).join(' · '))}</span>`;
     const taken = isOpen(it) ? takenShort(it, viewer()) : '';
     return `<li><a class="rs-item${on ? ' on' : ''}" href="${esc(href(pathOf(it)))}" ${nav ? `data-rs-go="${esc(pathOf(it))}"` : `data-rs-pick="${esc(it.uri)}"`}${on ? ' aria-current="true"' : ''}>
-      <span class="rs-item-top">${face(p, 'xs')}<span class="rs-item-who"><b>${esc(mine ? 'You' : nameOf(p))}</b>${rel ? `<span> · ${it.space ? ico('lock') : ''}${esc(rel)}</span>` : ''}</span><time>${esc(ago(sq.createdAt))}</time></span>
+      <span class="rs-item-top">${face(p, 'xs')}<span class="rs-item-who"><b>${esc(mine ? 'You' : nameOf(p))}</b>${mine ? '' : hat(it.repo)}${rel ? `<span> · ${it.space ? ico('lock') : ''}${esc(rel)}</span>` : ''}</span><time>${esc(ago(sq.createdAt))}</time></span>
       <span class="rs-item-title">${esc(sq.title)}</span>
       <span class="rs-item-line">${line}${taken ? `<span class="rs-item-taken">${lifeIco(lifeOf(it))}${esc(taken)}</span>` : ''}</span>
       ${plantPic(pictureOf(sq), 52)}
@@ -209,14 +239,14 @@ export function createRainshare({ root, base = '/', host }){
       ${f ? fitBox(f) : !open ? `<p class="rs-state${sq.state === 'sprouted' ? ' rs-ok' : ''}">${sq.state === 'sprouted' ? `${lifeIco('sprouted')}Done. Thanks, everyone.` : 'Closed.'}</p>`
         // Signed out, who it's for is said once: beside the name when it's everyone, here when it's narrower.
         : !signedIn() && !rel ? `<p class="rs-muted">${esc(audienceLine(sq, { authorName: firstName(p), groupName: it.group?.name }))}.</p>` : ''}
-      ${facts(it)}
+      ${facts(it, signedIn() && !mine ? [['You and them', tiesList(it.repo, it.ties, p)]] : [])}
       <div class="rs-ask"><span class="rs-label">The ask</span><p>${esc(askExcerpt(sq.spec) || 'No details beyond the title.')}</p>${a(page, 'Read all of it', 'rs-link')}</div>
       ${heedNote(it, st)}
       <div class="rs-row rs-detail-actions">${buttons}</div>
     </article>`;
   }
   function renderBoard(){
-    const items = S.board ? boardItems() : [];
+    const all = S.board ? tabItems() : [], items = narrowFrom(all);
     S.shown = items;
     if (items.length && !items.some(i => i.uri === S.pick)) { S.pick = items[0].uri; S.sheet = false; }
     const sel = items.find(i => i.uri === S.pick);
@@ -253,7 +283,8 @@ export function createRainshare({ root, base = '/', host }){
       ${tabs.length ? `<div class="rs-board-head">
         <div class="rs-board-bar"><nav class="rs-tabs" aria-label="Ideas and projects">${tabs.map(([k, l]) => `<button type="button" data-rs-tab="${k}" aria-pressed="${S.tab === k}">${l}</button>`).join('')}</nav>
           <button type="button" class="rs-link rs-refresh" data-rs-act="refresh"${S.loading ? ' disabled' : ''}>${ico('refresh')}${S.loading ? 'Checking…' : 'Refresh'}</button></div>
-        ${items.length && hint ? `<p class="rs-muted">${esc(hint)}</p>` : ''}
+        ${signedIn() && S.tab !== 'yours' && S.board ? fromRow(all) : ''}
+        ${items.length && hint ? `<p class="rs-muted">${esc([hint, S.tab !== 'yours' && FROM_HINT[S.from]].filter(Boolean).join(' '))}</p>` : ''}
       </div>` : ''}
       ${S.error ? `<p class="rs-note rs-bad">${plain(S.error)}</p>` : ''}
       ${!S.board ? `<div class="rs-split"><ul class="rs-list">${'<li class="rs-ghost"><div></div></li>'.repeat(4)}</ul><div class="rs-side rs-ghost"><div></div></div></div><p class="rs-muted">Looking across the network…</p>`
@@ -262,7 +293,7 @@ export function createRainshare({ root, base = '/', host }){
             <div class="rs-scrim" data-rs-close-sheet aria-hidden="true"></div>
             <aside class="rs-side" aria-label="The one you picked">${sel ? detail(sel) : ''}</aside>
           </div>`
-        : `<p class="rs-empty">${empty}</p>`}
+        : all.length ? fromEmpty() : `<p class="rs-empty">${empty}</p>`}
       ${(S.board?.notes || []).map(n => `<p class="rs-note">${esc(n)}</p>`).join('')}
       ${
         // rainshare.dev has Agents in its own bar, and says where records live in its footer.
@@ -468,7 +499,7 @@ export function createRainshare({ root, base = '/', host }){
     if (!S.circle) S.circle = 'loading';
     S.source.vouchCircle().then(c => {
       S.circle = c || null;
-      const redraw = () => { if (S.view === 'seed' || S.view === 'person') rerender(); };
+      const redraw = () => { if (S.view === 'seed' || S.view === 'person' || S.view === 'board') rerender(); };
       // Whoever's word it is gets named: anyone not known yet is looked up.
       const unknown = [...new Set((c?.circle || []).map(x => x.did))].filter(d => !whoIs(d).handle && !whoIs(d).displayName);
       // (In the example circle, everyone there is to know comes with the board.)
@@ -480,6 +511,38 @@ export function createRainshare({ root, base = '/', host }){
   // The mark beside a name. Tangled calls it a hat: green for a vouch, red for a denouncement.
   const hat = did => { const w = word(did); return w ? `<span class="rs-hat rs-hat-${w.kind}" role="img" aria-label="${esc(wordSaid(w))}" title="${esc(wordSaid(w))}">${ico('hat')}</span>` : ''; };
   const wordLine = did => { const w = word(did); return w ? `<p class="rs-vouch-said rs-hat-${w.kind}">${ico('hat')}<span>${esc(wordSaid(w))}</span></p>` : ''; };
+  /* ---------- how you know someone (../core/ties.js) ---------- */
+  // Who follows whom on Bluesky and on Tangled comes with the person; which of the people you
+  // follow on Bluesky follow them is asked for the first time they're shown, and fills in when
+  // it answers, without redrawing the rest of the page.
+  function loadKnown(did){
+    if (!signedIn() || !S.source.knownFollowers || !did || did === viewer() || S.known[did] !== undefined) return;
+    S.known[did] = 'loading';
+    const src = S.source;
+    src.knownFollowers(did).catch(() => null).then(k => {
+      if (S.source !== src) return;
+      S.known[did] = k || null;
+      root.querySelectorAll(`[data-rs-known="${CSS.escape(did)}"]`).forEach(el => { el.innerHTML = knownInner(did); });
+    });
+  }
+  function knownInner(did){
+    const k = S.known[did];
+    if (k === undefined || k === 'loading') return '<span class="rs-muted">Looking at who you follow…</span>';
+    const text = knownText(k, firstName(whoIs(did)), nameOf);
+    return text ? `${k.people?.length ? `<span class="rs-faces" aria-hidden="true">${k.people.slice(0, 3).map(x => face(x, 'sm')).join('')}</span>` : ico('person')}<span>${esc(text)}</span>` : '';
+  }
+  // The lot, as short lines: follows each way, who you follow that follows them, and (unless
+  // it's said elsewhere on the page) your Tangled circle's word on them.
+  function tiesList(did, ties, p, { vouch = true } = {}){
+    if (!signedIn() || !did || did === viewer()) return '';
+    loadKnown(did);
+    const w = vouch ? word(did) : null;
+    return `<ul class="rs-ties">${tieLines(ties, firstName(p)).map(l => `<li>${ico('person')}<span>${esc(l)}</span></li>`).join('')}${
+      S.source.knownFollowers ? `<li data-rs-known="${esc(did)}">${knownInner(did)}</li>` : ''}${
+      w ? `<li class="rs-vouch-said rs-hat-${w.kind}">${ico('hat')}<span>${esc(wordSaid(w))}</span></li>` : ''}</ul>`;
+  }
+  // A tie in a word, before a helper's details: "Mutual · Claude Code · 6d ago".
+  const tieWord = r => { const t = r.repo !== viewer() && TIE_SHORT[tieOf(r.ties)]; return t ? esc(t[0].toUpperCase() + t.slice(1)) + ' · ' : ''; };
   // Vouching is a public record in your own account, so the form says so. `evidence` is the
   // delivery it's for, when it's written beside one.
   function vouchForm(did, p, { evidence, reason = '' } = {}){
@@ -645,7 +708,7 @@ export function createRainshare({ root, base = '/', host }){
       const vouch = mine && dl.repo !== viewer() && S.source.vouchFor && S.circle !== 'loading' && !word(dl.repo)?.mine && !vouching ? `<button class="rs-link" type="button" data-rs-vouch="${esc(dl.repo)}" data-rs-evidence="${esc(dl.uri)}">Vouch for them on Tangled</button>` : '';
       const shown = String(url || v.url || v.pull || '').replace(/^https?:\/\//, '').slice(0, 70);
       return `<li>${face(dl.author)}<div><span><b>${esc(dl.repo === viewer() ? 'You' : nameOf(dl.author))}</b>${hat(dl.repo)} turned it in${status ? ' · ' + status : ''}</span>
-        <small>${setup ? esc(setup) + ' · ' : ''}${esc(ago(v.createdAt))}</small>
+        <small>${tieWord(dl)}${setup ? esc(setup) + ' · ' : ''}${esc(ago(v.createdAt))}</small>
         ${v.note ? `<p>${esc(v.note)}</p>` : ''}
         <div class="rs-row">${url && !it.example ? `<a class="rs-link" href="${esc(url)}" target="_blank" rel="noopener nofollow">${ico('link')}${esc(shown)}</a>` : shown ? `<span class="rs-muted">${ico('link')} ${esc(shown)}</span>` : ''}${safeHttp(v.sessionUrl) && !it.example ? `<a class="rs-link" href="${esc(safeHttp(v.sessionUrl))}" target="_blank" rel="noopener nofollow">See the session</a>` : ''}${sprout}${thank}${vouch}</div>
         ${vouching ? vouchForm(dl.repo, dl.author, { evidence: dl.uri, reason: `Helped with “${sq.title}” through Rainshare.` }) : ''}</div></li>`;
@@ -730,7 +793,7 @@ export function createRainshare({ root, base = '/', host }){
           ${linked ? `<h2>Also on ${esc(forge)}</h2><ul class="rs-people rs-deliveries rs-linked">${linked}</ul>` : ''}
         </div>
         <aside class="rs-seed-side">
-          <div class="rs-panel"><h2>${esc(mine ? 'Your profile' : 'About ' + firstName(p))}</h2>${wordLine(it.repo)}${profileCard(it.profile, p, { compact: true })}${a('u/' + it.repo, mine ? 'See your profile' : 'See their profile', 'rs-link')}</div>
+          <div class="rs-panel"><h2>${esc(mine ? 'Your profile' : 'About ' + firstName(p))}</h2>${mine ? '' : tiesList(it.repo, it.ties, p)}${profileCard(it.profile, p, { compact: true })}${a('u/' + it.repo, mine ? 'See your profile' : 'See their profile', 'rs-link')}</div>
           <details class="rs-panel rs-hood"><summary>Under the hood</summary><dl>
             <dt>Record</dt><dd><code>${esc(it.uri)}</code></dd>
             <dt>Where it lives</dt><dd>${it.space ? `In ${esc(nameOf(p))}’s repo inside ${esc(it.group?.name || 'the group')}’s Rainshare space, readable only by members.` : `In ${esc(nameOf(p))}’s own repo, on their own server. Anyone can read it; apps show it to the people it’s meant for.`}</dd>
@@ -859,6 +922,7 @@ export function createRainshare({ root, base = '/', host }){
       <section class="rs-person">
         <header>${face(p, 'lg')}<div><h1>${esc(nameOf(p))}${hat(o.did)}</h1>${p.handle ? `<a class="rs-link" href="https://bsky.app/profile/${esc(p.handle)}" target="_blank" rel="noopener">@${esc(p.handle)}</a>` : ''}</div>${o.did === viewer() ? a('me', 'Edit', 'rs-btn rs-quiet rs-sm') : ''}</header>
         <div class="rs-panel">${profileCard(o.merged, p)}${o.groups?.length && o.did !== viewer() ? `<p class="rs-muted">${ico('lock')} Some of this is shared only with ${esc(o.groups.map(g => g.name).join(' and '))}.</p>` : ''}</div>
+        ${signedIn() && o.did !== viewer() ? `<h2>You and ${esc(firstName(p))}</h2><div class="rs-panel">${tiesList(o.did, o.ties, p, { vouch: false })}</div>` : ''}
         ${vouchBlock(o.did, p)}
         ${S.source.gardenOf ? `<h2>${o.did === viewer() ? 'What you’ve helped with' : `What ${esc(firstName(p))} has helped with`}</h2>${gardenBlock(o.garden, o.did === viewer() ? 'You' : firstName(p))}` : ''}
         <h2>${o.did === viewer() ? 'Your ideas and projects' : `${esc(firstName(p))}’s ideas and projects`}</h2>
@@ -1016,7 +1080,7 @@ export function createRainshare({ root, base = '/', host }){
       if (name === 'signin-cancel') { S.signin = null; render(); return; }
       if (name === 'exit-demo') return host.onExitDemo?.();
       if (name === 'stage-seen') { stageDismissed = true; try { localStorage.setItem(STAGE_SEEN, '1'); } catch (_) {} root.querySelector('.rs-stage-note')?.remove(); return; }
-      if (name === 'refresh') { await loadBoard(true); return; }
+      if (name === 'refresh') { S.known = {}; await loadBoard(true); return; }
       if (name === 'take') {
         const r = await takeIt(it, el); if (!r) return;
         S.seed = r.fresh; S.launch = r.launch;
@@ -1100,6 +1164,7 @@ export function createRainshare({ root, base = '/', host }){
     if (t.closest('[data-rs-close-sheet]')) { closeSheet(); return; }
     const tk = t.closest('[data-rs-take]'); if (tk) { takeFromPanel(tk.dataset.rsTake, tk); return; }
     if (t.closest('.rs-post') && poster.click(t)) return;
+    const fr = t.closest('[data-rs-from]'); if (fr) { S.from = fr.dataset.rsFrom; S.sheet = false; render(); return; }
     const tab = t.closest('[data-rs-tab]'); if (tab) { S.tab = tab.dataset.rsTab; S.sheet = false; render(); return; }
     const sg = t.closest('[data-rs-seg] button');
     if (sg && S.view === 'me') {
@@ -1173,7 +1238,7 @@ export function createRainshare({ root, base = '/', host }){
     if (sub !== S.sub && !(S.view === 'me' && sub === 'me')) S.form = null;
     if (sub !== S.sub) S.vouching = null;
     S.sub = sub;
-    if (!sub) { S.view = 'board'; render(); loadBoard(); }
+    if (!sub) { S.view = 'board'; render(); loadBoard(); loadCircle(); }
     else if (sub === 'new') { S.view = 'new'; if (signedIn()) poster.enter(); else title('Ask for rain'); render(); }
     else if (sub === 'me') {
       S.view = 'me'; title('Your profile'); render();
@@ -1188,14 +1253,14 @@ export function createRainshare({ root, base = '/', host }){
       render();
       if (S.launch) root.querySelector('#rsLaunch')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-    else { S.view = 'board'; render(); loadBoard(); }
+    else { S.view = 'board'; render(); loadBoard(); loadCircle(); }
   }
 
   return {
     show,
     /** Hand in a (new) data source: on sign-in, sign-out, or switching to the example circle. */
     async setSource(source){
-      Object.assign(S, { source, board: null, mine: null, garden: null, unlinked: null, seed: null, form: null, drafts: {}, tab: 'foryou', signin: null, pick: null, sheet: false, pull: null, circle: undefined, vouching: null });
+      Object.assign(S, { source, board: null, mine: null, garden: null, unlinked: null, seed: null, form: null, drafts: {}, tab: 'foryou', signin: null, pick: null, sheet: false, pull: null, circle: undefined, vouching: null, from: 'anyone', known: {} });
       poster.reset();
       render();
       if (source?.signedIn) { await loadMine(); loadGarden(); }

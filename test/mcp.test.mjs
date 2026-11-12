@@ -40,6 +40,13 @@ test('speaks MCP over stdio', async () => {
     assert.equal(pr.result.isError, true);
     assert.match(pr.result.content[0].text, /Not signed in to Rainshare here/);
     assert.match(list.result.tools.find(t => t.name === 'rainshare_open_pr').description, /knotless or Tangled only/);
+    // Narrowing the board to who asked is worked out from your own account, so it needs one too.
+    assert.deepEqual(list.result.tools.find(t => t.name === 'rainshare_board').inputSchema.properties.from.enum, ['anyone', 'mutuals', 'following', 'followers', 'vouched']);
+    const mutuals = await call('tools/call', { name: 'rainshare_board', arguments: { from: 'mutuals' } });
+    assert.equal(mutuals.result.isError, true);
+    assert.match(mutuals.result.content[0].text, /Sign in first/);
+    const odd = await call('tools/call', { name: 'rainshare_board', arguments: { from: 'friends' } });
+    assert.match(odd.result.content[0].text, /--from is one of anyone, mutuals/);
     const bad = await call('tools/call', { name: 'nope', arguments: {} });
     assert.equal(bad.error.code, -32602);
     const missing = await call('resources/list', {});

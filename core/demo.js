@@ -18,20 +18,20 @@ const HACKERS = { did: 'did:example:hackers', handle: 'hackers.example', name: '
 const GROUPS = { [GROUP.did]: GROUP, [HACKERS.did]: HACKERS };
 
 const PEOPLE = {
-  'did:example:juniper': { handle: 'juniper.example', displayName: 'Juniper Hale', color: '#FFB495', rel: 'mutual',
+  'did:example:juniper': { handle: 'juniper.example', displayName: 'Juniper Hale', color: '#FFB495', rel: 'mutual', known: ['did:example:kai', 'did:example:priya'],
     profile: { bio: 'Second-year CS student. Building study tools for people who learn differently.', budget: 'none', circumstances: ['student'], values: ['accessibility', 'education'], setups: [{ harness: 'other', models: ['local'], plan: 'Whatever runs on my laptop', runsOn: 'local' }] } },
-  'did:example:tomas': { handle: 'tomas.example', displayName: 'Tomás Rivera', color: '#86DFC4', rel: 'follows-you',
+  'did:example:tomas': { handle: 'tomas.example', displayName: 'Tomás Rivera', color: '#86DFC4', rel: 'follows-you', tangled: 'mutual', known: ['did:example:priya', 'did:example:kai'], knownMore: 3,
     profile: { bio: 'I maintain tidepool, a tiny sync tool for local-first apps.', budget: 'low', circumstances: ['oss-maintainer'], values: ['local-first', 'open-source'], setups: [{ harness: 'aider', models: ['claude-haiku-5-5'], plan: 'API, pay as I go', runsOn: 'local' }] } },
-  'did:example:amara': { handle: 'amara.example', displayName: 'Amara Okafor', color: '#FFD978', rel: null,
+  'did:example:amara': { handle: 'amara.example', displayName: 'Amara Okafor', color: '#FFD978', rel: null, known: ['did:example:sam'],
     profile: { bio: 'I keep the Eastside Food Share’s volunteer site running in my evenings.', budget: 'free', circumstances: ['nonprofit'], values: ['mutual-aid', 'civic'] } },
-  'did:example:kai': { handle: 'kai.example', displayName: 'Kai Nakamura', color: '#8E9BFF', rel: 'mutual',
+  'did:example:kai': { handle: 'kai.example', displayName: 'Kai Nakamura', color: '#8E9BFF', rel: 'mutual', tangled: 'you-follow', known: ['did:example:priya', 'did:example:juniper', 'did:example:sam'], knownMore: 9,
     profile: { bio: 'Staff engineer. My plan resets on Mondays and I hate wasting it.', budget: 'high', values: ['open-source', 'climate'], priorities: ['low-budget', 'students'], offering: ['go', 'rust', 'testing'],
       setups: [{ harness: 'claude-code', models: ['claude-opus-5-5'], plan: 'Claude Max 20x', runsOn: 'cloud' }], forecast: { level: 'downpour', models: ['claude-opus-5-5'], until: new Date(Date.now() + 3 * day).toISOString(), note: 'Send me your gnarly ones' } } },
-  'did:example:priya': { handle: 'priya.example', displayName: 'Priya Shah', color: '#F5B3D6', rel: 'mutual',
+  'did:example:priya': { handle: 'priya.example', displayName: 'Priya Shah', color: '#F5B3D6', rel: 'mutual', tangled: 'mutual', known: ['did:example:kai', 'did:example:juniper'], knownMore: 1,
     profile: { bio: 'Climate data nerd, between jobs and building in public.', budget: 'none', circumstances: ['between-jobs'], values: ['climate', 'open-source'] } },
-  'did:example:mo': { handle: 'mo.example', displayName: 'Mo Adeyemi', color: '#C3B8FF', rel: 'group',
+  'did:example:mo': { handle: 'mo.example', displayName: 'Mo Adeyemi', color: '#C3B8FF', rel: 'group', known: [],
     profile: { bio: 'Spine Club’s unofficial web person. Learning as I go!', budget: 'free', circumstances: ['learning'], values: ['education'] } },
-  'did:example:sam': { handle: 'sam.example', displayName: 'Sam Lindqvist', color: '#5ED6B2', rel: 'you-follow',
+  'did:example:sam': { handle: 'sam.example', displayName: 'Sam Lindqvist', color: '#5ED6B2', rel: 'you-follow', tangled: 'follows-you', known: ['did:example:kai'],
     profile: { bio: 'I teach intro programming and make little tools for my class.', budget: 'sponsored', circumstances: ['educator'], values: ['education', 'accessibility'],
       setups: [{ harness: 'codex', models: ['gpt-5-codex'], plan: 'School pays', runsOn: 'cloud' }], forecast: { level: 'drizzle' } } }
 };
@@ -120,6 +120,10 @@ const VOUCHED = {
   'did:example:priya': { 'did:example:tomas': { kind: 'vouch', reason: 'Maintains tidepool with a lot of patience.', at: ago(60 * day) } },
   'did:example:kai': { 'did:example:tomas': { kind: 'vouch', reason: '', at: ago(120 * day) }, 'did:example:juniper': { kind: 'vouch', reason: 'Small, clear commits. Asks good questions.', at: ago(20 * day) } }
 };
+// How you know each of them (./ties.js): on Bluesky from `rel` above, on Tangled from `tangled`,
+// and `known` is who among the people you follow on Bluesky follows them (with `knownMore` unnamed).
+const TIE = { mutual: { following: true, followedBy: true }, 'follows-you': { following: false, followedBy: true }, 'you-follow': { following: true, followedBy: false } };
+const tiesOf = did => did === ME || !PEOPLE[did] ? null : { bsky: TIE[PEOPLE[did].rel] || { following: false, followedBy: false }, tangled: TIE[PEOPLE[did].tangled] || { following: false, followedBy: false } };
 const MY_PROFILE = {
   bio: 'Here to put my agent’s spare time to good use.', budget: 'medium', values: ['accessibility', 'open-source', 'climate'], priorities: ['low-budget', 'students', 'values-aligned'], offering: ['javascript', 'css', 'python'],
   setups: [{ harness: 'claude-code', models: ['claude-sonnet-5-5'], plan: 'Claude Pro', runsOn: 'local' }], forecast: { level: 'showers', models: ['claude-sonnet-5-5'] }
@@ -145,10 +149,10 @@ export function createDemoSource({ store = null, me: meOverride = null, groups =
       .map(x => ({ ...x, value: { ...x.value, ...(state.edits[x.id] || {}) } }));
     // The example takes and deliveries point at their seed the way real ones do: a strong ref.
     const on = x => { const s = SEEDS.find(q => q.id === x.on); return { ...x, value: { ...x.value, seed: { uri: uriOf(s.by, SEED, s.id, groupOf(s)), cid: cidOf(s.id) } } }; };
-    const takes = [...TAKES.map(t => rec(on(t), TAKE)), ...state.takes.map(t => ({ ...t, author: me }))];
+    const takes = [...TAKES.map(t => ({ ...rec(on(t), TAKE), ties: tiesOf(t.by) })), ...state.takes.map(t => ({ ...t, author: me }))];
     // What the forge would say is part of the pretence (`state` on a delivery, `forge` on a
     // seed): for real seeds it's asked of GitHub or Tangled, in status.js.
-    const dels = [...DELIVERIES.map(d => ({ ...rec(on(d), DELIVERY), ...(d.state ? { state: d.state } : {}) })), ...state.deliveries.map(d => ({ ...d, author: me }))];
+    const dels = [...DELIVERIES.map(d => ({ ...rec(on(d), DELIVERY), ties: tiesOf(d.by), ...(d.state ? { state: d.state } : {}) })), ...state.deliveries.map(d => ({ ...d, author: me }))];
     return all.map(x => {
       const r = rec(x, SEED);
       const mine = x.by === ME, priv = !!x.private, g = groupOf(x);
@@ -156,7 +160,7 @@ export function createDemoSource({ store = null, me: meOverride = null, groups =
       const sqUri = r.uri;
       return {
         ...r, example: true, space: g?.space || null, group: g, ...(x.forge || {}),
-        closeness: mine ? 'self' : priv ? 'group' : closeness({ viewer: ME, author: x.by, rel: relOf(x.by) }),
+        closeness: mine ? 'self' : priv ? 'group' : closeness({ viewer: ME, author: x.by, rel: relOf(x.by) }), ties: tiesOf(x.by),
         profile: mine ? state.profile : PEOPLE[x.by]?.profile || null,
         takes: takes.filter(t => t.value.seed?.uri === sqUri),
         deliveries: dels.filter(d => d.value.seed?.uri === sqUri)
@@ -180,7 +184,7 @@ export function createDemoSource({ store = null, me: meOverride = null, groups =
     async profileOf(did){
       if (did === ME) return { person: me, public: R.publicProfile(state.profile, state.hidden), merged: state.profile, hidden: state.hidden, groups: state.share.includes(GROUP.did) ? [GROUP] : [] };
       const p = PEOPLE[did];
-      return p ? { person: person(did), public: p.profile, merged: p.profile, hidden: [], groups: [] } : { person: { did }, public: null, merged: null, hidden: [], groups: [] };
+      return p ? { person: person(did), public: p.profile, merged: p.profile, hidden: [], groups: [], ties: tiesOf(did) } : { person: { did }, public: null, merged: null, hidden: [], groups: [], ties: null };
     },
     async saveProfile(input, { hidden = [], share = [] } = {}){
       state.profile = R.profile(input, state.profile); state.hidden = groups ? hidden : []; state.share = groups ? share : []; save();
@@ -262,6 +266,7 @@ export function createDemoSource({ store = null, me: meOverride = null, groups =
     async vouchFor(did, { reason } = {}){ state.vouches = { ...(state.vouches || {}), [did]: { kind: 'vouch', reason: String(reason || '').trim().slice(0, 256), at: new Date().toISOString() } }; save(); return pause(state.vouches[did]); },
     async unvouch(did){ const { [did]: _, ...rest } = state.vouches || {}; state.vouches = rest; save(); return pause(); },
     evidenceFor: () => Promise.resolve([]),
+    knownFollowers: did => pause(!PEOPLE[did] ? null : { people: PEOPLE[did].known.slice(0, 6).map(person), count: PEOPLE[did].known.length + (PEOPLE[did].knownMore || 0), partial: false }),
     knotlessRepos: () => Promise.resolve([{ uri: 'at://did:example:you/dev.knotless.repo/tally', name: 'tally', url: 'https://knotless.dev/you.example/tally', description: 'Adds up receipts' }]),
     knotlessIssues: () => Promise.resolve([
       { uri: 'at://did:example:you/dev.knotless.issue/3iss3', title: 'Dates in ISO 8601 are read as text', body: '' },
