@@ -1,5 +1,5 @@
-/* The signed-out landing: the pitch, beside the water cycle to look around in. Colours and the
-   typeface come from ../theme.css. */
+/* The signed-out landing: the pitch, beside the garden to rain on. Colours and the typeface
+   come from ../theme.css. What's only the water cycle's is in ./cycle/cycle.css. */
 :root{--pin:rgba(255,255,255,.84);--pin-edge:rgba(18,32,58,.1)}
 @media (prefers-color-scheme:dark){:root{--pin:rgba(19,28,46,.8);--pin-edge:rgba(255,255,255,.14)}}
 
@@ -19,14 +19,14 @@
 @media (prefers-color-scheme:dark){.rd-pitch>.rd-err{color:#FF8A80}}
 .rd-pitch>.rd-also{font-size:15px}
 .rd-pitch>.rd-alpha{font-size:14px;line-height:1.5;color:var(--muted);max-width:46ch;margin-top:-6px}
-/* which handle, and where it leads: said under the field, before anyone is sent anywhere */
-.rd-pitch>.rd-how{font-size:14px;line-height:1.5;max-width:46ch;margin-top:-8px}
-.rd-also a,.rd-note a{color:var(--accent);font-weight:700;text-underline-offset:3px}
+/* which handle, and that the password stays with your server: said under the field */
+.rd-pitch>.rd-with{font-size:14px;line-height:1.5;max-width:46ch;margin-top:-8px}
+.rd-also a,.rd-note a,.rd-how a{color:var(--accent);font-weight:700;text-underline-offset:3px}
 
 /* The scene has no frame: its edges melt into the page. On a wide screen it runs out past
    the page's column, toward the window's edge. */
 .rd-scene{position:relative;margin:-24px min(0px,max(-130px,calc((1112px - 100vw) / 2))) -24px -40px;min-width:0;container-type:inline-size}
-.rd-view{position:relative;aspect-ratio:1/.84;cursor:pointer}
+.rd-view{position:relative;aspect-ratio:1/.84}
 .rd-view canvas,.rd-still{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .9s ease}
 .rd-view canvas{
   -webkit-mask-image:linear-gradient(to right,transparent,#000 15%,#000 90%,transparent),linear-gradient(to bottom,transparent,#000 13%,#000 84%,transparent);
@@ -35,36 +35,27 @@
   mask-composite:intersect
 }
 .rd-scene.live canvas,.rd-scene.flat .rd-still{opacity:1}
-.rd-scene.flat .rd-view{cursor:default}
 /* the still: what's drawn instead when the browser can't do the scene */
 .rd-still{padding:8% 10%;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .rd-still .s-sun{fill:#FFD98A}
 .rd-still .s-cloud{fill:#fff}
 .rd-still .s-rain{stroke:#8C93C8;stroke-width:3}
-.rd-still .s-far{fill:#C3C8DE}
-.rd-still .s-hill{fill:#9DBB86}
-.rd-still .s-sea{fill:#7FA6DC}
-.rd-still .s-vapour{stroke:#fff;stroke-width:4;opacity:.8}
-@media (prefers-color-scheme:dark){.rd-still .s-sun{fill:#D5DEFF}.rd-still .s-cloud{fill:#8C97CC}.rd-still .s-far{fill:#3A4078}.rd-still .s-hill{fill:#2F4F5E}.rd-still .s-sea{fill:#27357A}.rd-still .s-vapour{stroke:#8C97CC}}
+.rd-still .s-ground{fill:#B5CF98}
+.rd-still .s-soil{fill:#8A6A55}
+.rd-still .s-stake{stroke:#C9A574;stroke-width:4}
+.rd-still .s-tag{fill:#C3B8FF}
+.rd-still .s-stem{stroke:#6FB06A;stroke-width:4}
+.rd-still .s-leaf{fill:#7CC873}
+.rd-still .s-bloom{fill:#F5B3D6}
+@media (prefers-color-scheme:dark){
+  .rd-still .s-sun{fill:#D5DEFF}.rd-still .s-cloud{fill:#8C97CC}
+  .rd-still .s-ground{fill:#2F4F5E}.rd-still .s-soil{fill:#3B3550}.rd-still .s-stem{stroke:#4F8A7C}.rd-still .s-leaf{fill:#5E9C8A}.rd-still .s-tag{fill:#8E86C8}.rd-still .s-bloom{fill:#B987A6}
+}
 
-/* the four parts: a dot and a name, sitting where each is in the scene */
+/* labels, sitting where what they name is in the scene */
 .rd-pins{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .6s ease .5s}
 .rd-scene.live .rd-pins{opacity:1}
 .rd-pin{position:absolute;left:0;top:0;margin:-14px 0 0 -14px;display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px 0 8px;border:0;border-radius:999px;background:var(--pin);color:var(--ink);font:700 13px var(--body);white-space:nowrap;cursor:pointer;pointer-events:auto;box-shadow:0 0 0 1px var(--pin-edge);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);transition:background .25s,color .25s;will-change:transform}
-.rd-pin i{width:12px;height:12px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-.rd-pin.flip{flex-direction:row-reverse;padding:0 8px 0 12px}
-.rd-pin.on{background:var(--accent);color:#fff}
-.rd-pin.on i{background:currentColor;box-shadow:none}
-@media (prefers-color-scheme:dark){.rd-pin.on{color:#0B1220}}
-/* a finger needs more to aim at than a pointer does */
-@media (pointer:coarse){.rd-pin{height:34px;margin-top:-17px}}
-@container (max-width:470px){
-  .rd-pin,.rd-pin.flip{padding:0 8px}
-  .rd-pin span{display:none}
-  .rd-pin.on{padding-right:12px}
-  .rd-pin.on.flip{padding:0 8px 0 12px}
-  .rd-pin.on span{display:inline}
-}
 
 .rd-pause{position:absolute;right:max(7%,16px);bottom:11%;width:36px;height:36px;padding:0;border:0;border-radius:50%;background:var(--pin);color:var(--ink);cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 0 0 1px var(--pin-edge);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 .rd-scene.live .rd-pause{display:inline-flex}
@@ -73,24 +64,67 @@
 .rd-pause[aria-pressed="true"] .i-play{display:block}
 .rd-pause[aria-pressed="true"] .i-pause{display:none}
 
-/* what the part you're looking at stands for: over the scene's lower left */
-.rd-notes{position:absolute;left:11%;bottom:10%;width:min(320px,48%);display:none}
-.rd-scene.live .rd-notes{display:block}
+/* what the scene has to say, over its lower edge */
 .rd-hint{margin:0;width:fit-content;padding:7px 12px;border-radius:999px;background:var(--pin);color:var(--muted);font-size:13px;font-weight:500;box-shadow:0 0 0 1px var(--pin-edge);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
-.rd-note,.rd-tour{background:var(--pin);box-shadow:0 0 0 1px var(--pin-edge);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
-.rd-note{display:flex;flex-direction:column;gap:6px;padding:16px 18px 14px;border-radius:18px 18px 0 0}
-.rd-note h2{margin:0;font:700 19px/1.2 var(--display)}
-.rd-note p{margin:0;font-size:15px;line-height:1.5;color:var(--muted)}
-.rd-note a{font-size:15px;width:fit-content}
-.rd-tour{display:flex;gap:6px;padding:0 12px 12px;border-radius:0 0 18px 18px;clip-path:inset(0 -2px -2px -2px)}
-.rd-tour button{flex:1;min-height:36px;padding:6px 10px;border:0;border-radius:10px;background:var(--accent-soft);color:var(--ink);font:700 13px var(--body);cursor:pointer;white-space:nowrap}
-.rd-tour button:hover{background:var(--accent);color:#fff}
-@media (prefers-color-scheme:dark){.rd-tour button:hover{color:#0B1220}}
+.rd-note{background:var(--pin);box-shadow:0 0 0 1px var(--pin-edge);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 
-/* with no scene to move through, all four are set out under the still */
-.rd-scene.flat .rd-notes{position:static;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:20px 24px;width:auto;margin:0 40px}
-.rd-scene.flat .rd-note{display:flex!important;padding:0;background:none;box-shadow:none;border-radius:0}
-.rd-scene.flat .rd-hint,.rd-scene.flat .rd-tour{display:none}
+/* ---- the garden ---- */
+/* under each plot: whose it is. It's lit while your cloud is raining there, and wears the spark once the work's done. */
+.rd-plot{margin:-14px 0 0;padding:0 11px 0 4px}
+.rd-plot i,.rd-friend i{flex:none;width:20px;height:20px;border-radius:50%;background:var(--c);color:#12203A;font:800 11px/20px var(--body);text-align:center}
+.rd-plot.on{background:var(--accent);color:#fff}
+.rd-spark{display:none;flex:none;width:14px;height:14px;margin:0 -3px 0 -2px;fill:#E5A220}
+.rd-plot.done .rd-spark{display:block}
+@media (prefers-color-scheme:dark){.rd-plot.on{color:#0B1220}.rd-spark{fill:#FFC857}}
+/* over the friend's cloud: whose plan that one is */
+.rd-friend{margin:0;height:24px;padding:0 9px 0 3px;gap:5px;font-size:12px;cursor:default;pointer-events:none;transition:opacity .3s}
+.rd-friend i{width:18px;height:18px;line-height:18px;font-size:10px}
+/* your cloud: something to take hold of, with what it is and when it resets over it */
+.rd-cloud{position:absolute;left:0;top:0;translate:-50% -50%;min-width:44px;min-height:44px;cursor:grab;pointer-events:auto;touch-action:none;-webkit-user-select:none;user-select:none;will-change:transform}
+.rd-scene.held,.rd-scene.held .rd-cloud{cursor:grabbing}
+.rd-plan{left:50%;top:auto;bottom:100%;margin:0 0 2px;translate:-50% 0;height:auto;padding:5px 13px 5px 7px;gap:8px;line-height:1.2;text-align:left;cursor:inherit}
+.rd-plan b,.rd-plan small{display:block}
+.rd-plan small{font:500 11.5px/1.3 var(--body);color:var(--muted)}
+/* how long until the reset: a ring that runs down */
+.rd-ring{flex:none;width:22px;height:22px;rotate:-90deg}
+.rd-ring circle{fill:none;stroke:var(--accent-soft);stroke-width:3}
+.rd-ring .left{stroke:var(--accent);stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:calc(100 - var(--left,66))}
+@container (max-width:470px){
+  .rd-plot{padding:0 4px}
+  .rd-plot>span,.rd-friend>span{display:none}
+  .rd-plot.done{padding-right:8px}
+  .rd-friend{padding:0 3px}
+}
+@media (pointer:coarse){.rd-plot{height:34px;margin-top:-17px;padding-left:7px}}
+
+/* the line under the plots: a hint, then what's happening on the plot your cloud is over */
+/* (no wider than leaves the pause button clear) */
+.rd-garden .rd-notes{position:absolute;left:50%;bottom:5%;translate:-50% 0;width:max-content;max-width:min(560px,72%);display:none}
+.rd-garden.live .rd-notes{display:block}
+.rd-garden .rd-hint{margin:0 auto}
+.rd-garden .rd-note{display:flex;align-items:center;gap:6px 16px;padding:10px 16px 11px 18px;border-radius:18px}
+.rd-garden .rd-note>div{min-width:0}
+.rd-garden .rd-note h2{margin:0;font:700 15px/1.3 var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rd-garden .rd-note p{margin:1px 0 0;font-size:14px;line-height:1.4;color:var(--muted)}
+.rd-garden .rd-note a{flex:none;font-size:14px;white-space:nowrap}
+.rd-garden .rd-note button{flex:none;min-height:34px;padding:6px 12px;border:0;border-radius:10px;background:var(--accent-soft);color:var(--ink);font:700 13px var(--body);cursor:pointer;white-space:nowrap}
+.rd-garden .rd-note button:hover{background:var(--accent);color:#fff}
+@media (prefers-color-scheme:dark){.rd-garden .rd-note button:hover{color:#0B1220}}
+/* a scene too small to have the line over it has it underneath */
+@container (max-width:660px){
+  .rd-garden .rd-notes{position:static;translate:none;width:auto;max-width:none;margin:-8px 16px 0}
+  .rd-garden .rd-note{flex-wrap:wrap}
+  .rd-garden .rd-note>div{flex:1 1 100%}
+  .rd-garden .rd-note h2{white-space:normal}
+}
+/* with no scene to play with, the same story is set out under the still, in three notes */
+.rd-how{display:none;flex-direction:column;gap:6px}
+.rd-how h2{margin:0;font:700 19px/1.2 var(--display)}
+.rd-how p{margin:0;font-size:15px;line-height:1.5;color:var(--muted)}
+.rd-how a{font-size:15px;width:fit-content}
+.rd-garden.flat .rd-notes{position:static;translate:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:20px 24px;width:auto;max-width:none;margin:0 40px}
+.rd-garden.flat .rd-how{display:flex}
+.rd-garden.flat .rd-hint,.rd-garden.flat .rd-note{display:none}
 
 @media (max-width:880px){
   .rd-landing{grid-template-columns:1fr;gap:0}
@@ -100,10 +134,13 @@
     -webkit-mask-image:linear-gradient(to bottom,transparent,#000 13%,#000 86%,transparent);-webkit-mask-composite:source-over;
     mask-image:linear-gradient(to bottom,transparent,#000 13%,#000 86%,transparent);mask-composite:add
   }
-  /* the note goes under the scene, where it isn't in the way of it */
-  .rd-notes{position:static;width:auto;margin:-18px 16px 0}
-  .rd-hint{margin:0 auto}
-  .rd-scene.flat .rd-notes{margin:0 16px}
+  /* the line goes under the scene, where it isn't in the way of it, and the pause button to the left, where nothing's planted */
+  .rd-garden .rd-pause{left:16px;right:auto}
+  .rd-garden .rd-notes{position:static;translate:none;width:auto;max-width:none;margin:-8px 16px 0}
+  .rd-garden .rd-note{flex-wrap:wrap}
+  .rd-garden .rd-note>div{flex:1 1 100%}
+  .rd-garden .rd-note h2{white-space:normal}
+  .rd-garden.flat .rd-notes{margin:0 16px}
 }
 @media (prefers-reduced-motion:reduce){
   .rd-view canvas,.rd-still,.rd-pins{transition:none}

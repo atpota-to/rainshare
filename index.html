@@ -34,71 +34,66 @@
 
 <main class="rd-main">
   <noscript><p class="rd-noscript">Rainshare runs in your browser and needs JavaScript. The command-line version works without it: <code>curl -fsSL %RAINSHARE_SITE%/rainshare.mjs -o ~/.rainshare.mjs</code></p></noscript>
-  <!-- Signed out, at /: what Rainshare is, beside the water cycle to look around in; then everything open to everyone -->
+  <!-- Signed out, at /: what Rainshare is, beside a garden to rain on; then everything open to everyone -->
   <section class="rd-landing" id="landing" hidden>
     <div class="rd-pitch">
       <h1><span class="rd-sr">Got rain to spare? Your friends’ ideas and projects could use it.</span><span aria-hidden="true">Got r<span class="rd-ai">ai</span>n to spare? Your friends’ ideas and projects could use it.</span></h1>
       <p>Your AI plan resets whether you use it or not. Send your agent to help with what the people you follow are building. That help is <span class="rd-sr">the rain.</span><span aria-hidden="true">the r<span class="rd-ai">ai</span>n.</span></p>
       <form class="rd-signin" id="rdSignIn" novalidate>
-        <input name="handle" placeholder="you.bsky.social" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="url" enterkeyhint="go" aria-label="Your handle" aria-describedby="rdHow">
+        <input name="handle" placeholder="you.bsky.social" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="url" enterkeyhint="go" aria-label="Your handle" aria-describedby="rdWith">
         <button type="submit">Sign in</button>
       </form>
       <p class="rd-err" id="rdErr" role="alert" hidden></p>
-      <p class="rd-how" id="rdHow">Use your handle from Bluesky, Tangled or any Atmosphere app. Rainshare never sees your password.</p>
+      <p class="rd-with" id="rdWith">Use your handle from Bluesky, Tangled or any Atmosphere app. Rainshare never sees your password.</p>
       <p class="rd-also">Or <a href="/example" data-nav>explore an example circle</a> first.</p>
       <p class="rd-alpha">Rainshare is in early alpha. What you post stays in your own account, and you can delete it any time.</p>
     </div>
 
-    <figure class="rd-scene" id="scene">
-      <figcaption class="rd-sr">An animated view of a coast, showing the water cycle. Mist rises off the sea, gathers into clouds that drift inland, falls as rain on what’s planted beside a river, and runs back to the sea. Four buttons look closer at each part and say what it stands for.</figcaption>
+    <figure class="rd-scene rd-garden" id="scene">
+      <figcaption class="rd-sr">An animated garden. A cloud stands for your AI plan: it’s full when the plan resets, and whatever’s left in it is gone by the next reset. Your friends’ ideas and projects are planted in a row under it, a seed’s marker for an idea and a plant for a project. Sending the cloud over one rains on it, and the plant grows a stage. Further back a friend’s cloud is already raining on someone else’s. A button for each plot sends your cloud there.</figcaption>
       <div class="rd-view" id="sceneView">
         <svg class="rd-still" viewBox="0 0 400 340" aria-hidden="true">
           <circle class="s-sun" cx="92" cy="74" r="20"/>
           <path class="s-cloud" d="M196 132a22 22 0 0 1 2-44 30 30 0 0 1 56-8 25 25 0 0 1 28 52z"/>
           <path class="s-rain" d="M214 148l-5 18M236 148l-5 18M258 148l-5 18M225 174l-4 14M247 174l-4 14"/>
-          <path class="s-far" d="M170 262c30-34 52-62 84-86 20 18 34 30 50 52 14-12 26-20 40-30 14 20 26 40 36 64z"/>
-          <path class="s-hill" d="M150 266c40-30 78-46 118-52 44 8 82 26 112 52z"/>
-          <path class="s-sea" d="M20 250c26-6 44 6 70 0s44-6 70 0 36 4 50 0v16H20z"/>
-          <path class="s-vapour" d="M62 226c-7-11 7-17 0-28M96 226c-7-11 7-17 0-28M130 226c-7-11 7-17 0-28"/>
+          <path class="s-ground" d="M20 262c60-9 120-12 180-12s120 3 180 12v22H20z"/>
+          <path class="s-soil" d="M82 258a28 15 0 0 1 56 0zM210 258a28 15 0 0 1 56 0zM312 258a28 15 0 0 1 56 0z"/>
+          <path class="s-stake" d="M110 247v-20"/>
+          <rect class="s-tag" x="98" y="212" width="24" height="15" rx="4"/>
+          <path class="s-stem" d="M238 247v-24M340 247v-48"/>
+          <path class="s-leaf" d="M238 229c0-10-7-16-18-16 0 11 7 16 18 16zM238 225c0-10 7-16 18-16 0 11-7 16-18 16zM340 236c0-10-7-16-18-16 0 11 7 16 18 16zM340 230c0-10 7-16 18-16 0 11-7 16-18 16zM340 214c0-9-6-14-16-14 0 10 6 14 16 14zM340 209c0-9 6-14 16-14 0 10-6 14-16 14z"/>
+          <circle class="s-bloom" cx="340" cy="194" r="7"/>
         </svg>
         <canvas aria-hidden="true"></canvas>
-        <div class="rd-pins">
-          <button type="button" class="rd-pin" aria-expanded="false" aria-controls="note0"><i></i><span>Evaporation</span></button>
-          <button type="button" class="rd-pin" aria-expanded="false" aria-controls="note1"><i></i><span>Condensation</span></button>
-          <button type="button" class="rd-pin" aria-expanded="false" aria-controls="note2"><i></i><span>Precipitation</span></button>
-          <button type="button" class="rd-pin" aria-expanded="false" aria-controls="note3"><i></i><span>Collection</span></button>
-        </div>
+        <!-- a label under each plot, and your cloud to take hold of: src/landing/garden.js fills this in -->
+        <div class="rd-pins"></div>
         <button type="button" class="rd-pause" id="scenePause" aria-pressed="false" aria-label="Pause the animation">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" d="M8.5 6v12M15.5 6v12"/><path class="i-play" d="M8 5.5v13l11-6.5z"/></svg>
         </button>
       </div>
-      <!-- What each part stands for, and the screen in the example circle where it happens -->
+      <!-- What's happening in the scene. Where the scene can't be drawn, the three notes say it instead. -->
       <div class="rd-notes" aria-live="polite">
-        <p class="rd-hint" id="sceneHint">Pick a part of the cycle to look closer.</p>
-        <article class="rd-note" id="note0" hidden>
-          <h2>Evaporation</h2>
-          <p>Some of your plan goes unused before it resets. That’s time your agent could spend on a friend’s project.</p>
+        <p class="rd-hint" id="sceneHint">Drag your cloud over a friend’s idea or project.</p>
+        <article class="rd-note" id="sceneNote" hidden>
+          <div><h2></h2><p></p></div>
+          <a href="/example" data-nav></a>
+          <button type="button" id="sceneAgain" hidden>Start again</button>
+        </article>
+        <article class="rd-how">
+          <h2>Your AI plan is a cloud</h2>
+          <p>It’s full when your plan resets. Whatever’s left in it is gone by the next reset.</p>
           <a href="/example/u/did:example:kai" data-nav>See someone’s AI plan</a>
         </article>
-        <article class="rd-note" id="note1" hidden>
-          <h2>Condensation</h2>
-          <p>Say which AI plan you have and what you run. It gathers with the people you already follow.</p>
+        <article class="rd-how">
+          <h2>Your friends plant what they’d like a hand with</h2>
+          <p>An idea is a seed. A project is a plant, grown as far as it has.</p>
           <a href="/example" data-nav>See a circle</a>
         </article>
-        <article class="rd-note" id="note2" hidden>
-          <h2>Precipitation</h2>
-          <p>Pick a friend’s idea or project and send your agent after it. That’s the rain.</p>
-          <a href="/example/seed/did:example:mo/3sq-mo-idea" data-nav>See an idea</a>
-        </article>
-        <article class="rd-note" id="note3" hidden>
-          <h2>Collection</h2>
-          <p>A pull request comes back and the work is done. It grows in your garden, and next reset it all goes round again.</p>
+        <article class="rd-how">
+          <h2>Send your agent, and it rains</h2>
+          <p>When the work’s done, their plant is a stage further on, and it’s in your garden.</p>
           <a href="/example/seed/did:example:sam/3sq-sam" data-nav>See one that’s done</a>
         </article>
-        <div class="rd-tour" id="sceneTour" hidden>
-          <button type="button" id="tourNext">Next: <span>Condensation</span></button>
-          <button type="button" id="tourOut">Whole view</button>
-        </div>
       </div>
     </figure>
   </section>
