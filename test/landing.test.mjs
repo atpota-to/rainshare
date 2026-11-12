@@ -40,3 +40,21 @@ test('the garden has one plot a friend is on, and three in a row for your cloud'
   }
   assert.equal(GARDEN_PATH, '/example/u/' + createDemoSource().viewer);
 });
+
+// The garden is the page's backdrop, and is fitted into the part of it the page keeps clear.
+test('the garden is drawn as big as fits its frame, and no bigger', async () => {
+  const { fit, FRAME, EYE, UNDER, OVER, BASE, TOP } = await import('../src/landing/fit.js');
+  // beside the pitch on a laptop, a wide desktop, a short window, and under the pitch on a phone
+  const frames = [{ x: 595, y: 92, w: 795, h: 618 }, { x: 835, y: 92, w: 987, h: 776 }, { x: 526, y: 92, w: 730, h: 418 }, { x: 0, y: 640, w: 390, h: 360, close: true }];
+  for (const f of frames) {
+    const { reach, aim } = FRAME[f.close ? 'close' : 'wide'], at = fit(f);
+    const left = at.midX - reach * at.unit, right = at.midX + reach * at.unit, top = at.midY - (OVER - aim) * at.unit - TOP, foot = at.midY + (aim + UNDER) * at.unit + BASE;
+    assert.ok(left >= f.x - .01 && right <= f.x + f.w + .01, 'the row is inside the frame from side to side');
+    assert.ok(top >= f.y - .01, 'what’s written over your cloud is under the frame’s top');
+    assert.ok(Math.abs(foot - (f.y + f.h)) < .01, 'the plots’ labels sit along its lower edge');
+    assert.ok(right - left > f.w - .01 || top < f.y + .01, 'it touches the frame’s sides, or its top');
+    // the horizon is level with the eye: over what the camera looks at when the eye is higher than that
+    assert.equal(Math.sign(at.midY - at.horizon), Math.sign(EYE[1] - aim));
+    assert.equal(at.lens, at.unit * EYE[2]);
+  }
+});

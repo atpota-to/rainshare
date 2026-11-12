@@ -32,19 +32,21 @@ export const SUN_SEEN = new Vector3(-.155, .148, -.977).normalize(), SUN_LIGHT =
  * The dome: the sky's gradient, the sun, and stars at night. `C` holds the scene's Color
  * objects for top, mid, low, hor and sunCol, which it repaints between day and night; `uTime`
  * is its clock, as a { value }; `sunSeen` is where the sun stands, if not where it's seen
- * above. Keep the dome where the camera is, and set uStars to 0 or 1.
+ * above. `uSpan`, a { value }, is how soon the gradient reaches its top colour going up: one
+ * over the sine of the angle it's reached at. As it's given, the view only reaches a little
+ * way up the sky, so the gradient is drawn in that much. Keep the dome where the camera is,
+ * and set uStars to 0 or 1.
  */
-export function skyDome(C, uTime, sunSeen = SUN_SEEN){
+export function skyDome(C, uTime, sunSeen = SUN_SEEN, uSpan = { value: 2.3 }){
   const sky = new Mesh(new SphereGeometry(500, 32, 16), new ShaderMaterial({
     side: BackSide, depthWrite: false, depthTest: false,
-    uniforms: { uTop: { value: C.top }, uMid: { value: C.mid }, uLow: { value: C.low }, uHor: { value: C.hor }, uSunDir: { value: sunSeen }, uSunCol: { value: C.sunCol }, uStars: { value: 0 }, uTime },
+    uniforms: { uTop: { value: C.top }, uMid: { value: C.mid }, uLow: { value: C.low }, uHor: { value: C.hor }, uSunDir: { value: sunSeen }, uSunCol: { value: C.sunCol }, uStars: { value: 0 }, uTime, uSpan },
     vertexShader: 'varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: `
-      uniform vec3 uTop, uMid, uLow, uHor, uSunDir, uSunCol; uniform float uStars, uTime;
+      uniform vec3 uTop, uMid, uLow, uHor, uSunDir, uSunCol; uniform float uStars, uTime, uSpan;
       varying vec3 vDir;
       void main(){
-        // the view only reaches a little way up the sky, so the gradient is drawn in that much
-        vec3 d = normalize(vDir); float t = clamp(d.y * 2.3, 0.0, 1.0);
+        vec3 d = normalize(vDir); float t = clamp(d.y * uSpan, 0.0, 1.0);
         vec3 c = mix(uHor, uLow, smoothstep(0.0, 0.12, t));
         c = mix(c, uMid, smoothstep(0.1, 0.4, t));
         c = mix(c, uTop, smoothstep(0.35, 0.95, t));

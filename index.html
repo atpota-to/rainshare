@@ -34,7 +34,7 @@
 
 <main class="rd-main">
   <noscript><p class="rd-noscript">Rainshare runs in your browser and needs JavaScript. The command-line version works without it: <code>curl -fsSL %RAINSHARE_SITE%/rainshare.mjs -o ~/.rainshare.mjs</code></p></noscript>
-  <!-- Signed out, at /: what Rainshare is, beside a garden to rain on; then everything open to everyone -->
+  <!-- Signed out, at /: what Rainshare is, in a garden to rain on that's the page's whole backdrop; then everything open to everyone -->
   <section class="rd-landing" id="landing" hidden>
     <div class="rd-pitch">
       <h1><span class="rd-sr">Got rain to spare? Your friends’ ideas and projects could use it.</span><span aria-hidden="true">Got r<span class="rd-ai">ai</span>n to spare? Your friends’ ideas and projects could use it.</span></h1>
@@ -44,12 +44,15 @@
         <button type="submit">Sign in with your handle</button>
       </form>
       <p class="rd-err" id="rdErr" role="alert" hidden></p>
-      <p class="rd-also">Or <a href="/example" data-nav>explore an example circle</a> first.</p>
-      <p class="rd-alpha">Rainshare is in early alpha. What you post stays in your own account, and you can delete it any time.</p>
-      <details class="rd-asks">
-        <summary>What signing in allows</summary>
-        <p>Your server shows what Rainshare asks for: its own records in your account, and posting to Tangled and knotless as you (issues, comments, pull requests, and vouches on Tangled). Nothing goes to either unless you press a button that says so.</p>
-      </details>
+      <!-- the small print, on a pane of its own: over the garden's meadow, it needs one to be read -->
+      <div class="rd-small">
+        <p class="rd-also">Or <a href="/example" data-nav>explore an example circle</a> first.</p>
+        <p class="rd-alpha">Rainshare is in early alpha. What you post stays in your own account, and you can delete it any time.</p>
+        <details class="rd-asks">
+          <summary>What signing in allows</summary>
+          <p>Your server shows what Rainshare asks for: its own records in your account, and posting to Tangled and knotless as you (issues, comments, pull requests, and vouches on Tangled). Nothing goes to either unless you press a button that says so.</p>
+        </details>
+      </div>
     </div>
 
     <figure class="rd-scene rd-garden" id="scene">
@@ -70,33 +73,35 @@
         <canvas aria-hidden="true"></canvas>
         <!-- a label under each plot, and your cloud to take hold of: src/landing/garden.js fills this in -->
         <div class="rd-pins"></div>
+      </div>
+      <!-- Under the garden: what's happening in it, and the pause button. Where the scene can't be drawn, the three notes say it instead. -->
+      <div class="rd-base">
+        <div class="rd-notes" aria-live="polite">
+          <p class="rd-hint" id="sceneHint">Drag your cloud over a friend’s idea or project.</p>
+          <article class="rd-note" id="sceneNote" hidden>
+            <div><h2></h2><p></p></div>
+            <a href="/example" data-nav></a>
+            <button type="button" id="sceneAgain" hidden>Start again</button>
+          </article>
+          <article class="rd-how">
+            <h2>Your AI plan is a cloud</h2>
+            <p>It’s full when your plan resets. Whatever’s left in it is gone by the next reset.</p>
+            <a href="/example/u/did:example:kai" data-nav>See someone’s AI plan</a>
+          </article>
+          <article class="rd-how">
+            <h2>Your friends plant what they’d like a hand with</h2>
+            <p>An idea is a seed. A project is a plant, grown as far as it has.</p>
+            <a href="/example" data-nav>See a circle</a>
+          </article>
+          <article class="rd-how">
+            <h2>Send your agent, and it rains</h2>
+            <p>When the work’s done, their plant is a stage further on, and it’s in your garden.</p>
+            <a href="/example/seed/did:example:sam/3sq-sam" data-nav>See one that’s done</a>
+          </article>
+        </div>
         <button type="button" class="rd-pause" id="scenePause" aria-pressed="false" aria-label="Pause the animation">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" d="M8.5 6v12M15.5 6v12"/><path class="i-play" d="M8 5.5v13l11-6.5z"/></svg>
         </button>
-      </div>
-      <!-- What's happening in the scene. Where the scene can't be drawn, the three notes say it instead. -->
-      <div class="rd-notes" aria-live="polite">
-        <p class="rd-hint" id="sceneHint">Drag your cloud over a friend’s idea or project.</p>
-        <article class="rd-note" id="sceneNote" hidden>
-          <div><h2></h2><p></p></div>
-          <a href="/example" data-nav></a>
-          <button type="button" id="sceneAgain" hidden>Start again</button>
-        </article>
-        <article class="rd-how">
-          <h2>Your AI plan is a cloud</h2>
-          <p>It’s full when your plan resets. Whatever’s left in it is gone by the next reset.</p>
-          <a href="/example/u/did:example:kai" data-nav>See someone’s AI plan</a>
-        </article>
-        <article class="rd-how">
-          <h2>Your friends plant what they’d like a hand with</h2>
-          <p>An idea is a seed. A project is a plant, grown as far as it has.</p>
-          <a href="/example" data-nav>See a circle</a>
-        </article>
-        <article class="rd-how">
-          <h2>Send your agent, and it rains</h2>
-          <p>When the work’s done, their plant is a stage further on, and it’s in your garden.</p>
-          <a href="/example/seed/did:example:sam/3sq-sam" data-nav>See one that’s done</a>
-        </article>
       </div>
     </figure>
   </section>
