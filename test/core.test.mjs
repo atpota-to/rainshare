@@ -9,7 +9,7 @@ import { rank, score, fit } from '../core/rank.js';
 import { whereText, shortWhere, jobText, jobShort, wantsText, onItText, takenShort, askExcerpt, stageOf, nounOf, aNoun, pictureOf, whatItIs, stateText } from '../core/words.js';
 import { wateredBy, wateredText } from '../core/garden.js';
 import { renderMarkdown } from '../core/markdown.js';
-import { brief, launchers, handBack, readHandBack } from '../core/brief.js';
+import { brief, launchers, handBack, readHandBack, readBranchBack, handBackBranch } from '../core/brief.js';
 import { createDemoSource } from '../core/demo.js';
 import { splitSpaceUri } from '../core/source.js';
 import { lifeOf } from '../ui/bits.js';
@@ -198,12 +198,26 @@ test('the brief frames the request and the launchers paste as one command', () =
   assert.match(brief(theirs, { viewer: 'did:plc:me' }), /- @kai\.example took it on today\.\n\n@kai\.example is already on it\. Check with them, or with your user, before starting/);
   assert.doesNotMatch(brief(taken, { viewer: 'did:plc:me' }), /is already on it\. Check with them/);
   assert.match(brief({ ...item, value: { title: 'An idea' } }), /No repository is named/);
-  // On Tangled the agent pushes and its user opens the pull request, so the brief ends differently.
+  // On Tangled the agent pushes a branch, and the pull request is opened through Rainshare, as
+  // the person: by the agent if Rainshare is signed in beside it, or by a link it hands back.
   const tb = brief({ ...item, value: { title: 't', subject: parseSubject('https://tangled.org/a/b/issues/2') } });
   assert.match(tb, /1\. Look at the issue, and at the repository’s pull requests on tangled\.org, for one that already does this: https:\/\/tangled\.org\/a\/b\/issues\/2 and https:\/\/tangled\.org\/a\/b\/pulls\./);
-  assert.match(tb, /pull requests are opened on the web for now\. Push your branch first: to a\/b itself[\s\S]*the form is at https:\/\/tangled\.org\/a\/b\/pulls\/new[\s\S]*link the issue \(https:\/\/tangled\.org\/a\/b\/issues\/2\)[\s\S]*git format-patch[\s\S]*an address like https:\/\/tangled\.org\/a\/b\/pulls\/<id>/);
-  assert.match(tb, /1\. The link that opens the pull request, and the title and description to paste into it\.\n2\. That once it’s open it needs turning in on Rainshare/);
+  assert.match(tb, /- Push your branch first: to a\/b itself[\s\S]*open-pr at:\/\/did:plc:abc\/dev\.rainshare\.seed\/3k1 --branch <branch> --model <model>`[\s\S]*rainshare_open_pr[\s\S]*rainshare\.dev\/seed\/friend\.example\/3k1\?branch=<branch>&model=<model>[\s\S]*link the issue \(https:\/\/tangled\.org\/a\/b\/issues\/2\)[\s\S]*git format-patch[\s\S]*https:\/\/tangled\.org\/a\/b\/pulls\/new/);
+  assert.match(tb, /1\. The pull request’s address, if you opened it yourself\. If you didn’t, the link above that opens it from Rainshare[^\n]*\n2\. Whether it’s turned in on Rainshare\./);
   assert.doesNotMatch(tb, /\?pr=|gh pr list|Fixes #/);
+  // A private one has no link to hand back and nothing a CLI can reach: the person opens it on Tangled.
+  const tp = brief({ ...item, space: 'at://g/space/x/y', value: { title: 't', subject: parseSubject('https://tangled.org/a/b/issues/2') } });
+  assert.match(tp, /your user opens the pull request: on Tangled, at https:\/\/tangled\.org\/a\/b\/pulls\/new/);
+  assert.doesNotMatch(tp, /open-pr|\?branch=/);
+  // On knotless the agent can do it all with knotless's own command; Rainshare is the way through when it can't.
+  const kb = brief({ ...item, value: { title: 't', subject: parseSubject('https://knotless.dev/alice.test/proj') } });
+  assert.match(kb, /knotless pull create knotless:\/\/alice\.test\/proj[\s\S]*If the branch is pushed but you can’t open the pull from here, Rainshare can, as your user: `node ~\/\.rainshare\.mjs open-pr [^\n]*\?branch=<branch>&model=<model>/);
+  // What the link carries back: the branch, where it was pushed, and what did the work.
+  assert.deepEqual(readBranchBack('?branch=fix%2Fsync&from=https://tangled.org/me.example/b&model=opus&title=Retry%20sync'), { branch: 'fix/sync', from: 'https://tangled.org/me.example/b', title: 'Retry sync', model: 'opus', harness: '', sessionUrl: '' });
+  assert.equal(readBranchBack('?pr=https://x.example/1'), null);
+  for (const bad of ['?branch=', '?branch=a%20b', '?branch=' + 'x'.repeat(300), '?branch=a%0Ab']) assert.equal(readBranchBack(bad), null, bad);
+  assert.equal(handBackBranch(item, 'fix', { from: 'me/b', model: 'opus' }), 'https://rainshare.dev/seed/friend.example/3k1?branch=fix&from=me/b&model=opus');
+  assert.equal(handBackBranch({ ...item, space: 'at://g/space/x/y' }, 'fix'), null);
   // With nothing set up, the agent hands back a link that carries the pull request.
   assert.match(b, /rainshare\.dev\/seed\/friend\.example\/3k1\?pr=<pull request URL>&model=<model>/);
   assert.doesNotMatch(brief({ ...item, space: 'at://g/space/x/y' }), /\?pr=/);

@@ -54,8 +54,9 @@ const host = kind => ({
   },
   // The query comes along, so a link an agent handed back still has its pull request after signing in.
   signIn: kind === 'real' ? (handle, sub) => oauth.signIn(handle, '/' + (sub || '') + location.search) : null,
-  // Posting an issue or a comment to knotless or Tangled for you is asked for separately, when
-  // you choose to: your server shows what's being added, and you come back to where you were.
+  // Posting to knotless or Tangled for you (an issue, a comment, a pull request, a vouch) is
+  // asked for at sign-in. A sign-in that was granted less, or one from before Rainshare asked,
+  // can add a forge: your server shows what's being added, and you come back to where you were.
   // The example circle only pretends to post, so there both count as connected.
   forges: () => kind === 'example' ? ['knotless', 'tangled'] : forges,
   connectForge: kind === 'real' ? (forge, sub) => session && oauth.signIn(session.did, '/' + (sub || '') + location.search, { forges: [...new Set([...forges, forge])] }) : null,

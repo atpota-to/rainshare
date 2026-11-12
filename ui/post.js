@@ -265,7 +265,7 @@ export function createPoster(ui){
     const forge = offerOn(); if (!forge) return '';
     const name = FORGE_SAID[forge];
     if ((ui.forges?.() || []).includes(forge)) return `<label class="rs-check"><input type="checkbox" name="openIssue"${P.openIssue ? ' checked' : ''}> Open an issue for it on ${esc(name)} too, from what you write next</label>`;
-    return ui.connectForge ? `<p class="rs-muted">Rainshare can open an issue for it on ${esc(name)}, once you’ve said it may post there for you. <button class="rs-link" type="button" data-rs-connect-forge="${forge}">Connect ${esc(name)}</button> (you’ll start this step again).</p>` : '';
+    return ui.connectForge ? `<p class="rs-muted">Rainshare can open an issue for it on ${esc(name)}, but your sign-in doesn’t let it post there for you yet. <button class="rs-link" type="button" data-rs-connect-forge="${forge}">Connect ${esc(name)}</button> (you’ll start this step again).</p>` : '';
   }
   const found = () => {
     if (P.kind === 'idea' || !P.link.trim()) return '';

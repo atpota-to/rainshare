@@ -30,11 +30,16 @@ test('speaks MCP over stdio', async () => {
     child.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) + '\n');
     const list = await call('tools/list', {});
     const names = list.result.tools.map(t => t.name);
-    assert.deepEqual(names, ['rainshare_board', 'rainshare_show', 'rainshare_check', 'rainshare_take', 'rainshare_drop', 'rainshare_turn_in', 'rainshare_ask', 'rainshare_close_out', 'rainshare_profile', 'rainshare_set_forecast', 'rainshare_whoami']);
+    assert.deepEqual(names, ['rainshare_board', 'rainshare_show', 'rainshare_check', 'rainshare_take', 'rainshare_drop', 'rainshare_turn_in', 'rainshare_open_pr', 'rainshare_ask', 'rainshare_close_out', 'rainshare_profile', 'rainshare_set_forecast', 'rainshare_whoami']);
     assert.ok(list.result.tools.every(t => t.inputSchema?.type === 'object' && !('run' in t)));
     const take = await call('tools/call', { name: 'rainshare_take', arguments: { ref: 'at://did:plc:abc/dev.rainshare.seed/3k2a4zxq5zs2a' } });
     assert.equal(take.result.isError, true);
     assert.match(take.result.content[0].text, /Not signed in to Rainshare here/);
+    // Opening a pull request posts as the signed-in person, so it needs one, and says so plainly.
+    const pr = await call('tools/call', { name: 'rainshare_open_pr', arguments: { ref: 'at://did:plc:abc/dev.rainshare.seed/3k2a4zxq5zs2a', branch: 'fix' } });
+    assert.equal(pr.result.isError, true);
+    assert.match(pr.result.content[0].text, /Not signed in to Rainshare here/);
+    assert.match(list.result.tools.find(t => t.name === 'rainshare_open_pr').description, /knotless or Tangled only/);
     const bad = await call('tools/call', { name: 'nope', arguments: {} });
     assert.equal(bad.error.code, -32602);
     const missing = await call('resources/list', {});

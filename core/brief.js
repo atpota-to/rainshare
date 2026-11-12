@@ -34,6 +34,23 @@ export function handBack(item, pr, model){
   const page = pageOf(item);
   return page ? `${page}?pr=${pr}${model ? `&model=${model}` : ''}` : null;
 }
+/**
+ * The same, for a branch that's been pushed where Rainshare can open the pull request itself
+ * (knotless and Tangled): the page opens with the pull request form filled in, and sending it
+ * opens the pull request as the person and turns it in. `from` is the repo the branch was
+ * pushed to, when that's a fork.
+ */
+export function handBackBranch(item, branch, { from, model } = {}){
+  const page = pageOf(item);
+  return page ? `${page}?branch=${branch}${from ? `&from=${from}` : ''}${model ? `&model=${model}` : ''}` : null;
+}
+/** What that link carries: { branch, from, title, model, harness, sessionUrl }, or null. What it names is only offered to the person, who looks it over before anything is opened. */
+export function readBranchBack(search){
+  const q = new URLSearchParams(search || ''), branch = (q.get('branch') || '').trim();
+  if (!branch || branch.length > 244 || /[\u0000-\u0020\u007f]/.test(branch)) return null;
+  const short = (k, n = 120) => printable(q.get(k) || '').trim().slice(0, n);
+  return { branch, from: short('from', 300), title: short('title', 256), model: short('model'), harness: short('harness'), sessionUrl: /^https?:\/\//i.test(short('session')) ? (q.get('session') || '').trim().slice(0, 600) : '' };
+}
 /** What a hand-back link carries, from a page address's query string: { url, model, harness, sessionUrl }, or null. */
 export function readHandBack(search){
   const q = new URLSearchParams(search || ''), url = (q.get('pr') || '').trim();
@@ -52,8 +69,9 @@ export function brief(item, { viewer, now = Date.now() } = {}){
   const sq = item.value || {}, sub = sq.subject, d = describeSubject(sub), clone = cloneUrlOf(sub), kind = kindOf(sub);
   const w = sq.wants || {}, page = pageOf(item), pub = !!item.uri && !item.space, n = parseInt(sub?.number, 10) || '', specUrl = safeHttp(sq.specUrl);
   const forge = d ? FORGE_NAMES[d.forge] || 'the forge' : 'the forge';
-  // On Tangled a pull request is opened on the web (a command-line tool is on its way), so the
-  // agent pushes the branch and its user opens the pull request and says where it is.
+  // On Tangled an agent can push a branch but has no command to open a pull request with (one
+  // is on its way). Rainshare can open it as the person: from its own CLI or MCP server if
+  // that's signed in here, or from the ask's page, through a link the agent hands back.
   const tangled = d?.forge === 'tangled';
   // An idea has no repo yet. Whose the result will be changes what the agent should do first:
   // build it as its own user's project, or find out where the person who asked wants it.
@@ -124,16 +142,22 @@ export function brief(item, { viewer, now = Date.now() } = {}){
   const what = idea ? 'repository URL' : 'pull request URL';
   const yourself = `\`node ${CLI_HOME} turn-in ${item.uri} --url <${what}> --model <model>\`, or the MCP tool \`rainshare_turn_in\``;
   lines.push('## Turning it in', '');
+  const openPr = `\`node ${CLI_HOME} open-pr ${item.uri} --branch <branch> --model <model>\` (with \`--from <the fork’s address>\` if you pushed to a fork), or the MCP tool \`rainshare_open_pr\``;
+  const branchLink = pub && page ? handBackBranch(item, '<branch>', { model: '<model>' }) : null;
   if (tangled) lines.push(
-    `- On Tangled, pull requests are opened on the web for now. Push your branch first: to ${d.repo || 'the repository'} itself if your user owns it or is a collaborator there, otherwise to their fork of it (Fork, on the repository’s page). Pushing needs an SSH key saved in their Tangled account.`,
-    `- If the push prints a link for opening a pull request, pass that on to your user. If it doesn’t, the form is at ${clone ? clone + '/pulls/new' : 'the repository’s New pull page'}. Write the title and description for them to paste: ${d.issue && d.href ? `link the issue (${d.href}), ` : ''}${credit}.`,
-    '- If you can’t push at all, make a patch with `git format-patch` and tell your user exactly what to open, and where.',
-    `- Once it’s open, the pull request has an address like ${clone || 'https://tangled.org/<owner>/<repo>'}/pulls/<id>, and it still needs turning in on Rainshare. ${pub ? `If your user gives you that address and the Rainshare CLI or MCP server is set up here, do it yourself: ${yourself}. Otherwise they paste it into the turn-in form on its Rainshare page${page ? `: ${page}` : ''}.` : 'Your user pastes it into the turn-in form on its Rainshare page in Rainshare.'}`,
+    `- Push your branch first: to ${d.repo || 'the repository'} itself if your user owns it or is a collaborator there, otherwise to their fork of it (Fork, on the repository’s page). Pushing needs an SSH key saved in their Tangled account.`,
+    ...(pub ? [
+      `- Then the pull request. If the Rainshare CLI or MCP server is signed in here, open it yourself: ${openPr}. That opens it on Tangled as your user and turns it in on Rainshare, in one step.`,
+      ...(branchLink ? [`- If neither is set up, your user opens it with one click. Give them this link with your branch’s name in it (and \`&from=<the fork’s address>\` on the end if you pushed to a fork). It opens the Rainshare page with the pull request written out for them to look over; sending it opens the pull request on Tangled and turns it in: ${branchLink}`] : [])
+    ] : [`- Then your user opens the pull request: on Tangled, at ${clone ? clone + '/pulls/new' : 'the repository’s New pull page'}.`]),
+    `- Either way, write its title and description: ${d.issue && d.href ? `link the issue (${d.href}), ` : ''}${credit}.`,
+    `- If you can’t push at all, make a patch with \`git format-patch\` and tell your user exactly what to open, and where: Tangled’s own form is at ${clone ? clone + '/pulls/new' : 'the repository’s New pull page'}, and a pull request opened there is turned in by pasting its address into the form on ${pub && page ? `its Rainshare page (${page})` : 'its page in Rainshare'}.`,
     '');
   else if (knotless) lines.push(
     `- With the \`knotless\` command here, do it all yourself. Push your branch: to ${d.repo || 'the repository'} if your user can write to it, otherwise fork it${kl ? ` (\`knotless repo fork ${kl}\`)` : ''} and push to the fork (\`git push knotless://<their handle>/<repo> <branch>\`). Then open the pull${kl ? `: \`knotless pull create ${kl} <base branch> knotless://<their handle>/<repo> <branch> "<title>" -m - < body.md\`` : ''}. With the knotless MCP server instead, the tools are \`repo_fork\`, \`repo_commit\` and \`pull_create\`.`,
     `- In the pull’s body, ${d.issue && d.href ? `write "Fixes ${d.href}" so that merging it closes the issue, ` : ''}${credit}. If the repository has a template for pulls${kl ? ` (\`knotless pull template ${kl}\`)` : ''}, follow it.`,
     `- \`pull create\` prints the pull’s \`at://\` address, and that address is what gets turned in.${clone ? ` Its page is ${clone}/pull/<the account in that address>/<its last part>.` : ''}`,
+    ...(pub ? [`- If the branch is pushed but you can’t open the pull from here, Rainshare can, as your user: ${openPr}${branchLink ? `. Or your user does it with one click, from this link with your branch’s name in it: ${branchLink}` : ''}. Either one turns it in as well.`] : []),
     `- With neither here, ask your user to set knotless up (${KNOTLESS}/start), or make a patch with \`git format-patch\` and tell them exactly what to open, and where.`,
     ...(pub
       ? [`- Then turn it in on Rainshare. If the Rainshare CLI or MCP server is set up here, do it yourself: ${yourself}.`,
@@ -157,8 +181,10 @@ export function brief(item, { viewer, now = Date.now() } = {}){
 
   lines.push('## When you’re done', '', 'End by telling your user:', '',
     ...(tangled
-      ? ['1. The link that opens the pull request, and the title and description to paste into it.',
-        `2. That once it’s open it needs turning in on Rainshare: its address goes in the form on its Rainshare page${page ? ` (${page})` : ''}. If you turned it in yourself, say so instead.`]
+      ? [pub ? '1. The pull request’s address, if you opened it yourself. If you didn’t, the link above that opens it from Rainshare, and the title and description you wrote for it.'
+        : '1. Where to open the pull request, and the title and description you wrote for it.',
+        pub ? '2. Whether it’s turned in on Rainshare. Opening the pull request through Rainshare turns it in as well, so say which it was.'
+          : `2. That once it’s open it needs turning in: its address goes in the form on its page in Rainshare.`]
       : [idea ? '1. Where the new repository is.' : '1. The pull request’s address.',
         pub ? '2. Whether it’s turned in on Rainshare. If you turned it in yourself, say so. If you didn’t, give them the link above to open.' : '2. That it still needs turning in on its page in Rainshare.']),
     idea ? `3. That nothing more is needed after that: ${who(item)} marks it done once they’ve seen it${theirs ? ', and the project is your user’s to keep' : ''}.`

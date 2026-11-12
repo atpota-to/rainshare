@@ -4,7 +4,7 @@
 // browser through `store`, and nothing is written anywhere.
 import { wateredBy } from './garden.js';
 import { writableForge } from './forgewrite.js';
-import { repoPageOf, knotlessIssueSubject } from './subjects.js';
+import { repoPageOf, knotlessIssueSubject, knotlessPage } from './subjects.js';
 import { PROFILE, SEED, TAKE, DELIVERY } from './ns.js';
 import * as R from './records.js';
 import { closeness } from './circle.js';
@@ -110,6 +110,16 @@ const DELIVERIES = [
   { id: '3dl-you-priya', by: ME, on: '3sq-priya-done', at: 18 * day, value: { url: 'https://github.com/you-example/recipe-footprint', setup: { harness: 'claude-code', models: ['claude-sonnet-5-5'] }, note: 'One page, no accounts. The numbers are rough and say so.' } },
   { id: '3dl-you-tomas', by: ME, on: '3sq-tomas-done', at: 27 * day, state: 'merged', value: { url: 'https://tangled.org/tomas.example/tidepool/pulls/29', setup: { harness: 'claude-code', models: ['claude-sonnet-5-5'] } } }
 ];
+// Tangled vouches, for the example: the two people you vouch for, and who each of them
+// vouches for. So Tomás and Juniper carry a mark you never gave them yourself.
+const MY_VOUCHES = {
+  'did:example:priya': { kind: 'vouch', reason: 'Careful with data, and says so when she isn’t sure.', at: ago(40 * day) },
+  'did:example:kai': { kind: 'vouch', reason: 'Reads what his agents write before he sends it.', at: ago(90 * day) }
+};
+const VOUCHED = {
+  'did:example:priya': { 'did:example:tomas': { kind: 'vouch', reason: 'Maintains tidepool with a lot of patience.', at: ago(60 * day) } },
+  'did:example:kai': { 'did:example:tomas': { kind: 'vouch', reason: '', at: ago(120 * day) }, 'did:example:juniper': { kind: 'vouch', reason: 'Small, clear commits. Asks good questions.', at: ago(20 * day) } }
+};
 const MY_PROFILE = {
   bio: 'Here to put my leftover usage to good use.', budget: 'medium', values: ['accessibility', 'open-source', 'climate'], priorities: ['low-budget', 'students', 'values-aligned'], offering: ['javascript', 'css', 'python'],
   setups: [{ harness: 'claude-code', models: ['claude-sonnet-5-5'], plan: 'Claude Pro', runsOn: 'local' }], forecast: { level: 'showers', models: ['claude-sonnet-5-5'] }
@@ -119,7 +129,7 @@ const MY_PROFILE = {
 // the example has no group seed, no groups to share a profile with, and nothing kept back.
 export function createDemoSource({ store = null, me: meOverride = null, groups = true } = {}){
   const saved = store?.get('rainshare') || {};
-  const state = { profile: saved.profile || MY_PROFILE, hidden: groups ? saved.hidden || ['budget'] : [], share: groups ? saved.share ?? [GROUP.did] : [], mine: saved.mine || [], takes: saved.takes || [], deliveries: saved.deliveries || [], removed: saved.removed || [], edits: saved.edits || {}, added: saved.added || [] };
+  const state = { profile: saved.profile || MY_PROFILE, hidden: groups ? saved.hidden || ['budget'] : [], share: groups ? saved.share ?? [GROUP.did] : [], mine: saved.mine || [], takes: saved.takes || [], deliveries: saved.deliveries || [], removed: saved.removed || [], edits: saved.edits || {}, added: saved.added || [], vouches: saved.vouches || MY_VOUCHES };
   const save = () => store?.set('rainshare', state);
   const me = { did: ME, handle: meOverride?.handle || 'you.example', displayName: meOverride?.displayName || 'You', avatar: meOverride?.avatar || null };
 
@@ -205,7 +215,7 @@ export function createDemoSource({ store = null, me: meOverride = null, groups =
       state.deliveries.push(d); save(); return pause(d);
     },
     forget(){},
-    reset(){ store?.set('rainshare', null); Object.assign(state, { profile: MY_PROFILE, hidden: groups ? ['budget'] : [], share: groups ? [GROUP.did] : [], mine: [], takes: [], deliveries: [], removed: [], edits: {}, added: [] }); },
+    reset(){ store?.set('rainshare', null); Object.assign(state, { profile: MY_PROFILE, hidden: groups ? ['budget'] : [], share: groups ? [GROUP.did] : [], mine: [], takes: [], deliveries: [], removed: [], edits: {}, added: [], vouches: MY_VOUCHES }); },
     groups: () => Promise.resolve(!groups ? [] : [GROUP, { ...HACKERS, space: state.added.includes(HACKERS.did) ? HACKERS.space : null, canAdd: true }]),
     reach: () => Promise.resolve({ following: 312, followers: 1204, mutuals: 84 }),
     addToGroup: async did => { if (!state.added.includes(did)) state.added.push(did); save(); return pause(GROUPS[did]?.space || `at://${did}/space/dev.rainshare.board/rainshare`); },
@@ -226,6 +236,32 @@ export function createDemoSource({ store = null, me: meOverride = null, groups =
         : { $type: `${SEED}#tangledIssue`, uri: `at://did:example:repo/org.tangled.track.ticket/${key}`, repoUrl: page, url: `${page}/issues/${key}` });
     },
     forgeComment: subject => pause({ href: subject?.url || null }),
+    // A pull request is pretended the same way: the form offers a repo and "your fork" of it,
+    // with a branch an agent might have pushed, and opening one gives a made-up address.
+    async pullChoices(subject){
+      const page = repoPageOf(subject), forge = writableForge(subject);
+      if (!forge || !page) throw new Error('Rainshare can open pull requests on knotless and Tangled only.');
+      const name = page.split('/').pop(), label = page.replace(/^https:\/\/[^/]+\//, '');
+      return pause({ forge, page, base: 'main', bases: ['main'], template: '', sources: [
+        { id: 'example:repo', label, page, fork: false, branches: ['main'] },
+        { id: 'example:fork', label: `you.example/${name}`, page: page.replace(label, `you.example/${name}`), fork: true, branches: ['rainshare-work', 'main'] }] });
+    },
+    async forgePull(subject){
+      const page = repoPageOf(subject), forge = writableForge(subject);
+      if (!forge || !page) throw new Error('Rainshare can open pull requests on knotless and Tangled only.');
+      const key = tid('pr'), uri = forge === 'knotless' ? `at://${ME}/dev.knotless.pull/${key}` : `at://did:example:repo/org.tangled.track.ticket/${key}`;
+      return pause({ uri, url: forge === 'knotless' ? knotlessPage(page, uri) : `${page}/pulls/${key}` });
+    },
+    // Tangled's vouch network, pretended: you vouch for Priya, and Priya and Kai have vouched
+    // for a couple of the others, so their names carry a mark and yours can be added.
+    vouchCircle: () => pause({
+      mine: new Map(Object.entries(state.vouches || {})),
+      circle: Object.entries(VOUCHED).filter(([did]) => (state.vouches || {})[did]?.kind === 'vouch').map(([did, said]) => ({ did, said: new Map(Object.entries(said)) })),
+      partial: false
+    }),
+    async vouchFor(did, { reason } = {}){ state.vouches = { ...(state.vouches || {}), [did]: { kind: 'vouch', reason: String(reason || '').trim().slice(0, 256), at: new Date().toISOString() } }; save(); return pause(state.vouches[did]); },
+    async unvouch(did){ const { [did]: _, ...rest } = state.vouches || {}; state.vouches = rest; save(); return pause(); },
+    evidenceFor: () => Promise.resolve([]),
     knotlessRepos: () => Promise.resolve([{ uri: 'at://did:example:you/dev.knotless.repo/tally', name: 'tally', url: 'https://knotless.dev/you.example/tally', description: 'Adds up receipts' }]),
     knotlessIssues: () => Promise.resolve([
       { uri: 'at://did:example:you/dev.knotless.issue/3iss3', title: 'Dates in ISO 8601 are read as text', body: '' },

@@ -399,5 +399,21 @@
 .rs-signin{max-width:none;border:2px solid var(--rs-accent-soft)}
 .rs-signin .rs-row input{flex:1 1 220px;width:auto}
 /* the turn-in form sits inside the seed's own card */
-.rs-form.rs-turnin{padding:0;background:none;box-shadow:none;outline:0;-webkit-backdrop-filter:none;backdrop-filter:none;max-width:none}
+.rs-form.rs-turnin,.rs-more .rs-form{padding:0;background:none;box-shadow:none;outline:0;-webkit-backdrop-filter:none;backdrop-filter:none;max-width:none}
+/* Tangled's vouches: a hat beside a name, and what your circle has said */
+.rs-hat{display:inline-flex;vertical-align:-3px;margin-left:5px;color:var(--rs-ok)}
+.rs-hat .rs-i{width:16px;height:16px}
+.rs-person h1 .rs-hat{vertical-align:-2px;margin-left:8px}
+.rs-person h1 .rs-hat .rs-i{width:22px;height:22px}
+.rs-hat-denounce,.rs-vouch-said.rs-hat-denounce .rs-i{color:var(--rs-bad)}
+.rs-hat-mixed,.rs-vouch-said.rs-hat-mixed .rs-i{color:var(--rs-down)}
+.rs-vouch{display:flex;flex-direction:column;gap:10px}
+.rs-vouch-said{display:flex;gap:8px;align-items:flex-start;font-size:14px}
+.rs-vouch-said .rs-i{flex:none;width:18px;height:18px;margin-top:1px;color:var(--rs-ok)}
+.rs-vouch-why{margin:0;padding:0 0 0 26px;list-style:none;font-size:14px;color:var(--rs-muted);display:flex;flex-direction:column;gap:4px}
+.rs-form.rs-vouchform{padding:0;background:none;box-shadow:none;outline:0;-webkit-backdrop-filter:none;backdrop-filter:none;max-width:none;gap:10px}
+.rs-people .rs-vouchform{margin-top:6px}
+/* opening the pull request from the ask's page */
+.rs-pull summary .rs-i{width:16px;height:16px;margin-right:6px;vertical-align:-3px}
+.rs-pull textarea{font-family:var(--rs-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:13px;line-height:1.5}
 @media (prefers-reduced-motion:reduce){.rs *{transition:none!important}}

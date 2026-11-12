@@ -86,12 +86,20 @@ export const OWNERS = [['helper', 'Whoever builds it keeps it'], ['requester', '
 export const labelOf = (list, v) => (list.find(x => x[0] === v) || [, v])[1];
 export const audienceOf = record => String(record?.audience?.$type || '').split('#')[1] || 'anyone';
 
-// What a sign-in has to allow before Rainshare can post to a forge for you. Nobody is asked
-// for these at sign-in: only when they choose to connect that forge (see ./forgewrite.js).
-//   knotless  an issue or a comment is a record in your own account
-//   Tangled   your server vouches for you to the repo's host, and a record in your own
-//             account says the post was yours
+// What a sign-in has to allow before Rainshare can post to a forge for you. Sign-in asks for
+// all of it up front (../src/oauth.js), so nobody is sent back to their server halfway through
+// something. A sign-in that was granted less can add a forge later (see ./forgewrite.js).
+//   knotless  an issue, a comment or a pull request is a record in your own account
+//   Tangled   they're kept with the repo, on its host. Your server gives Rainshare a token,
+//             good for a minute, that says a call is yours: one for writing a record there
+//             (an issue, a comment, a pull request), one for a pull request's changes, and
+//             one for taking a pull request back if its changes are refused. A record in
+//             your own account says each post was yours. A vouch for someone is a record in
+//             your own account too (./vouch.js).
 export const FORGE_SCOPES = {
-  knotless: ['repo:dev.knotless.issue?action=create', 'repo:dev.knotless.comment?action=create'],
-  tangled: ['rpc:com.atproto.repo.createRecord?aud=*', 'repo:org.tangled.graph.attestation?action=create']
+  knotless: ['repo:dev.knotless.issue?action=create', 'repo:dev.knotless.comment?action=create', 'repo:dev.knotless.pull?action=create'],
+  tangled: [
+    'rpc:com.atproto.repo.createRecord?aud=*', 'rpc:org.tangled.review.submitPatch?aud=*', 'rpc:com.atproto.repo.deleteRecord?aud=*',
+    'repo:org.tangled.graph.attestation?action=create', 'repo:org.tangled.graph.vouch'
+  ]
 };

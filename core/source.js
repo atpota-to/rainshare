@@ -14,7 +14,8 @@ import * as R from './records.js';
 import { closeness, meantFor } from './circle.js';
 import { completeTangled, tangledRepos, tangledIssues, knotlessRepos, knotlessIssues } from './subjects.js';
 import { wateredBy } from './garden.js';
-import { forgeIssue, forgeComment } from './forgewrite.js';
+import { forgeIssue, forgeComment, forgePull, pullChoices } from './forgewrite.js';
+import { circleOf, vouchFor, unvouch, evidenceFor } from './vouch.js';
 
 const TTL = 60e3;
 /** A record URI inside a space: the space, then repo/collection/rkey. */
@@ -297,8 +298,17 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     knotlessRepos: () => viewer ? knotlessRepos(viewer) : Promise.resolve([]),
     knotlessIssues,
     gardenOf,
-    // Posting to knotless or Tangled as you: an issue on a repo, or a comment on an issue (./forgewrite.js).
+    // Posting to knotless or Tangled as you: an issue on a repo, a comment on an issue, or a
+    // pull request from a branch that's been pushed (./forgewrite.js).
     forgeIssue: (subject, input) => forgeIssue(agent, subject, input),
-    forgeComment: (subject, text) => forgeComment(agent, subject, text)
+    forgeComment: (subject, text) => forgeComment(agent, subject, text),
+    forgePull: (subject, input) => forgePull(agent, subject, input),
+    pullChoices: subject => pullChoices(subject, { viewer }),
+    // Tangled's vouch network (./vouch.js): what you and the people you vouch for have said
+    // about others, and vouching for someone yourself. Read once and kept a few minutes.
+    vouchCircle: () => viewer ? memo('vouches', () => circleOf(viewer), 5 * 60e3) : Promise.resolve(null),
+    vouchFor: async (did, input) => { const r = await vouchFor(agent, did, input); forget('vouches'); return r; },
+    unvouch: async did => { await unvouch(agent, did); forget('vouches'); },
+    evidenceFor
   };
 }

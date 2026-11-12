@@ -3,9 +3,11 @@
 //   loopback  in dev, served from 127.0.0.1: the client_id is the config, scope and all
 //   hosted    everywhere else: the client_id is /oauth-client-metadata.json on this origin
 //
-// It asks for everything private seeds need first; a server that doesn't know the
-// spaces scopes refuses with invalid_scope, and is asked again for what any server grants.
-import { SCOPE, BASIC_SCOPE, DECLARED_SCOPE, REDIRECT_PATH, PLC, withForges, forgesIn } from './scope.js';
+// Sign-in asks for everything up front: your Rainshare records, and posting to knotless and
+// Tangled for you (issues, comments, pull requests, vouches), so nobody is sent back to their
+// server halfway through something. A server that refuses part of that (invalid_scope) is
+// asked again for less, a step at a time, down to what any server grants: see `ladder`.
+import { DECLARED_SCOPE, REDIRECT_PATH, PLC, FORGES, ladder, forgesIn } from './scope.js';
 
 const LOOPBACK = /^http:\/\/(127\.0\.0\.1|\[::1\]|localhost)(:\d+)?$/.test(location.origin);
 const SIGNED_IN = '@@atproto/oauth-client-browser(sub)';
@@ -44,7 +46,8 @@ export async function start(){
   try { r = await c.init(); }
   catch (e) {
     const p = pending();
-    if (e?.params?.get?.('error') === 'invalid_scope' && p?.handle && !p.basic) { signIn(p.handle, p.to, { basic: true, forges: p.forges }).catch(() => {}); return { redirecting: true }; }
+    // Refused for asking too much: ask again for the next step down, if there is one.
+    if (e?.params?.get?.('error') === 'invalid_scope' && p?.handle && (p.step ?? 0) + 1 < ladder(p.forges).length) { signIn(p.handle, p.to, { forges: p.forges, step: (p.step ?? 0) + 1 }).catch(() => {}); return { redirecting: true }; }
     setPending(null);
     throw e;
   }
@@ -59,18 +62,14 @@ export async function forgesOf(session){
   try { return forgesIn((await session.getTokenInfo(false)).scope); } catch (_) { return []; }
 }
 
-// `forges` adds what posting to those forges needs (knotless, tangled) to what's asked for.
-// It's left out of an ordinary sign-in, and passed when someone connects a forge.
-export async function signIn(handle, to, { basic, forges = [] } = {}){
-  const c = await client();
-  const state = JSON.stringify({ to });
-  setPending({ handle, to, basic: !!basic, forges });
-  if (basic) return c.signIn(handle, { scope: withForges(BASIC_SCOPE, forges), state });
-  try { await c.signIn(handle, { scope: withForges(SCOPE, forges), state }); }
-  catch (e) {
-    if (e?.error !== 'invalid_scope') throw e;
-    setPending({ handle, to, basic: true, forges });
-    await c.signIn(handle, { scope: withForges(BASIC_SCOPE, forges), state });
+// `forges` is which forges to ask to post to: all of them unless told otherwise. `step` is
+// how far down the ladder to start (after a refusal that came back through the address bar).
+export async function signIn(handle, to, { forges = FORGES, step = 0 } = {}){
+  const c = await client(), state = JSON.stringify({ to }), steps = ladder(forges);
+  for (let i = Math.min(Math.max(0, step), steps.length - 1); ; i++) {
+    setPending({ handle, to, forges, step: i });
+    try { return await c.signIn(handle, { scope: steps[i], state }); }
+    catch (e) { if (e?.error !== 'invalid_scope' || i >= steps.length - 1) throw e; }
   }
 }
 

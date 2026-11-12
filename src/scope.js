@@ -37,9 +37,11 @@ export const SCOPE = !GROUPS ? BASIC_SCOPE : [
   ...METHODS.map(rpc)
 ].join(' ');
 
-// Posting to a forge for you (an issue or a comment on knotless or Tangled) needs more than
-// sign-in asks for, so it's asked for separately, when you connect that forge, and added to
-// whatever the sign-in already had. FORGE_SCOPES in ../core/ns.js says what each needs.
+// Posting to a forge for you (an issue, a comment or a pull request on knotless or Tangled,
+// and a vouch on Tangled) needs more than Rainshare's own records. Sign-in asks for it all up
+// front (./oauth.js); a sign-in that was granted less can add a forge later, which asks again
+// with that forge added to whatever it already had. FORGE_SCOPES in ../core/ns.js says what
+// each needs.
 export const FORGES = Object.keys(FORGE_SCOPES);
 const known = forges => FORGES.filter(f => (forges || []).includes(f));
 export const withForges = (scope, forges) => [scope, ...known(forges).flatMap(f => FORGE_SCOPES[f])].join(' ');
@@ -48,8 +50,16 @@ export function forgesIn(scope){
   const has = s => String(scope || '').split(/\s+/).some(x => x.split('?')[0] === s.split('?')[0]);
   return FORGES.filter(f => FORGE_SCOPES[f].every(has));
 }
+// What a sign-in asks for, widest first. Each step down is what's asked of a server that
+// refused the one before:
+//   everything          private seeds (when groups are on), and posting to the forges
+//   any server's seeds  and posting to the forges
+//   Rainshare alone     your own records, with the forges left to connect later
+// With groups off the first two are the same, so there are two steps.
+export const ladder = (forges = FORGES) => [...new Set([withForges(SCOPE, forges), withForges(BASIC_SCOPE, forges), BASIC_SCOPE])];
+
 // Everything the app might ever ask for. A hosted client's document has to declare it all,
-// though a sign-in only asks for what it needs.
+// whatever a particular sign-in ends up asking for.
 export const DECLARED_SCOPE = withForges(SCOPE, FORGES);
 
 export const REDIRECT_PATH = '/signed-in';

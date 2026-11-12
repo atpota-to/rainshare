@@ -156,8 +156,9 @@ However a seed reaches an agent, the agent is handed the same brief (`core/brief
    closes the issue) and put the seed's link in it. That link is how the seed and the pull
    request find each other later. On knotless the brief names knotless's own commands, so an
    agent with its CLI or MCP server forks, pushes and opens the pull itself. On Tangled the
-   agent pushes a branch and writes the title and description, and its user opens the pull
-   request from the link.
+   agent pushes a branch and writes the title and description, and the pull request is opened
+   through Rainshare, as its user: by the agent, if Rainshare's CLI or MCP server is signed in
+   beside it, or by its user from a link the agent hands back.
 6. **When you're done**: tell your user the pull request's address, whether it has been turned
    in on Rainshare, and that the rest is the requester's to do.
 
@@ -181,8 +182,11 @@ and a note are folded away, filled in from your setup).
 The link an agent hands back is
 `rainshare.dev/seed/<handle>/<key>?pr=<pull request>&model=<model>`. Opening it fills in the
 turn-in form, and sending it writes your take (if there wasn't one) and the delivery together
-(`handBack` and `readHandBack` in `core/brief.js`). Once you've turned something in, the form
-steps aside and the page says what's left: nothing, unless the requester asks.
+(`handBack` and `readHandBack` in `core/brief.js`). On Tangled and knotless the link can
+carry a branch instead, `?branch=<branch>&from=<fork>&model=<model>`: opening it fills in the
+form that opens the pull request, and sending that opens it and turns it in
+(`handBackBranch` and `readBranchBack`). Once you've turned something in, the form steps
+aside and the page says what's left: nothing, unless the requester asks.
 
 ## Ideas and projects
 
@@ -244,30 +248,67 @@ the two forges that live on atproto: see the next section.
 
 ## Posting to knotless and Tangled
 
-On knotless and Tangled, Rainshare can open an issue and leave a comment as you
-(`core/forgewrite.js`). On GitHub and the rest it can't, and links to the right page.
+On knotless and Tangled, Rainshare can post as you (`core/forgewrite.js`): open an issue, leave
+a comment, and open a pull request from a branch that's been pushed. On GitHub and the rest it
+can't, and links to the right page.
 
+- **A pull request, from the ask's page.** Once a branch is pushed, to the repo or to your
+  fork of it, "Open the pull request from here" offers the repo and your forks, each one's
+  branches, the branch to merge into, and a title and description to look over (starting from
+  the repo's template on knotless, the issue it fixes, and the ask's link). Sending it opens
+  the pull request and turns it in on Rainshare with the same press.
+- **The same, from an agent.** The brief has the agent push its branch and then either open
+  the pull request itself (`open-pr` in the CLI, `rainshare_open_pr` over MCP, when Rainshare
+  is signed in beside it) or hand its user a link, `…/seed/<who>/<key>?branch=<branch>`, that
+  opens the ask's page with the form filled in.
 - **A comment on the issue**, from the ask's own page. It starts with the useful thing to
   say: for the person asking, a note that the issue is on Rainshare, with its link; for a
   helper who's taken it on, that they're having a go.
 - **An issue from an ask.** Asking for rain on a repo with no issue picked offers to open
   one there from the title and details, point the ask at it, and note on it where the ask is.
 
-Nobody is asked for this at sign-in. The first time, the ask's page says Rainshare needs your
-OK and sends you to your own server, which shows what's being added; you come back to where
-you were, with what you'd typed still there. What's added is only what each forge needs, and
-only to add things, never to edit or delete (`FORGE_SCOPES` in `core/ns.js`):
+Sign-in asks for all of this up front, so nobody is sent back to their server halfway through
+writing something. A server that refuses part of it is asked again for less, down to
+Rainshare's own records alone (`ladder` in `src/scope.js`), and a sign-in that ended up with
+less is offered "Connect Tangled" or "Connect knotless" where it matters, with what was typed
+kept. What's asked for is what each forge needs and no more (`FORGE_SCOPES` in `core/ns.js`):
 
 | | How a post is made | What's asked for |
 | --- | --- | --- |
-| **knotless** | An issue or a comment is a record in your own account that names the repo. | Creating `dev.knotless.issue` and `dev.knotless.comment` records |
-| **Tangled** | Issues and comments are kept with the repo, on the knot that hosts it. Your server vouches for you with a token good for a minute, the knot takes the write, and a record in your own account says it was you. | Asking your server to vouch for a `createRecord` call, and creating `org.tangled.graph.attestation` records |
+| **knotless** | An issue, a comment or a pull is a record in your own account that names the repo. | Creating `dev.knotless.issue`, `dev.knotless.comment` and `dev.knotless.pull` records |
+| **Tangled** | Issues, comments and pull requests are kept with the repo, on the knot that hosts it. Your server gives a token, good for a minute, that says a call is yours; the knot takes the write; and a record in your own account says it was you. A pull request is a ticket that names a branch to merge into, and then its changes. | A token for three calls by name (`com.atproto.repo.createRecord`, `org.tangled.review.submitPatch`, `com.atproto.repo.deleteRecord`), creating `org.tangled.graph.attestation` records, and your `org.tangled.graph.vouch` records (the next section) |
 
-Tangled's permission is the wider of the two: "vouch for a createRecord call" isn't tied to
-Tangled, because a repo's own identity is what the knot checks and that differs for every
-repo. It's the same permission Tangled's own web app asks for, and Rainshare only uses it for
-the repo an ask points at. A sign-in lasts about two weeks, and an ordinary sign-in doesn't
-ask again, so connecting is repeated after signing out.
+Tangled's permissions are the wider ones. A token "for a createRecord call" can't be tied to
+Tangled alone, because what a knot checks is the repo's own identity, which differs for every
+repo. They're among the permissions Tangled's own web app asks for, and Rainshare uses them
+only for the repo an ask points at. The delete is there for one case: if a knot takes a pull
+request's ticket and then refuses its changes, the ticket is taken back rather than left
+empty on someone's repo. On this site nothing is posted unless you press a button that says
+so. The CLI and MCP server sign in with an app password, which already allows all of it, so
+an agent with `rainshare_open_pr` can open a pull request as you: the tool's description
+tells it to do so only once the work is pushed.
+
+## Tangled's vouches
+
+Tangled has a [vouch network](https://tangled.org/docs/guides/vouching/): anyone can vouch
+for someone, or denounce them, with a reason, and Tangled shows a mark beside a person only
+when the word comes from your own circle (you, or someone you vouched for). Rainshare shows
+the same mark beside the people who ask and the people who help (`core/vouch.js`), because
+"does anyone I trust know this person?" is worth knowing before you send an agent to their
+repo, or merge what theirs sent.
+
+- **Reading** needs no extra permission. A vouch is a public record in the voucher's own
+  account, `org.tangled.graph.vouch`, keyed by who it's about, so your circle is worked out
+  from your records and those of up to 40 people you vouched for. It's read once per sign-in,
+  on the first page that shows people. A person's profile says who in your circle vouched
+  for them or denounced them, and why.
+- **Vouching** is a button on someone's profile, and beside a delivery on your own ask
+  ("Vouch for them on Tangled"), where the reason starts as what they helped with and the
+  vouch points at the delivery (and at the pull request, when that's on Tangled, which is
+  what Tangled itself attaches). You can take a vouch back. Rainshare never writes a
+  denouncement: that's done on Tangled.
+- A vouch gates nothing, on Tangled or here. It doesn't change who can take an ask on, or
+  how the board is sorted.
 
 ## Where a seed stands
 
@@ -303,6 +344,7 @@ node ~/.rainshare.mjs board                      # your circle, best first for y
 node ~/.rainshare.mjs check <link>               # where it stands (no sign-in needed)
 node ~/.rainshare.mjs run <link>                 # check, take, clone, start your agent, turn it in
 node ~/.rainshare.mjs turn-in <link> --url <pull request>
+node ~/.rainshare.mjs open-pr <link> --branch <b>   # Tangled and knotless: open the pull request, and turn it in
 node ~/.rainshare.mjs done <link>                # your own: the work landed (sprout works too)
 claude mcp add rainshare -- node ~/.rainshare.mjs mcp
 ```
@@ -312,9 +354,13 @@ already up, nothing is written and you're told why; `--anyway` goes ahead regard
 writes the brief to `.rainshare/SEED.md` (kept out of git), starts Claude Code (or
 `--with codex`, or `--with cloud`), and when the agent exits it looks for the pull request and
 offers to turn it in. `turn-in` writes a take first if you hadn't said you were on it.
+`open-pr` is for Tangled and knotless, where opening a pull request is a write as you: given a
+branch that's already pushed (and `--from` if it's on a fork), it opens the pull request and
+turns it in. A branch that isn't there yet, or that brings nothing new, is refused before
+anything is written.
 
 The MCP tools are `rainshare_board`, `rainshare_show` (with the brief), `rainshare_check`,
-`rainshare_take`, `rainshare_drop`, `rainshare_turn_in`, `rainshare_ask`,
+`rainshare_take`, `rainshare_drop`, `rainshare_turn_in`, `rainshare_open_pr`, `rainshare_ask`,
 `rainshare_close_out` (mark your own done, closed or open again), `rainshare_profile`,
 `rainshare_set_forecast` and `rainshare_whoami`. The server's instructions give an agent the
 order: check, take, do the work, open the pull request with the seed's link in it, check again,
@@ -338,9 +384,10 @@ in the app.
   whether the issue is still open and whether a delivered pull request is open, merged or
   closed. Pull requests that mention the issue or the seed's link are found through the repo's
   50 newest and through Tangled's search. Repos clone over https from their tangled.org
-  address. Pull requests are opened on the web for now, so the brief has the agent push a
-  branch and hand its user the link that opens one; Tangled's launch post says a CLI and agent
-  skills are on the way, and the brief should change when they arrive.
+  address. Tangled has no command for opening a pull request yet, so the brief has the agent
+  push a branch and Rainshare opens the pull request as its user (see "Posting to knotless and
+  Tangled"); Tangled's launch post says a CLI and agent skills are on the way, and the brief
+  should change when they arrive. Vouches from your Tangled circle show beside people.
 - **knotless**: pick an open issue from your own knotless repos, or paste any knotless.dev
   link. knotless keeps a repo, its issues and its pulls as records in people's own accounts,
   and its public API (`knotless.dev/xrpc`) says whether an issue is open, whether a pull is
@@ -349,6 +396,7 @@ in the app.
   `at://` address `knotless pull create` prints, and Rainshare works out the page from it.
   The brief gives the agent knotless's own commands (and the MCP tools of the same names), and
   asks for "Fixes" and the issue's address in the pull, which closes the issue when it merges.
+  A branch that's pushed can also be opened as a pull from Rainshare.
 - **GitHub**: paste an issue or repo link. The issue's title and body start you off, and its
   state is read back, along with each delivered pull request's (open, merged or closed). The
   repo's 50 most recently updated pull requests are also searched for the issue's number or
@@ -363,7 +411,7 @@ in the app.
 | `src/plants/` | The four 3D plants: `models.js` (how each is built), `live.js` (one renderer drawing them all, turning), `sheet.html` (a page to look at them on) |
 | `scripts/render-plants.mjs`, `public/plants/` | `npm run plants`, and the pictures it takes of them |
 | `src/theme.css`, `src/fonts.css` | The site's look: colours, the bar, light and dark, and its typeface |
-| `src/oauth.js`, `src/scope.js` | Signing in, and the OAuth scope and client metadata |
+| `src/oauth.js`, `src/scope.js` | Signing in, and the OAuth scope and client metadata: what's asked for up front, and the steps down if a server refuses |
 | `src/spaces.js` | Private seeds: reading and writing a group's space, and the group host's methods |
 | `api/oauth-client-metadata.js` | The OAuth client document, served at `/oauth-client-metadata.json` |
 | `lexicons/dev/rainshare/` | The four record types and their shared defs. `publish.mjs` publishes them under rainshare.dev. |
@@ -377,7 +425,8 @@ in the app.
 | `core/status.js` | Where a seed stands: who's on it, what's been turned in, what the forge says, and what each side should do next |
 | `core/garden.js` | What someone has helped with: what got done with their help, worked out from the records |
 | `core/forges.js` | The right page on each forge: where to start a repo, fork one, or see its pull requests |
-| `core/forgewrite.js` | Posting to knotless and Tangled as you: opening an issue, leaving a comment |
+| `core/forgewrite.js` | Posting to knotless and Tangled as you: opening an issue, leaving a comment, opening a pull request from a pushed branch |
+| `core/vouch.js` | Tangled's vouch network: your circle's word on a person, read from public records, and vouching for someone |
 | `core/brief.js` | The agent brief, the link an agent hands back, and the one-paste launch commands |
 | `core/markdown.js` | A small, safe Markdown renderer for specs |
 | `core/source.js` | Rainshare over atproto: the board, a seed, profiles and every write, public and in group spaces |
@@ -386,7 +435,7 @@ in the app.
 | `ui/post.js` | Asking for rain on an idea or a project: three steps, a live preview and a confirmation |
 | `ui/bits.js` | Small shared pieces: escaping, times, icons, faces, and the glyphs for a forecast's sky and a seed's life |
 | `cli/rainshare.mjs` | The CLI and MCP server |
-| `test/` | `npm test`: the core, the data source against a fake network, the MCP server, and what other people's records can't do (`security.test.mjs`) |
+| `test/` | `npm test`: the core, the data source against a fake network, the MCP server, posting to the forges and vouching against made-up ones, and what other people's records can't do (`security.test.mjs`) |
 
 ## Security
 
@@ -473,8 +522,8 @@ sideways scrolling, nothing past the edge of the phone sheet, and nothing blocke
 
 Not yet checked:
 
-- Signing in with a real account (now asking only for `atproto` and `repo:dev.rainshare.*`)
-  and writing to a real PDS. Private seeds in a real group are off until the spaces alpha
+- Signing in with a real account (asking for `atproto`, `repo:dev.rainshare.*` and what
+  posting to knotless and Tangled needs) and writing to a real PDS. Private seeds in a real group are off until the spaces alpha
   settles; they depend on opensocial.fyi accepting a `dev.rainshare.board` space.
 - The signed-out board against the live relay and AppView from this repo. The code that reads
   them is unchanged from the prototype, where it was checked.
@@ -497,12 +546,28 @@ Not yet checked:
   the brief are from knotless's docs, not from running them), private repos, and knotless
   servers other than knotless.dev, which Rainshare doesn't recognise as knotless yet.
 - Posting to knotless and Tangled has never been done for real: it needs a real account, and
-  Rainshare shouldn't post to someone's issues to test itself. What was checked: the records
-  it would write validate against both forges' own published definitions; the steps for
-  Tangled are the ones in Tangled's own web app's source; Tangled's knot answers a browser
-  on another site and says it takes writes from apps; and the whole thing runs against a
-  made-up network in `test/forgewrite.test.mjs`. Not checked: a real server granting the
-  extra permissions as they're written, a real post landing, and how either forge shows it.
+  Rainshare shouldn't post to someone's repo to test itself. What was checked: the records
+  it would write (issues, comments, pulls, the patch call) validate against both forges' own
+  published definitions; the steps for Tangled are the ones in Tangled's own web app's
+  source; Tangled's knot answers a browser on another site and says it takes writes from
+  apps; the lookups a pull request needs (a repo's branches, where two branches part, a
+  repo's forks and template) were run read-only against `api.tangled.org` and `knotless.dev`
+  on 12 November 2026; and the whole thing runs against a made-up network in
+  `test/forgewrite.test.mjs`. Not checked: a real server granting the permissions as they're
+  written, or how its consent screen words them; a real post landing; how either forge shows
+  it; whether a knot takes a pull request from an account that isn't a collaborator on the
+  repo (the repo's own setting decides); whether knotless indexes a pull written without its
+  own CLI; and `open-pr` with an app password, which leans on a server giving an app password
+  a token for these calls.
+- Sign-in asking for everything up front has only been tested as a list of scopes, not
+  against a server. If a server refuses the longer list, the step down to a plain sign-in is
+  the thing to watch on the first real sign-in.
+- Tangled's vouches: the record's shape was checked against real ones on the network, and
+  reading a circle and writing a vouch run against a made-up network in `test/vouch.test.mjs`
+  and in the example circle. Not checked: reading a real circle from real servers (they
+  aren't reachable from where this was built), whether Rainshare's circle matches the marks
+  Tangled itself shows in every case (Tangled's own method for this only answers to Tangled),
+  and how Tangled displays a vouch whose evidence is a Rainshare delivery.
 - Ideas: asking for rain on one, running with one and turning it in were checked in the example circle.
   The pages Rainshare links to on Tangled exist (they ask you to sign in). GitHub's new-repo
   page taking a name and description from the link is from memory, not checked from here; if
