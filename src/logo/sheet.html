@@ -1,0 +1,45 @@
+<!doctype html>
+<!-- Not part of the site: a page to look at the logo on. It shows the drawing in ./drop.js at
+     the sizes it's used at, moving, by day and by night, in each of the ways it's framed, and
+     then the moments of its loop side by side. Open it through the dev server:
+     /src/logo/sheet.html (?still holds it at one moment, ?t=1.2 picks which). -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rainshare's logo</title>
+<style>
+  body{margin:0;font:13px system-ui;color:#12203a}
+  section{display:flex;flex-wrap:wrap;gap:20px 28px;align-items:end;padding:24px}
+  section.day{background:#f3f6fc}
+  section.night{background:#0b1220;color:#e2e9f7}
+  figure{margin:0;text-align:center;line-height:1.6;opacity:.9}
+  canvas{display:block;margin:0 auto 4px}
+  h2{flex-basis:100%;margin:0;font-size:13px;font-weight:600;opacity:.7}
+</style>
+<body>
+<script type="module">
+  import { drawLogo, LOOKS, FRAMES, LOOP } from './drop.js';
+  const q = new URLSearchParams(location.search), held = q.has('still') || q.has('t'), t0 = Number(q.get('t')) || 0;
+  const all = [], ratio = Math.min(3, window.devicePixelRatio || 1);
+  function add(row, label, size, frame, look, at){
+    const f = document.createElement('figure'), c = document.createElement('canvas');
+    c.width = c.height = Math.round(size * ratio); c.style.width = c.style.height = size + 'px';
+    f.append(c, label); row.append(f);
+    all.push({ ctx: c.getContext('2d'), picture: c.getContext('2d').createImageData(c.width, c.width), n: c.width, frame, look, at });
+  }
+  for (const look of ['day', 'night']) {
+    const row = document.createElement('section'); row.className = look; document.body.append(row);
+    row.insertAdjacentHTML('beforeend', `<h2>${look}, as it's shown</h2>`);
+    for (const size of [16, 24, 32, 36, 48, 64, 96, 192]) add(row, size + 'px', size, FRAMES.mark, LOOKS[look]);
+    for (const size of [16, 32, 64, 128]) add(row, 'icon ' + size, size, FRAMES.icon, LOOKS[look]);
+    add(row, 'tile 128', 128, FRAMES.tile, LOOKS[look]);
+    row.insertAdjacentHTML('beforeend', `<h2>${look}, through a loop of ${LOOP} seconds</h2>`);
+    for (let k = 0; k < 16; k++) add(row, (k * LOOP / 16).toFixed(1) + 's', 72, FRAMES.mark, LOOKS[look], k * LOOP / 16);
+  }
+  const start = performance.now();
+  (function frame(now){
+    const t = held ? t0 : (now - start) / 1000;
+    for (const v of all) { drawLogo(v.picture.data, v.n, { t: v.at ?? t, look: v.look, frame: v.frame }); v.ctx.putImageData(v.picture, 0, 0); }
+    window.logoReady = true;
+    if (!held) requestAnimationFrame(frame);
+  })(start);
+</script>
