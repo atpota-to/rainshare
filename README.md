@@ -19,12 +19,13 @@ or spends credits, and you help the people you follow. (Is that allowed by your 
   mid-tier or small), with tests, size and tags folded under "More options",
   and a Bluesky post to tell people it's there. It's open to everyone. An idea needs no repo and no developer: say
   what it should do, and whether someone else can run with it.
-- **Say your AI plan**: your profile starts with which AI plans you pay for to code with (Claude
-  Pro or Max, ChatGPT Plus or Pro, Copilot, Cursor, Gemini, pay as you go, paid by work or
-  school), or that you have free tiers or none. It shows on your profile and beside your asks,
-  so a helper can see who'd be glad of the rain, and an asker can see who has some. Then
-  what you run, and, folded under "Help the right people find you", your situation and the work
-  you take on. It sticks to facts: what you'd like done, on which models, and who has them.
+- **Say your AI plan**: your profile starts with which AI plans you pay for to code with (Claude,
+  ChatGPT, Copilot, Cursor, Gemini, Z.ai's GLM Coding Plan; by provider, not tier), or that you
+  have free tiers or none. It's about coding subscriptions and the usage that comes with them. It shows on your profile and
+  beside your asks, so a helper can see who'd be glad of the rain, and an asker can see who has
+  some. Then what you run and the work you take on. It sticks to facts: what you'd like done, on
+  which models, and who has them. Your name, picture and bio are your Bluesky profile's, unless
+  you give Rainshare a different name or bio.
 - **Send your agent**: one click tells your friend you're on it and copies the command that
   suits your setup (Claude Code, Codex, or a brief for any agent); the other ways are a click
   away. Turn the pull request in when it's up, and your friend marks it done.
@@ -104,7 +105,7 @@ the lexicon authority). The schemas are in `lexicons/dev/rainshare/`.
 
 | Record | Written by | Says |
 | --- | --- | --- |
-| `dev.rainshare.profile` (`self`) | everyone | bio, AI plans, setups (harness, models, where it runs), circumstances, the kinds of work you take on; and, from before or set aside for now, a setup's typed plan, AI budget, forecast, values and priorities |
+| `dev.rainshare.profile` (`self`) | everyone | a name and bio for Rainshare only (left out, your Bluesky profile's are used), AI plans, setups (harness, models, where it runs), the kinds of work you take on; and, from before or set aside for now, a setup's typed plan, AI budget, forecast, circumstances, values and priorities |
 | `dev.rainshare.seed` | the requester | title, subject (Tangled issue, knotless issue, GitHub issue, or repo; none for a seed, which says whose the result will be), stage (for a plant), spec in Markdown, wants (model families and a level; older asks named models), tags, size, audience, state (`open`, `sprouted`, `closed`); values, set aside for now |
 | `dev.rainshare.take` | a helper | "my agent is on this": a strong ref to the seed and the setup doing it. Deleting it drops the seed. |
 | `dev.rainshare.delivery` | a helper | the pull request (URL, or on Tangled and knotless its own record's at:// URI), what did the work, and an optional session link |
@@ -125,6 +126,7 @@ turning one on brings it all back:
 | `priorities` | "Who you'd like to help first" on your profile (people without big plans, students, people on low incomes, projects that share your values…), and its say in the order of your board. |
 | `forecast` | How much rain you have to spare: on your profile and in the board's header, and the CLI's `forecast` and the MCP server's `rainshare_set_forecast`. |
 | `values` | "What you care about" on your profile ("Cares about"), and its say in the order of your board ("cares about climate too"). For now Rainshare sticks to the facts of a job. |
+| `circumstances` | "About them" on your profile (a student, between jobs, a maintainer…), and its say in the order of your board. |
 
 **Your AI plan** (`plans` on a profile) takes over from two older fields, which apps still read
 when there's no plan: a setup's typed `plan` ("Claude Max 20x") and `budget` ("under $25").
@@ -138,11 +140,11 @@ models, which change every few months; "Any model, any level" is the default (`F
 `LEVELS` in `core/ns.js`). Its page says it as "Models" ("A frontier Claude model", "A small
 Qwen or GLM model", "Claude or GPT"), and
 each helper sees how theirs fit: a model they run from one of those families ("You run
-Sonnet"), else a plan that reaches one ("Your Claude Pro plan has Claude models"), else, if their
+Sonnet"), else a plan that reaches one ("Your Claude plan has Claude models"), else, if their
 profile says enough to tell, "Not in your plan or setup". Plans are matched by family
-(`PLAN_FAMILIES`): Claude Pro and Max reach Claude, ChatGPT Plus and Pro reach GPT, Gemini
-reaches Gemini, and Copilot and Cursor reach all three. Pay as you go and work or school could
-be anything, so they say nothing either way. The level is shown and goes in the brief, but
+(`PLAN_FAMILIES`): Claude reaches Claude, ChatGPT reaches GPT, Gemini
+reaches Gemini, Z.ai's GLM Coding Plan reaches GLM, and Copilot and Cursor reach Claude, GPT and
+Gemini. The level is shown and goes in the brief, but
 isn't matched: whether a plan includes a family's frontier model changes too often to say, and
 a helper knows which of theirs it is. The ranking counts the same: a model you run counts
 most, a plan that reaches it a little, and a miss against. Older asks named models
@@ -154,6 +156,12 @@ though: a public repo can be read by anyone. A private seed lives in your repo
 inside a group's Rainshare space (an Open Social space of type `dev.rainshare.board`, which a
 group admin adds), and only members can read it. Takes and deliveries go wherever their
 seed is.
+
+**Names and bios come from Bluesky.** Rainshare names people as their Bluesky profile does, with
+its picture and its bio (`description`). Your Rainshare profile can give a different `displayName`
+or `bio`, for Rainshare only: left out, Bluesky's are used (`shown` in `core/source.js`). Your
+picture is always Bluesky's for now, since a picture of your own would need permission to upload
+files to your account.
 
 **Profiles, in two copies** (once groups are on). Your circumstances can be marked "only my groups": the
 public profile leaves them out, and the full profile goes only into your groups' Rainshare
@@ -187,10 +195,10 @@ relaunch (`sh.tangled.graph.follow`) aren't read.
 `dev.rainshare.*` records (`com.atproto.sync.listReposByCollection`), and the records come from
 each person's own PDS. Your own writes are layered over that until the relay catches up.
 
-**Ranking** (`core/rank.js`) puts first who could use the help (no paid AI plan, a student, between
-jobs), then what you can bring (a wanted model you run or your plan reaches, tags that match the
-work you take on), then closeness. (While "who you'd like to help first" and what you care about
-are set aside, they have no say.)
+**Ranking** (`core/rank.js`) puts first who could use the help (no paid AI plan), then what you can
+bring (a wanted model you run or your plan reaches, tags that match the work you take on), then
+closeness. (While who you'd like to help first, what you care about and the asker's situation are
+set aside, they have no say.)
 Each card shows how well it suits you as one to three drops ("Strong fit", "Good fit", "Some
 fit"), and picking one says why in plain sentences beside the list: "Priya has no paid AI and
 is between jobs. It'd like Sonnet, which you have. Heads up: someone's already on it." The
@@ -679,6 +687,12 @@ Not yet checked:
   with a real signed-in account, and how quickly the board fills for someone whose board has
   many askers (whether each follows you on Tangled is one read per asker, made while their
   profiles are read; a server that hasn't answered in 6 seconds is left as unknown).
+- Names and bios from Bluesky, "About them" set aside and Z.ai's plan (12 November 2026): in
+  the example circle at 1280 and 390 pixels wide, light and dark. Checked: a name of your own
+  saved and shown on your page, and cleared again; a Bluesky bio shown for someone who wrote none
+  on Rainshare, and a Rainshare one winning over it; the profile form without "About your
+  situation" or its fold; Z.ai matching GLM. In tests: a Rainshare name over the Bluesky one on
+  the board, for helpers and on profiles. Not checked: Bluesky bios from the live AppView.
 - The simpler profile and asking (12 November 2026): in the example circle at 1280 and 390
   pixels wide, light and dark. Checked: asking in two steps for an idea, with the Bluesky post
   following the title as it's typed, ending open to everyone; picking AI plans (a paid one

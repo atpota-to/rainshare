@@ -1,7 +1,7 @@
 // An ask in plain words, for the board's details and its own page: where the
 // work is, how big the job is, what the asker would like, and who's on it. Each is a short
 // line of text, so nothing needs a coloured chip.
-import { labelOf, SIZES, HARNESSES, PLANS, BUDGETS, plansIn, audienceOf, modelName } from './ns.js';
+import { labelOf, SIZES, HARNESSES, PLANS, UNPAID, plansIn, audienceOf, modelName } from './ns.js';
 import { describeSubject, kindOf, FORGE_NAMES } from './subjects.js';
 import { join, modelReach, wantedOf, wantPhrase } from './rank.js';
 import { tieOf, TIE_SHORT } from './ties.js';
@@ -65,7 +65,7 @@ export function jobShort(sq){
 
 /**
  * The models an ask would like, and how they fit yours (`myProfile`, left out for the asker):
- * "A frontier Claude model. You run Sonnet." "Claude or GPT. Your Claude Pro plan has Claude
+ * "A frontier Claude model. You run Sonnet." "Claude or GPT. Your Claude plan has Claude
  * models." "GLM. Not in your plan or setup." "Any model."
  */
 export function modelsText(sq, myProfile){
@@ -73,7 +73,7 @@ export function modelsText(sq, myProfile){
   if (!phrase) return 'Any model.';
   const lead = phrase[0].toUpperCase() + phrase.slice(1) + '.', r = want.families.length && myProfile ? modelReach(want, myProfile) : null;
   if (r?.run) return `${lead} You run ${r.run}.`;
-  if (r?.plan) return `${lead} Your ${r.plan.name} plan has ${join(r.plan.families)} models.`;
+  if (r?.plan) return `${lead} Your ${r.plan.name} has ${join(r.plan.families)} models.`;
   return r?.said ? `${lead} Not in your plan or setup.` : lead;
 }
 /** Anything else they asked for, in their words: "Made with Claude Code. No new dependencies." */
@@ -106,16 +106,17 @@ export function takenShort(item, viewer){
 }
 
 /**
- * Someone's AI plan as one line: "Claude Max and GitHub Copilot", "No AI plan". An older
- * profile without plans says it with the plan typed into its setups, or its budget. '' when
- * they haven't said. (A plan nobody knows is shown as written, clipped.)
+ * Someone's AI plan as one line: "Claude and Copilot", "No AI plan". An older
+ * profile without plans says it with the plan typed into its setups, or with its budget when
+ * that said none or free (a budget's spending brackets aren't subscriptions). '' when they
+ * haven't said. (A plan nobody knows is shown as written, clipped.)
  */
 export function planText(p){
   const plans = plansIn(p);
   if (plans.length) return join([...new Set(plans.map(x => String(labelOf(PLANS, x)).slice(0, 40)))]);
   const typed = [...new Set((p?.setups || []).map(x => typeof x?.plan === 'string' ? x.plan.trim().slice(0, 64) : '').filter(Boolean))];
   if (typed.length) return join(typed.slice(0, 3));
-  return BUDGETS.find(b => b[0] === p?.budget)?.[2] || '';
+  return UNPAID.includes(p?.budget) ? labelOf(PLANS, p.budget) : '';
 }
 
 /** How the asker relates to you: "mutual", "follows you", "Spine Club", "open to everyone". */

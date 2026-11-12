@@ -204,3 +204,20 @@ test('ties: who follows whom on Bluesky and on Tangled, beside askers, helpers a
   assert.equal(await src.knownFollowers(people.me), null);
   assert.equal(await createSource().knownFollowers(people.dave), null);
 });
+
+test('names come from Bluesky, unless someone’s Rainshare profile gives one of its own', async () => {
+  put(people.alice, PROFILE, 'self', { $type: PROFILE, displayName: 'Alice at Rainshare', createdAt: new Date().toISOString() });
+  const src = createSource({ agent: agent(people.me) });
+  const { items } = await src.board();
+  assert.equal(items.find(i => i.repo === people.alice).author.displayName, 'Alice at Rainshare');
+  assert.equal(items.find(i => i.repo === people.dave).author.displayName, 'dave', 'nothing on Rainshare: the Bluesky name');
+  // Helpers too, on an ask's page.
+  const alice = createSource({ agent: agent(people.alice) });
+  await alice.take(await alice.seed(`at://${people.dave}/${SEED}/d1`), { setup: { harness: 'claude-code' } });
+  const d1 = await src.seed(`at://${people.dave}/${SEED}/d1`, { force: true });
+  assert.equal(d1.takes[0].author.displayName, 'Alice at Rainshare');
+  // A profile has both: how Rainshare shows them, and their Bluesky profile (for the form's hints).
+  const prof = await src.profileOf(people.alice);
+  assert.equal(prof.person.displayName, 'Alice at Rainshare');
+  assert.equal(prof.bluesky.displayName, 'alice');
+});

@@ -38,6 +38,8 @@ export function wantPhrase(sq){
   const names = join(families.map(familyName), 'or');
   return level ? `a ${levelWord(level)} ${names} model` : names;
 }
+/** A plan as it's said after "your": "Claude plan", "Z.ai GLM plan". */
+const yourPlan = n => /\bplan\b/i.test(n) ? n : n + ' plan';
 /**
  * What someone brings to what an ask would like (wantedOf):
  *   run    a model they run that fits: the very one an older ask named, or one of a family it
@@ -53,7 +55,7 @@ export function modelReach(want, profile){
   const by = exact || fits ? null : plans.find(p => (PLAN_FAMILIES[p] || []).some(f => want.families.includes(f)));
   return {
     run: exact || fits ? modelName(exact || fits) : null, exact: !!exact,
-    plan: by ? { name: labelOf(PLANS, by), families: want.families.filter(f => PLAN_FAMILIES[by].includes(f)).map(familyName) } : null,
+    plan: by ? { name: yourPlan(labelOf(PLANS, by)), families: want.families.filter(f => PLAN_FAMILIES[by].includes(f)).map(familyName) } : null,
     said: have.length > 0 || plans.some(p => PLAN_FAMILIES[p])
   };
 }
@@ -64,10 +66,11 @@ export function modelReach(want, profile){
  * its takes. Returns { score, reasons: [{ text, say, tone, about }] }: `text` is a short
  * label, tone is 'up', 'match' or 'down', and `say` is how fit() words it: about 'them' (the
  * asker) finishes a sentence that starts with their name; about 'job' is a sentence itself.
- * Who the helper would like to help first, and what they care about, count only while those
- * are on (FEATURES in ./ns.js), or when `priorities` or `values` says so.
+ * Who the helper would like to help first, what they care about, and the asker's situation
+ * count only while those are on (FEATURES in ./ns.js), or when `priorities`, `values` or
+ * `circumstances` says so.
  */
-export function score(item, me, { priorities = FEATURES.priorities, values = FEATURES.values } = {}){
+export function score(item, me, { priorities = FEATURES.priorities, values = FEATURES.values, circumstances = FEATURES.circumstances } = {}){
   const sq = item.value || {}, them = item.profile || {}, mine = me?.profile || {};
   const pr = priorities ? mine.priorities || [] : [], reasons = [];
   const add = (text, say, tone, about = 'them') => reasons.push({ text, say, tone, about });
@@ -80,7 +83,7 @@ export function score(item, me, { priorities = FEATURES.priorities, values = FEA
     const [text, say] = { none: ['No paid AI', 'has no paid AI'], free: ['Free tiers only', 'is on free tiers'], low: ['Small AI budget', 'is on a small AI budget'] }[low];
     add(text, say, has(pr, 'low-budget') ? 'up' : 'match');
   }
-  const c = them.circumstances || [];
+  const c = circumstances && Array.isArray(them.circumstances) ? them.circumstances : [];
   if (has(c, 'student')) { s += has(pr, 'students') ? 4 : 1; add('Student', 'is a student', has(pr, 'students') ? 'up' : 'match'); }
   if (has(c, 'low-income') || has(c, 'between-jobs')) {
     s += has(pr, 'low-income') ? 4 : 1;
@@ -99,7 +102,7 @@ export function score(item, me, { priorities = FEATURES.priorities, values = FEA
   // The models it'd like (families, or an older ask's models), against what you run and your plans.
   const want = wantedOf(sq), phrase = wantPhrase(sq), reach = want.families.length ? modelReach(want, mine) : null;
   if (reach?.run) { s += 2; add(`Wants ${phrase}: you run ${reach.run}`, reach.exact ? `It’d like ${phrase}, which you have` : `It’d like ${phrase}, and you run ${reach.run}`, 'match', 'job'); }
-  else if (reach?.plan) { s += 1; add(`Wants ${phrase}: your ${reach.plan.name} has ${join(reach.plan.families)} models`, `It’d like ${phrase}, and your ${reach.plan.name} plan has ${join(reach.plan.families)} models`, 'match', 'job'); }
+  else if (reach?.plan) { s += 1; add(`Wants ${phrase}: your ${reach.plan.name} has ${join(reach.plan.families)} models`, `It’d like ${phrase}, and your ${reach.plan.name} has ${join(reach.plan.families)} models`, 'match', 'job'); }
   else if (reach?.said) { s -= 2; add(`Wants ${phrase}`, `they’d like ${phrase}, which isn’t in your plan or setup`, 'down', 'job'); }
   const skills = lower(mine.offering), fits = lower(sq.tags).filter(t => skills.includes(t));
   if (fits.length) { s += Math.min(fits.length, 2); add('Your kind of work: ' + fits.slice(0, 2).join(', '), `It’s ${join(fits.slice(0, 2))}, your kind of work`, 'match', 'job'); }

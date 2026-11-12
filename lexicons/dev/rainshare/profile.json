@@ -10,7 +10,8 @@
         "type": "object",
         "required": ["createdAt"],
         "properties": {
-          "bio": { "type": "string", "maxLength": 3000, "maxGraphemes": 300, "description": "A line or two about you and what you're building." },
+          "displayName": { "type": "string", "maxLength": 640, "maxGraphemes": 64, "description": "Your name on Rainshare, if it should be different from the one on your Bluesky profile. Left out, apps use your Bluesky profile's." },
+          "bio": { "type": "string", "maxLength": 3000, "maxGraphemes": 300, "description": "A line or two about you and what you're building, if it should be different from your Bluesky profile's description. Left out, apps use that." },
           "plans": {
             "type": "array",
             "maxLength": 12,
@@ -18,9 +19,9 @@
               "type": "string",
               "maxLength": 640,
               "maxGraphemes": 64,
-              "knownValues": ["claude-pro", "claude-max", "chatgpt-plus", "chatgpt-pro", "copilot", "cursor", "gemini", "api", "work", "free", "none"]
+              "knownValues": ["claude", "chatgpt", "copilot", "cursor", "gemini", "zai", "free", "none"]
             },
-            "description": "The AI plans you pay for to code with. api: pay as you go. work: paid for by an employer or school. free: free tiers only. none: no AI plan. Takes over from budget and a setup's plan, which apps read when this is missing."
+            "description": "The coding subscriptions you have, by provider rather than tier. zai: Z.ai's GLM Coding Plan. free: free tiers only. Older records may say claude-pro, claude-max, chatgpt-plus or chatgpt-pro, which apps read as claude or chatgpt. none: no AI plan. Takes over from budget and a setup's plan, which apps read when this is missing."
           },
           "setups": {
             "type": "array",
