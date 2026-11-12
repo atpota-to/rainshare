@@ -24,7 +24,7 @@ export function mount(figure){
   layer.innerHTML = PLOTS.map((p, i) => `<button type="button" class="rd-pin rd-plot${p.theirs ? ' theirs' : ''}" data-plot="${i}"><i style="--c:${esc(p.color)}">${esc(p.name[0])}</i><span>${esc(p.name)}</span>${SPARK}</button>`).join('')
     + `<span class="rd-pin rd-friend"><i style="--c:${esc(FRIEND.color)}">${esc(FRIEND.name[0])}</i><span>${esc(FRIEND.name)}’s plan</span></span>`
     + `<div class="rd-cloud" id="sceneCloud"><span class="rd-pin rd-plan"><svg class="rd-ring" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><circle class="left" cx="10" cy="10" r="7.5" pathLength="100"/></svg><span><b>Your AI plan</b><small>Resets in 2 days</small></span></span></div>`;
-  const pins = $$('.rd-plot', layer), friendTag = $('.rd-friend', layer), cloud = $('#sceneCloud', layer), ring = $('.rd-ring', cloud), resets = $('small', cloud);
+  const pins = $$('.rd-plot', layer), friendTag = $('.rd-friend', layer), cloud = $('#sceneCloud', layer), plan = $('.rd-plan', cloud), ring = $('.rd-ring', cloud), resets = $('small', cloud);
 
   // Under 880px the scene has the page's width to itself, and its line of words under it (./landing.css).
   const stacked = matchMedia('(max-width:880px)');
@@ -77,20 +77,26 @@ export function mount(figure){
   }
 
   // Each drawn frame: put the labels where their places in the scene are, and the handle over the cloud.
-  let ringAt = -1, wordsAt = '', size = '';
+  // Nothing here may reach past the scene's edge: a label out there would make the page wider
+  // (./landing.css clips the layer they're in, too).
+  let ringAt = -1, wordsAt = '', size = '', planHalf = 0, planAt = 0;
   function onFrame(at){
     pins.forEach((b, i) => { b.style.transform = `translate(${at.plots[i * 2].toFixed(1)}px,${at.plots[i * 2 + 1].toFixed(1)}px) translateX(-50%)`; });
     friendTag.style.transform = `translate(${at.friend[0].toFixed(1)}px,${at.friend[1].toFixed(1)}px) translate(-50%,-100%)`;
     // the friend's name gives way while your cloud is passing in front of theirs
     const before = Math.abs(at.friend[0] - at.cloud[0]) < at.cloud[2] / 2 + 36 && Math.abs(at.friend[1] - 12 - at.cloud[1]) < at.cloud[3] / 2 + 14;
     friendTag.style.opacity = before ? '0' : at.friend[2].toFixed(2);
+    friendTag.hidden = at.friend[2] <= 0;        // their cloud has gone, and its name with it
     cloud.style.transform = `translate(${at.cloud[0].toFixed(1)}px,${at.cloud[1].toFixed(1)}px)`;
     const box = `${Math.round(at.cloud[2])}px ${Math.round(at.cloud[3])}px`;
     if (box !== size) { size = box; cloud.style.width = Math.round(at.cloud[2]) + 'px'; cloud.style.height = Math.round(at.cloud[3]) + 'px'; }
     const left = Math.round(at.left * 100);
     if (left !== ringAt) { ringAt = left; ring.style.setProperty('--left', left); }
     const days = Math.ceil(at.left * 3), words = at.fresh ? 'Just reset' : days > 1 ? `Resets in ${days} days` : 'Resets tomorrow';
-    if (words !== wordsAt) { wordsAt = words; resets.textContent = words; }
+    if (words !== wordsAt) { wordsAt = words; resets.textContent = words; planHalf = plan.offsetWidth / 2; }
+    // what the cloud is stays wholly in the scene, however near an edge the cloud itself is
+    const shift = Math.round(Math.min(Math.max(at.cloud[0], planHalf + 6), at.width - planHalf - 6) - at.cloud[0]);
+    if (shift !== planAt) { planAt = shift; plan.style.translate = 'calc(-50% + ' + shift + 'px) 0'; }
   }
 
   /* picking a plot: its label, or anywhere on it in the scene */
