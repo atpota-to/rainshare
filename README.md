@@ -93,11 +93,12 @@ where it fades into the page, so the board's heading stands in the last of the m
 garden itself is fitted into the part of the picture the page keeps clear for it (`fit.js`):
 beside the pitch on a wide window, and under it below 880 pixels, where the pitch is in the
 sky and most of the garden is below the first screenful. Beside the garden the pitch stands
-on its horizon: the heading and the line under it in the sky, the sign-in on the line of the
-far woods, the small print on the meadow, on a pane of frosted glass like the scene's own
-labels. (The horizon is worked out from the layout alone, so the pitch is there before the
-scene has been fetched.) Over the sky and the meadow the grey the rest of the site writes its
-asides in is too faint to read, so the bar and the pitch write theirs in most of the ink.
+on its horizon: the heading and the line under it in the sky, and the sign-in on the line of
+the far woods, with nothing under it. (The horizon is worked out from the layout alone, so
+the pitch is there before the scene has been fetched.) Over the sky and the meadow the grey
+the rest of the site writes its asides in is too faint to read, so the bar and the pitch
+write theirs in most of the ink; and if a handle is mistyped, what's said about it under the
+sign-in is on a pane of frosted glass, like the scene's own labels.
 
 **Scrolling.** The backdrop scrolls with the page, and the garden doesn't quite keep up: the
 camera rises as the page goes by, so the garden sinks into a stretch of meadow left between
@@ -731,11 +732,11 @@ npm run build       # the site in dist/, with the CLI bundled at dist/rainshare.
 npm run build:cli   # just the CLI, at dist-cli/rainshare.mjs
 ```
 
-The app says it's an early alpha in a badge beside the logo, on the landing, once on the
-signed-in board, and where you post an ask; the CLI's help and version and the MCP server's
-title say so too. `STAGE` in `core/ns.js` drives the board note, the ask screen and the CLI and
-MCP text. `index.html` writes the word out by hand in three places (the badge, the badge's
-title, and the landing line), so change those with it.
+The app says it's an early alpha in a badge beside the logo, once on the signed-in board,
+and where you post an ask; the CLI's help and version and the MCP server's title say so too.
+`STAGE` in `core/ns.js` drives the board note, the ask screen and the CLI and MCP text.
+`index.html` writes the word out by hand in two places (the badge and the badge's title), so
+change those with it.
 
 Sign-in in dev uses atproto's loopback client, so open the dev server at `http://127.0.0.1:<port>`
 rather than `localhost`.

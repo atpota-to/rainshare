@@ -65,8 +65,8 @@ export function mount(figure){
     frame = { x: x0, y: f.top - at.top, w: x1 - x0, h: base.getBoundingClientRect().top - room - f.top, close };
     scene?.setFrame(frame);
     // Beside the garden, the pitch stands on its horizon: the heading and what's under it in
-    // the sky, the sign-in on the line of the far woods, the small print on the meadow. It's
-    // moved from where the page's layout centres it, as far as the landing has room for.
+    // the sky, and the sign-in on the line of the far woods. It's moved from where the page's
+    // layout centres it, as far as the landing has room for.
     // (The horizon is known from the frame alone, so this doesn't wait for the scene.)
     let to = 0;
     if (!close && pitch && signIn) {

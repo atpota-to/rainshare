@@ -15,16 +15,10 @@
 .rd-signin button{min-height:52px;padding:12px 22px;border:0;border-radius:16px;background:var(--accent);color:#fff;font:700 16px var(--body);cursor:pointer}
 @media (prefers-color-scheme:dark){.rd-signin button{color:#0B1220}}
 .rd-signin button:disabled{opacity:.6;cursor:progress}
-/* what's said under the sign-in: anything that went wrong, then the small print */
-.rd-small{display:flex;flex-direction:column;gap:10px;max-width:46ch}
-.rd-small p{margin:0}
-.rd-err{font-size:15px;color:#B3261E;font-weight:700}
-@media (prefers-color-scheme:dark){.rd-err{color:#FF8A80}}
-/* which handle, and that the password stays with your server: said under the field */
-.rd-with{font-size:14px;line-height:1.5}
-.rd-also{font-size:15px}
-.rd-alpha{font-size:14px;line-height:1.5;color:var(--muted)}
-.rd-also a,.rd-note a,.rd-how a{color:var(--accent);font-weight:700;text-underline-offset:3px}
+/* under the sign-in: anything that went wrong with the handle */
+.rd-pitch>.rd-err{font-size:15px;color:#B3261E;font-weight:700;max-width:46ch}
+@media (prefers-color-scheme:dark){.rd-pitch>.rd-err{color:#FF8A80}}
+.rd-note a,.rd-how a{color:var(--accent);font-weight:700;text-underline-offset:3px}
 
 /* A scene in a box of its own, beside the pitch (the water cycle, and the garden's flat
    drawing): it has no frame, and its edges melt into the page. On a wide screen it runs out
@@ -124,10 +118,11 @@ body{position:relative}
   mask-image:linear-gradient(to bottom,#000 calc(100% - 172px),transparent calc(100% - 14px));mask-composite:add
 }
 /* Words over the sky and the meadow: the grey the rest of the site writes its asides in is
-   too faint there, so the bar and the pitch write theirs in most of the ink, and the small
-   print has a pane of frosted glass under it, like the scene's own labels. */
+   too faint there, so the bar and the pitch write theirs in most of the ink. What goes wrong
+   with a handle is said under the sign-in, over the far woods, so it has a pane of frosted
+   glass under it, like the scene's own labels. */
 body:has(#landing:not([hidden])>.rd-garden:not(.flat)) :is(.rd-bar,.rd-pitch){--muted:color-mix(in srgb,var(--ink) 80%,transparent)}
-.rd-landing:has(>.rd-garden:not(.flat)) .rd-small{width:fit-content;padding:13px 18px 14px;border-radius:18px;background:var(--pin);box-shadow:0 0 0 1px var(--pin-edge);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.rd-landing:has(>.rd-garden:not(.flat)) .rd-err{width:fit-content;padding:9px 14px 10px;border-radius:14px;background:var(--pin);box-shadow:0 0 0 1px var(--pin-edge);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 /* The board's heading stands in the last of the meadow, so what's under it is written the same way. */
 body:has(#landing:not([hidden])>.rd-garden:not(.flat)) #circle .rs-head{--rs-muted:color-mix(in srgb,var(--ink) 80%,transparent)}
 
