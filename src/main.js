@@ -19,6 +19,7 @@ import { profiles } from '../core/net.js';
 import * as atp from './spaces.js';
 import * as oauth from './oauth.js';
 import { showLanding, hideLanding } from './landing/landing.js';
+import { mountLogo } from './logo/live.js';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -175,6 +176,8 @@ document.addEventListener('click', e => { if (e.target.closest('[data-signin]') 
 /* ---------- boot ---------- */
 async function boot(){
   renderMe();
+  // The logo starts moving: until now it was a picture of itself.
+  try { mountLogo($('#rdLogo'), { touch: $('.rd-logo') }); } catch (e) { console.warn('The logo stays a picture', e); }
   route();
   let r = null;
   try { r = await oauth.start(); }

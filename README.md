@@ -95,6 +95,26 @@ the "ai" inside "rain" where the word is prominent: the headline, the pitch unde
 line under the board's heading (`lit` in `ui/bits.js`). It's one variable, `--lit`, in
 `src/theme.css`, with a second value for dark. Screen readers get the plain text.
 
+**The logo** is a drop of that water and the gold spark, in 3D. The drop is the flat logo's
+outline turned round its own axis, and the spark is a cut gem with eight flat faces. Both are
+lit the way the scene and the plants are: the sun up and to the left, the landing's sky
+reflected in the water, and light gathering on the far side of the drop as it does in a real
+one. The spark lights the drop's shoulder too.
+
+In the bar it moves, a little. It bobs over its shadow, the light in the water shifts, and
+every eight seconds a glint crosses the drop and sets the spark turning. Pointing at it gives
+the drop a wobble. It follows light and dark as day and night (at night its shadow is a glow),
+and it holds still off screen, in a hidden tab, and for anyone who has asked their system to
+reduce motion.
+
+It's on every page, so it doesn't use three.js. It's drawn a pixel at a time in plain
+JavaScript (`src/logo/drop.js`), which at the size of a logo takes about a millisecond a
+frame, thirty times a second. Until that has started, and with JavaScript off, the bar shows a
+picture of it in the same pose. The tab's icon and the home-screen icon are pictures of the
+same drawing: `npm run logo` takes them again after the drawing changes (it needs no browser,
+only Node), and `src/logo/sheet.html` is a page to look at it on at every size, by day and by
+night, through its loop.
+
 The site is set in one typeface, Zen Maru Gothic, the same one atmosphere.online uses
 (`--body` in `src/theme.css`).
 
@@ -561,6 +581,8 @@ take on only what you'd be happy to ask for yourself.
 | `src/landing/` | The signed-out landing: `scene.js` (the coast and its weather), `puffs.js` (how a cloud is drawn), `landing.js` (looking closer, the notes and pause), `landing.css` |
 | `src/plants/` | The four 3D plants: `models.js` (how each stage of each kind is grown), `live.js` (one renderer drawing them all, turning), `sheet.html` (a page to look at every kind on) |
 | `scripts/render-plants.mjs`, `public/plants/` | `npm run plants`, and the pictures it takes of every stage of every kind |
+| `src/logo/` | The logo in 3D: `drop.js` (the drop and the spark, how they're lit and how they move), `live.js` (the moving one in the bar), `sheet.html` (a page to look at it on) |
+| `scripts/render-logo.mjs`, `public/*.png` | `npm run logo`, and the pictures it takes: the tab's icon (`favicon.png`, `favicon-32.png`), the home-screen icon (`apple-touch-icon.png`), and what the bar shows until the moving logo starts (`logo.png`, `logo-night.png`) |
 | `src/theme.css`, `src/fonts.css` | The site's look: colours, the bar, light and dark, and its typeface |
 | `src/oauth.js`, `src/scope.js` | Signing in, and the OAuth scope and client metadata: what's asked for up front, and the steps down if a server refuses |
 | `src/spaces.js` | Private seeds: reading and writing a group's space, and the group host's methods |
@@ -591,7 +613,7 @@ take on only what you'd be happy to ask for yourself.
 | `ui/skeleton.js` | What shows while something loads: placeholders laid out like the board, an ask's page, a person's page, your profile and a garden |
 | `ui/bits.js` | Small shared pieces: escaping, times, icons, faces, and the glyphs for a forecast's sky and a seed's life |
 | `cli/rainshare.mjs` | The CLI and MCP server |
-| `test/` | `npm test`: the core, the data source against a fake network, the MCP server, posting to the forges, vouching and follows against made-up ones, what other people's records can't do (`security.test.mjs`), and the plants: which kind each grows, that every picture is there, and that every kind fits its frame (`plants.test.mjs`, the models only once three.js is installed); wrong addresses (`route.test.mjs`); and link previews against made-up hosts (`og.test.mjs`) |
+| `test/` | `npm test`: the core, the data source against a fake network, the MCP server, posting to the forges, vouching and follows against made-up ones, what other people's records can't do (`security.test.mjs`), and the plants: which kind each grows, that every picture is there, and that every kind fits its frame (`plants.test.mjs`, the models only once three.js is installed); the logo: that it stays inside its square as it moves, that its loop closes, and that every picture of it is the one the drawing makes now (`logo.test.mjs`); wrong addresses (`route.test.mjs`); and link previews against made-up hosts (`og.test.mjs`) |
 
 ## Security
 

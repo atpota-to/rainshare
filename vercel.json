@@ -13,6 +13,9 @@
       "maxDuration": 10
     }
   },
+  "redirects": [
+    { "source": "/favicon.svg", "destination": "/favicon.png", "permanent": true }
+  ],
   "rewrites": [
     {
       "source": "/oauth-client-metadata.json",

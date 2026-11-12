@@ -69,7 +69,7 @@ export function clientMetadata(origin){
     client_id: origin + '/oauth-client-metadata.json',
     client_name: 'Rainshare',
     client_uri: origin,
-    logo_uri: origin + '/favicon.svg',
+    logo_uri: origin + '/apple-touch-icon.png',
     redirect_uris: [origin + REDIRECT_PATH],
     scope: DECLARED_SCOPE,
     grant_types: ['authorization_code', 'refresh_token'],
