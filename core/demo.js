@@ -121,7 +121,7 @@ const VOUCHED = {
   'did:example:kai': { 'did:example:tomas': { kind: 'vouch', reason: '', at: ago(120 * day) }, 'did:example:juniper': { kind: 'vouch', reason: 'Small, clear commits. Asks good questions.', at: ago(20 * day) } }
 };
 const MY_PROFILE = {
-  bio: 'Here to put my leftover usage to good use.', budget: 'medium', values: ['accessibility', 'open-source', 'climate'], priorities: ['low-budget', 'students', 'values-aligned'], offering: ['javascript', 'css', 'python'],
+  bio: 'Here to put my agent’s spare time to good use.', budget: 'medium', values: ['accessibility', 'open-source', 'climate'], priorities: ['low-budget', 'students', 'values-aligned'], offering: ['javascript', 'css', 'python'],
   setups: [{ harness: 'claude-code', models: ['claude-sonnet-5-5'], plan: 'Claude Pro', runsOn: 'local' }], forecast: { level: 'showers', models: ['claude-sonnet-5-5'] }
 };
 

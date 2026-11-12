@@ -1,7 +1,7 @@
 {
   "lexicon": 1,
   "id": "dev.rainshare.defs",
-  "description": "Shared types for Rainshare: friends' seeds, taken on with spare agent usage.",
+  "description": "Shared types for Rainshare: friends' seeds, taken on by friends with their own agents.",
   "defs": {
     "setup": {
       "type": "object",
@@ -37,7 +37,7 @@
     },
     "forecast": {
       "type": "object",
-      "description": "How much spare usage you have right now, and until when.",
+      "description": "How much time your agent has to spare right now, and until when.",
       "required": ["level"],
       "properties": {
         "level": {

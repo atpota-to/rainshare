@@ -6,9 +6,11 @@
 > screens, the CLI and the record format. What you post is saved in your own account.
 
 AI plans reset whether you use them or not. On Rainshare, the people you trust share the
-ideas and projects they'd like a hand with. The agent usage you have left over is the rain. It's
+ideas and projects they'd like a hand with, and you send your own agent to help, signed in as
+you, on your own plan. What your friend gets back is the work. That help is the rain. It's
 [Overflow](https://github.com/Nitjsefnie/Overflow) on atproto, without the ledger: nobody earns
-or spends credits, and you help the people you follow.
+or spends credits, and you help the people you follow. (Is that allowed by your AI plan? See
+[the FAQ](#faq).)
 
 - **Ask for rain**, in three short steps with a preview beside them. *What*: an idea, or a
   project you already have, where it lives (a Tangled, knotless or GitHub issue, or any git
@@ -30,8 +32,8 @@ or spends credits, and you help the people you follow.
 
 **The words, and the pictures.** What people read is plain: an *idea* (nothing built yet)
 or a *project* (something that exists), which is *done* when the work lands. Rain is the
-brand: your spare usage, and "Ask for rain" to ask for some. The rest of the metaphor is
-drawn rather than said. An idea is drawn as a seed in the ground, and a project as a plant
+brand: the help your agent gives when it has time to spare, and "Ask for rain" to ask for
+some. The rest of the metaphor is drawn rather than said. An idea is drawn as a seed in the ground, and a project as a plant
 grown as far as it has (just started, taking shape, established). When the work is done it's
 drawn one stage on, and what you've helped with grows into a garden on your profile. The
 records keep the metaphor's names (`dev.rainshare.seed`, `stage`, `state: sprouted`), which
@@ -51,7 +53,7 @@ Signed out, the home page is the pitch beside the water cycle: a stretch of coas
 
 | In the scene | In Rainshare | Its note links to |
 | --- | --- | --- |
-| **Evaporation**: mist lifts off the sea | Usage you won't get to before your plan resets | a forecast, in the example circle |
+| **Evaporation**: mist lifts off the sea | Time on your plan you won't get to before it resets | a forecast, in the example circle |
 | **Condensation**: it gathers into clouds | Forecasts, sitting with the people you follow | the example circle's board |
 | **Precipitation**: rain falls on seeds planted by the river | Agents sent after a friend's idea or project | an idea to send an agent after |
 | **Collection**: the river runs back to the sea | Pull requests coming home, and the next reset | one that's done |
@@ -401,6 +403,31 @@ in the app.
   state is read back, along with each delivered pull request's (open, merged or closed). The
   repo's 50 most recently updated pull requests are also searched for the issue's number or
   the seed's link, to find work that wasn't turned in. All of it is GitHub's public API.
+
+## FAQ
+
+### Is this allowed by my AI plan?
+
+We think so, the way Rainshare works today. We're not lawyers, though, and your plan's terms
+are between you and its provider, so read them too. As of November 2026, what the big plans
+rule out is sharing your account and reselling access to it (Anthropic's
+[Consumer Terms](https://www.anthropic.com/legal/consumer-terms) and
+[Claude Code's](https://code.claude.com/docs/en/legal-and-compliance), and OpenAI's
+[Terms of Use](https://openai.com/policies/row-terms-of-use/)). Rainshare does neither:
+
+- **It's your agent, on your account.** You run Claude Code, Codex or whatever you use, signed
+  in as you, on your own machine or in your own cloud session. Nobody else gets your login.
+  Rainshare never sees your AI sign-in: it signs in only to your atproto account, and the CLI
+  starts your own `claude` or `codex` just as it's installed.
+- **What you give is the work, not access.** Your friend gets a pull request (or, for an idea,
+  a repo), the way you might send one to any open-source project. Anthropic's and OpenAI's
+  terms both assign what you make with them to you.
+- **Nobody's paid.** There are no credits, tips or ledger, so nothing is being resold.
+- **You're there for it.** You pick each one and start your agent yourself.
+
+That's also why Rainshare doesn't run agents on its own servers, hold anyone's AI sign-in, pay
+people for help, or work through asks unattended: each of them would cross that line. And your plan's usage policy covers whatever your agent does, whoever asked for it, so
+take on only what you'd be happy to ask for yourself.
 
 ## Files
 

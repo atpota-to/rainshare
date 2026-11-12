@@ -4,7 +4,7 @@
   "defs": {
     "main": {
       "type": "record",
-      "description": "Something you'd like done, for friends with spare agent usage to take on. Public seeds live in your repo and `audience` says who it's meant for (a filter apps respect, not access control). Private ones live in your repo inside a group's Rainshare space, readable only by its members.",
+      "description": "Something you'd like done, for friends to take on with their own agents. Public seeds live in your repo and `audience` says who it's meant for (a filter apps respect, not access control). Private ones live in your repo inside a group's Rainshare space, readable only by its members.",
       "key": "tid",
       "record": {
         "type": "object",

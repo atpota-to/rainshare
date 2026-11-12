@@ -106,7 +106,7 @@ export function createRainshare({ root, base = '/', host }){
   function shareUrl(it){
     const page = pageOf(it), sq = it.value || {};
     if (it.space || it.example || !page) return null;
-    return `https://bsky.app/intent/compose?text=${encodeURIComponent(it.repo === viewer() ? `Got spare agent usage? My ${nounOf(sq)} on Rainshare could use some rain: “${sq.title}” ${page}` : `A friend’s ${nounOf(sq)} on Rainshare could use some rain: “${sq.title}” ${page}`)}`;
+    return `https://bsky.app/intent/compose?text=${encodeURIComponent(it.repo === viewer() ? `Got an agent with time to spare? My ${nounOf(sq)} on Rainshare could use some rain: “${sq.title}” ${page}` : `A friend’s ${nounOf(sq)} on Rainshare could use some rain: “${sq.title}” ${page}`)}`;
   }
   // Public ones share on Bluesky; private and example ones copy their link (which only works
   // for people who can see them anyway).
@@ -428,7 +428,7 @@ export function createRainshare({ root, base = '/', host }){
     if (!forge || !signedIn()) return '';
     const name = FORGE_SAID[forge], on = connected(forge);
     const draft = S.drafts.say?.uri === it.uri ? S.drafts.say.text
-      : mine && page && isOpen(it) ? `I’ve asked for a hand with this on Rainshare, for anyone with spare agent usage who’d like to take it on: ${page}`
+      : mine && page && isOpen(it) ? `I’ve asked for a hand with this on Rainshare, for anyone who’d like to send their agent after it: ${page}`
         : taken && page ? `I’m having a go at this, through Rainshare: ${page}` : '';
     const where = safeHttp(d.href) && !it.example ? `<a class="rs-link" href="${esc(safeHttp(d.href))}" target="_blank" rel="noopener">See the issue</a>` : '';
     return `<details class="rs-more rs-say" data-rs-keep="say"${S.open.say ? ' open' : ''}><summary>Comment on the issue on ${esc(name)}</summary><div class="rs-more-body">
@@ -669,7 +669,7 @@ export function createRainshare({ root, base = '/', host }){
         pl.do === 'sprout' ? `<button class="rs-btn rs-primary rs-sm" type="button" data-rs-sprout="${esc(pl.delivery)}">Mark it done</button>`
           : pl.do === 'close-issue' ? (safeHttp(pl.href) && !it.example ? `<a class="rs-btn rs-quiet rs-sm" href="${esc(safeHttp(pl.href))}" target="_blank" rel="noopener">Open the issue</a>` : '')
             : sproutBtn}</p>`;
-      const tell = open && page && d?.issue && !it.example && !writableForge(sq.subject) ? `<button class="rs-link" type="button" data-rs-copy-text="${esc(`I’ve asked for a hand with this on Rainshare, for anyone with spare agent usage who’d like to take it on: ${page}`)}" data-rs-copied="Copied. Paste it as a comment on the issue.">Copy a note for the issue</button>` : '';
+      const tell = open && page && d?.issue && !it.example && !writableForge(sq.subject) ? `<button class="rs-link" type="button" data-rs-copy-text="${esc(`I’ve asked for a hand with this on Rainshare, for anyone who’d like to send their agent after it: ${page}`)}" data-rs-copied="Copied. Paste it as a comment on the issue.">Copy a note for the issue</button>` : '';
       actions = `${next}<div class="rs-row">${open ? `<button class="rs-btn rs-quiet" type="button" data-rs-act="close">Close it</button>` : `<button class="rs-btn rs-quiet" type="button" data-rs-act="reopen">Reopen it</button>`}
         ${shareBtn(it, 'Share on Bluesky')}${tell}
         <button class="rs-link rs-danger" type="button" data-rs-act="delete">Delete</button></div>
@@ -763,7 +763,7 @@ export function createRainshare({ root, base = '/', host }){
             ${setups.length > 1 ? `<button class="rs-link" type="button" data-rs-remove-setup="${i}">Remove</button>` : ''}</li>`).join('')}</ol>
           ${setups.length < 6 ? `<button class="rs-link" type="button" data-rs-act="add-setup">${ico('plus')}Add another setup</button>` : ''}
         </fieldset>
-        <fieldset><legend>Your forecast</legend><p class="rs-muted">How much spare usage you have right now. It shows on your profile, so friends know when to ask.</p>
+        <fieldset><legend>Your forecast</legend><p class="rs-muted">How much time your agent has to spare right now. It shows on your profile, so friends know when to ask.</p>
           ${seg('forecast', FORECAST.map(f => [f[0], f[1]]), fc.level || '')}
           <p class="rs-muted">${esc(FORECAST.find(f => f[0] === fc.level)?.[2] || 'Pick one when you have rain to spare.')}</p>
           ${raining ? `<div class="rs-two"><label>Until <small>(often when your plan resets)</small><input name="until" type="date" value="${esc(fc.until ? fc.until.slice(0, 10) : '')}"></label>
@@ -914,6 +914,11 @@ export function createRainshare({ root, base = '/', host }){
           </section>
         </div>
         ${S.source?.canPrivate ? `<p class="rs-note">${ico('lock')}<span>For now the CLI and MCP server reach public ones only. Private, group-only ones are taken on from here, in the app.</span></p>` : ''}
+        <section class="rs-panel" aria-labelledby="rsAllowed">
+          <h2 id="rsAllowed">Is this allowed by my AI plan?</h2>
+          <p class="rs-muted">We think so, but we’re not lawyers, so read your plan’s terms too. What the big plans rule out is sharing your account or reselling access to it (<a href="https://www.anthropic.com/legal/consumer-terms" target="_blank" rel="noopener">Anthropic</a>, <a href="https://openai.com/policies/row-terms-of-use/" target="_blank" rel="noopener">OpenAI</a>). Here you send your own agent, signed in as you, and Rainshare never sees your AI sign-in. What your friend gets is the work: a pull request, or a repo for an idea. Nobody’s paid, and you start each one yourself.</p>
+          <p class="rs-muted">Your plan’s usage policy covers whatever your agent does, whoever asked for it, so take on only what you’d be happy to ask for yourself.</p>
+        </section>
       </div>`;
   }
 

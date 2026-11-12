@@ -186,8 +186,8 @@ export function createPoster(ui){
     if (n == null) return `${cap(FOR[P.audience])}. ${one}`;
     return `${P.audience === 'following' ? `The ${people(n)} you follow` : `${cap(FOR[P.audience])}, about ${people(n)}`}. ${one}`;
   }
-  const bskyDefault = () => P.kind === 'idea' && P.owner === 'helper' ? `I’d love to see someone build this: “${P.title.trim()}”. It’s yours to run with, if you have agent usage to spare.`
-    : `Got spare agent usage? I’d love a hand with this: “${P.title.trim()}”.${P.size ? ` It’s a ${P.size} one${P.tests === 'required' ? ' with tests' : ''}.` : ''}`;
+  const bskyDefault = () => P.kind === 'idea' && P.owner === 'helper' ? `I’d love to see someone build this: “${P.title.trim()}”. It’s yours to run with, if your agent has time to spare.`
+    : `Got an agent with time to spare? I’d love a hand with this: “${P.title.trim()}”.${P.size ? ` It’s a ${P.size} one${P.tests === 'required' ? ' with tests' : ''}.` : ''}`;
   const bskyText = () => (P.bskyText ?? bskyDefault()).trim();
 
   /* ---------- moving between steps ---------- */
@@ -243,7 +243,7 @@ export function createPoster(ui){
       // The example circle's asks live in this browser, so they have no page anyone else could open.
       P.done = { path: pathOf(item), page: item.space || src().demo ? null : pageOf(item), group: g, issue: opened ? { href: opened.url, forge: FORGE_SAID[writableForge(opened)] } : null };
       // The new issue says where the ask is, so people who find it there can pick it up here.
-      if (opened && P.done.page) src().forgeComment(opened, `I’ve asked for a hand with this on Rainshare, for anyone with spare agent usage who’d like to take it on: ${P.done.page}`).catch(e => console.warn('rainshare issue note', e));
+      if (opened && P.done.page) src().forgeComment(opened, `I’ve asked for a hand with this on Rainshare, for anyone who’d like to send their agent after it: ${P.done.page}`).catch(e => console.warn('rainshare issue note', e));
       P.busy = false;
       ui.onPosted(r);
       ui.render(); arrive();

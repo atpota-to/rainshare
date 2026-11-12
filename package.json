@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Spare agent usage, shared with people you know.",
+  "description": "Your agent's spare time, for your friends' ideas and projects.",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",

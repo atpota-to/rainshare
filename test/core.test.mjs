@@ -576,7 +576,7 @@ test('an idea or a project, said plainly and drawn as how far along it is', () =
   assert.deepEqual([{ state: 'sprouted' }, { subject: repo, stage: 'seedling', state: 'sprouted' }, { subject: repo, stage: 'established', state: 'sprouted' }].map(pictureOf), ['seedling', 'young', 'established']);
   // The brief leads with what it is.
   const item = v => ({ uri: 'at://did:plc:abc/dev.rainshare.seed/3k1', repo: 'did:plc:abc', author: { handle: 'friend.example' }, value: { title: 'Fix it', ...v } });
-  assert.match(brief(item({ subject: repo, stage: 'established' })), /^# Project: Fix it\n\nOn Rainshare, friends with spare agent usage give each other a hand with their ideas and projects\. @friend\.example is asking for a hand with this project \(established: people use it and rely on it\): https:\/\/rainshare\.dev\/seed\/friend\.example\/3k1\./);
+  assert.match(brief(item({ subject: repo, stage: 'established' })), /^# Project: Fix it\n\nOn Rainshare, friends send their own agents to give each other a hand with their ideas and projects\. @friend\.example is asking for a hand with this project \(established: people use it and rely on it\): https:\/\/rainshare\.dev\/seed\/friend\.example\/3k1\./);
   assert.match(brief(item({ owner: 'helper' })), /^# Idea: Fix it\n\n[^\n]*@friend\.example is asking for a hand with this idea \(nothing’s been built yet\): https/);
   assert.match(brief(item({ subject: repo })), /^# Project: Fix it\n\n[^\n]*is asking for a hand with this project \(it works, and it’s still taking shape\)/);
 });
