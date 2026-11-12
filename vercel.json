@@ -3,6 +3,9 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "redirects": [
+    { "source": "/favicon.svg", "destination": "/favicon.png", "permanent": true }
+  ],
   "rewrites": [
     {
       "source": "/oauth-client-metadata.json",
