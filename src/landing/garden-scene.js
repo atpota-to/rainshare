@@ -27,7 +27,7 @@ import {
 } from 'three';
 import { makeNoise, mulberry, puffBatch, newCloud, shapeCloud, settleCloud, stageCloud } from './puffs.js';
 import { SKY, SKY_RAW, SUN_LIGHT, skyDome } from './sky.js';
-import { EYE, fit } from './fit.js';
+import { EYE, fit, alone } from './fit.js';
 import { buildPlant, disposePlant } from '../plants/models.js';
 
 /* ---------- small maths ---------- */
@@ -136,12 +136,12 @@ const MOST = 4.2e6;
  * `onFrame(at)` is called after each drawn frame with where things are, in CSS pixels from the
  * canvas's top left: `plots` (x, y for the label under each), `cloud` (x, y of its middle, its
  * width and height), `friend` (x, y above the friend's cloud, and how much of it is left to
- * see), then `left` (how much of the time to the next reset is left, 0 to 1), `charge` (how
+ * see) and `width` (how wide the canvas is), then `left` (how much of the time to the next reset is left, 0 to 1), `charge` (how
  * much rain is left in your cloud) and `fresh` (true while a new cloud is forming).
  * `onEvent(what, n)` says what happened: 'rain' and 'dry' (your rain started or stopped on
  * plot n), 'done' (plot n came on a stage) and 'reset' (your plan reset, with n of a cloud
- * unused). `frame` is where in the canvas the garden goes (see setFrame). Throws if the
- * browser can't give a WebGL context.
+ * unused). `frame` is where in the canvas the garden goes (see setFrame); with none, it has
+ * the canvas to itself. Throws if the browser can't give a WebGL context.
  */
 export function createGarden(canvas, { dark = false, frame: into = null, plots: planted = [], onFrame, onEvent } = {}){
   const renderer = new WebGLRenderer({ canvas, antialias: true, powerPreference: 'low-power' });
@@ -329,9 +329,10 @@ export function createGarden(canvas, { dark = false, frame: into = null, plots: 
     const p0 = PLOTS[0];
     if (!p0.done) { p0.wet = Math.min(1, p0.wet + dt / FRIEND_RAIN * (1 - FRIEND_WET)); if (p0.wet >= 1) finish(p0, false); }
     else {
-      // its work done, the friend's cloud stops raining, and drifts off
+      // its work done, the friend's cloud stops raining, drifts a little way off as it thins,
+      // and stays where it was when the last of it went
       friend.away += dt;
-      if (friend.away > 1.4) { friend.x += dt * .6; friend.y += dt * .13; friend.fade = Math.max(0, friend.fade - dt / 4.5); }
+      if (friend.away > 1.4 && friend.fade > 0) { friend.x += dt * .6; friend.y += dt * .13; friend.fade = Math.max(0, friend.fade - dt / 4.5); }
     }
     friend.rain = snap ? (p0.done ? 0 : 1) : friend.rain + ((p0.done ? 0 : 1) - friend.rain) * (1 - Math.exp(-dt * 3));
 
@@ -436,7 +437,7 @@ export function createGarden(canvas, { dark = false, frame: into = null, plots: 
 
   /* drawing */
   let time = 0, raf = 0, last = 0, lost = false;
-  const at = { plots: new Float32Array(PLOTS.length * 2), cloud: new Float32Array(4), friend: new Float32Array(3), left: 1, charge: 1, fresh: false };
+  const at = { plots: new Float32Array(PLOTS.length * 2), cloud: new Float32Array(4), friend: new Float32Array(3), width: 1, left: 1, charge: 1, fresh: false };
   function draw(dt, snap, real = dt){
     if (lost) return;
     pose(time, dt, snap);
@@ -450,7 +451,7 @@ export function createGarden(canvas, { dark = false, frame: into = null, plots: 
     at.cloud[0] = cx; at.cloud[1] = cy; at.cloud[2] = 13 * me.size * px; at.cloud[3] = (tall + .5) * px;
     const [fx, fy] = seen(friend.x, friend.y + friend.top * friend.size + .2, friend.z);
     at.friend[0] = fx; at.friend[1] = fy; at.friend[2] = friend.fade;
-    at.left = clock / RESET; at.charge = me.charge; at.fresh = me.fading || me.fade < 1;
+    at.width = width; at.left = clock / RESET; at.charge = me.charge; at.fresh = me.fading || me.fade < 1;
     onFrame?.(at, real);
   }
   // The scene moves at most a fifteenth of a second per frame, so a slow device sees it
@@ -474,17 +475,20 @@ export function createGarden(canvas, { dark = false, frame: into = null, plots: 
     // The garden is drawn as big as fits its frame (./fit.js). The lens is whatever gives
     // that, and the middle of the picture is moved to where the frame is, so the rest of the
     // canvas is the same sky and the same meadow, carried on.
-    const fitted = fit(into || { x: 0, y: 0, w, h }), { lens, midX, midY } = fitted;
+    const fitted = fit(into || alone(w, h)), { lens, midX, midY } = fitted;
     unit = fitted.unit; aim = fitted.aim;
     camera.aspect = w / h; camera.fov = 2 * Math.atan(h / (2 * lens)) * 180 / Math.PI;
     camera.setViewOffset(w, h, w / 2 - midX, h / 2 - midY, w, h);
     camera.updateProjectionMatrix();
-    // The sun, a hand's breadth past the top of the picture near its left edge, so its glow
-    // comes in at that corner; and the sky's colours spread over as much sky as there is,
-    // which on a phone is a tall one with the pitch in it.
-    const side = w * .1 - midX, turn = Math.atan2(side, lens), up = Math.atan2(midY, Math.hypot(lens, side)) + .2;
-    sunAt.set(Math.sin(turn) * Math.cos(up), Math.sin(up), -Math.cos(turn) * Math.cos(up));
-    uSpan.value = clamp(Math.hypot(midY, lens) / Math.max(midY, 1), 1.05, 2.3);
+    // As the page's backdrop: the sun, a hand's breadth past the top of the picture near its
+    // left edge, so its glow comes in at that corner; and the sky's colours spread over as
+    // much sky as there is, which on a phone is a tall one with the pitch in it. (With the
+    // canvas to itself, both are as they were made.)
+    if (into) {
+      const side = w * .1 - midX, turn = Math.atan2(side, lens), up = Math.atan2(midY, Math.hypot(lens, side)) + .2;
+      sunAt.set(Math.sin(turn) * Math.cos(up), Math.sin(up), -Math.cos(turn) * Math.cos(up));
+      uSpan.value = clamp(Math.hypot(midY, lens) / Math.max(midY, 1), 1.05, 2.3);
+    }
     uScale.value = renderer.domElement.height / (2 * Math.tan(camera.fov * Math.PI / 360));
     still();
   }

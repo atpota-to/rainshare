@@ -464,9 +464,6 @@
 /* on a phone, a row of choices that won't fit sits two to a row instead of leaving one over */
 @media (max-width:480px){.rs-seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}}
 
-/* signing in, at the top of any screen */
-.rs-signin{max-width:none;border:2px solid var(--rs-accent-soft)}
-.rs-signin .rs-row input{flex:1 1 220px;width:auto}
 /* the turn-in form sits inside the seed's own card */
 .rs-form.rs-turnin,.rs-more .rs-form{padding:0;background:none;box-shadow:none;outline:0;-webkit-backdrop-filter:none;backdrop-filter:none;max-width:none}
 /* Tangled's vouches: a hat beside a name, and what your circle has said */

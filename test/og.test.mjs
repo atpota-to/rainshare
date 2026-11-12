@@ -35,7 +35,7 @@ test('an ask’s page says what it is and who’s asking, by handle or by DID', 
     assert.equal(p.kind, 'seed');
     assert.equal(p.title, 'Keep drafts out of the feed · Rainshare');
     assert.equal(p.heading, 'Keep drafts out of the feed');
-    assert.match(p.description, /^Alice is asking for a hand with a project|^Alice is asking for a hand with an idea/);
+    assert.match(p.description, /^Alice is asking for help with a project|^Alice is asking for help with an idea/);
     assert.match(p.description, /drafts show up in the RSS feed/);
     assert.equal(p.path, `/seed/${HANDLE}/3k1`);
     assert.equal(canonical(p), `${SITE}/seed/${HANDLE}/3k1`);
@@ -52,7 +52,7 @@ test('a Rainshare name wins over the Bluesky one, and a done ask says so', async
   const p = await describe({ kind: 'seed', who: DID, rkey: '3k1' });
   assert.equal(p.card.person.name, 'Alice on Rainshare');
   assert.equal(p.card.state, 'done');
-  assert.match(p.description, /done with a friend’s help/);
+  assert.match(p.description, /done with help from someone else’s agent/);
   assert.match(p.card.plant, /^seedling(-\d+)?$/, 'drawn one stage on, as the app draws it');
 });
 

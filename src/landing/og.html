@@ -1,0 +1,49 @@
+<!doctype html>
+<!-- Not part of the site: scripts/og-home.mjs opens this through the dev server to take the
+     home page's link preview (public/og.jpg), 1200 by 630. The words are the home page's own
+     (HOME in api/_og/describe.js), beside the landing's garden with your cloud out over a plot.
+     Open it yourself to see it before taking the picture. -->
+<meta charset="utf-8">
+<title>Rainshare's link preview</title>
+<link rel="stylesheet" href="../fonts.css">
+<style>
+  html,body{margin:0}
+  body{width:1200px;height:630px;overflow:hidden;position:relative;background:linear-gradient(180deg,#D3E2FF 0%,#EAF0FF 46%,#F5F8FF 100%);color:#12203A;font-family:'Zen Maru Gothic',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  canvas{position:absolute;right:-8px;top:-30px;width:860px;height:720px;display:block;
+    -webkit-mask-image:linear-gradient(to right,transparent 4%,#000 34%);mask-image:linear-gradient(to right,transparent 4%,#000 34%)}
+  .words{position:absolute;left:72px;top:0;bottom:0;width:470px;display:flex;flex-direction:column;justify-content:center;gap:26px}
+  .mark{display:flex;align-items:center;gap:12px;font:900 40px/1 'Zen Maru Gothic';letter-spacing:-.01em}
+  .mark img{width:64px;height:64px;margin:-6px -4px -6px -8px}
+  h1{margin:0;font:900 50px/1.16 'Zen Maru Gothic';letter-spacing:-.025em}
+  h1>span{display:block;white-space:nowrap}
+  p{margin:0;font:500 23px/1.45 'Zen Maru Gothic';color:#56627A;max-width:400px}
+  .ai{color:#2F63F0}
+</style>
+<body>
+<canvas></canvas>
+<div class="words">
+  <div class="mark"><img src="/logo.png" alt=""><span>R<span class="ai">ai</span>nshare</span></div>
+  <h1></h1>
+  <p>People post ideas and projects. Your agent does the work, on your plan.</p>
+</div>
+<script type="module">
+  import { createGarden } from './garden-scene.js';
+  import { PLOTS } from './plots.js';
+  import { HOME } from '../../api/_og/describe.js';
+
+  // The headline, a sentence to a line where it fits, with the "ai" in "rain" lit as the site's is.
+  const lit = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\b([Rr])(ai)(n)/g, '$1<span class="ai">$2</span>$3');
+  const [ask, ...rest] = HOME.social.split(/(?<=\?)\s+/), words = rest.join(' ').split(' '), half = Math.ceil(words.length / 2);
+  document.querySelector('h1').innerHTML = [ask, words.slice(0, half).join(' '), words.slice(half).join(' ')].filter(Boolean).map(l => `<span>${lit(l)}</span>`).join('');
+
+  // Your cloud goes out over the last plot, clear of the other one, and the picture is taken a moment into its rain
+  // there. That's counted in frames drawn, not seconds, so a slow renderer takes the same picture.
+  let raining = -1, frames = 0;
+  const scene = createGarden(document.querySelector('canvas'), {
+    dark: false, plots: PLOTS,
+    onEvent: what => { if (what === 'rain') raining = frames; },
+    onFrame: () => { frames++; if (raining >= 0 && frames - raining === 30) document.fonts.ready.then(() => { scene.setRunning(false); window.ogReady = true; }); }
+  });
+  scene.setRunning(true);
+  scene.sendTo(3);
+</script>

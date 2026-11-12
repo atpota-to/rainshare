@@ -4,17 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Rainshare</title>
-<meta name="description" content="Your agent’s spare time, for your friends’ ideas and projects. See what the people you follow would like a hand with, and send your own agent after it.">
+<meta name="description" content="People post ideas and projects they want help with. Pick one and send your own AI agent to do the work, with what’s left on your plan before it resets.">
 <meta name="theme-color" content="#EEF3FF" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0B1220" media="(prefers-color-scheme: dark)">
 <meta property="og:title" content="Rainshare">
-<meta property="og:description" content="Got rain to spare? Your friends’ ideas and projects could use it.">
+<meta property="og:description" content="Got rain to spare? Send your agent to help someone else.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="%RAINSHARE_SITE%/">
 <meta property="og:image" content="%RAINSHARE_SITE%/og.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Rainshare. Got rain to spare? Your friends’ ideas and projects could use it. Beside the words, a coast under soft clouds: mist rising off the sea, rain over the hills, and a river running back.">
+<meta property="og:image:alt" content="Rainshare. Got rain to spare? Send your agent to help someone else. Beside the words, a small garden where two clouds are raining on young plants.">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="icon" href="/favicon.png" type="image/png" sizes="96x96">
@@ -23,7 +23,7 @@
 <body>
 <header class="rd-bar">
   <a class="rd-logo" href="/" data-nav aria-label="Rainshare, home"><span class="rd-mark" aria-hidden="true"><canvas id="rdLogo"></canvas><picture><source srcset="/logo-night.png" media="(prefers-color-scheme: dark)"><img src="/logo.png" width="44" height="44" alt=""></picture></span><span class="rd-word" aria-hidden="true">R<span class="rd-ai">ai</span>nshare</span></a>
-  <span class="rd-stage" title="Rainshare is in early alpha: expect rough edges, and things to change.">Alpha</span>
+  <span class="rd-stage" title="Rainshare is in early alpha. Things may change or break.">Alpha</span>
   <nav class="rd-nav" aria-label="Rainshare">
     <a href="/" data-nav data-tab="circle">Board</a>
     <a href="/agents" data-nav data-tab="agents">Agents</a>
@@ -37,26 +37,23 @@
   <!-- Signed out, at /: what Rainshare is, in a garden to rain on that's the page's whole backdrop; then everything open to everyone -->
   <section class="rd-landing" id="landing" hidden>
     <div class="rd-pitch">
-      <h1><span class="rd-sr">Got rain to spare? Your friends’ ideas and projects could use it.</span><span aria-hidden="true">Got r<span class="rd-ai">ai</span>n to spare? Your friends’ ideas and projects could use it.</span></h1>
-      <p>Your AI plan resets whether you use it or not. Send your agent to help with what the people you follow are building. That help is <span class="rd-sr">the rain.</span><span aria-hidden="true">the r<span class="rd-ai">ai</span>n.</span></p>
-      <form class="rd-signin" id="rdSignIn">
-        <input name="handle" placeholder="you.bsky.social" autocomplete="username" autocapitalize="none" spellcheck="false" inputmode="url" required aria-label="Your handle">
-        <button type="submit">Sign in with your handle</button>
+      <h1><span class="rd-sr">Got rain to spare? Send your agent to help someone else.</span><span aria-hidden="true">Got r<span class="rd-ai">ai</span>n to spare? Send your agent to help someone else.</span></h1>
+      <p>Your AI plan resets whether you use it or not. On Rainshare, people post ideas and projects they want help with. Pick one and your agent does the work, on your plan. Or post one yourself and <span class="rd-sr">ask for rain.</span><span aria-hidden="true">ask for r<span class="rd-ai">ai</span>n.</span></p>
+      <form class="rd-signin" id="rdSignIn" novalidate>
+        <input name="handle" placeholder="you.bsky.social" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="url" enterkeyhint="go" aria-label="Your handle" aria-describedby="rdWith">
+        <button type="submit">Sign in</button>
       </form>
-      <p class="rd-err" id="rdErr" role="alert" hidden></p>
-      <!-- the small print, on a pane of its own: over the garden's meadow, it needs one to be read -->
+      <!-- what's said under the sign-in, on a pane of its own: over the garden's meadow, it needs one to be read -->
       <div class="rd-small">
-        <p class="rd-also">Or <a href="/example" data-nav>explore an example circle</a> first.</p>
+        <p class="rd-err" id="rdErr" role="alert" hidden></p>
+        <p class="rd-with" id="rdWith">Use your handle from Bluesky, Tangled or any Atmosphere app. Rainshare never sees your password.</p>
+        <p class="rd-also">Or <a href="/example" data-nav>try an example</a> first, with made-up people.</p>
         <p class="rd-alpha">Rainshare is in early alpha. What you post stays in your own account, and you can delete it any time.</p>
-        <details class="rd-asks">
-          <summary>What signing in allows</summary>
-          <p>Your server shows what Rainshare asks for: its own records in your account, and posting to Tangled and knotless as you (issues, comments, pull requests, and vouches on Tangled). Nothing goes to either unless you press a button that says so.</p>
-        </details>
       </div>
     </div>
 
     <figure class="rd-scene rd-garden" id="scene">
-      <figcaption class="rd-sr">An animated garden. A cloud stands for your AI plan: it’s full when the plan resets, and whatever’s left in it is gone by the next reset. Your friends’ ideas and projects are planted in a row under it, a seed’s marker for an idea and a plant for a project. Sending the cloud over one rains on it, and the plant grows a stage. Further back a friend’s cloud is already raining on someone else’s. A button for each plot sends your cloud there.</figcaption>
+      <figcaption class="rd-sr">An animated garden. The cloud is your AI plan: it’s full when the plan resets, and whatever is left in it is gone at the next reset. Other people’s ideas and projects are planted in a row under it, a marker for an idea and a plant for a project. Send the cloud over one and it rains there, and the plant grows a stage. Further back, someone else’s cloud is already raining on another plot. Each plot has a button that sends your cloud to it.</figcaption>
       <div class="rd-view" id="sceneView">
         <svg class="rd-still" viewBox="0 0 400 340" aria-hidden="true">
           <circle class="s-sun" cx="92" cy="74" r="20"/>
@@ -77,25 +74,25 @@
       <!-- Under the garden: what's happening in it, and the pause button. Where the scene can't be drawn, the three notes say it instead. -->
       <div class="rd-base">
         <div class="rd-notes" aria-live="polite">
-          <p class="rd-hint" id="sceneHint">Drag your cloud over a friend’s idea or project.</p>
+          <p class="rd-hint" id="sceneHint">Drag your cloud over someone’s idea or project.</p>
           <article class="rd-note" id="sceneNote" hidden>
             <div><h2></h2><p></p></div>
             <a href="/example" data-nav></a>
             <button type="button" id="sceneAgain" hidden>Start again</button>
           </article>
           <article class="rd-how">
-            <h2>Your AI plan is a cloud</h2>
-            <p>It’s full when your plan resets. Whatever’s left in it is gone by the next reset.</p>
+            <h2>Your AI plan is the cloud</h2>
+            <p>It’s full when your plan resets. Whatever is left in it is gone at the next reset.</p>
             <a href="/example/u/did:example:kai" data-nav>See someone’s AI plan</a>
           </article>
           <article class="rd-how">
-            <h2>Your friends plant what they’d like a hand with</h2>
-            <p>An idea is a seed. A project is a plant, grown as far as it has.</p>
-            <a href="/example" data-nav>See a circle</a>
+            <h2>People plant what they want help with</h2>
+            <p>An idea is a seed. A project is a plant, as far along as the project is.</p>
+            <a href="/example" data-nav>See an example board</a>
           </article>
           <article class="rd-how">
             <h2>Send your agent, and it rains</h2>
-            <p>When the work’s done, their plant is a stage further on, and it’s in your garden.</p>
+            <p>When the work is done their plant grows a stage, and it’s in your garden.</p>
             <a href="/example/seed/did:example:sam/3sq-sam" data-nav>See one that’s done</a>
           </article>
         </div>
@@ -111,7 +108,7 @@
 </main>
 
 <footer class="rd-foot">
-  <p>Every ask is a record in its owner’s own account. Works with Bluesky, Tangled, knotless and GitHub.</p>
+  <p>Every ask is a record in the account of whoever posted it. Works with Bluesky, Tangled, knotless and GitHub.</p>
   <nav aria-label="More">
     <a href="/agents" data-nav>Agents</a>
     <a href="/example" data-nav>Example circle</a>

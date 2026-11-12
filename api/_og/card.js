@@ -27,7 +27,7 @@ const wordmark = logo => row({ gap: 10 }, logo ? img(logo, 64) : drop(52), lit('
 const pill = (label, { bg = C.accentSoft, color = C.accentText } = {}) => text({ padding: '10px 22px', borderRadius: 999, backgroundColor: bg, color, fontSize: 26, fontWeight: 700 }, label);
 const pitch = () => col({ alignItems: 'flex-end', gap: 2 },
   lit('Got rain to spare?', { fontSize: 28, fontWeight: 700, color: C.ink }),
-  text({ fontSize: 24, fontWeight: 500, color: C.muted }, 'Send your own agent to help.'));
+  text({ fontSize: 24, fontWeight: 500, color: C.muted }, 'Send your agent to help.'));
 
 // Someone's picture, or their initial on a soft colour when there isn't one.
 function face(p, src, size){
@@ -57,7 +57,7 @@ function seed(c, { plant, avatar, logo }){
       row({ gap: 18, flexShrink: 1, minWidth: 0 }, face(p, avatar, 76),
         col({ gap: 2, flexShrink: 1, minWidth: 0 },
           text({ fontSize: 30, fontWeight: 700, lineClamp: 1, maxWidth: 560 }, p.name || 'Someone'),
-          text({ fontSize: 24, fontWeight: 500, color: C.muted, lineClamp: 1, maxWidth: 560 }, c.state === 'open' ? (p.handle ? `@${p.handle} is asking for a hand` : 'is asking for a hand') : (p.handle ? `@${p.handle}` : 'on Rainshare')))),
+          text({ fontSize: 24, fontWeight: 500, color: C.muted, lineClamp: 1, maxWidth: 560 }, c.state === 'open' ? (p.handle ? `@${p.handle} is asking for help` : 'is asking for help') : (p.handle ? `@${p.handle}` : 'on Rainshare')))),
       pitch()));
 }
 function person(c, { avatar, logo }){
@@ -69,7 +69,7 @@ function person(c, { avatar, logo }){
         text({ fontSize: sized(p.name, [[16, 84], [26, 68], [999, 54]]), fontWeight: 900, letterSpacing: '-0.02em', lineHeight: 1.12, lineClamp: 2 }, p.name || 'Someone'),
         p.handle ? text({ fontSize: 32, fontWeight: 700, color: C.accentText, lineClamp: 1 }, '@' + p.handle) : null,
         p.bio ? text({ fontSize: 28, fontWeight: 500, color: C.muted, lineHeight: 1.36, lineClamp: 3, marginTop: 6 }, p.bio) : null)),
-    row({ justifyContent: 'space-between', gap: 32 }, text({ fontSize: 26, fontWeight: 500, color: C.muted }, 'Ideas, projects and a garden of what they’ve helped with'), pitch()));
+    row({ justifyContent: 'space-between', gap: 32 }, text({ fontSize: 26, fontWeight: 500, color: C.muted }, 'Their ideas and projects, and what they’ve helped with'), pitch()));
 }
 function page(c, { plant, logo }){
   return frame(

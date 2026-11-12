@@ -1,16 +1,16 @@
 # Rainshare
 
-*Got rain to spare? Your friends' ideas and projects could use it.*
+*Got rain to spare? Send your agent to help someone else.*
 
-> **Early alpha.** Rainshare works end to end, but expect rough edges, and changes to the
-> screens, the CLI and the record format. What you post is saved in your own account.
+> **Early alpha.** Rainshare works end to end, but the screens, the CLI and the record format
+> may still change. What you post is saved in your own account.
 
-AI plans reset whether you use them or not. On Rainshare, the people you trust share the
-ideas and projects they'd like a hand with, and you send your own agent to help, signed in as
-you, on your own plan. What your friend gets back is the work. That help is the rain. It's
+AI plans reset whether you use them or not. On Rainshare, people post the ideas and projects
+they want help with, and you send your own agent to do the work, signed in as you, on your own
+plan. What they get back is the work, and that help is what Rainshare calls rain. It's
 [Overflow](https://github.com/Nitjsefnie/Overflow) on atproto, without the ledger: nobody earns
-or spends credits, and you help the people you follow. (Is that allowed by your AI plan? See
-[the FAQ](#faq).)
+or spends credits, and your board starts with the people you follow. (Is that allowed by your
+AI plan? See [the FAQ](#faq).)
 
 - **Ask for rain**, in two short steps with a preview beside them. *What*: an idea, or a
   project you already have, where it lives (a Tangled, knotless or GitHub issue, or any git
@@ -22,13 +22,13 @@ or spends credits, and you help the people you follow. (Is that allowed by your 
 - **Say your AI plan**: your profile starts with which AI plans you pay for to code with (Claude,
   ChatGPT, Copilot, Cursor, Gemini, Z.ai's GLM Coding Plan; by provider, not tier), or that you
   have free tiers or none. It's about coding subscriptions and the usage that comes with them. It shows on your profile and
-  beside your asks, so a helper can see who'd be glad of the rain, and an asker can see who has
-  some. Then what you run and the work you take on. It sticks to facts: what you'd like done, on
+  beside your asks, so a helper can see who's asking, and an asker can see who has rain to
+  spare. Then what you run and the work you take on. It sticks to facts: what you'd like done, on
   which models, and who has them. Your name, picture and bio are your Bluesky profile's, unless
   you give Rainshare a different name or bio.
-- **Send your agent**: one click tells your friend you're on it and copies the command that
-  suits your setup (Claude Code, Codex, or a brief for any agent); the other ways are a click
-  away. Turn the pull request in when it's up, and your friend marks it done.
+- **Send your agent**: one click tells whoever asked that you're on it and copies the command
+  that suits your setup (Claude Code, Codex, or a brief for any agent); the other ways are a
+  click away. Turn the pull request in when it's up, and they mark it done.
 - **Grow a garden**: everything that gets done with your help shows on your profile as a
   plant, in a garden of what you've helped with.
 
@@ -40,6 +40,12 @@ grown as far as it has (just started, taking shape, established). When the work 
 drawn one stage on, and what you've helped with grows into a garden on your profile. The
 records keep the metaphor's names (`dev.rainshare.seed`, `stage`, `state: sprouted`), which
 nobody needs to read.
+
+The people have plain names too. Whoever posts an ask is called by their name, or "whoever
+asked"; whoever sends an agent is a *helper*; the people you follow, and who follow you, are
+your *circle*. The site doesn't call anyone a friend: an ask is open to everyone, so the
+person you help may be someone you've never met. The steps keep one verb each: *ask for
+rain*, *send your agent* (which takes it on), *turn it in*, *mark it done*.
 
 It runs in two places, both from this repo:
 
@@ -57,7 +63,7 @@ pitch, and its meadow from one edge of the window to the other. It's Rainshare i
 | In the scene | In Rainshare |
 | --- | --- |
 | **Your cloud**, with a ring over it that runs down | Your AI plan, and how long until it resets |
-| **A row of plots**: a seed's marker, or a plant | A friend's idea, or their project, grown as far as it has |
+| **A row of plots**: a seed's marker, or a plant | Someone's idea, or their project, as far along as it is |
 | **Rain**, where you send the cloud | Your agent, sent after one of them |
 | **The plant grows a stage**, and wears the gold spark | The work's done, and it's in your garden |
 | **The cloud thins out**, and a full one forms | The plan reset. What you hadn't used is gone |
@@ -65,9 +71,9 @@ pitch, and its meadow from one edge of the window to the other. It's Rainshare i
 Drag the cloud along the row, or pick a plot (its label, or anywhere on it), and it rains
 there. A line under the plots says what's happening, with a link to that idea or project in
 the example circle. Leave the cloud where it is and the reset comes all the same. Behind the
-row a friend's cloud is already raining on a plot of its own, so the whole of it shows before
-anyone touches anything. Three plots take the whole cloud; once they're done the line says
-"That's a garden", with a way to start again.
+row someone else's cloud is already raining on a plot of its own, so the whole of it shows
+before anyone touches anything. Three plots take the whole cloud; once they're done the line
+says "Three done", with a way to start again.
 
 The plots are four asks from the example circle (`plots.js`): Kai's agent is on Sam's project,
 and Mo's idea, Juniper's project and Priya's are in the row. Each is drawn as the same plant
@@ -119,6 +125,35 @@ whole, in `src/landing/cycle/` in case it's wanted back: set `SCENE` in `landing
 `'cycle'`, or add `?scene=cycle` to the address to look at it. Nobody downloads it otherwise.
 It's still drawn in a box of its own beside the pitch, with its edges fading into the page,
 as the garden was before it became the backdrop.
+
+## Signing in
+
+Signing in sends you to another website: the one your account's own server signs people in
+on, with a page you may never have seen. So Rainshare says where you're going before you go
+(`src/signin.js`), in two steps:
+
+1. **Your handle.** Accounts that match are offered as you type, with their pictures
+   (Bluesky's typeahead, which knows accounts with a Bluesky profile). Picking one, or typing
+   a whole handle and pressing Enter, goes on; a handle nobody offered is taken as typed.
+2. **"Is this you?"** The account's picture, name and handle, as the network has them for
+   what was typed. Under it, what Rainshare asks for, each with a tick box: your Rainshare
+   records (required), posting to Tangled, and posting to knotless. The last two start ticked
+   and are yours to untick; what's unticked isn't asked for, stays unticked next time on that
+   browser, and can be added later where it's needed. Then one button, **Continue at
+   pds.example.com**, naming the site it leads to, with a line under it saying you'll sign in
+   there, where your account lives, and come straight back. "Not you?" goes back to the
+   handle. Rainshare never sees your password, and says so.
+
+The site named is found before the button can be pressed, the same way the sign-in itself
+finds it (`whereTo` in `src/oauth.js`): the handle's account, its server, and the address
+that server signs people in on. For most accounts that's their own server; accounts on
+Bluesky's servers all sign in at bsky.social. Nobody is sent anywhere until they press it.
+
+On the landing the handle field is on the page, and the dialog opens at "Is this you?".
+Everywhere else ("Sign in" in the bar, on an ask's page, on the board) the dialog starts with
+the handle, and signing in comes back to the page you were on. "Connect Tangled" or "Connect
+knotless", for a sign-in that left one out, is the second step on its own: your account, the
+list with that forge ticked, and the same button.
 
 **The same pictures in the app.** A forecast (set aside for now) is drawn as its sky: clear, then a cloud with
 more and more rain (`skyIco` in `ui/bits.js`). A seed is drawn where it is in its life: in the
@@ -290,8 +325,8 @@ bring (a wanted model you run or your plan reaches, tags that match the work you
 closeness. (While who you'd like to help first, what you care about and the asker's situation are
 set aside, they have no say.)
 Each card shows how well it suits you as one to three drops ("Strong fit", "Good fit", "Some
-fit"), and picking one says why in plain sentences beside the list: "Priya has no paid AI and
-is between jobs. It'd like Sonnet, which you have. Heads up: someone's already on it." The
+fit"), and picking one says why in plain sentences beside the list: "Priya has no AI plan and
+is between jobs. They'd like Sonnet, which you have. Heads up: someone's already on it." The
 rest of a seed reads as short lines too (`core/words.js`): where the work is, the job (with
 anything else they asked for), the models and how they fit yours, and who's on it. On a phone the details come up as a sheet.
 
@@ -441,10 +476,11 @@ can't, and links to the right page.
   one there from the title and details, point the ask at it, and note on it where the ask is.
 
 Sign-in asks for all of this up front, so nobody is sent back to their server halfway through
-writing something. A server that refuses part of it is asked again for less, down to
-Rainshare's own records alone (`ladder` in `src/scope.js`), and a sign-in that ended up with
-less is offered "Connect Tangled" or "Connect knotless" where it matters, with what was typed
-kept. What's asked for is what each forge needs and no more (`FORGE_SCOPES` in `core/ns.js`):
+writing something. Each forge has a tick box in the sign-in dialog (see Signing in), ticked to
+begin with, so it's said before anyone is sent to their server, and either can be left out.
+A server that refuses part of what's asked is asked again for less, down to Rainshare's own
+records alone (`ladder` in `src/scope.js`), and a sign-in that ended up with less is offered
+"Connect Tangled" or "Connect knotless" where it matters, with what was typed kept. What's asked for is what each forge needs and no more (`FORGE_SCOPES` in `core/ns.js`):
 
 | | How a post is made | What's asked for |
 | --- | --- | --- |
@@ -586,8 +622,8 @@ in the app.
 
 ### Is this allowed by my AI plan?
 
-We think so, the way Rainshare works today. We're not lawyers, though, and your plan's terms
-are between you and its provider, so read them too. As of November 2026, what the big plans
+We think so, the way Rainshare works today. Your plan's terms are between you and its
+provider, though, so read them too. As of November 2026, what the big plans
 rule out is sharing your account and reselling access to it (Anthropic's
 [Consumer Terms](https://www.anthropic.com/legal/consumer-terms) and
 [Claude Code's](https://code.claude.com/docs/en/legal-and-compliance), and OpenAI's
@@ -597,15 +633,15 @@ rule out is sharing your account and reselling access to it (Anthropic's
   in as you, on your own machine or in your own cloud session. Nobody else gets your login.
   Rainshare never sees your AI sign-in: it signs in only to your atproto account, and the CLI
   starts your own `claude` or `codex` just as it's installed.
-- **What you give is the work, not access.** Your friend gets a pull request (or, for an idea,
+- **What you give is the work, not access.** The person who asked gets a pull request (or, for an idea,
   a repo), the way you might send one to any open-source project. Anthropic's and OpenAI's
   terms both assign what you make with them to you.
 - **Nobody's paid.** There are no credits, tips or ledger, so nothing is being resold.
 - **You're there for it.** You pick each one and start your agent yourself.
 
 That's also why Rainshare doesn't run agents on its own servers, hold anyone's AI sign-in, pay
-people for help, or work through asks unattended: each of them would cross that line. And your plan's usage policy covers whatever your agent does, whoever asked for it, so
-take on only what you'd be happy to ask for yourself.
+people for help, or work through asks unattended: each of them would cross that line. And your plan's usage policy covers everything your agent does, whoever asked for it, so
+take on only what you'd be comfortable asking it to do for yourself.
 
 ## Files
 
@@ -618,15 +654,17 @@ take on only what you'd be happy to ask for yourself.
 | `src/logo/` | The logo in 3D: `drop.js` (the drop and the spark, how they're lit and how they move), `live.js` (the moving one in the bar), `sheet.html` (a page to look at it on) |
 | `scripts/render-logo.mjs`, `public/*.png` | `npm run logo`, and the pictures it takes: the tab's icon (`favicon.png`, `favicon-32.png`), the home-screen icon (`apple-touch-icon.png`), and what the bar shows until the moving logo starts (`logo.png`, `logo-night.png`) |
 | `src/theme.css`, `src/fonts.css` | The site's look: colours, the bar, light and dark, and its typeface |
-| `src/oauth.js`, `src/scope.js` | Signing in, and the OAuth scope and client metadata: what's asked for up front, and the steps down if a server refuses |
+| `src/signin.js`, `src/signin.css` | The sign-in dialog: accounts offered as a handle is typed, "Is this you?", what's asked for with a tick box each, and the button that names the site you're sent to |
+| `src/oauth.js`, `src/scope.js` | Signing in, and the OAuth scope and client metadata: what's asked for up front, the steps down if a server refuses, and finding where an account signs in before anyone is sent there |
 | `src/spaces.js` | Private seeds: reading and writing a group's space, and the group host's methods |
 | `api/oauth-client-metadata.js` | The OAuth client document, served at `/oauth-client-metadata.json` |
 | `api/page.js`, `api/og.js`, `api/_og/` | Link previews: the page with its tags set for the address asked for, and its picture. `describe.js` is what each says, `card.js` how the picture is laid out; with the fonts and the plants' JPEG copies they're drawn with |
 | `scripts/og-plants.mjs` | `npm run plants:og`: the plant pictures again as JPEGs, for the preview cards |
+| `scripts/og-home.mjs`, `src/landing/og.html` | `npm run og`: the home page's own preview picture (`public/og.jpg`), its headline beside the landing's garden |
 | `lexicons/dev/rainshare/` | The four record types and their shared defs. `publish.mjs` publishes them under rainshare.dev. |
 | `core/ns.js` | Collection names, and the words people see for every known value |
 | `core/records.js` | Building each record from what people type, within the lexicons' limits |
-| `core/net.js` | Public reads: identity, records from each PDS, the relay, the Bluesky graph |
+| `core/net.js` | Public reads: identity, records from each PDS, the relay, the Bluesky graph, and accounts to offer as a handle is typed |
 | `core/subjects.js` | Tangled, knotless and GitHub: parsing links, clone URLs, issue titles and states, pull request states, pull requests that mention a seed |
 | `core/circle.js` | Audiences and closeness |
 | `core/rank.js` | A helper's board in order, and how well each seed fits them, with reasons |
@@ -734,7 +772,8 @@ body isn't touched, so the app starts as it does from the plain file. `api/og.js
 page's picture, 1200 by 630, with `@vercel/og`: the site's sky and wordmark, an ask's title,
 what it is, its own plant and who's asking (with a "Done" mark once it is); a person's
 picture, name and bio; a card each for `/agents` and the example. The home page keeps
-`public/og.jpg`. The words and the picture come from one place (`api/_og/describe.js`), which
+`public/og.jpg`: its headline beside the landing's garden, taken again with `npm run og`
+whenever the words or the scene change. The words and the picture come from one place (`api/_og/describe.js`), which
 asks only two fixed hosts, Slingshot for the records and Bluesky's AppView for names and
 pictures, within 2.5 seconds: never the servers an address points at. Anything missing,
 invalid or slow gets the home page's card, and an ask that's for some people only says
@@ -750,9 +789,11 @@ writes against a fake network; the MCP server's handshake and tools; the product
 its bundled CLI. The records the app builds (`core/records.js`: seeds for every audience,
 profiles, takes and deliveries) validate against the lexicons with `@atproto/lexicon`. That
 was a one-off check and isn't part of `npm test` yet. In a headless browser: the
-landing in light and dark from 360 to 1680 pixels wide with no sideways scrolling; sending
+landing in light and dark from 360 to 1680 pixels wide with no sideways scrolling, and none
+appearing while the scene runs or with the cloud dragged to either end (at 1280, 600 and 390
+pixels, with motion on, past the friend's cloud drifting off); sending
 the cloud to a plot by its label, by tapping the plot, by dragging the cloud (with a mouse and
-with a finger) and from the keyboard; all three plots through to "That's a garden", and
+with a finger) and from the keyboard; all three plots through to "Three done", and
 starting again; the reset; Escape; pause, reduced motion, the fallback without WebGL; the
 water cycle at `?scene=cycle`, drawn exactly as it was before it was set aside; and the example circle,
 including sending an agent, turning a pull request in, the warning when someone is already on
@@ -769,7 +810,7 @@ software renderer: from 360 to 2200 pixels wide, in light and dark, with no side
 scrolling and the backdrop the window's whole width; the garden sinking as the page scrolls
 and stopping short of the line under it, and not sinking at all with reduced motion; on a
 desktop and on a phone with a finger, sending the cloud by a label and by a plot in the
-canvas (and on the desktop by dragging it), all three plots through to "That's a garden",
+canvas (and on the desktop by dragging it), all three plots through to "Three done",
 and starting again, on the phone with the garden part of the way sunk; typing in the sign-in
 over the backdrop; pause; going on to the example circle and back; the fallback without
 WebGL and the water cycle at `?scene=cycle`, each in its box beside the pitch as before; and
@@ -895,5 +936,23 @@ Not yet checked:
   found through Constellation, since none exists on the network yet (that path has run only
   against the made-up network in `test/source.test.mjs`); `RAINSHARE_SITE` set on Vercel;
   and how the placeholders' light and the swap feel on a real phone.
+- Signing in, a step at a time (12 November 2026). Checked in a headless browser against the
+  live network, 1280 pixels wide and 390, each in light and in dark, from the dev server and
+  from the built site under the Content Security Policy in `vercel.json` (nothing blocked):
+  accounts offered as a handle is typed, on the landing and in the dialog, and picked with
+  the arrow keys and Enter, with a pointer, and with a tap; Escape putting the list away
+  before it closes the dialog; a word that isn't a handle, and a handle nobody has, each
+  saying so; "Is this you?" naming pds.atpota.to for an account on its own server and
+  bsky.social for one on Bluesky's; Tangled unticked being left out of what bsky.social was
+  asked for, and staying unticked through "Not you?" and the next time; the button leading to
+  bsky.social's own sign-in page with the handle filled in; a refusal giving the button back
+  with a line saying so; the dialog from the bar, the board and an ask's page, coming back to
+  the page it was opened on; closing it with its cross, Escape, and a click outside; and
+  "Connect Tangled" as the second step alone. "Sign in to take it on" under the landing now
+  opens the dialog, where it used to lead to the landing's form. Not checked: anything past
+  the point where a password is typed (so how a server's own page words the list beside the
+  dialog's, and coming back signed in with a forge left out); servers other than Bluesky's
+  and pds.atpota.to; how a screen reader reads the list of accounts; and a real phone's
+  keyboard over the dialog.
 - How smoothly the scene runs on real phones and older laptops. It has only been run on a
   software renderer so far, which says it draws correctly and nothing about frame rate.

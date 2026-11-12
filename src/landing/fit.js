@@ -8,7 +8,7 @@ export const EYE = [.35, 3, 15.2];
 // How far to each side of the row's middle a frame takes in, and the height the camera looks
 // at. `close` is for a frame as wide as the page, on a phone, where the row is drawn as big
 // as it'll go.
-export const FRAME = { wide: { reach: 6.1, aim: 2.55 }, close: { reach: 5.35, aim: 3.1 } };
+export const FRAME = { wide: { reach: 6.23, aim: 2.55 }, close: { reach: 5.35, aim: 3.1 } };
 // How much of a frame's height the garden needs: from under the plots' labels (UNDER, below
 // the ground, and BASE pixels for the label itself) to over your cloud (OVER, and TOP pixels
 // for what's written over it).
@@ -30,4 +30,16 @@ export function fit(frame){
   const midY = frame.y + frame.h - BASE - (aim + UNDER) * unit;
   // The horizon is level with the eye, which is a little over (or under) what it looks at.
   return { unit, lens: unit * EYE[2], midX: frame.x + frame.w / 2, midY, horizon: midY - (EYE[1] - aim) * unit, aim };
+}
+
+/**
+ * The frame for a canvas the garden has to itself, `w` by `h` (the link preview's picture,
+ * ./og.html): the row from one side of it to the other, and what the camera looks at in its
+ * middle. It's how the scene was framed while it had a box of its own beside the pitch.
+ */
+export function alone(w, h, close = false){
+  const { reach, aim } = FRAME[close ? 'close' : 'wide'], unit = w / (2 * reach);
+  // tall enough that the width is what sets the size, with its foot where that puts the middle
+  const foot = h / 2 + BASE + (aim + UNDER) * unit, tall = Math.max(foot, TOP + BASE + (OVER + UNDER) * unit);
+  return { x: 0, y: foot - tall, w, h: tall, close };
 }

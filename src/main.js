@@ -5,6 +5,8 @@
 //   /example/…      the example circle, kept in this browser (linked from the landing)
 //   /seed/…, /new, /me, /u/…, /agents   Rainshare's own screens (see ../ui/rainshare.js)
 //   /signed-in      where your server sends you back after signing in
+//
+// Signing in is a dialog of its own (./signin.js), opened from here.
 import './fonts.css';
 import '../ui/rainshare.css';
 import './theme.css';
@@ -18,6 +20,7 @@ import { profiles } from '../core/net.js';
 // host's methods, for private seeds.
 import * as atp from './spaces.js';
 import * as oauth from './oauth.js';
+import { openSignIn, landingSignIn } from './signin.js';
 import { showLanding, hideLanding } from './landing/landing.js';
 import { mountLogo } from './logo/live.js';
 
@@ -60,17 +63,16 @@ const host = kind => ({
     import('./plants/live.js').then(m => { if (!gone && canvas.isConnected) off = m.mountPlant(canvas, stage, kind); }).catch(() => {});
     return () => { gone = true; off?.(); };
   },
+  // A "Sign in" on any screen opens the sign-in dialog, and signing in comes back to that screen.
   // The query comes along, so a link an agent handed back still has its pull request after signing in.
-  signIn: kind === 'real' ? (handle, sub) => oauth.signIn(handle, '/' + (sub || '') + location.search) : null,
-  // The landing has its own sign-in form at the top of the page. While it's showing, that's the
-  // one a "Sign in" further down leads to, rather than a second form under the scene.
-  signInHere: kind === 'real' ? () => { if ($('#landing').hidden) return false; focusSignIn(); return true; } : null,
+  signIn: kind === 'real' ? sub => openSignIn({ to: '/' + (sub || '') + location.search }) : null,
   // Posting to knotless or Tangled for you (an issue, a comment, a pull request, a vouch) is
-  // asked for at sign-in. A sign-in that was granted less, or one from before Rainshare asked,
-  // can add a forge: your server shows what's being added, and you come back to where you were.
+  // asked for at sign-in. A sign-in that was granted less, one that left a forge unticked, or
+  // one from before Rainshare asked, can add a forge: the dialog says what's being added and
+  // where you're being sent to approve it, and you come back to where you were.
   // The example circle only pretends to post, so there both count as connected.
   forges: () => kind === 'example' ? ['knotless', 'tangled'] : forges,
-  connectForge: kind === 'real' ? (forge, sub) => session && oauth.signIn(session.did, '/' + (sub || '') + location.search, { forges: [...new Set([...forges, forge])] }) : null,
+  connectForge: kind === 'real' ? (forge, sub) => { if (session) openSignIn({ person: me || { did: session.did }, to: '/' + (sub || '') + location.search, forges: [...new Set([...forges, forge])], adding: forge }); } : null,
   ...(kind === 'example' ? { exitDemo: session ? 'Back to your circle' : 'Sign in for your real circle', onExitDemo: () => navigate('/') } : {})
 });
 let real = null, example = null;
@@ -142,13 +144,19 @@ document.addEventListener('click', e => {
   const a = e.target.closest('a[data-nav]');
   if (a && !e.metaKey && !e.ctrlKey && !e.shiftKey && e.button === 0) { e.preventDefault(); navigate(a.getAttribute('href')); }
   if (e.target.closest('[data-signout]')) signOut();
+  // The bar's "Sign in": on the landing its handle field is right there; anywhere else, the
+  // dialog, and you come back to the page you were on (the example circle isn't yours to come back to).
+  if (e.target.closest('[data-signin]')) {
+    if (!$('#landing').hidden) focusSignIn();
+    else openSignIn({ to: isExample(location.pathname) ? '/' : location.pathname + location.search });
+  }
 });
 
 /* ---------- you ---------- */
 function renderMe(){
   const box = $('#rdMe');
   if (!ready && !visitor) { box.innerHTML = ''; return; }
-  if (!session) { box.innerHTML = `<a class="rd-btn" href="/" data-nav data-signin>Sign in</a>`; return; }
+  if (!session) { box.innerHTML = `<button class="rd-btn" type="button" data-signin>Sign in</button>`; return; }
   const p = me || { did: session.did };
   const img = p.avatar ? `<img src="${esc(p.avatar)}" alt="" referrerpolicy="no-referrer">` : esc((p.displayName || p.handle || '?')[0].toUpperCase());
   box.innerHTML = `<a class="rd-who" href="/me" data-nav title="Your Rainshare profile"><span class="rd-face">${img}</span><span>${esc(p.displayName || (p.handle ? '@' + p.handle : 'You'))}</span></a><button class="rd-link" type="button" data-signout>Sign out</button>`;
@@ -159,19 +167,12 @@ async function signOut(){
   await oauth.signOut(s);
   renderMe(); await app('real').setSource(sourceNow()); toast('Signed out'); navigate('/');
 }
-$('#rdSignIn').addEventListener('submit', async e => {
-  e.preventDefault();
-  const handle = e.target.handle.value.trim().replace(/^@/, '').toLowerCase(), err = $('#rdErr'), btn = e.target.querySelector('button');
-  if (!handle) return;
-  btn.disabled = true; btn.textContent = 'Off to your server…'; err.hidden = true;
-  try { await oauth.signIn(handle, '/'); }
-  catch (x) { console.warn(x); err.hidden = false; err.textContent = /resolve|not found|handle/i.test(String(x?.message)) ? 'We couldn’t find that handle. Check the spelling.' : 'Your server didn’t let us start signing in. Try again in a moment.'; btn.disabled = false; btn.textContent = 'Sign in with your handle'; }
-});
+// The landing's handle field is the first step of signing in; the dialog takes it from there.
+landingSignIn($('#rdSignIn'), $('#rdErr'));
 function focusSignIn(){
   scrollTo({ top: 0, behavior: 'smooth' });
   $('#rdSignIn input')?.focus({ preventScroll: true });
 }
-document.addEventListener('click', e => { if (e.target.closest('[data-signin]') && $('#rdSignIn')) setTimeout(() => $('#rdSignIn input')?.focus(), 50); });
 
 /* ---------- boot ---------- */
 async function boot(){

@@ -58,3 +58,13 @@ test('the garden is drawn as big as fits its frame, and no bigger', async () => 
     assert.equal(at.lens, at.unit * EYE[2]);
   }
 });
+
+test('a canvas the garden has to itself is framed as the scene was in its box', async () => {
+  const { fit, alone, FRAME } = await import('../src/landing/fit.js');
+  // the link preview's canvas, and the box the scene had beside the pitch
+  for (const [w, h] of [[860, 720], [793, 666], [358, 322]]) {
+    const at = fit(alone(w, h));
+    assert.ok(Math.abs(at.unit - w / (2 * FRAME.wide.reach)) < 1e-9, 'the row runs from one side to the other');
+    assert.ok(Math.abs(at.midX - w / 2) < 1e-9 && Math.abs(at.midY - h / 2) < 1e-9, 'what the camera looks at is in the middle');
+  }
+});

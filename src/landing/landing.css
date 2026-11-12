@@ -15,17 +15,15 @@
 .rd-signin button{min-height:52px;padding:12px 22px;border:0;border-radius:16px;background:var(--accent);color:#fff;font:700 16px var(--body);cursor:pointer}
 @media (prefers-color-scheme:dark){.rd-signin button{color:#0B1220}}
 .rd-signin button:disabled{opacity:.6;cursor:progress}
-.rd-pitch>.rd-err{font-size:15px;color:#B3261E;font-weight:700}
-@media (prefers-color-scheme:dark){.rd-pitch>.rd-err{color:#FF8A80}}
-/* the small print under the sign-in */
-.rd-small{display:flex;flex-direction:column;gap:12px;max-width:46ch}
+/* what's said under the sign-in: anything that went wrong, then the small print */
+.rd-small{display:flex;flex-direction:column;gap:10px;max-width:46ch}
 .rd-small p{margin:0}
+.rd-err{font-size:15px;color:#B3261E;font-weight:700}
+@media (prefers-color-scheme:dark){.rd-err{color:#FF8A80}}
+/* which handle, and that the password stays with your server: said under the field */
+.rd-with{font-size:14px;line-height:1.5}
 .rd-also{font-size:15px}
 .rd-alpha{font-size:14px;line-height:1.5;color:var(--muted)}
-/* what signing in allows, folded under the sign-in for whoever wants to read it first */
-.rd-asks{font-size:14px;line-height:1.5;color:var(--muted);margin-top:-4px}
-.rd-asks summary{width:fit-content;cursor:pointer;font-weight:600;color:var(--accent-text)}
-.rd-asks p{margin:6px 0 0}
 .rd-also a,.rd-note a,.rd-how a{color:var(--accent);font-weight:700;text-underline-offset:3px}
 
 /* A scene in a box of its own, beside the pitch (the water cycle, and the garden's flat
@@ -76,6 +74,9 @@
 .rd-note{background:var(--pin);box-shadow:0 0 0 1px var(--pin-edge);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 
 /* ---- the garden ---- */
+/* Its labels move with what they name, and your cloud can be dragged to the scene's edge, so
+   their layer is clipped to the scene: anything past its edge would make the page wider. */
+.rd-garden .rd-pins{overflow:hidden;overflow:clip}
 /* under each plot: whose it is. It's lit while your cloud is raining there, and wears the spark once the work's done. */
 .rd-plot{margin:-14px 0 0;padding:0 11px 0 4px}
 .rd-plot i,.rd-friend i{flex:none;width:20px;height:20px;border-radius:50%;background:var(--c);color:#12203A;font:800 11px/20px var(--body);text-align:center}
@@ -117,7 +118,7 @@ body{position:relative}
    line under it. Scrolled, the garden sinks into that meadow, toward the line. */
 .rd-garden:not(.flat){position:static;margin:0;container-type:normal;display:flex;flex-direction:column;gap:clamp(56px,12svh,130px)}
 .rd-garden:not(.flat)::before{content:'';flex:1 0 300px}
-.rd-garden:not(.flat) .rd-view{position:absolute;top:0;left:0;right:0;height:var(--sky-h,100svh);aspect-ratio:auto;overflow:hidden}
+.rd-garden:not(.flat) .rd-view{position:absolute;top:0;left:0;right:0;height:var(--sky-h,100svh);aspect-ratio:auto}
 .rd-garden:not(.flat) .rd-view canvas{
   -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 172px),transparent calc(100% - 14px));-webkit-mask-composite:source-over;
   mask-image:linear-gradient(to bottom,#000 calc(100% - 172px),transparent calc(100% - 14px));mask-composite:add

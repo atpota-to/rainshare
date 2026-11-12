@@ -205,6 +205,19 @@ export async function profiles(dids){
   }));
   return new Map([...new Set(dids)].map(d => [d, people.get(d) || { did: d }]));
 }
+/**
+ * Accounts whose handle or name starts the way `typed` does, to offer while a handle is being
+ * typed: Bluesky's typeahead. It only knows accounts with a Bluesky profile, so it's a help
+ * and never the answer: a handle nobody offered is still a handle. Each is taken only as far
+ * as it's well formed (a DID, a handle that's a domain name, an https picture).
+ */
+export async function suggestPeople(typed, { limit = 5 } = {}){
+  const q = normalizeHandle(typed);
+  if (q.length < 2 || isDid(q)) return [];
+  const r = await xrpc(APPVIEW, 'app.bsky.actor.searchActorsTypeahead', { q, limit }, { timeout: 6000 });
+  return (Array.isArray(r?.actors) ? r.actors : []).filter(p => isDid(p?.did) && isHandle(p.handle)).slice(0, limit)
+    .map(p => ({ did: p.did, handle: p.handle.toLowerCase(), displayName: typeof p.displayName === 'string' ? p.displayName.slice(0, 120) : '', avatar: /^https:\/\//.test(p.avatar || '') ? p.avatar : null }));
+}
 export const knownPerson = did => people.get(did) || null;
 export const rememberPerson = p => { if (p?.did) people.set(p.did, { ...people.get(p.did), ...p }); };
 

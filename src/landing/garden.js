@@ -1,8 +1,8 @@
-// The landing's garden, on the page: your cloud to take hold of, a label under each friend's
+// The landing's garden, on the page: your cloud to take hold of, a label under each person's
 // plot, and a line under it all that says what's happening.
 //
 // The cloud is your AI plan. Drag it along the row (or pick a plot, by its label or anywhere
-// on it) and it rains there: that's your agent, sent after a friend's idea or project. When
+// on it) and it rains there: that's your agent, sent to work on someone's idea or project. When
 // the work's done the plant is a stage further on. Leave the cloud where it is and the plan
 // resets all the same: what was left in it is gone, and a full one takes its place.
 //
@@ -21,7 +21,7 @@ import { fit } from './fit.js';
 const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const SPARK = '<svg class="rd-spark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.3 7.2 7.2 2.3-7.2 2.3-2.3 7.2-2.3-7.2L2.5 12l7.2-2.3z"/></svg>';
-const HINT = 'Drag your cloud over a friend’s idea or project.';
+const HINT = 'Drag your cloud over someone’s idea or project.';
 const whose = p => `${p.name}’s ${p.noun}`;
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 
@@ -35,7 +35,7 @@ export function mount(figure){
   layer.innerHTML = PLOTS.map((p, i) => `<button type="button" class="rd-pin rd-plot${p.theirs ? ' theirs' : ''}" data-plot="${i}"><i style="--c:${esc(p.color)}">${esc(p.name[0])}</i><span>${esc(p.name)}</span>${SPARK}</button>`).join('')
     + `<span class="rd-pin rd-friend"><i style="--c:${esc(FRIEND.color)}">${esc(FRIEND.name[0])}</i><span>${esc(FRIEND.name)}’s plan</span></span>`
     + `<div class="rd-cloud" id="sceneCloud"><span class="rd-pin rd-plan"><svg class="rd-ring" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><circle class="left" cx="10" cy="10" r="7.5" pathLength="100"/></svg><span><b>Your AI plan</b><small>Resets in 2 days</small></span></span></div>`;
-  const pins = $$('.rd-plot', layer), friendTag = $('.rd-friend', layer), cloud = $('#sceneCloud', layer), ring = $('.rd-ring', cloud), resets = $('small', cloud);
+  const pins = $$('.rd-plot', layer), friendTag = $('.rd-friend', layer), cloud = $('#sceneCloud', layer), plan = $('.rd-plan', cloud), ring = $('.rd-ring', cloud), resets = $('small', cloud);
 
   let scene = null, shown = -1, toastTimer = 0, doneTimer = 0;
 
@@ -104,16 +104,16 @@ export function mount(figure){
     hint.hidden = i >= 0 || i === -2; note.hidden = !hint.hidden; again.hidden = i !== -2;
     if (i === -1) { hint.textContent = HINT; return; }
     if (i === -2) {
-      title.textContent = 'That’s a garden';
-      text.textContent = 'Three things your friends wanted, done with rain you’d have lost.';
-      link.textContent = 'See yours'; link.setAttribute('href', GARDEN_PATH);
+      title.textContent = 'Three done';
+      text.textContent = 'Each is a plant in your garden now, grown with rain you’d have lost at the reset.';
+      link.textContent = 'See a garden'; link.setAttribute('href', GARDEN_PATH);
       return;
     }
     const p = PLOTS[i], done = state[i] === 'done';
     title.textContent = p.title;
     text.textContent = p.theirs
       ? (done ? `Done. ${FRIEND.name}’s agent did it, on ${FRIEND.name}’s plan.` : `${FRIEND.name}’s agent is on it, on ${FRIEND.name}’s plan.`)
-      : (done ? 'Done. It’s a stage further on, and in your garden.' : 'Your agent’s on it, on your plan. That’s the rain.');
+      : (done ? 'Done. It’s grown a stage, and it’s in your garden.' : 'Your agent’s on it, on your plan. That’s the rain.');
     link.textContent = `See ${whose(p)}`; link.setAttribute('href', p.path);
   }
   // Something to say for a moment, before going back to what was there.
@@ -134,25 +134,31 @@ export function mount(figure){
       clearTimeout(doneTimer);
       if (allDone()) doneTimer = setTimeout(() => { if (allDone()) say(-2); }, 4200);
     }
-    else if (what === 'reset') toast(n > .1 ? 'Your plan reset. The rain you didn’t use is gone.' : 'Your plan reset. There’s rain again.');
+    else if (what === 'reset') toast(n > .1 ? 'Your plan reset. The rain you didn’t use is gone.' : 'Your plan reset. The cloud is full again.');
     mark();
   }
 
   // Each drawn frame: put the labels where their places in the scene are, and the handle over the cloud.
-  let ringAt = -1, wordsAt = '', size = '';
+  // Nothing here may reach past the scene's edge: a label out there would make the page wider
+  // (./landing.css clips the layer they're in, too).
+  let ringAt = -1, wordsAt = '', size = '', planHalf = 0, planAt = 0;
   function onFrame(at){
     pins.forEach((b, i) => { b.style.transform = `translate(${at.plots[i * 2].toFixed(1)}px,${at.plots[i * 2 + 1].toFixed(1)}px) translateX(-50%)`; });
     friendTag.style.transform = `translate(${at.friend[0].toFixed(1)}px,${at.friend[1].toFixed(1)}px) translate(-50%,-100%)`;
     // the friend's name gives way while your cloud is passing in front of theirs
     const before = Math.abs(at.friend[0] - at.cloud[0]) < at.cloud[2] / 2 + 36 && Math.abs(at.friend[1] - 12 - at.cloud[1]) < at.cloud[3] / 2 + 14;
     friendTag.style.opacity = before ? '0' : at.friend[2].toFixed(2);
+    friendTag.hidden = at.friend[2] <= 0;        // their cloud has gone, and its name with it
     cloud.style.transform = `translate(${at.cloud[0].toFixed(1)}px,${at.cloud[1].toFixed(1)}px)`;
     const box = `${Math.round(at.cloud[2])}px ${Math.round(at.cloud[3])}px`;
     if (box !== size) { size = box; cloud.style.width = Math.round(at.cloud[2]) + 'px'; cloud.style.height = Math.round(at.cloud[3]) + 'px'; }
     const left = Math.round(at.left * 100);
     if (left !== ringAt) { ringAt = left; ring.style.setProperty('--left', left); }
     const days = Math.ceil(at.left * 3), words = at.fresh ? 'Just reset' : days > 1 ? `Resets in ${days} days` : 'Resets tomorrow';
-    if (words !== wordsAt) { wordsAt = words; resets.textContent = words; }
+    if (words !== wordsAt) { wordsAt = words; resets.textContent = words; planHalf = plan.offsetWidth / 2; }
+    // what the cloud is stays wholly in the scene, however near an edge the cloud itself is
+    const shift = Math.round(Math.min(Math.max(at.cloud[0], planHalf + 6), at.width - planHalf - 6) - at.cloud[0]);
+    if (shift !== planAt) { planAt = shift; plan.style.translate = 'calc(-50% + ' + shift + 'px) 0'; }
   }
 
   /* picking a plot: its label, or anywhere on it in the scene */
