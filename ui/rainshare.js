@@ -39,7 +39,7 @@ export function createRainshare({ root, base = '/', host }){
   const S = {
     source: null, view: null, sub: '', tab: 'foryou',
     board: null, boardAt: 0, loading: false, error: null, shown: [], pick: null, sheet: false,
-    mine: null, garden: null, seed: null, seedErr: null, unlinked: null, launch: null, pendingLaunch: null, handBack: null, handKind: null, again: null, other: null, form: null, drafts: {}, signin: null,
+    mine: null, garden: null, seed: null, seedErr: null, unlinked: null, launch: null, pendingLaunch: null, handBack: null, handKind: null, again: null, other: null, form: null, drafts: {},
     pull: null,          // the pull request form for the ask on screen: { uri, loading, choices, error }
     circle: undefined,   // your Tangled vouch circle (../core/vouch.js): undefined until asked for, null if there's none to show
     vouching: null,      // who a vouch is being written for: { did, evidence }
@@ -1039,24 +1039,6 @@ export function createRainshare({ root, base = '/', host }){
       </div>`;
   }
 
-  /* ---------- signing in (the host does the OAuth) ---------- */
-  function signinForm(){
-    const s = S.signin;
-    return `<form class="rs-form rs-signin" data-rs-form="signin">
-      <h2>Sign in with your handle</h2>
-      <p class="rs-muted">The one you already use, like your Bluesky handle. Your own server signs you in and shows what Rainshare asks for: its own records in your account, and posting to Tangled and knotless when you choose to.</p>
-      <div class="rs-row"><input name="handle" placeholder="you.bsky.social" autocomplete="username" autocapitalize="none" spellcheck="false" inputmode="url" required value="${esc(s.handle || '')}" aria-label="Your handle"><button class="rs-btn rs-primary" type="submit"${s.busy ? ' disabled' : ''}>${s.busy ? 'Off to your server…' : 'Sign in'}</button><button class="rs-link" type="button" data-rs-act="signin-cancel">Not now</button></div>
-      ${s.error ? `<p class="rs-err">${esc(s.error)}</p>` : ''}
-    </form>`;
-  }
-  async function submitSignin(form){
-    const handle = String(new FormData(form).get('handle') || '').trim().replace(/^@/, '');
-    if (!handle) return;
-    S.signin = { handle, busy: true }; render();
-    try { await host.signIn(handle, S.sub); }
-    catch (e) { S.signin = { handle, error: e?.message || 'Your server didn’t let us start signing in. Try again in a moment.' }; render(); }
-  }
-
   // Plants marked to turn are handed to the host, which draws the 3D model of the same kind over
   // each picture if it can (../src/plants/live.js). Each redraw takes the old ones down first.
   let turning = [];
@@ -1126,7 +1108,7 @@ export function createRainshare({ root, base = '/', host }){
     const focus = document.activeElement && root.contains(document.activeElement) ? document.activeElement : null;
     const keep = focus?.name ? { name: focus.name, pos: focus.selectionStart } : null;
     const demo = S.source.demo ? `<p class="rs-note rs-demo">${ico('sky')}<span>An example circle with made-up people. Nothing you do here leaves this browser.</span>${host.exitDemo ? `<button class="rs-link" type="button" data-rs-act="exit-demo">${host.exitDemo}</button>` : ''}</p>` : '';
-    paint(`<div class="rs rs-v-${S.view}">${demo}${S.signin ? signinForm() : ''}${body}${datalists}</div>`, S.view);
+    paint(`<div class="rs rs-v-${S.view}">${demo}${body}${datalists}</div>`, S.view);
     if (keep) {
       const el = root.querySelector(`[name="${keep.name}"]`);
       if (el) { el.focus({ preventScroll: true }); try { if (keep.pos != null) el.setSelectionRange(keep.pos, keep.pos); } catch (_) {} }
@@ -1154,13 +1136,8 @@ export function createRainshare({ root, base = '/', host }){
   async function act(name, el){
     const it = S.seed;
     try {
-      if (name === 'signin') {
-        S.sheet = false;
-        // A host with a sign-in form of its own in view (rainshare.dev's landing) takes it from here.
-        if (host.signInHere?.()) { root.querySelector('.rs-split')?.classList.remove('rs-open'); return; }
-        S.signin = S.signin || {}; render(); root.querySelector('[data-rs-form="signin"] input')?.focus(); window.scrollTo?.({ top: 0, behavior: 'smooth' }); return;
-      }
-      if (name === 'signin-cancel') { S.signin = null; render(); return; }
+      // Signing in is the host's: it asks who you are and sends you to your server, over this screen.
+      if (name === 'signin') { host.signIn?.(S.sub); return; }
       if (name === 'exit-demo') return host.onExitDemo?.();
       if (name === 'stage-seen') { stageDismissed = true; try { localStorage.setItem(STAGE_SEEN, '1'); } catch (_) {} root.querySelector('.rs-stage-note')?.remove(); return; }
       if (name === 'refresh') { S.known = {}; await loadBoard(true); return; }
@@ -1315,7 +1292,6 @@ export function createRainshare({ root, base = '/', host }){
     else if (f.dataset.rsForm === 'say') submitSay(f);
     else if (f.dataset.rsForm === 'pull') submitPull(f);
     else if (f.dataset.rsForm === 'vouch') submitVouch(f);
-    else if (f.dataset.rsForm === 'signin') submitSignin(f);
   });
   root.addEventListener('input', e => { if (e.target.closest('[data-rs-form="post"]')) poster.typed(e.target); });
   root.addEventListener('change', e => {
@@ -1360,7 +1336,7 @@ export function createRainshare({ root, base = '/', host }){
     show,
     /** Hand in a (new) data source: on sign-in, sign-out, or switching to the example circle. */
     async setSource(source){
-      Object.assign(S, { source, board: null, mine: null, garden: null, unlinked: null, seed: null, form: null, drafts: {}, tab: 'foryou', signin: null, pick: null, sheet: false, pull: null, circle: undefined, vouching: null, from: 'anyone', known: {} });
+      Object.assign(S, { source, board: null, mine: null, garden: null, unlinked: null, seed: null, form: null, drafts: {}, tab: 'foryou', pick: null, sheet: false, pull: null, circle: undefined, vouching: null, from: 'anyone', known: {} });
       poster.reset();
       render();
       if (source?.signedIn) { await loadMine(); loadGarden(); }

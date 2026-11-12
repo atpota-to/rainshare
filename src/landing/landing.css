@@ -19,10 +19,8 @@
 @media (prefers-color-scheme:dark){.rd-pitch>.rd-err{color:#FF8A80}}
 .rd-pitch>.rd-also{font-size:15px}
 .rd-pitch>.rd-alpha{font-size:14px;line-height:1.5;color:var(--muted);max-width:46ch;margin-top:-6px}
-/* what signing in allows, folded under the sign-in for whoever wants to read it first */
-.rd-asks{font-size:14px;line-height:1.5;color:var(--muted);max-width:46ch;margin-top:-8px}
-.rd-asks summary{width:fit-content;cursor:pointer;font-weight:600;color:var(--accent-text)}
-.rd-asks p{margin:6px 0 0}
+/* which handle, and where it leads: said under the field, before anyone is sent anywhere */
+.rd-pitch>.rd-how{font-size:14px;line-height:1.5;max-width:46ch;margin-top:-8px}
 .rd-also a,.rd-note a{color:var(--accent);font-weight:700;text-underline-offset:3px}
 
 /* The scene has no frame: its edges melt into the page. On a wide screen it runs out past

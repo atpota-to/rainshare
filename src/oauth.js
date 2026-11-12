@@ -5,9 +5,11 @@
 //
 // Sign-in asks for everything up front: your Rainshare records, and posting to knotless and
 // Tangled for you (issues, comments, pull requests, vouches), so nobody is sent back to their
-// server halfway through something. A server that refuses part of that (invalid_scope) is
-// asked again for less, a step at a time, down to what any server grants: see `ladder`.
+// server halfway through something. Posting to either is yours to leave out before you go
+// (./signin.js), and to add later. A server that refuses part of what's asked (invalid_scope)
+// is asked again for less, a step at a time, down to what any server grants: see `ladder`.
 import { DECLARED_SCOPE, REDIRECT_PATH, PLC, FORGES, ladder, forgesIn } from './scope.js';
+import { isHandle } from '../core/net.js';
 
 const LOOPBACK = /^http:\/\/(127\.0\.0\.1|\[::1\]|localhost)(:\d+)?$/.test(location.origin);
 const SIGNED_IN = '@@atproto/oauth-client-browser(sub)';
@@ -60,6 +62,24 @@ export async function start(){
 /** The forges this sign-in lets Rainshare post to (see FORGE_SCOPES): what your server granted, not what was asked for. */
 export async function forgesOf(session){
   try { return forgesIn((await session.getTokenInfo(false)).scope); } catch (_) { return []; }
+}
+
+/** Have the sign-in code loaded by the time it's wanted: someone has started typing a handle. */
+export const warm = () => { client().catch(() => {}); };
+/**
+ * Where signing in would send someone, found out before they're sent: { did, handle, host }.
+ * The account is the one the network has for what was typed (a handle or a DID), and `host` is
+ * the site its server signs people in on, which is the page they'll land on. For most accounts
+ * that's their own server; Bluesky's servers all sign in at bsky.social.
+ */
+export async function whereTo(who){
+  const c = await client();
+  let id;
+  try { id = await c.oauthResolver.resolveIdentity(who); }
+  catch (e) { throw Object.assign(new Error('No account found for ' + who), { name: 'NoSuchAccount', cause: e }); }
+  const { metadata } = await c.oauthResolver.resolve(id.did);
+  // A handle the account itself doesn't answer to comes back as "handle.invalid".
+  return { did: id.did, handle: isHandle(id.handle) && !/\.invalid$/.test(id.handle) ? id.handle.toLowerCase() : null, host: new URL(metadata.authorization_endpoint).host };
 }
 
 // `forges` is which forges to ask to post to: all of them unless told otherwise. `step` is

@@ -39,17 +39,14 @@
     <div class="rd-pitch">
       <h1><span class="rd-sr">Got rain to spare? Your friends’ ideas and projects could use it.</span><span aria-hidden="true">Got r<span class="rd-ai">ai</span>n to spare? Your friends’ ideas and projects could use it.</span></h1>
       <p>Your AI plan resets whether you use it or not. Send your agent to help with what the people you follow are building. That help is <span class="rd-sr">the rain.</span><span aria-hidden="true">the r<span class="rd-ai">ai</span>n.</span></p>
-      <form class="rd-signin" id="rdSignIn">
-        <input name="handle" placeholder="you.bsky.social" autocomplete="username" autocapitalize="none" spellcheck="false" inputmode="url" required aria-label="Your handle">
-        <button type="submit">Sign in with your handle</button>
+      <form class="rd-signin" id="rdSignIn" novalidate>
+        <input name="handle" placeholder="you.bsky.social" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="url" enterkeyhint="go" aria-label="Your handle" aria-describedby="rdHow">
+        <button type="submit">Sign in</button>
       </form>
       <p class="rd-err" id="rdErr" role="alert" hidden></p>
+      <p class="rd-how" id="rdHow">Use your handle from Bluesky, Tangled or any Atmosphere app. Rainshare never sees your password.</p>
       <p class="rd-also">Or <a href="/example" data-nav>explore an example circle</a> first.</p>
       <p class="rd-alpha">Rainshare is in early alpha. What you post stays in your own account, and you can delete it any time.</p>
-      <details class="rd-asks">
-        <summary>What signing in allows</summary>
-        <p>Your server shows what Rainshare asks for: its own records in your account, and posting to Tangled and knotless as you (issues, comments, pull requests, and vouches on Tangled). Nothing goes to either unless you press a button that says so.</p>
-      </details>
     </div>
 
     <figure class="rd-scene" id="scene">
