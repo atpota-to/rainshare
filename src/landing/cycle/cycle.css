@@ -1,0 +1,51 @@
+/* The water cycle's own styles: what ../landing.css had for it while it was the landing's
+   scene. The frame, the canvas, the pause button and the look of a pin, a hint and a note are
+   still there, shared with the garden. */
+.rd-cycle .rd-view{cursor:pointer}
+.rd-cycle.flat .rd-view{cursor:default}
+.rd-cycle .rd-still .s-far{fill:#C3C8DE}
+.rd-cycle .rd-still .s-hill{fill:#9DBB86}
+.rd-cycle .rd-still .s-sea{fill:#7FA6DC}
+.rd-cycle .rd-still .s-vapour{stroke:#fff;stroke-width:4;opacity:.8}
+@media (prefers-color-scheme:dark){.rd-cycle .rd-still .s-far{fill:#3A4078}.rd-cycle .rd-still .s-hill{fill:#2F4F5E}.rd-cycle .rd-still .s-sea{fill:#27357A}.rd-cycle .rd-still .s-vapour{stroke:#8C97CC}}
+
+/* the four parts: a dot and a name, sitting where each is in the scene */
+.rd-cycle .rd-pin i{width:12px;height:12px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.rd-cycle .rd-pin.flip{flex-direction:row-reverse;padding:0 8px 0 12px}
+.rd-cycle .rd-pin.on{background:var(--accent);color:#fff}
+.rd-cycle .rd-pin.on i{background:currentColor;box-shadow:none}
+@media (prefers-color-scheme:dark){.rd-cycle .rd-pin.on{color:#0B1220}}
+/* a finger needs more to aim at than a pointer does */
+@media (pointer:coarse){.rd-cycle .rd-pin{height:34px;margin-top:-17px}}
+@container (max-width:470px){
+  .rd-cycle .rd-pin,.rd-cycle .rd-pin.flip{padding:0 8px}
+  .rd-cycle .rd-pin span{display:none}
+  .rd-cycle .rd-pin.on{padding-right:12px}
+  .rd-cycle .rd-pin.on.flip{padding:0 8px 0 12px}
+  .rd-cycle .rd-pin.on span{display:inline}
+}
+
+/* what the part you're looking at stands for: over the scene's lower left */
+.rd-cycle .rd-notes{position:absolute;left:11%;bottom:10%;width:min(320px,48%);display:none}
+.rd-cycle.live .rd-notes{display:block}
+.rd-cycle .rd-tour{background:var(--pin);box-shadow:0 0 0 1px var(--pin-edge);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.rd-cycle .rd-note{display:flex;flex-direction:column;gap:6px;padding:16px 18px 14px;border-radius:18px 18px 0 0}
+.rd-cycle .rd-note h2{margin:0;font:700 19px/1.2 var(--display)}
+.rd-cycle .rd-note p{margin:0;font-size:15px;line-height:1.5;color:var(--muted)}
+.rd-cycle .rd-note a{font-size:15px;width:fit-content}
+.rd-cycle .rd-tour{display:flex;gap:6px;padding:0 12px 12px;border-radius:0 0 18px 18px;clip-path:inset(0 -2px -2px -2px)}
+.rd-cycle .rd-tour button{flex:1;min-height:36px;padding:6px 10px;border:0;border-radius:10px;background:var(--accent-soft);color:var(--ink);font:700 13px var(--body);cursor:pointer;white-space:nowrap}
+.rd-cycle .rd-tour button:hover{background:var(--accent);color:#fff}
+@media (prefers-color-scheme:dark){.rd-cycle .rd-tour button:hover{color:#0B1220}}
+
+/* with no scene to move through, all four are set out under the still */
+.rd-cycle.flat .rd-notes{position:static;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:20px 24px;width:auto;margin:0 40px}
+.rd-cycle.flat .rd-note{display:flex!important;padding:0;background:none;box-shadow:none;border-radius:0}
+.rd-cycle.flat .rd-hint,.rd-cycle.flat .rd-tour{display:none}
+
+@media (max-width:880px){
+  /* the note goes under the scene, where it isn't in the way of it */
+  .rd-cycle .rd-notes{position:static;width:auto;margin:-18px 16px 0}
+  .rd-cycle .rd-hint{margin:0 auto}
+  .rd-cycle.flat .rd-notes{margin:0 16px}
+}

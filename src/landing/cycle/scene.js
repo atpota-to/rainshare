@@ -1,25 +1,28 @@
-// The landing's water cycle, in three.js: a stretch of coast under atmosphere.online's sky.
+// The water cycle, in three.js: a stretch of coast under atmosphere.online's sky. It was the
+// landing's scene until the garden (../garden-scene.js) took its place, and is kept in case
+// it's wanted back (see SCENE in ../landing.js).
 //
 //   evaporation     mist lifts off the sea            spare time rising off a plan
 //   condensation    it gathers into clouds            plans and setups, in your circle
 //   precipitation   a cloud breaks over the hills     agents sent after a friend's request
 //   collection      the river runs back to the sea    pull requests coming home
 //
-// The clouds are the ones atmosphere.online's sky is made of (./puffs.js), lit by the same
-// morning and night. A cloud here has a life: it starts small over the sea, takes on puffs as
+// The clouds are the ones atmosphere.online's sky is made of (../puffs.js), lit by the same
+// morning and night (../sky.js). A cloud here has a life: it starts small over the sea, takes on puffs as
 // it drifts inland, towers into a thunderhead over the hills, rains, and thins out past the
 // mountains. Everything is made here from a seed: no models or textures to download. The
-// page asks for this file only when the landing is on screen (see ./landing.js), so three.js
+// page asks for this file only when this scene is on screen (see ./cycle.js), so three.js
 // stays out of the way of anyone who's signed in.
 import {
   WebGLRenderer, Scene, PerspectiveCamera, Color, Vector3, Vector4, Group, Fog,
   HemisphereLight, DirectionalLight,
-  BufferGeometry, BufferAttribute, InstancedBufferGeometry, InstancedBufferAttribute, PlaneGeometry, SphereGeometry, BoxGeometry, ConeGeometry,
+  BufferGeometry, BufferAttribute, PlaneGeometry, BoxGeometry, ConeGeometry,
   Mesh, LineSegments, Points,
   MeshStandardMaterial, LineBasicMaterial, ShaderMaterial,
-  CatmullRomCurve3, BackSide, DoubleSide, DynamicDrawUsage, LinearSRGBColorSpace
+  CatmullRomCurve3, DoubleSide, DynamicDrawUsage, LinearSRGBColorSpace
 } from 'three';
-import { makeNoise, puffMaterial, mulberry, GEN } from './puffs.js';
+import { makeNoise, mulberry, puffBatch, newCloud, shapeCloud, settleCloud, stageCloud } from '../puffs.js';
+import { SKY, SKY_RAW, SUN_SEEN, SUN_LIGHT, skyDome } from '../sky.js';
 
 /* ---------- small maths ---------- */
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
@@ -38,9 +41,6 @@ function ridged(x, z){
   for (let o = 0; o < 4; o++) { const v = 1 - Math.abs(noise(x * f, z * f) * 2 - 1); s += v * v * a; a *= .5; f *= 2.1; }
   return s;
 }
-// A colour whose numbers go to the screen as written, for the shaders that came from
-// atmosphere.online's sky (three.js would otherwise convert them to linear light first).
-const raw = hex => new Color().setStyle(hex, LinearSRGBColorSpace);
 
 /* ---------- the land ---------- */
 // The camera looks north (-z) from above the sea. The coast runs away to the left, the sea
@@ -167,29 +167,20 @@ function seaGeometry(){
 }
 
 /* ---------- day and night ---------- */
-// The sky colours are atmosphere.online's Morning and Night.
+// The sky's colours (../sky.js), and this scene's own: the sea, the river and the woods.
 const LOOKS = {
   day: {
-    top: '#A7C4F2', mid: '#C4D7F6', low: '#E0E5F8', hor: '#F0EBF6', sunCol: '#FFE9C4', stars: 0,
-    lit: '#FFFFFF', shadow: '#BCC5EE', rim: '#FFE2B5', storm: '#777BA6', fog: '#E3E7F7', fogMax: .72,
-    rain: '#8C93C8', spark: '#F2B33C',
-    hemiSky: '#DCE6FB', hemiGround: '#A49DBA', hemi: 1.7, light: '#FFEFD6', sun: 2.2,
+    ...SKY.day,
     deep: '#4C78C2', shallow: '#A6D3D6', reflect: '#DDE5F8', glitter: '#FFF6E2', river: '#86AEE2',
-    leaf: '#8DB078', leafShade: '#3F6A50', sprout: '#BDE386', shade: '#9AA0CC', windows: .1, mist: 1
+    leaf: '#8DB078', leafShade: '#3F6A50', sprout: '#BDE386', windows: .1, mist: 1
   },
   night: {
-    top: '#0C1030', mid: '#181F52', low: '#2B3270', hor: '#41478A', sunCol: '#8FA2E6', stars: 1,
-    lit: '#B5C0EC', shadow: '#454C88', rim: '#C6D2FF', storm: '#22264A', fog: '#262C5E', fogMax: .78,
-    rain: '#6D76B0', spark: '#FFC857',
-    hemiSky: '#4A5AA6', hemiGround: '#1A1F44', hemi: 1.5, light: '#AFC0FF', sun: 1.4,
+    ...SKY.night,
     deep: '#182259', shallow: '#33488C', reflect: '#4A55A0', glitter: '#D5DEFF', river: '#5F74C6',
-    leaf: '#30495F', leafShade: '#141E3A', sprout: '#5E86A6', shade: '#5A5E96', windows: 2.6, mist: .5
+    leaf: '#30495F', leafShade: '#141E3A', sprout: '#5E86A6', windows: 2.6, mist: .5
   }
 };
-const RAW = ['top', 'mid', 'low', 'hor', 'sunCol', 'lit', 'shadow', 'rim', 'storm', 'fog', 'spark', 'deep', 'shallow', 'reflect', 'glitter', 'river', 'leaf', 'leafShade', 'sprout', 'shade'];
-// Where the sun is seen, low over the sea, and where the light comes from: the same side,
-// higher up, so a cloud's shadow falls near the rain under it.
-const SUN_SEEN = new Vector3(-.155, .148, -.977).normalize(), SUN_LIGHT = new Vector3(-.28, .79, -.55).normalize();
+const RAW = [...SKY_RAW, 'deep', 'shallow', 'reflect', 'glitter', 'river', 'leaf', 'leafShade', 'sprout'];
 const FOG_NEAR = 26, FOG_FAR = 118;
 
 /* ---------- the stages ---------- */
@@ -228,31 +219,7 @@ export function createWaterCycle(canvas, { dark = false, onFrame } = {}){
   scene.add(hemi, sun);
 
   /* the dome: the sky's gradient, the sun low over the sea, stars at night */
-  const sky = new Mesh(new SphereGeometry(500, 32, 16), new ShaderMaterial({
-    side: BackSide, depthWrite: false, depthTest: false,
-    uniforms: { uTop: { value: C.top }, uMid: { value: C.mid }, uLow: { value: C.low }, uHor: { value: C.hor }, uSunDir: { value: SUN_SEEN }, uSunCol: { value: C.sunCol }, uStars: { value: 0 }, uTime },
-    vertexShader: 'varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: `
-      uniform vec3 uTop, uMid, uLow, uHor, uSunDir, uSunCol; uniform float uStars, uTime;
-      varying vec3 vDir;
-      void main(){
-        // the view only reaches a little way up the sky, so the gradient is drawn in that much
-        vec3 d = normalize(vDir); float t = clamp(d.y * 2.3, 0.0, 1.0);
-        vec3 c = mix(uHor, uLow, smoothstep(0.0, 0.12, t));
-        c = mix(c, uMid, smoothstep(0.1, 0.4, t));
-        c = mix(c, uTop, smoothstep(0.35, 0.95, t));
-        float sd = max(dot(d, uSunDir), 0.0);
-        c += uSunCol * (pow(sd, 6.0) * 0.14 + pow(sd, 60.0) * 0.3);
-        c = mix(c, uSunCol * 0.4 + 0.6, smoothstep(0.99955, 0.9998, sd));
-        if (uStars > 0.01){
-          vec3 q = floor(d * 420.0);
-          float h = fract(sin(dot(q, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
-          c += vec3(step(0.9982, h) * uStars * (0.6 + 0.4 * sin(uTime * 2.0 + h * 60.0)) * smoothstep(0.02, 0.25, d.y));
-        }
-        gl_FragColor = vec4(c, 1.0);
-      }`
-  }));
-  sky.renderOrder = -10; sky.frustumCulled = false;
+  const sky = skyDome(C, uTime);
   scene.add(sky);
 
   // Ground and trees darken where a cloud stands between them and the sun.
@@ -460,84 +427,14 @@ export function createWaterCycle(canvas, { dark = false, onFrame } = {}){
   }
 
   /* puffs: every cloud, the mist off the sea and the shafts of rain, in one sorted batch */
-  const MAX = 2600;
-  const puffGeo = new InstancedBufferGeometry();
-  { const pl = new PlaneGeometry(2, 2); puffGeo.index = pl.index; puffGeo.setAttribute('position', pl.getAttribute('position')); }
-  const attr = n => { const a = new InstancedBufferAttribute(new Float32Array(MAX * n), n); a.setUsage(DynamicDrawUsage); return a; };
-  const aPos = attr(3), aRad = attr(1), aData = attr(4), aEro = attr(1), aShape = attr(4);
-  puffGeo.setAttribute('aPos', aPos); puffGeo.setAttribute('aRad', aRad); puffGeo.setAttribute('aData', aData); puffGeo.setAttribute('aEro', aEro); puffGeo.setAttribute('aShape', aShape);
-  puffGeo.instanceCount = 0;
-  const puffMat = puffMaterial({ uTime, uSunView, noise, lit: C.lit, shadow: C.shadow, rim: C.rim, storm: C.storm, fog: C.fog, fogNear: { value: 30 }, fogFar: { value: 150 }, fogMax: uFogMax, billow: 1 });
-  const puffMesh = new Mesh(puffGeo, puffMat);
-  puffMesh.frustumCulled = false; puffMesh.renderOrder = 5;
-  scene.add(puffMesh);
-
-  // Puffs are staged unsorted, then written out far to near.
-  const stPos = new Float32Array(MAX * 3), stRad = new Float32Array(MAX), stData = new Float32Array(MAX * 4), stEro = new Float32Array(MAX), stAx = new Float32Array(MAX * 4), depth = new Float32Array(MAX), order = new Uint32Array(MAX);
-  const fwd = new Vector3();
-  let staged = 0;
-  function put(x, y, z, r, light, storm, alpha, seed, ero, ax, ay, az, st){
-    if (staged >= MAX || r < .004 || alpha < .003) return;
-    const n = staged++, i3 = n * 3, i4 = n * 4, cam = camera.position;
-    stPos[i3] = x; stPos[i3 + 1] = y; stPos[i3 + 2] = z; stRad[n] = r;
-    stData[i4] = light; stData[i4 + 1] = storm; stData[i4 + 2] = alpha; stData[i4 + 3] = seed; stEro[n] = ero;
-    stAx[i4] = ax; stAx[i4 + 1] = ay; stAx[i4 + 2] = az; stAx[i4 + 3] = st;
-    depth[n] = (x - cam.x) * fwd.x + (y - cam.y) * fwd.y + (z - cam.z) * fwd.z;
-  }
-  function flush(){
-    const n = staged;
-    for (let i = 0; i < n; i++) order[i] = i;
-    order.subarray(0, n).sort((a, b) => depth[b] - depth[a]);
-    const P = aPos.array, R = aRad.array, D = aData.array, E = aEro.array, A = aShape.array;
-    for (let i = 0; i < n; i++) {
-      const j = order[i];
-      P[i * 3] = stPos[j * 3]; P[i * 3 + 1] = stPos[j * 3 + 1]; P[i * 3 + 2] = stPos[j * 3 + 2]; R[i] = stRad[j]; E[i] = stEro[j];
-      for (let k = 0; k < 4; k++) { D[i * 4 + k] = stData[j * 4 + k]; A[i * 4 + k] = stAx[j * 4 + k]; }
-    }
-    puffGeo.instanceCount = n;
-    aPos.needsUpdate = aRad.needsUpdate = aData.needsUpdate = aEro.needsUpdate = aShape.needsUpdate = true;
-  }
+  const puffs = puffBatch(2600, { uTime, uSunView, noise, lit: C.lit, shadow: C.shadow, rim: C.rim, storm: C.storm, fog: C.fog, fogNear: { value: 30 }, fogFar: { value: 150 }, fogMax: uFogMax, billow: 1 });
+  puffs.mesh.renderOrder = 5;
+  scene.add(puffs.mesh);
+  const put = puffs.put;
 
   /* clouds */
-  // Give a cloud a shape: its puffs glide to their new places, new ones swell from nothing,
-  // and any left over shrink away.
-  function shape(c, type, count, tall){
-    const gen = GEN[type](c.seed, { count, height: tall, fluff: c.fluff }), next = [];
-    // Growing leaves every puff where it is and adds to them. Turning into another kind of
-    // cloud seats them again from the bottom up, so the base stays the base.
-    if (type !== c.type) { gen.sort((a, b) => a.y - b.y); c.puffs.sort((a, b) => a.y - b.y); c.type = type; }
-    let top = .5;
-    for (let i = 0; i < gen.length; i++) {
-      const g = gen[i], p = c.puffs[i] || { x: g.x, y: g.y, z: g.z, r: 0, sh: g.sh, ax: g.ax ?? 0, ay: g.ay ?? 1, az: g.az ?? 0, st: g.st ?? 1, seed: c.rand() };
-      p.tx = g.x; p.ty = g.y; p.tz = g.z; p.tr = g.r; p.tsh = g.sh; p.tax = g.ax ?? 0; p.tay = g.ay ?? 1; p.taz = g.az ?? 0; p.tst = g.st ?? 1; p.dying = false;
-      top = Math.max(top, g.y + g.r * .5);
-      next.push(p);
-    }
-    for (let i = gen.length; i < c.puffs.length; i++) { const p = c.puffs[i]; p.tr = 0; p.dying = true; next.push(p); }
-    c.puffs = next; c.top = top; c.form = 1;
-  }
-  function settle(c, k){
-    let gone = false;
-    for (const p of c.puffs) {
-      p.x += (p.tx - p.x) * k; p.y += (p.ty - p.y) * k; p.z += (p.tz - p.z) * k; p.r += (p.tr - p.r) * k; p.sh += (p.tsh - p.sh) * k;
-      // an axis turned end for end is the same shape, so it turns the short way round
-      if (p.ax * p.tax + p.ay * p.tay + p.az * p.taz < 0) { p.tax = -p.tax; p.tay = -p.tay; p.taz = -p.taz; }
-      p.ax += (p.tax - p.ax) * k; p.ay += (p.tay - p.ay) * k; p.az += (p.taz - p.az) * k; p.st += (p.tst - p.st) * k;
-      if (p.dying && p.r < .01) gone = p.gone = true;
-    }
-    if (gone) c.puffs = c.puffs.filter(p => !p.gone);
-  }
-  // Stage a cloud's puffs with its base at (x, y, z): each lit by how high it sits in the
-  // cloud and whether it's on the sunny side.
-  function stage(c, x, y, z, s, alpha, ero, mood){
-    const my = y + c.top * s * .45;
-    for (const p of c.puffs) {
-      const wx = x + p.x * s, wy = y + p.y * s, wz = z + p.z * s, ox = wx - x, oy = wy - my, oz = wz - z, ol = Math.hypot(ox, oy, oz) || 1;
-      const side = (ox * SUN_LIGHT.x + oy * SUN_LIGHT.y + oz * SUN_LIGHT.z) / ol, h = clamp(p.y / c.top, 0, 1), al = Math.hypot(p.ax, p.ay, p.az) || 1;
-      put(wx, wy, wz, p.r * s, .17 + .5 * h + .45 * (.5 + .5 * side), clamp(p.sh + mood * .55 * (1 - h * .55), 0, .92), alpha, p.seed, ero, p.ax / al, p.ay / al, p.az / al, p.st);
-    }
-  }
-  const newCloud = (seed, fluff = .5) => ({ seed, fluff, rand: mulberry(seed * 31 + 7), puffs: [], top: 1, form: 0, key: '', type: '' });
+  // Each has a shape it's settling into, and is lit from where the sun is (../puffs.js).
+  const shape = shapeCloud, settle = settleCloud, stage = (c, ...how) => stageCloud(put, SUN_LIGHT, c, ...how);
 
   // The ones with a life: across the sky in PERIOD seconds, four of them a quarter apart.
   const PERIOD = 76, X0 = -12.5, X1 = 21;
@@ -660,7 +557,6 @@ export function createWaterCycle(canvas, { dark = false, onFrame } = {}){
     camera.position.set(eye.x + (Math.sin(t * .11) * .3 + pointer.ex * .9) * drift, eye.y - pointer.ey * .35 * drift, eye.z);
     camera.lookAt(aim); camera.updateMatrixWorld();
     sky.position.copy(camera.position);
-    camera.getWorldDirection(fwd);
     uSunView.value.copy(SUN_SEEN).transformDirection(camera.matrixWorldInverse);
   }
   function ease(dt, snap){
@@ -680,8 +576,8 @@ export function createWaterCycle(canvas, { dark = false, onFrame } = {}){
     if (lost) return;
     ease(dt, snap); pose(time);
     uTime.value = time; riverMat.uniforms.uGlow.value = weight[3]; rainMat.opacity = (look === LOOKS.night ? .62 : .5) + .2 * weight[2];
-    staged = 0;
-    moveClouds(time, dt, snap, weight[1]); moveMist(time, weight[0]); moveVeil(weight[2]); flush();
+    puffs.begin(camera);
+    moveClouds(time, dt, snap, weight[1]); moveMist(time, weight[0]); moveVeil(weight[2]); puffs.flush();
     moveSparks(time, weight[0]); moveRain(dt); moveSprouts(dt);
     renderer.render(scene, camera);
     STAGES.forEach((s, i) => {
@@ -720,7 +616,7 @@ export function createWaterCycle(canvas, { dark = false, onFrame } = {}){
   observer.observe(canvas);
 
   // Start mid-cycle with rain already falling, so even a still frame shows the whole loop.
-  paint(); pose(time); staged = 0; moveClouds(time, 0, true, 0);
+  paint(); pose(time); puffs.begin(camera); moveClouds(time, 0, true, 0);
   for (let k = 0; k < 60; k++) moveRain(1 / 30);
   resize();
 
