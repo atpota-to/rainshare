@@ -3,7 +3,7 @@
 // line of text, so nothing needs a coloured chip.
 import { labelOf, SIZES, HARNESSES, PLANS, BUDGETS, plansIn, audienceOf, modelName } from './ns.js';
 import { describeSubject, kindOf, FORGE_NAMES } from './subjects.js';
-import { join, modelReach } from './rank.js';
+import { join, modelReach, wantedOf, wantPhrase } from './rank.js';
 import { tieOf, TIE_SHORT } from './ties.js';
 
 const firstName = p => String(p?.displayName || '').trim().split(/\s+/)[0] || (p?.handle ? '@' + p.handle : 'Someone');
@@ -65,16 +65,16 @@ export function jobShort(sq){
 
 /**
  * The models an ask would like, and how they fit yours (`myProfile`, left out for the asker):
- * "Opus or Sonnet. You run Sonnet." "Opus or Sonnet. Your Claude Pro plan has Claude models."
- * "GPT-5. Not in your plan or setup." "Any model."
+ * "A frontier Claude model. You run Sonnet." "Claude or GPT. Your Claude Pro plan has Claude
+ * models." "GLM. Not in your plan or setup." "Any model."
  */
 export function modelsText(sq, myProfile){
-  const want = (sq?.wants?.models || []).map(m => String(m).toLowerCase());
-  if (!want.length) return 'Any model.';
-  const names = join(want.map(modelName), 'or') + '.', r = myProfile ? modelReach(want, myProfile) : null;
-  if (r?.run) return `${names} You run ${modelName(r.run)}.`;
-  if (r?.plan) return `${names} Your ${r.plan.name} plan has ${join(r.plan.families)} models.`;
-  return r?.said ? `${names} Not in your plan or setup.` : names;
+  const want = wantedOf(sq), phrase = wantPhrase(sq);
+  if (!phrase) return 'Any model.';
+  const lead = phrase[0].toUpperCase() + phrase.slice(1) + '.', r = want.families.length && myProfile ? modelReach(want, myProfile) : null;
+  if (r?.run) return `${lead} You run ${r.run}.`;
+  if (r?.plan) return `${lead} Your ${r.plan.name} plan has ${join(r.plan.families)} models.`;
+  return r?.said ? `${lead} Not in your plan or setup.` : lead;
 }
 /** Anything else they asked for, in their words: "Made with Claude Code. No new dependencies." */
 export function notesText(sq){
@@ -85,8 +85,8 @@ export function notesText(sq){
 }
 /** The job, then their notes: "Small. Tests required. No new dependencies." */
 export const jobAndNotes = sq => { const j = jobText(sq), n = notesText(sq); return n ? (j === 'Not said.' ? n : `${j} ${n}`) : j; };
-/** "wants Opus or Sonnet", for a one-line summary. */
-export const wantsShort = sq => sq?.wants?.models?.length ? 'wants ' + join(sq.wants.models.map(modelName), 'or') : '';
+/** "wants a frontier Claude model", for a one-line summary. */
+export const wantsShort = sq => { const p = wantPhrase(sq); return p ? 'wants ' + p : ''; };
 
 /** "Nobody yet", "Kai, with Claude Code", "You". Deliveries are added: "Kai turned it in". */
 export function onItText(item, viewer){

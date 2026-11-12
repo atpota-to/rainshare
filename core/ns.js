@@ -63,19 +63,25 @@ export const PLANS = [
   ['work', 'Paid by work or school'], ['free', 'Free tiers only'], ['none', 'No AI plan']
 ];
 export const UNPAID = ['free', 'none'];
-// Which models a plan reaches, by family, for matching against the models an ask would like.
-// It's by family on purpose: what each plan includes keeps changing, so a match says "Claude
-// models", never which ones. Pay as you go and work or school could be anything, so they say nothing.
-export const PLAN_FAMILIES = {
-  'claude-pro': ['claude'], 'claude-max': ['claude'], 'chatgpt-plus': ['openai'], 'chatgpt-pro': ['openai'], gemini: ['gemini'],
-  copilot: ['claude', 'openai', 'gemini'], cursor: ['claude', 'openai', 'gemini']
-};
-export const FAMILY_NAMES = { claude: 'Claude', openai: 'OpenAI', gemini: 'Gemini', open: 'open' };
-/** A model's family, from its name: 'claude', 'openai', 'gemini', 'open' (open-weight or local), or null. */
+// Which model families an ask can prefer, and how capable a model: families and a level rather
+// than model names, since names change every few months and a helper knows which of theirs fit.
+export const FAMILIES = [['claude', 'Claude'], ['gpt', 'GPT'], ['gemini', 'Gemini'], ['grok', 'Grok'], ['deepseek', 'DeepSeek'], ['qwen', 'Qwen'], ['glm', 'GLM'], ['kimi', 'Kimi'], ['mistral', 'Mistral']];
+// Left out, any level does. [value, name, what it means]
+export const LEVELS = [['frontier', 'Frontier', 'The most capable model a family has']];
+/** A family's name: "Claude", or one nobody knows as it was written. */
+export const familyName = f => labelOf(FAMILIES, f);
+/** A model's family, from its name ("claude-opus-5-5", "gpt-5-codex"), or null. */
 export const familyOf = m => {
   const s = String(m || '').toLowerCase();
-  return /claude|opus|sonnet|haiku|fable/.test(s) ? 'claude' : /gpt|codex|^o\d/.test(s) ? 'openai' : /gemini/.test(s) ? 'gemini'
-    : /local|qwen|llama|mistral|deepseek|kimi|glm|gemma/.test(s) ? 'open' : null;
+  return /claude|opus|sonnet|haiku|fable/.test(s) ? 'claude' : /gpt|codex|^o\d/.test(s) ? 'gpt' : /gemini/.test(s) ? 'gemini' : /grok/.test(s) ? 'grok'
+    : /deepseek/.test(s) ? 'deepseek' : /qwen/.test(s) ? 'qwen' : /glm|zhipu/.test(s) ? 'glm' : /kimi|moonshot/.test(s) ? 'kimi' : /mistral|devstral|codestral/.test(s) ? 'mistral' : null;
+};
+// Which families a plan reaches, for matching against the families an ask would like. What each
+// plan includes keeps changing, so a match says "Claude models", never which ones or how capable.
+// Pay as you go and work or school could be anything, so they say nothing.
+export const PLAN_FAMILIES = {
+  'claude-pro': ['claude'], 'claude-max': ['claude'], 'chatgpt-plus': ['gpt'], 'chatgpt-pro': ['gpt'], gemini: ['gemini'],
+  copilot: ['claude', 'gpt', 'gemini'], cursor: ['claude', 'gpt', 'gemini']
 };
 /** Someone's plans, as their record has them: strings only, at most 12. */
 export const plansIn = p => (Array.isArray(p?.plans) ? p.plans : []).filter(x => typeof x === 'string' && x).slice(0, 12);

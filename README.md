@@ -15,7 +15,8 @@ or spends credits, and you help the people you follow. (Is that allowed by your 
 - **Ask for rain**, in two short steps with a preview beside them. *What*: an idea, or a
   project you already have, where it lives (a Tangled, knotless or GitHub issue, or any git
   repo) and how far along the project is as a whole, each drawn as its own little 3D plant. *Details*: what done looks
-  like and which models you'd prefer, with tests, size and tags folded under "More options",
+  like and which models you'd prefer (a family, like Claude or GLM, and whether it should be a
+  frontier model), with tests, size and tags folded under "More options",
   and a Bluesky post to tell people it's there. It's open to everyone. An idea needs no repo and no developer: say
   what it should do, and whether someone else can run with it.
 - **Say your AI plan**: your profile starts with which AI plans you pay for to code with (Claude
@@ -104,7 +105,7 @@ the lexicon authority). The schemas are in `lexicons/dev/rainshare/`.
 | Record | Written by | Says |
 | --- | --- | --- |
 | `dev.rainshare.profile` (`self`) | everyone | bio, AI plans, setups (harness, models, where it runs), circumstances, the kinds of work you take on; and, from before or set aside for now, a setup's typed plan, AI budget, forecast, values and priorities |
-| `dev.rainshare.seed` | the requester | title, subject (Tangled issue, knotless issue, GitHub issue, or repo; none for a seed, which says whose the result will be), stage (for a plant), spec in Markdown, wants, tags, size, audience, state (`open`, `sprouted`, `closed`); values, set aside for now |
+| `dev.rainshare.seed` | the requester | title, subject (Tangled issue, knotless issue, GitHub issue, or repo; none for a seed, which says whose the result will be), stage (for a plant), spec in Markdown, wants (model families and a level; older asks named models), tags, size, audience, state (`open`, `sprouted`, `closed`); values, set aside for now |
 | `dev.rainshare.take` | a helper | "my agent is on this": a strong ref to the seed and the setup doing it. Deleting it drops the seed. |
 | `dev.rainshare.delivery` | a helper | the pull request (URL, or on Tangled and knotless its own record's at:// URI), what did the work, and an optional session link |
 
@@ -129,15 +130,21 @@ turning one on brings it all back:
 when there's no plan: a setup's typed `plan` ("Claude Max 20x") and `budget` ("under $25").
 Picking a paid plan clears "No AI plan" and "Free tiers only", and the other way round.
 
-**Models, matched to plans.** An ask says which models it would prefer ("Models" on its page:
-"Opus or Sonnet", or "Any model"), and each helper sees how theirs fit. A model in what they run
-comes first ("You run Sonnet"); otherwise a plan that reaches its family ("Your Claude Pro plan
-has Claude models"); otherwise, if their profile says enough to tell, "Not in your plan or
-setup". Plans are matched by family, never by model, because what each plan includes keeps
-changing (`PLAN_FAMILIES` in `core/ns.js`): Claude Pro and Max reach Claude models, ChatGPT Plus
-and Pro reach OpenAI's, Gemini reaches Gemini's, and Copilot and Cursor reach all three. Pay as
-you go and work or school could be anything, so they say nothing either way. The ranking
-counts the same: running it counts most, a plan that reaches it a little, and a miss against.
+**Models: a family and a level, matched to plans.** An ask says which model families it would
+prefer (Claude, GPT, Gemini, Grok, DeepSeek, Qwen, GLM, Kimi, Mistral, or another) and at what
+level: any, or **frontier**, the most capable model a family has. It doesn't name models, which
+change every few months; "Any model, any level" is the default (`FAMILIES` and `LEVELS` in
+`core/ns.js`). Its page says it as "Models" ("A frontier Claude model", "Claude or GPT"), and
+each helper sees how theirs fit: a model they run from one of those families ("You run
+Sonnet"), else a plan that reaches one ("Your Claude Pro plan has Claude models"), else, if their
+profile says enough to tell, "Not in your plan or setup". Plans are matched by family
+(`PLAN_FAMILIES`): Claude Pro and Max reach Claude, ChatGPT Plus and Pro reach GPT, Gemini
+reaches Gemini, and Copilot and Cursor reach all three. Pay as you go and work or school could
+be anything, so they say nothing either way. The level is shown and goes in the brief, but
+isn't matched: whether a plan includes a family's frontier model changes too often to say, and
+a helper knows which of theirs it is. The ranking counts the same: a model you run counts
+most, a plan that reaches it a little, and a miss against. Older asks named models
+("Opus or Sonnet"), and are shown and matched that way.
 
 A public seed lives in your repo, and `audience` says who it's
 for: apps show it only to those people and only offer it to them. It doesn't hide anything,
@@ -663,8 +670,8 @@ Not yet checked:
   clears "No AI plan" and the other way round) and saving them, with the set-aside forecast,
   priorities and budget still in the saved profile; "AI plan" first on profiles, "Their AI
   plan" in the picked card, and your plan in the board's header; nothing set aside showing;
-  "Models" matched against plans and setups, the model choice outside "More options", and
-  every switch turned back on (the tests pass both ways).
+  "Models" as a family and a level (picked when asking, shown on asks, matched against plans
+  and setups, and in the brief), and every switch turned back on (the tests pass both ways).
   Not done: publishing the profile lexicon with `plans` in it (`lexicons/publish.mjs`).
 - Ideas: asking for rain on one, running with one and turning it in were checked in the example circle.
   The pages Rainshare links to on Tangled exist (they ask you to sign in). GitHub's new-repo

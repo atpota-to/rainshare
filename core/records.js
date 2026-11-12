@@ -1,6 +1,6 @@
 // Building the four records from what people type, so every app writes the same shapes.
 // Each builder trims, clips to the lexicon's limits and leaves out what's empty.
-import { PROFILE, SEED, TAKE, DELIVERY, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, PLANS, UNPAID, HARNESSES, RUNS_ON, AUDIENCES, TESTS, SIZES, OWNERS, STAGES, audienceOf } from './ns.js';
+import { PROFILE, SEED, TAKE, DELIVERY, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, PLANS, UNPAID, LEVELS, HARNESSES, RUNS_ON, AUDIENCES, TESTS, SIZES, OWNERS, STAGES, audienceOf } from './ns.js';
 import { parseUri } from './net.js';
 import { kindOf } from './subjects.js';
 
@@ -83,7 +83,8 @@ export function seed(input = {}, prev){
     subject,
     spec: clip(input.spec || '', 10000),
     specUrl: httpUrl(input.specUrl),
-    wants: prune({ models: strings(w.models, 6, 64), harnesses: strings(w.harnesses, 6, 64), tests: known(TESTS, w.tests), maxDiffLines: max > 0 ? max : undefined, notes: clip(w.notes || '', 1000) }),
+    // Which models: families and a level now (`models`, specific ones, is what older asks said).
+    wants: prune({ families: tags(w.families, 8), level: known(LEVELS, w.level), models: strings(w.models, 6, 64), harnesses: strings(w.harnesses, 6, 64), tests: known(TESTS, w.tests), maxDiffLines: max > 0 ? max : undefined, notes: clip(w.notes || '', 1000) }),
     tags: tags(input.tags, 10),
     values: tags(input.values, 8),
     size: known(SIZES, input.size),

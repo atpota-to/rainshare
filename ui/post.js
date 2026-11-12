@@ -5,12 +5,12 @@
 //
 // rainshare.js owns the screen and hands in what this needs as `ui`; this keeps the draft
 // (so it survives leaving and coming back) and draws the steps.
-import { SEED, STAGE, STAGES, MODEL_PICKS, GROUPS, FEATURES, modelName } from '../core/ns.js';
+import { SEED, STAGE, STAGES, FAMILIES, LEVELS, GROUPS, FEATURES } from '../core/ns.js';
 import { parseSubject, describeSubject, kindOf, subjectInfo, knotlessIssueSubject } from '../core/subjects.js';
 import { newRepoPlaces } from '../core/forges.js';
 import { writableForge, FORGE_SAID } from '../core/forgewrite.js';
 import { whereText, shortWhere, jobAndNotes, jobShort, modelsText, wantsShort, askExcerpt, stageOf, aNoun } from '../core/words.js';
-import { join } from '../core/rank.js';
+import { join, wantPhrase } from '../core/rank.js';
 import { pageOf } from '../core/brief.js';
 import { esc, ago, ico, forgeIco, face, people, pathOf, plantPic } from './bits.js';
 
@@ -54,7 +54,8 @@ const fresh = () => ({
   repos: null, repo: null, issues: null,
   title: '', spec: '', specUrl: '',
   more: false,       // whether "More options" (models, tests, size, tags…) is open
-  models: [], otherModel: '', tests: 'welcome', size: 'small', maxDiffLines: '', tags: '', values: '', notes: '',
+  families: [], otherFamily: '', level: '',   // which models: families, and a level ('' for any)
+  tests: 'welcome', size: 'small', maxDiffLines: '', tags: '', values: '', notes: '',
   vis: 'public', audience: 'anyone', list: null, group: null, parallel: false,
   owner: 'helper',   // for an idea: whoever builds it keeps it ('helper'), or it's started for you ('requester')
   lists: null, groups: null, reach: null,
@@ -139,7 +140,7 @@ export function createPoster(ui){
     return {
       title: P.title, subject: subjectNow(), stage: P.stage || undefined, owner: P.kind === 'idea' ? P.owner : undefined, spec: P.spec, specUrl: P.specUrl, tags: P.tags, values: FEATURES.seedValues ? P.values : undefined, size: P.size, parallel: P.parallel,
       wants: P.kind === 'idea' && P.owner === 'helper' ? { notes: P.notes.trim() }
-        : { models: [...new Set([...P.models, ...list(P.otherModel)])], tests: P.tests, maxDiffLines: parseInt(P.maxDiffLines, 10) || undefined, notes: P.notes.trim() },
+        : { families: [...new Set([...P.families, ...list(P.otherFamily)])], level: P.level || undefined, tests: P.tests, maxDiffLines: parseInt(P.maxDiffLines, 10) || undefined, notes: P.notes.trim() },
       ...(FEATURES.audience ? { audience: P.audience, list: P.audience === 'list' ? P.list : undefined } : { audience: 'anyone' })
     };
   }
@@ -171,8 +172,8 @@ export function createPoster(ui){
     return whereText(sq);
   }
   function howText(sq){
-    const w = sq.wants || {}, names = (w.models || []).map(modelName);
-    const first = [sq.size ? `a ${sq.size} job` : '', TESTS_SAID[w.tests] || '', names.length ? `ideally with ${join(names, 'or')}` : ''].filter(Boolean).join(', ');
+    const w = sq.wants || {}, want = wantPhrase(sq);
+    const first = [sq.size ? `a ${sq.size} job` : '', TESTS_SAID[w.tests] || '', want ? `ideally with ${want}` : ''].filter(Boolean).join(', ');
     const out = [first ? cap(first) + '.' : ''];
     if (w.maxDiffLines) out.push(`Under about ${w.maxDiffLines} lines.`);
     if (w.notes) out.push(w.notes.replace(/([^.!?])$/, '$1.'));
@@ -344,7 +345,6 @@ export function createPoster(ui){
       ${howFields()}${LAST === 2 ? lastChoices() : ''}`;
   }
   function howFields(){
-    const custom = P.models.filter(m => !MODEL_PICKS.includes(m));
     // An idea given away is the builder's to build their way: only what helps someone find it and size it up is asked.
     if (P.kind === 'idea' && P.owner === 'helper') return moreOptions('More: how big it feels, tags', `
       <p class="rs-muted">It’s theirs to build, so how they build it is up to them. These help the right person find it.</p>
@@ -354,13 +354,20 @@ export function createPoster(ui){
         ${FEATURES.seedValues ? `<label>What it stands for <small>optional</small><input name="values" list="rsValues" autocomplete="off" placeholder="education, accessibility" value="${esc(P.values)}"></label>` : ''}
       </div>
       <label>Anything else?<input name="notes" maxlength="1000" autocomplete="off" placeholder="It should work on a phone." value="${esc(P.notes)}"></label>`);
+    // Which models: a family (or any), and how capable (or any level). Not model names: those
+    // change every few months, and a helper knows which of theirs fit.
+    const custom = P.families.filter(f => !FAMILIES.some(([k]) => k === f));
     return `<fieldset><legend>Which models would you prefer?</legend>
-        <div class="rs-toggles" data-rs-models>
-          <button type="button" data-rs-model="" aria-pressed="${!P.models.length}">Any model</button>
-          ${[...MODEL_PICKS, ...custom].map(m => `<button type="button" data-rs-model="${esc(m)}" aria-pressed="${P.models.includes(m)}">${esc(modelName(m))}</button>`).join('')}
+        <div class="rs-toggles" data-rs-families aria-label="Model family">
+          <button type="button" data-rs-family="" aria-pressed="${!P.families.length}">Any model</button>
+          ${[...FAMILIES, ...custom.map(f => [f, f])].map(([k, l]) => `<button type="button" data-rs-family="${esc(k)}" aria-pressed="${P.families.includes(k)}">${esc(l)}</button>`).join('')}
         </div>
-        <label class="rs-inline">Or name another <input name="otherModel" list="rsModels" autocomplete="off" placeholder="qwen3-coder" value="${esc(P.otherModel)}"></label>
-        <small>Helpers whose plan or setup has one of these see it as a better fit, and their agents get it in the brief.</small>
+        <label class="rs-inline">Or another <input name="otherFamily" autocomplete="off" placeholder="Llama" value="${esc(P.otherFamily)}"></label>
+        <div class="rs-toggles" data-rs-levels aria-label="How capable">
+          <button type="button" data-rs-level="" aria-pressed="${!P.level}">Any level</button>
+          ${LEVELS.map(([k, l]) => `<button type="button" data-rs-level="${k}" aria-pressed="${P.level === k}">${esc(l)}</button>`).join('')}
+        </div>
+        <small>Frontier means the most capable model a family has. Helpers whose plan or setup reaches one of these families see it as a better fit, and their agents get it in the brief.</small>
       </fieldset>
       ${moreOptions('More options: tests, size, tags', `
       <p class="rs-muted">These help the right helpers find it, and their agents get them in the brief.</p>
@@ -522,7 +529,8 @@ export function createPoster(ui){
       || pick('[data-rs-issue]', el => { pickIssue(el.dataset.rsIssue); P.err = ''; ui.render(); })
       // An idea given away can be built by more than one person; one started for you is one job.
       || pick('[data-rs-owner]', el => { P.owner = el.dataset.rsOwner; P.parallel = P.owner === 'helper'; P.err = ''; ui.render(); })
-      || pick('[data-rs-model]', el => { const m = el.dataset.rsModel; P.models = !m ? [] : P.models.includes(m) ? P.models.filter(x => x !== m) : [...P.models, m]; ui.render(); })
+      || pick('[data-rs-family]', el => { const f = el.dataset.rsFamily; P.families = !f ? [] : P.families.includes(f) ? P.families.filter(x => x !== f) : [...P.families, f]; ui.render(); })
+      || pick('[data-rs-level]', el => { P.level = el.dataset.rsLevel; ui.render(); })
       || pick('[data-rs-tests]', el => { P.tests = el.dataset.rsTests; ui.render(); })
       || pick('[data-rs-size]', el => { P.size = el.dataset.rsSize; ui.render(); })
       || pick('[data-rs-vis]', el => { P.vis = el.dataset.rsVis; P.err = ''; ui.render(); })
@@ -533,7 +541,7 @@ export function createPoster(ui){
       || pick('[data-rs-connect-forge]', el => { ui.connectForge?.(el.dataset.rsConnectForge); })
       || pick('[data-rs-post-cancel]', () => { P = fresh(); ui.go(''); });
   }
-  const TEXT = ['title', 'spec', 'specUrl', 'otherModel', 'maxDiffLines', 'tags', 'values', 'notes', 'bskyText'];
+  const TEXT = ['title', 'spec', 'specUrl', 'otherFamily', 'maxDiffLines', 'tags', 'values', 'notes', 'bskyText'];
   function typed(el){
     if (el.name === 'link') { setLink(el.value); return true; }
     if (TEXT.includes(el.name)) { P[el.name] = el.value; paint(); return true; }

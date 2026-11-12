@@ -14,13 +14,13 @@
 import { createSource } from '../core/source.js';
 import { brief, pageOf, printable, workDir } from '../core/brief.js';
 import { look, standing } from '../core/status.js';
-import { rank } from '../core/rank.js';
+import { rank, wantPhrase } from '../core/rank.js';
 import { parseSubject, describeSubject, cloneUrlOf, FORGE_NAMES } from '../core/subjects.js';
 import { writableForge, pickSource, matchSource, pullText, FORGE_SAID } from '../core/forgewrite.js';
 import { audienceLine, CLOSENESS } from '../core/circle.js';
-import { SEED, STAGE, FEATURES, FORECAST, TESTS, HARNESSES, labelOf, audienceOf, modelName } from '../core/ns.js';
+import { SEED, STAGE, FEATURES, FAMILIES, LEVELS, FORECAST, TESTS, HARNESSES, labelOf, audienceOf, modelName } from '../core/ns.js';
 import { strongRef } from '../core/records.js';
-import { stateText, planText } from '../core/words.js';
+import { stateText, planText, wantsShort } from '../core/words.js';
 import { tieOf, TIE_SHORT, FROM_KEYS, fromMatches } from '../core/ties.js';
 import { wordOn } from '../core/vouch.js';
 import * as net from '../core/net.js';
@@ -127,14 +127,13 @@ async function getItem(src, ref){
 
 /* ---------- showing things ---------- */
 const nameOf = p => p?.displayName ? `${p.displayName}${p.handle ? ` (@${p.handle})` : ''}` : p?.handle ? '@' + p.handle : p?.did || 'Someone';
-const shortModel = m => String(m).replace(/^claude-/, '');
 const harnessName = h => labelOf(HARNESSES, h);
 function summary(it, i){
   const sq = it.value || {}, d = describeSubject(sq.subject), w = sq.wants || {};
   const bits = [
     TIE_SHORT[tieOf(it.ties)] || CLOSENESS[it.closeness] || (audienceOf(sq) === 'anyone' ? 'open to everyone' : ''),
     d ? `${FORGE_NAMES[d.forge] || 'Git'} ${d.label}` : '',
-    w.models?.length ? 'wants ' + w.models.map(shortModel).join('/') : '',
+    wantsShort(sq),
     w.tests && w.tests !== 'none' ? labelOf(TESTS, w.tests).toLowerCase() : '',
     sq.state && sq.state !== 'open' ? stateText(sq).toLowerCase() || sq.state : '',
     it.takes?.length ? `${it.takes.length} on it` : ''
@@ -147,7 +146,7 @@ function details(it){
   const lines = [`${sq.title}${sq.state && sq.state !== 'open' ? ` [${stateText(sq).toLowerCase() || sq.state}]` : ''}`, `${nameOf(it.author)} · ${audienceLine(sq, { authorName: it.author?.handle ? '@' + it.author.handle : 'them' })}`, ''];
   if (d) lines.push(`Where: ${FORGE_NAMES[d.forge] || 'Git'} ${d.issue ? 'issue' : 'repo'} ${d.label}${d.href ? ' ' + d.href : ''}`, `Clone: ${cloneUrlOf(sq.subject) || '(unknown)'}`, '');
   lines.push(sq.spec || '(No details beyond the title.)', '');
-  const g = [w.models?.length && 'Models: ' + w.models.join(', '), w.harnesses?.length && 'Harnesses: ' + w.harnesses.join(', '), w.tests && labelOf(TESTS, w.tests), w.maxDiffLines && `Under about ${w.maxDiffLines} lines`, w.notes].filter(Boolean);
+  const g = [wantPhrase(sq) && 'Models: ' + wantPhrase(sq), w.harnesses?.length && 'Harnesses: ' + w.harnesses.join(', '), w.tests && labelOf(TESTS, w.tests), w.maxDiffLines && `Under about ${w.maxDiffLines} lines`, w.notes].filter(Boolean);
   if (g.length) lines.push('What they’d like:', ...g.map(x => '  - ' + x), '');
   const about = [planText(p) && 'AI plan: ' + planText(p), p.circumstances?.length && 'About them: ' + p.circumstances.join(', '), FEATURES.values && p.values?.length && 'Cares about: ' + p.values.join(', ')].filter(Boolean);
   if (about.length) lines.push(...about, '');
@@ -271,7 +270,8 @@ async function doPlant(o){
     title: o.title, subject, stage: o.stage, spec, specUrl: o.specUrl, tags: list(o.tags), values: FEATURES.seedValues ? list(o.values) : undefined, size: o.size,
     // With no repo it's an idea: `--give-away` means whoever builds it keeps it, and more than one person may.
     owner: subject ? undefined : o.owner || (o.giveAway ? 'helper' : undefined), parallel: !!o.parallel || (!subject && (o.giveAway || o.owner === 'helper')),
-    wants: { models: list(o.models), harnesses: list(o.harnesses), tests: o.tests, maxDiffLines: o.maxLines ?? o.maxDiffLines, notes: o.notes },
+    // Which models: families and a level (`--models`, naming them, still works, as older asks did).
+    wants: { families: list(o.families ?? o.family), level: o.level, models: list(o.models), harnesses: list(o.harnesses), tests: o.tests, maxDiffLines: o.maxLines ?? o.maxDiffLines, notes: o.notes },
     // Who it's for is set aside for now (FEATURES in ../core/ns.js): every ask is open to everyone.
     ...(FEATURES.audience ? { audience: o.audience || 'anyone', list: o.list } : { audience: 'anyone' })
   });
@@ -417,7 +417,7 @@ const TOOLS = [
     inputSchema: { type: 'object', required: ['ref', 'branch'], properties: { ref: { type: 'string' }, branch: { type: 'string', description: 'The pushed branch with the changes' }, from: { type: 'string', description: 'The repo it was pushed to, if that’s a fork: its address or owner/name. Left out, a fork of theirs that has the branch is used, then the repo itself.' }, base: { type: 'string', description: 'The branch to merge into. The repo’s usual one when left out.' }, title: { type: 'string', description: 'The ask’s title when left out' }, body: { type: 'string', description: 'Markdown. When left out: the issue it fixes and its Rainshare link. A repo with a template for pull requests needs one written from it; the tool says so and shows the template.' }, harness: { type: 'string' }, model: { type: 'string' }, sessionUrl: { type: 'string' }, note: { type: 'string' } } }, annotations: { destructiveHint: false, openWorldHint: true },
     run: async a => ({ text: openedText(await doOpenPr(a.ref, a)) + ' Tell your user where the pull request is, and that it’s turned in.' }) },
   { name: 'rainshare_ask', description: `Ask for rain on something of the signed-in person’s: an idea (nothing built yet, no repo) or a project they already have, that they’d like a friend’s agent to help with. ${FEATURES.audience ? 'Public, for the audience given (everyone by default).' : 'Public, and open to everyone.'}`,
-    inputSchema: { type: 'object', required: ['title'], properties: { title: { type: 'string' }, where: { type: 'string', description: 'A GitHub, Tangled or knotless issue or repo link. Leave it out for an idea with no repo yet.' }, stage: { type: 'string', enum: ['seedling', 'young', 'established'], description: 'For a project (something with a repo), how far along it is: seedling (just started), young (it works, still taking shape) or established (people rely on it).' }, owner: { type: 'string', enum: ['helper', 'requester'], description: 'For an idea with no repo: "helper" if whoever builds it should keep it, "requester" if it should be started for the person asking.' }, spec: { type: 'string', description: 'Markdown: what’s wrong, what done looks like, what to avoid' }, models: { type: 'array', items: { type: 'string' } }, tests: { type: 'string', enum: ['required', 'welcome', 'none'] }, maxDiffLines: { type: 'integer' }, tags: { type: 'array', items: { type: 'string' } }, ...(FEATURES.audience ? { audience: { type: 'string', enum: ['anyone', 'mutuals', 'following', 'followers', 'list'], description: 'Who it’s for. Everyone, unless they asked for it to stay among their mutuals or the people they follow.' }, list: { type: 'string' } } : {}), parallel: { type: 'boolean' } } },
+    inputSchema: { type: 'object', required: ['title'], properties: { title: { type: 'string' }, where: { type: 'string', description: 'A GitHub, Tangled or knotless issue or repo link. Leave it out for an idea with no repo yet.' }, stage: { type: 'string', enum: ['seedling', 'young', 'established'], description: 'For a project (something with a repo), how far along it is: seedling (just started), young (it works, still taking shape) or established (people rely on it).' }, owner: { type: 'string', enum: ['helper', 'requester'], description: 'For an idea with no repo: "helper" if whoever builds it should keep it, "requester" if it should be started for the person asking.' }, spec: { type: 'string', description: 'Markdown: what’s wrong, what done looks like, what to avoid' }, families: { type: 'array', items: { type: 'string' }, description: `Model families they’d prefer: ${FAMILIES.map(f => f[0]).join(', ')}, or another. Leave it out for any model.` }, level: { type: 'string', enum: LEVELS.map(l => l[0]), description: 'frontier: the most capable model a family has. Leave it out for any level.' }, tests: { type: 'string', enum: ['required', 'welcome', 'none'] }, maxDiffLines: { type: 'integer' }, tags: { type: 'array', items: { type: 'string' } }, ...(FEATURES.audience ? { audience: { type: 'string', enum: ['anyone', 'mutuals', 'following', 'followers', 'list'], description: 'Who it’s for. Everyone, unless they asked for it to stay among their mutuals or the people they follow.' }, list: { type: 'string' } } : {}), parallel: { type: 'boolean' } } },
     run: async a => { const r = await doPlant(a); return { text: `Asked for rain: ${a.title}\n${r.uri}`, data: r }; } },
   { name: 'rainshare_close_out', description: 'For one of the signed-in person’s own ideas or projects: mark it done (the work landed), close it (no longer wanted), or reopen it. Only do this when your user asks, or after rainshare_check says a pull request for it has been merged and your user agrees it did the job.',
     inputSchema: { type: 'object', required: ['ref', 'state'], properties: { ref: { type: 'string' }, state: { type: 'string', enum: ['done', 'closed', 'open'] }, delivery: { type: 'string', description: 'With done: the at:// URI of the delivery that did it, if there’s more than one' } } },
@@ -502,7 +502,7 @@ Expect rough edges, and commands and records that may still change.
         [--model m] [--harness h] [--session url] [--note n]
                              knotless and Tangled only: open the pull request as you, from a branch
                              that's already pushed, and turn it in
-  ask --title t [--where <issue or repo link>] [--spec text | --spec-file f] [--models a,b]
+  ask --title t [--where <issue or repo link>] [--spec text | --spec-file f] [--families claude,gpt] [--level frontier]
         [--tests required|welcome|none] [--max-lines n] [--tags a,b]${FEATURES.audience ? ' [--audience anyone|mutuals|following|followers]' : ''}
         [--stage seedling|young|established]
                              ask for rain: with --where it's a project you already have, as far along

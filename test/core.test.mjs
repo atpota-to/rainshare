@@ -6,7 +6,7 @@ import { parseSubject, describeSubject, cloneUrlOf } from '../core/subjects.js';
 import * as R from '../core/records.js';
 import { meantFor, closeness } from '../core/circle.js';
 import { rank, score, fit } from '../core/rank.js';
-import { whereText, shortWhere, jobText, jobShort, modelsText, notesText, jobAndNotes, onItText, takenShort, askExcerpt, stageOf, nounOf, aNoun, pictureOf, whatItIs, stateText, planText } from '../core/words.js';
+import { whereText, shortWhere, jobText, jobShort, modelsText, wantsShort, notesText, jobAndNotes, onItText, takenShort, askExcerpt, stageOf, nounOf, aNoun, pictureOf, whatItIs, stateText, planText } from '../core/words.js';
 import { wateredBy, wateredText } from '../core/garden.js';
 import { renderMarkdown } from '../core/markdown.js';
 import { brief, launchers, handBack, readHandBack, readBranchBack, handBackBranch } from '../core/brief.js';
@@ -130,7 +130,7 @@ test('ranking puts the people a helper prioritises first, and says why', () => {
   const out = rank(items, me, ON);
   assert.equal(out[0].uri, 'b');
   const texts = out[0].reasons.map(r => r.text);
-  assert.ok(texts.includes('No paid AI')); assert.ok(texts.some(t => /Shares climate/.test(t))); assert.ok(texts.some(t => /opus: you have it/.test(t)));
+  assert.ok(texts.includes('No paid AI')); assert.ok(texts.some(t => /Shares climate/.test(t))); assert.ok(texts.some(t => /Opus: you run Opus/.test(t)));
   assert.ok(out[1].reasons.some(r => r.tone === 'down'));
   const taken = score({ closeness: 'mutual', value: {}, takes: [{ repo: 'did:other' }] }, me, ON);
   assert.ok(taken.reasons.some(r => r.text === 'Someone’s on it'));
@@ -168,7 +168,7 @@ test('the models an ask would like, against your plans and what you run', () => 
   assert.equal(modelsText(opus, { plans: ['api'] }), 'Opus or Sonnet.');
   // What you run comes before what your plan reaches.
   assert.equal(modelsText(opus, { plans: ['claude-max'], setups: [{ harness: 'claude-code', models: ['claude-opus-5-5'] }] }), 'Opus or Sonnet. You run Opus.');
-  assert.equal(modelsText({ wants: { models: ['gpt-5-codex', 'gemini-3-pro'] } }, { plans: ['cursor'] }), 'GPT-5 Codex or Gemini 3 Pro. Your Cursor plan has OpenAI and Gemini models.');
+  assert.equal(modelsText({ wants: { models: ['gpt-5-codex', 'gemini-3-pro'] } }, { plans: ['cursor'] }), 'GPT-5 Codex or Gemini 3 Pro. Your Cursor plan has GPT and Gemini models.');
   // On the board: running it counts most, a plan that reaches it counts too, saying nothing
   // counts nothing, and a plan that doesn't reach it counts against.
   const me = profile => ({ did: 'did:me', profile }), it = { closeness: 'mutual', author: { displayName: 'Tomás' }, value: opus };
@@ -176,6 +176,34 @@ test('the models an ask would like, against your plans and what you run', () => 
   assert.ok(ran > planned && planned > unsaid && unsaid > missed, [ran, planned, unsaid, missed].join(' '));
   assert.equal(fit(it, me({ plans: ['claude-pro'] })).why, 'Tomás is a mutual. It’d like Opus or Sonnet, and your Claude Pro plan has Claude models.');
   assert.equal(fit(it, me({ plans: ['chatgpt-pro'] })).why, 'Tomás is a mutual. Heads up: they’d like Opus or Sonnet, which isn’t in your plan or setup.');
+});
+
+test('an ask says a model family and a level, not a model', () => {
+  const ask = (families, level) => ({ wants: { families, level } });
+  assert.equal(modelsText(ask()), 'Any model.');
+  assert.equal(modelsText(ask([], 'frontier')), 'A frontier model.');
+  assert.equal(modelsText(ask(['claude', 'gpt'])), 'Claude or GPT.');
+  assert.equal(modelsText(ask(['claude'], 'frontier')), 'A frontier Claude model.');
+  assert.equal(wantsShort(ask(['glm'], 'frontier')), 'wants a frontier GLM model');
+  assert.equal(wantsShort(ask()), '');
+  // Against yours: a model you run from one of the families (how capable it is is yours to judge),
+  // then a plan that reaches one, then a miss. "Any model" isn't judged at all.
+  const sonnet = { setups: [{ harness: 'claude-code', models: ['claude-sonnet-5-5'] }], plans: ['claude-pro'] };
+  assert.equal(modelsText(ask(['claude'], 'frontier'), sonnet), 'A frontier Claude model. You run Sonnet.');
+  assert.equal(modelsText(ask(['gpt', 'claude']), { plans: ['claude-max'] }), 'GPT or Claude. Your Claude Max plan has Claude models.');
+  assert.equal(modelsText(ask(['glm']), sonnet), 'GLM. Not in your plan or setup.');
+  assert.equal(modelsText(ask(['qwen']), { setups: [{ harness: 'opencode', models: ['qwen3-coder'] }] }), 'Qwen. You run Qwen3 Coder.');
+  assert.equal(modelsText(ask([], 'frontier'), sonnet), 'A frontier model.');
+  // A family nobody knows is kept as written, and only a model you run of that name matches it.
+  assert.equal(modelsText(ask(['llama']), sonnet), 'Llama. Not in your plan or setup.');
+  // On the board.
+  const it = { closeness: 'mutual', author: { displayName: 'Tomás' }, value: ask(['claude'], 'frontier') };
+  assert.equal(fit(it, { did: 'did:me', profile: sonnet }).why, 'Tomás is a mutual. It’d like a frontier Claude model, and you run Sonnet.');
+  assert.equal(fit(it, { did: 'did:me', profile: { plans: ['copilot'] } }).why, 'Tomás is a mutual. It’d like a frontier Claude model, and your GitHub Copilot plan has Claude models.');
+  // What's written: known families and any others as tags, and a level only if it's one there is.
+  const w = R.seed({ title: 't', wants: { families: ['Claude', 'claude', 'Llama 4'], level: 'frontier' } }).wants;
+  assert.deepEqual(w, { families: ['claude', 'llama-4'], level: 'frontier' });
+  assert.equal(R.seed({ title: 't', wants: { level: 'galaxy-brain' } }).wants, undefined);
 });
 
 test('AI plans: one line, from plans first and an older profile’s budget otherwise', () => {

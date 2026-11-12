@@ -1,7 +1,7 @@
 // Putting a helper's board in order: who they'd like to help first, what their setup can
 // do, and how close they are to whoever asked. Each item says why it's where it is: as
 // short reasons (for the CLI), and as a fit level with one plain sentence (for the apps).
-import { FEATURES, PLANS, PLAN_FAMILIES, FAMILY_NAMES, plansIn, familyOf, lowBudgetOf, labelOf, BUDGETS, modelName } from './ns.js';
+import { FEATURES, PLANS, PLAN_FAMILIES, plansIn, familyOf, familyName, lowBudgetOf, labelOf, BUDGETS, modelName } from './ns.js';
 
 const has = (a, v) => Array.isArray(a) && a.includes(v);
 const lower = a => (a || []).map(s => String(s).toLowerCase());
@@ -19,18 +19,41 @@ export function modelsOf(profile){
 // A wanted model matches one you have when either names the other ("opus" matches claude-opus-5-5).
 export const modelMatch = (want, have) => have.some(h => h === want || h.includes(want) || want.includes(h));
 /**
- * What someone brings to the models an ask would like (lower case):
- *   run    a wanted model they run (in a setup or their forecast), or null
- *   plan   else, a plan of theirs that reaches the family of one: { name, families: ['Claude'] }, or null
+ * What an ask would like, model-wise: { families, level, models }. An ask says families
+ * ('claude', 'gpt'…) and a level ('frontier', or null for any). An older one named models
+ * (`models`), and their families count as its families.
+ */
+export function wantedOf(sq){
+  const w = sq?.wants || {}, models = words(w.models, 64);
+  return { families: [...new Set([...words(w.families, 32), ...models.map(familyOf).filter(Boolean)])], level: w.level === 'frontier' ? 'frontier' : null, models };
+}
+// What someone else's record lists, as it's safe to show and to put in a brief: strings only, each
+// on one line and clipped, lower case. (A record can say anything: a string, numbers, line breaks.)
+const words = (a, max) => [...new Set((Array.isArray(a) ? a : []).filter(x => typeof x === 'string').map(x => x.replace(/\s+/g, ' ').trim().slice(0, max).toLowerCase()).filter(Boolean))].slice(0, 8);
+/** That in words, or '' for any model at all: "a frontier Claude model", "Claude or GPT", "Opus or Sonnet", "a frontier model". */
+export function wantPhrase(sq){
+  const { families, level, models } = wantedOf(sq);
+  if (models.length) return join(models.map(modelName), 'or');
+  if (!families.length) return level ? 'a frontier model' : '';
+  const names = join(families.map(familyName), 'or');
+  return level ? `a frontier ${names} model` : names;
+}
+/**
+ * What someone brings to what an ask would like (wantedOf):
+ *   run    a model they run that fits: the very one an older ask named, or one of a family it
+ *          would like ("Sonnet"), or null. How capable it is is theirs to judge.
+ *   exact  whether `run` is the very model asked for
+ *   plan   else, a plan of theirs that reaches one of the families: { name, families: ['Claude'] }, or null
  *   said   whether their profile says enough to tell: models they run, or a plan that reaches a family
  */
 export function modelReach(want, profile){
-  const have = modelsOf(profile), plans = plansIn(profile), fams = [...new Set(want.map(familyOf).filter(Boolean))];
-  const run = want.find(w => modelMatch(w, have)) || null;
-  const by = run ? null : plans.find(p => (PLAN_FAMILIES[p] || []).some(f => fams.includes(f)));
+  const have = modelsOf(profile), plans = plansIn(profile);
+  const exact = want.models.find(w => modelMatch(w, have)) || null;
+  const fits = exact ? null : have.find(h => want.families.includes(familyOf(h))) || null;
+  const by = exact || fits ? null : plans.find(p => (PLAN_FAMILIES[p] || []).some(f => want.families.includes(f)));
   return {
-    run,
-    plan: by ? { name: labelOf(PLANS, by), families: fams.filter(f => PLAN_FAMILIES[by].includes(f)).map(f => FAMILY_NAMES[f]) } : null,
+    run: exact || fits ? modelName(exact || fits) : null, exact: !!exact,
+    plan: by ? { name: labelOf(PLANS, by), families: want.families.filter(f => PLAN_FAMILIES[by].includes(f)).map(familyName) } : null,
     said: have.length > 0 || plans.some(p => PLAN_FAMILIES[p])
   };
 }
@@ -73,11 +96,11 @@ export function score(item, me, { priorities = FEATURES.priorities, values = FEA
     add('Shares ' + shared.slice(0, 3).join(', '), `cares about ${join(shared.slice(0, 3).map(pretty))} too`, has(pr, 'values-aligned') ? 'up' : 'match');
   }
 
-  // The models it'd like, against what you run and the plans you have.
-  const want = lower(sq.wants?.models), reach = want.length ? modelReach(want, mine) : null;
-  if (reach?.run) { s += 2; add(`Wants ${short(reach.run)}: you have it`, `It’d like ${modelName(reach.run)}, which you have`, 'match', 'job'); }
-  else if (reach?.plan) { s += 1; add(`Wants ${want.map(short).join(' or ')}: your ${reach.plan.name} has ${join(reach.plan.families)} models`, `It’d like ${join(want.map(modelName), 'or')}, and your ${reach.plan.name} plan has ${join(reach.plan.families)} models`, 'match', 'job'); }
-  else if (reach?.said) { s -= 2; add(`Wants ${want.map(short).join(' or ')}`, `they’d like ${join(want.map(modelName), 'or')}, which isn’t in your plan or setup`, 'down', 'job'); }
+  // The models it'd like (families, or an older ask's models), against what you run and your plans.
+  const want = wantedOf(sq), phrase = wantPhrase(sq), reach = want.families.length ? modelReach(want, mine) : null;
+  if (reach?.run) { s += 2; add(`Wants ${phrase}: you run ${reach.run}`, reach.exact ? `It’d like ${phrase}, which you have` : `It’d like ${phrase}, and you run ${reach.run}`, 'match', 'job'); }
+  else if (reach?.plan) { s += 1; add(`Wants ${phrase}: your ${reach.plan.name} has ${join(reach.plan.families)} models`, `It’d like ${phrase}, and your ${reach.plan.name} plan has ${join(reach.plan.families)} models`, 'match', 'job'); }
+  else if (reach?.said) { s -= 2; add(`Wants ${phrase}`, `they’d like ${phrase}, which isn’t in your plan or setup`, 'down', 'job'); }
   const skills = lower(mine.offering), fits = lower(sq.tags).filter(t => skills.includes(t));
   if (fits.length) { s += Math.min(fits.length, 2); add('Your kind of work: ' + fits.slice(0, 2).join(', '), `It’s ${join(fits.slice(0, 2))}, your kind of work`, 'match', 'job'); }
 

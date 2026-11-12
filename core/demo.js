@@ -47,7 +47,7 @@ const SEEDS = [
     title: 'Add a --json flag to tidepool status', stage: 'established',
     subject: { $type: sq('tangledIssue'), url: 'https://tangled.org/tomas.example/tidepool/issues/31', repoUrl: 'https://tangled.org/tomas.example/tidepool' },
     spec: 'Scripts keep scraping the human output. A `--json` flag should print one object per peer: `{ "peer", "lastSync", "pending" }`.\n\nKeep the human output byte-for-byte identical.',
-    wants: { models: ['claude-opus-5-5', 'claude-sonnet-5-5'], tests: 'required', maxDiffLines: 200 },
+    wants: { families: ['claude'], level: 'frontier', tests: 'required', maxDiffLines: 200 },
     tags: ['rust', 'cli'], values: ['local-first'], size: 'small', audience: { $type: sq('following') } } },
   { id: '3sq-amara', by: 'did:example:amara', at: 3 * day, value: {
     title: 'Export volunteer shifts to a calendar file', stage: 'young',
@@ -64,7 +64,7 @@ const SEEDS = [
     title: 'Dark mode for the carbon calculator', stage: 'young',
     subject: { $type: sq('repo'), url: 'https://github.com/example/footprint', forge: 'github', name: 'example/footprint' },
     spec: 'The calculator is unreadable at night. Respect `prefers-color-scheme`, and add a toggle that remembers the choice.\n\nThe charts use hard-coded colours in `charts.js`: those need tokens too.',
-    wants: { models: ['claude-sonnet-5-5'], tests: 'none', maxDiffLines: 400 },
+    wants: { families: ['claude', 'gpt'], tests: 'none', maxDiffLines: 400 },
     tags: ['css', 'javascript'], values: ['climate'], size: 'small', audience: { $type: sq('mutuals') } } },
   { id: '3sq-mo', by: 'did:example:mo', at: 30 * 3600e3, private: true, value: {
     title: 'Import our reading list from a Goodreads export', stage: 'seedling',
