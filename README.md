@@ -299,12 +299,13 @@ seed or a plant.
 
 | What people read | What it means | Drawn as | In the record |
 | --- | --- | --- | --- |
-| **Idea** | Nothing's been built yet. | a seed | no `subject` |
+| **Idea** | Nothing's been built yet. | a seed, sown: a marker in the soil | no `subject` |
 | **Project**, just started | There's a repo and a first sketch. | a seedling | `stage: seedling` |
 | **Project**, taking shape | It works, and it's still changing. | a young plant | `stage: young` |
 | **Project**, established | People use it and rely on it. | an established plant | `stage: established` |
 
-Each has a small 3D model (`src/plants/models.js`): a seed lying in a mound of soil, a stem
+Each has a small 3D model (`src/plants/models.js`): a mound of soil with a marker where the
+seed was sown (the seed itself is under the soil), a stem
 with its first two leaves, a stem with leaves up it, and several stems in flower. They share
 one mound and one framing, so how big each stands says how far along it is.
 
@@ -313,7 +314,8 @@ its own kind of plant, picked from its record's address (`plantKind` in `ui/bits
 it's the same plant for everyone who sees it, wherever it shows. A kind decides the outline
 of its leaves (oval, heart, lance, round, lobed or ruffled), their markings and green, whether
 they come singly, in pairs or in threes, how tall it stands and which way it leans, the colour
-and petals of its flowers, which seed it started as, and the pebbles in its soil. A kind keeps
+and petals of its flowers (the colour on its marker while it's still an idea), which seed it
+started as (a seedling may still wear the coat), and the pebbles in its soil. A kind keeps
 all of that as it grows, so the seedling an idea becomes is recognisably the same plant when
 it's established. Kind 0 is the plant as first drawn, and it's what the steps of asking show.
 
@@ -323,7 +325,8 @@ shows), and that's what shows on cards, lists, gardens and the first step of ask
 ask's own page and in the preview beside those steps the model itself turns slowly, the same
 kind as its picture, drawn by one shared renderer that loads only when a plant is on screen
 (`src/plants/live.js`); without WebGL, or with reduced motion on, the picture stays.
-`npm run plants` takes the pictures again after a model changes, and `src/plants/sheet.html`
+`npm run plants` takes the pictures again after a model changes (`npm run plants -- seed`
+for one stage only, so the others aren't rewritten), and `src/plants/sheet.html`
 on the dev server shows every kind turning, side by side.
 
 ## What you've helped with

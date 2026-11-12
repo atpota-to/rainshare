@@ -25,12 +25,16 @@ try {
   await page.waitForFunction(() => window.plantsReady, null, { timeout: 30000 });
   const stills = await page.evaluate(size => window.plantStills(size), SIZE);
   await mkdir(root + 'public/plants', { recursive: true });
-  let total = 0;
+  let total = 0, written = 0;
+  // Stages named on the command line are the only ones written (npm run plants -- seed), so a
+  // change to one model doesn't rewrite every other picture byte for byte differently.
+  const only = process.argv.slice(2).filter(a => !a.startsWith('-'));
   for (const [file, url] of Object.entries(stills)) {
+    if (only.length && !only.some(st => file === st + '.webp' || file.startsWith(st + '-'))) continue;
     const bytes = Buffer.from(url.split(',')[1], 'base64');
     await writeFile(`${root}public/plants/${file}`, bytes);
-    total += bytes.length;
+    total += bytes.length; written++;
     console.log(`public/plants/${file}  ${(bytes.length / 1024).toFixed(1)} KB`);
   }
-  console.log(`${Object.keys(stills).length} pictures, ${(total / 1024).toFixed(0)} KB in all`);
+  console.log(`${written} pictures, ${(total / 1024).toFixed(0)} KB in all`);
 } finally { await browser.close(); await server.close(); }
