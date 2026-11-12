@@ -23,6 +23,8 @@ const fonts = () => fontsP ||= Promise.all([500, 700, 900].flatMap(weight => ['l
 }))).then(list => list.filter(Boolean));
 const dataUrl = (buf, type) => buf ? `data:${type};base64,${Buffer.from(buf).toString('base64')}` : null;
 const plant = async name => /^[a-z]+(-\d{1,2})?$/.test(String(name || '')) ? dataUrl(await file(`plants/${name}.jpg`), 'image/jpeg') : null;
+let logoP;
+const logo = () => logoP ||= file('logo.png').then(buf => dataUrl(buf, 'image/png'));
 // Someone's picture, from Bluesky's image host only, as a JPEG small enough for where it's shown.
 async function avatar(url, small){
   if (typeof url !== 'string' || !url.startsWith('https://cdn.bsky.app/img/avatar/')) return null;
@@ -39,8 +41,8 @@ async function avatar(url, small){
 export async function render(query){
   const page = await describe(query);
   if (!page.card) return null;
-  const c = page.card, [plantSrc, avatarSrc, fontList] = await Promise.all([plant(c.plant), avatar(c.person?.avatar, c.type === 'seed'), fonts()]);
-  const tree = cardFor(c, { plant: plantSrc, avatar: avatarSrc });
+  const c = page.card, [plantSrc, avatarSrc, logoSrc, fontList] = await Promise.all([plant(c.plant), avatar(c.person?.avatar, c.type === 'seed'), logo(), fonts()]);
+  const tree = cardFor(c, { plant: plantSrc, avatar: avatarSrc, logo: logoSrc });
   if (!tree || !fontList.length) return null;
   const image = new ImageResponse(tree, { width: WIDTH, height: HEIGHT, fonts: fontList, emoji: 'twemoji' });
   return Buffer.from(await image.arrayBuffer());

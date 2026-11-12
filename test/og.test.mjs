@@ -7,7 +7,7 @@ import { describe, clean, HOME, canonical } from '../api/_og/describe.js';
 import { cardFor } from '../api/_og/card.js';
 import { withTags } from '../api/page.js';
 import { SEED, PROFILE, SITE } from '../core/ns.js';
-import { readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const DID = 'did:plc:alice', HANDLE = 'alice.test';
@@ -148,4 +148,7 @@ test('every kind of card is drawn as a tree the renderer takes', () => {
 test('every plant picture has its copy for the cards', () => {
   const names = (dir, ext) => readdirSync(fileURLToPath(new URL(dir, import.meta.url))).filter(f => f.endsWith(ext)).map(f => f.slice(0, -ext.length)).sort();
   assert.deepEqual(names('../api/_og/plants/', '.jpg'), names('../public/plants/', '.webp'), 'run npm run plants:og after taking new pictures');
+  // …and the logo on a card is the site's own picture of it.
+  const bytes = f => readFileSync(fileURLToPath(new URL(f, import.meta.url)));
+  assert.ok(bytes('../api/_og/logo.png').equals(bytes('../public/logo.png')), 'run npm run logo after changing the logo');
 });

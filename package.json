@@ -12,7 +12,7 @@
     "test": "node --test test/*.test.mjs",
     "plants": "node scripts/render-plants.mjs && node scripts/og-plants.mjs",
     "plants:og": "node scripts/og-plants.mjs",
-    "logo": "node scripts/render-logo.mjs"
+    "logo": "node scripts/render-logo.mjs && node -e \"require('fs').copyFileSync('public/logo.png', 'api/_og/logo.png')\""
   },
   "dependencies": {
     "@atproto/oauth-client-browser": "0.5.10",

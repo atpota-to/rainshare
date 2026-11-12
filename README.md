@@ -705,7 +705,8 @@ asks only two fixed hosts, Slingshot for the records and Bluesky's AppView for n
 pictures, within 2.5 seconds: never the servers an address points at. Anything missing,
 invalid or slow gets the home page's card, and an ask that's for some people only says
 nothing in its preview. The renderer can't read WebP, so every plant picture has a small JPEG
-copy on white (`api/_og/plants`, made by `npm run plants`, or `npm run plants:og` alone).
+copy on white (`api/_og/plants`, made by `npm run plants`, or `npm run plants:og` alone), and
+the logo on a card is a copy of the header's picture of it (`npm run logo` makes both).
 `@vercel/og` is pinned to 0.11.1: 1.0.3 doesn't load in Node as an ES module.
 
 ## What's been checked, and what hasn't

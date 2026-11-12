@@ -13,7 +13,8 @@ const col = (style, ...kids) => h('div', { display: 'flex', flexDirection: 'colu
 const text = (style, s) => h('div', { display: 'block', ...style }, String(s));
 const img = (src, size, style = {}) => ({ type: 'img', props: { src, width: size, height: size, style } });
 
-// The logo's drop and spark (index.html's), and the name with its "ai" lit.
+// The logo and the name with its "ai" lit. The logo is the site's own picture of it (public/logo.png,
+// copied beside this by `npm run logo`); without it, the flat drop and spark it was drawn from.
 const drop = size => ({ type: 'svg', props: { viewBox: '0 0 32 32', width: size, height: size, children: [
   { type: 'path', props: { d: 'M16 3.5c4.6 5.9 8.6 10.6 8.6 15.2a8.6 8.6 0 0 1-17.2 0c0-4.6 4-9.3 8.6-15.2z', fill: C.accent } },
   { type: 'path', props: { d: 'M24.5 4l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z', fill: '#F2A63B' } }
@@ -22,7 +23,7 @@ const lit = (s, style) => {
   const parts = String(s).split(/(?<=\b[Rr])(ai)(?=n)/);
   return row({ ...style, alignItems: 'baseline' }, parts.map((p, i) => h('span', i % 2 ? { color: C.accent } : {}, p.replace(/ /g, ' '))));
 };
-const wordmark = () => row({ gap: 14 }, drop(52), lit('Rainshare', { fontSize: 42, fontWeight: 900, color: C.ink, letterSpacing: '-0.01em' }));
+const wordmark = logo => row({ gap: 10 }, logo ? img(logo, 64) : drop(52), lit('Rainshare', { fontSize: 42, fontWeight: 900, color: C.ink, letterSpacing: '-0.01em' }));
 const pill = (label, { bg = C.accentSoft, color = C.accentText } = {}) => text({ padding: '10px 22px', borderRadius: 999, backgroundColor: bg, color, fontSize: 26, fontWeight: 700 }, label);
 const pitch = () => col({ alignItems: 'flex-end', gap: 2 },
   lit('Got rain to spare?', { fontSize: 28, fontWeight: 700, color: C.ink }),
@@ -43,10 +44,10 @@ const tile = (src, size = 296) => h('div', { display: 'flex', alignItems: 'cente
 const frame = (...kids) => col({ width: WIDTH, height: HEIGHT, padding: '52px 64px 50px', justifyContent: 'space-between', backgroundColor: '#EEF3FF', backgroundImage: 'linear-gradient(180deg, #D3E2FF 0%, #EAF0FF 46%, #F5F8FF 100%)', fontFamily: 'Zen Maru Gothic', color: C.ink }, ...kids);
 const sized = (s, steps) => { const n = [...String(s)].length; return (steps.find(([max]) => n <= max) || steps[steps.length - 1])[1]; };
 
-function seed(c, { plant, avatar }){
+function seed(c, { plant, avatar, logo }){
   const p = c.person || {}, state = c.state === 'done' ? pill('Done', { bg: C.okSoft, color: C.ok }) : c.state === 'closed' ? pill('Closed', { bg: C.quiet, color: C.muted }) : null;
   return frame(
-    row({ justifyContent: 'space-between' }, wordmark(), row({ gap: 12 }, pill(c.what), state)),
+    row({ justifyContent: 'space-between' }, wordmark(logo), row({ gap: 12 }, pill(c.what), state)),
     row({ gap: 48, justifyContent: 'space-between' },
       col({ flexGrow: 1, flexShrink: 1, flexBasis: 0, gap: 16 },
         text({ fontSize: sized(c.heading, [[28, 80], [52, 66], [84, 54], [999, 46]]), fontWeight: 900, letterSpacing: '-0.02em', lineHeight: 1.14, lineClamp: 3 }, c.heading),
@@ -59,10 +60,10 @@ function seed(c, { plant, avatar }){
           text({ fontSize: 24, fontWeight: 500, color: C.muted, lineClamp: 1, maxWidth: 560 }, c.state === 'open' ? (p.handle ? `@${p.handle} is asking for a hand` : 'is asking for a hand') : (p.handle ? `@${p.handle}` : 'on Rainshare')))),
       pitch()));
 }
-function person(c, { avatar }){
+function person(c, { avatar, logo }){
   const p = c.person || {};
   return frame(
-    row({ justifyContent: 'space-between' }, wordmark(), p.plan ? pill(`AI plan: ${p.plan}`) : null),
+    row({ justifyContent: 'space-between' }, wordmark(logo), p.plan ? pill(`AI plan: ${p.plan}`) : null),
     row({ gap: 52 }, face(p, avatar, 216),
       col({ flexGrow: 1, flexShrink: 1, flexBasis: 0, gap: 10 },
         text({ fontSize: sized(p.name, [[16, 84], [26, 68], [999, 54]]), fontWeight: 900, letterSpacing: '-0.02em', lineHeight: 1.12, lineClamp: 2 }, p.name || 'Someone'),
@@ -70,9 +71,9 @@ function person(c, { avatar }){
         p.bio ? text({ fontSize: 28, fontWeight: 500, color: C.muted, lineHeight: 1.36, lineClamp: 3, marginTop: 6 }, p.bio) : null)),
     row({ justifyContent: 'space-between', gap: 32 }, text({ fontSize: 26, fontWeight: 500, color: C.muted }, 'Ideas, projects and a garden of what they’ve helped with'), pitch()));
 }
-function page(c, { plant }){
+function page(c, { plant, logo }){
   return frame(
-    row({ justifyContent: 'space-between' }, wordmark(), pill('Early alpha')),
+    row({ justifyContent: 'space-between' }, wordmark(logo), pill('Early alpha')),
     row({ gap: 48, justifyContent: 'space-between' },
       col({ flexGrow: 1, flexShrink: 1, flexBasis: 0, gap: 18 },
         text({ fontSize: sized(c.heading, [[18, 88], [30, 72], [999, 58]]), fontWeight: 900, letterSpacing: '-0.02em', lineHeight: 1.1, lineClamp: 2 }, c.heading),
