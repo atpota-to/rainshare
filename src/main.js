@@ -12,6 +12,7 @@ import { createRainshare } from '../ui/rainshare.js';
 import { createSource } from '../core/source.js';
 import { createDemoSource } from '../core/demo.js';
 import { BOARD, GROUPS } from '../core/ns.js';
+import { closeTo } from '../core/route.js';
 import { profiles } from '../core/net.js';
 // The spaces alpha's plumbing (credentials, signed reads, writes into a space) and the group
 // host's methods, for private seeds.
@@ -28,6 +29,9 @@ const store = {
 };
 
 let session = null, me = null, ready = false;
+// Someone with no sign-in to restore and none coming back: there's nothing to wait for, so the
+// landing and the sign-in button show at once, rather than after the sign-in code has loaded.
+const visitor = !oauth.mightBeSignedIn() && !oauth.isCallback();
 let forges = [];   // the forges this sign-in lets Rainshare post to for you (knotless, tangled): see ./scope.js
 const EXAMPLE = '/example';
 const isExample = p => p === EXAMPLE || p.startsWith(EXAMPLE + '/');
@@ -43,9 +47,12 @@ function toast(msg){
 /* ---------- the two circles ---------- */
 const host = kind => ({
   brand: 'rainshare',
+  // Nobody to restore and nobody coming back from signing in: the screens needn't wait to say hello.
+  visitor: kind === 'real' && visitor,
   navigate,
   toast,
-  onTitle: t => { document.title = t ? `${t} · Rainshare` : 'Rainshare'; },
+  // Only the circle on screen names the page: the other one goes on loading behind it.
+  onTitle: t => { if (kind === (isExample(location.pathname) ? 'example' : 'real')) document.title = t ? `${t} · Rainshare` : 'Rainshare'; },
   // The 3D plants are drawn on demand: the models and three.js load only when one is on screen,
   // and until then (or if WebGL isn't to be had) the picture underneath, of the same kind, is what shows.
   plant3d(canvas, stage, kind){
@@ -55,6 +62,9 @@ const host = kind => ({
   },
   // The query comes along, so a link an agent handed back still has its pull request after signing in.
   signIn: kind === 'real' ? (handle, sub) => oauth.signIn(handle, '/' + (sub || '') + location.search) : null,
+  // The landing has its own sign-in form at the top of the page. While it's showing, that's the
+  // one a "Sign in" further down leads to, rather than a second form under the scene.
+  signInHere: kind === 'real' ? () => { if ($('#landing').hidden) return false; focusSignIn(); return true; } : null,
   // Posting to knotless or Tangled for you (an issue, a comment, a pull request, a vouch) is
   // asked for at sign-in. A sign-in that was granted less, or one from before Rainshare asked,
   // can add a forge: your server shows what's being added, and you come back to where you were.
@@ -108,9 +118,12 @@ function sourceNow(){
 /* ---------- moving around ---------- */
 function route(){
   const path = location.pathname, kind = isExample(path) ? 'example' : 'real', sub = subOf(path);
+  // A slip of the keys on the way to the example circle still gets there.
+  const [head, ...rest] = sub.split('/'), h = head.toLowerCase();
+  if (kind === 'real' && head && (h === 'example' || ['examples', 'demo'].includes(h) || closeTo(h, 'example'))) return navigate([EXAMPLE, ...rest].join('/'), { replace: true });
   $('#example').hidden = kind !== 'example';
   $('#circle').hidden = kind !== 'real';
-  const landing = ready && kind === 'real' && !session && !sub;
+  const landing = (ready || visitor) && kind === 'real' && !session && !sub;
   $('#landing').hidden = !landing;
   // The example circle is reached from the landing. Its tab shows only while you're in it,
   // so every one of its pages says where you are.
@@ -134,7 +147,7 @@ document.addEventListener('click', e => {
 /* ---------- you ---------- */
 function renderMe(){
   const box = $('#rdMe');
-  if (!ready) { box.innerHTML = ''; return; }
+  if (!ready && !visitor) { box.innerHTML = ''; return; }
   if (!session) { box.innerHTML = `<a class="rd-btn" href="/" data-nav data-signin>Sign in</a>`; return; }
   const p = me || { did: session.did };
   const img = p.avatar ? `<img src="${esc(p.avatar)}" alt="" referrerpolicy="no-referrer">` : esc((p.displayName || p.handle || '?')[0].toUpperCase());
@@ -154,10 +167,15 @@ $('#rdSignIn').addEventListener('submit', async e => {
   try { await oauth.signIn(handle, '/'); }
   catch (x) { console.warn(x); err.hidden = false; err.textContent = /resolve|not found|handle/i.test(String(x?.message)) ? 'We couldn’t find that handle. Check the spelling.' : 'Your server didn’t let us start signing in. Try again in a moment.'; btn.disabled = false; btn.textContent = 'Sign in with your handle'; }
 });
+function focusSignIn(){
+  scrollTo({ top: 0, behavior: 'smooth' });
+  $('#rdSignIn input')?.focus({ preventScroll: true });
+}
 document.addEventListener('click', e => { if (e.target.closest('[data-signin]') && $('#rdSignIn')) setTimeout(() => $('#rdSignIn input')?.focus(), 50); });
 
 /* ---------- boot ---------- */
 async function boot(){
+  renderMe();
   // The logo starts moving: until now it was a picture of itself.
   try { mountLogo($('#rdLogo'), { touch: $('.rd-logo') }); } catch (e) { console.warn('The logo stays a picture', e); }
   route();
@@ -173,7 +191,7 @@ async function boot(){
   ready = true;
   renderMe();
   route();
+  // (Handing over the source shows the screen the address points at: there's nothing left to route.)
   await app('real').setSource(sourceNow());
-  route();
 }
 boot();

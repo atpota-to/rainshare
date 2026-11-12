@@ -118,6 +118,24 @@ night, through its loop.
 The site is set in one typeface, Zen Maru Gothic, the same one atmosphere.online uses
 (`--body` in `src/theme.css`).
 
+**While it loads.** The board, an ask's page, a person's page, your profile and a garden
+each show placeholders laid out like the real thing (`ui/skeleton.js`): the same cards, rows
+and pictures, built from the real screens' own classes so nothing moves when it arrives, with
+one band of light passing over all of them. When a part arrives its placeholders dissolve
+where they stood and the content rises in under them, a card at a time (`paint` in
+`ui/rainshare.js`); pages are often drawn again a moment later, so what's under way carries
+on from where it was rather than starting over. With reduced motion on it's a plain swap.
+
+**Arriving by a link.** Signed out, an ask's page and a person's page say in a line what
+Rainshare is, with the way to the landing, since someone who followed a link hasn't seen it.
+A visitor with no sign-in to restore gets the landing and the sign-in button at once.
+
+**Wrong addresses** (`core/route.js`). Where it's clear what was meant, the app goes there:
+a link that picked up the full stop after it, a capital, an ask's link cut short (it leads to
+whoever asked), `/someone.example/<key>`, `/@handle`, an `at://` address, `/ask`, `/agnets`,
+`/exmaple`. Where it isn't, the page says nothing is there and offers the board. An ask
+that's gone offers whoever asked.
+
 ## The records
 
 Everything is a record in its owner's own account, under `dev.rainshare.*` (rainshare.dev is
@@ -215,6 +233,24 @@ relaunch (`sh.tangled.graph.follow`) aren't read.
 `dev.rainshare.*` records (`com.atproto.sync.listReposByCollection`), and the records come from
 each person's own PDS. Your own writes are layered over that until the relay catches up.
 
+That makes the board a reading of the network, done in your browser each time, rather than an
+index kept somewhere (`core/source.js`). Three questions go to a relay (who has asks, who has
+takes, who has deliveries); each of those people's servers is asked for their records, six at
+a time, after their DID document says where it is; then Bluesky's AppView gives names,
+pictures and who follows whom, and each asker's server gives their Rainshare profile. It's as
+many requests as there are people taking part, which is fine while that's dozens and is the
+thing to replace with an index of our own if it becomes thousands. Two things keep it quick
+meanwhile (`core/net.js`). A relay that hasn't answered in 2.5 seconds gets company: the next
+one is asked as well, and whichever answers first is used (each is given 8 seconds, as is
+each person's server). And one ask's page doesn't read everyone's takes and deliveries to
+find its own: [Constellation](https://constellation.microcosm.blue), microcosm.blue's index
+of which records link to what, names the ones that point at it (`backlinks`), and each is
+then read from its owner's server and dropped unless it does point back. If the board read
+everyone's a moment ago, that's used; if Constellation doesn't answer, it's the long way
+round. [Slingshot](https://slingshot.microcosm.blue), its cache of records, is used only
+where a server of ours has to look something up (link previews, below); the app itself reads
+records from the servers they live on.
+
 **Ranking** (`core/rank.js`) puts first who could use the help (no paid AI plan), then what you can
 bring (a wanted model you run or your plan reaches, tags that match the work you take on), then
 closeness. (While who you'd like to help first, what you care about and the asker's situation are
@@ -283,12 +319,13 @@ seed or a plant.
 
 | What people read | What it means | Drawn as | In the record |
 | --- | --- | --- | --- |
-| **Idea** | Nothing's been built yet. | a seed | no `subject` |
+| **Idea** | Nothing's been built yet. | a seed, sown: a marker in the soil | no `subject` |
 | **Project**, just started | There's a repo and a first sketch. | a seedling | `stage: seedling` |
 | **Project**, taking shape | It works, and it's still changing. | a young plant | `stage: young` |
 | **Project**, established | People use it and rely on it. | an established plant | `stage: established` |
 
-Each has a small 3D model (`src/plants/models.js`): a seed lying in a mound of soil, a stem
+Each has a small 3D model (`src/plants/models.js`): a mound of soil with a marker where the
+seed was sown (the seed itself is under the soil), a stem
 with its first two leaves, a stem with leaves up it, and several stems in flower. They share
 one mound and one framing, so how big each stands says how far along it is.
 
@@ -297,7 +334,8 @@ its own kind of plant, picked from its record's address (`plantKind` in `ui/bits
 it's the same plant for everyone who sees it, wherever it shows. A kind decides the outline
 of its leaves (oval, heart, lance, round, lobed or ruffled), their markings and green, whether
 they come singly, in pairs or in threes, how tall it stands and which way it leans, the colour
-and petals of its flowers, which seed it started as, and the pebbles in its soil. A kind keeps
+and petals of its flowers (the colour on its marker while it's still an idea), which seed it
+started as (a seedling may still wear the coat), and the pebbles in its soil. A kind keeps
 all of that as it grows, so the seedling an idea becomes is recognisably the same plant when
 it's established. Kind 0 is the plant as first drawn, and it's what the steps of asking show.
 
@@ -307,14 +345,15 @@ shows), and that's what shows on cards, lists, gardens and the first step of ask
 ask's own page and in the preview beside those steps the model itself turns slowly, the same
 kind as its picture, drawn by one shared renderer that loads only when a plant is on screen
 (`src/plants/live.js`); without WebGL, or with reduced motion on, the picture stays.
-`npm run plants` takes the pictures again after a model changes, and `src/plants/sheet.html`
+`npm run plants` takes the pictures again after a model changes (`npm run plants -- seed`
+for one stage only, so the others aren't rewritten), and `src/plants/sheet.html`
 on the dev server shows every kind turning, side by side.
 
 ## What you've helped with
 
 Helping doesn't earn credits. It grows a garden instead: one plant on your profile for
 each idea or project that got done with your work, drawn as what it grew into, and each one
-opens the ask it came from. Your board says how many ("Helped with 2"), beside your AI plan.
+opens the ask it came from. Your board says how many ("Helped with 2").
 
 It's worked out, not stored (`core/garden.js`). A helper's delivery says what they worked on,
 and the asker's own record names the delivery that did it, so a garden needs both
@@ -469,6 +508,9 @@ order: check, take, do the work, open the pull request with the seed's link in i
 turn it in, and tell its user what's left. Without a sign-in the read-only tools still work, and
 the agent is told to finish the work and hand its user the link instead.
 
+(Until the domain is live, the file is at `https://rainshare.vercel.app/rainshare.mjs`: the
+site's Agents page and the briefs print whichever address is current.)
+
 Both sign in with an app password (saved to `~/.config/rainshare`, or from `RAINSHARE_HANDLE`
 and `RAINSHARE_APP_PASSWORD`), and reach public seeds only for now: private ones are taken on
 in the app.
@@ -545,6 +587,8 @@ take on only what you'd be happy to ask for yourself.
 | `src/oauth.js`, `src/scope.js` | Signing in, and the OAuth scope and client metadata: what's asked for up front, and the steps down if a server refuses |
 | `src/spaces.js` | Private seeds: reading and writing a group's space, and the group host's methods |
 | `api/oauth-client-metadata.js` | The OAuth client document, served at `/oauth-client-metadata.json` |
+| `api/page.js`, `api/og.js`, `api/_og/` | Link previews: the page with its tags set for the address asked for, and its picture. `describe.js` is what each says, `card.js` how the picture is laid out; with the fonts and the plants' JPEG copies they're drawn with |
+| `scripts/og-plants.mjs` | `npm run plants:og`: the plant pictures again as JPEGs, for the preview cards |
 | `lexicons/dev/rainshare/` | The four record types and their shared defs. `publish.mjs` publishes them under rainshare.dev. |
 | `core/ns.js` | Collection names, and the words people see for every known value |
 | `core/records.js` | Building each record from what people type, within the lexicons' limits |
@@ -561,13 +605,15 @@ take on only what you'd be happy to ask for yourself.
 | `core/ties.js` | How you know someone: who follows whom on Bluesky and Tangled, who you follow that follows them, said in plain sentences, and narrowing the board by who asked |
 | `core/brief.js` | The agent brief, the link an agent hands back, and the one-paste launch commands |
 | `core/markdown.js` | A small, safe Markdown renderer for specs |
+| `core/route.js` | Addresses: which ones the app has, and what a mistyped or cut-short one was probably meant to be |
 | `core/source.js` | Rainshare over atproto: the board, a seed, profiles and every write, public and in group spaces |
 | `core/demo.js` | The example circle, answering the same calls from fixtures and your browser's storage |
 | `ui/rainshare.js`, `ui/rainshare.css` | The screens: the board (a list with the details beside it), a seed, your profile, someone's profile, agents |
 | `ui/post.js` | Asking for rain on an idea or a project: two steps (three with "Who's it for?"), a live preview and a confirmation |
+| `ui/skeleton.js` | What shows while something loads: placeholders laid out like the board, an ask's page, a person's page, your profile and a garden |
 | `ui/bits.js` | Small shared pieces: escaping, times, icons, faces, and the glyphs for a forecast's sky and a seed's life |
 | `cli/rainshare.mjs` | The CLI and MCP server |
-| `test/` | `npm test`: the core, the data source against a fake network, the MCP server, posting to the forges, vouching and follows against made-up ones, what other people's records can't do (`security.test.mjs`), and the plants: which kind each grows, that every picture is there, and that every kind fits its frame (`plants.test.mjs`, the models only once three.js is installed), and the logo: that it stays inside its square as it moves, that its loop closes, and that every picture of it is the one the drawing makes now (`logo.test.mjs`) |
+| `test/` | `npm test`: the core, the data source against a fake network, the MCP server, posting to the forges, vouching and follows against made-up ones, what other people's records can't do (`security.test.mjs`), and the plants: which kind each grows, that every picture is there, and that every kind fits its frame (`plants.test.mjs`, the models only once three.js is installed); the logo: that it stays inside its square as it moves, that its loop closes, and that every picture of it is the one the drawing makes now (`logo.test.mjs`); wrong addresses (`route.test.mjs`); and link previews against made-up hosts (`og.test.mjs`) |
 
 ## Security
 
@@ -589,6 +635,12 @@ read from the network is trusted, and each thing is checked where it's used:
 - **Terminals and agents.** Control characters (and the invisible marks that reorder text) are
   taken out of the brief and of everything the CLI and MCP server print, so a spec can't end a
   terminal's bracketed paste and type commands, or rewrite the screen or the clipboard.
+- **Servers of ours** (`api/`). The functions behind link previews act on whatever an address
+  says, so they ask only two fixed hosts and never follow the network to a server someone
+  names. What comes back is cleaned of control characters, cut to length, and escaped into
+  the page's tags; a record a cache hands back is believed only if it's the one asked for.
+- **Addresses** (`core/route.js`). A mistyped address is corrected only to a word from a
+  fixed list or to parts that are a DID, a handle or a record key.
 - **Blocks.** Takes and deliveries from people you block on Bluesky are left out along with their
   seeds, so nobody you've blocked can make something look taken.
 
@@ -625,13 +677,37 @@ reader's own fonts.
 It's a Vercel project on this repo (`vercel.json`):
 
 1. Import the repo with the framework preset Vite. The build command is `npm run build`.
-2. Add the domain `rainshare.dev`. `/oauth-client-metadata.json` serves the OAuth client for
-   whichever host the request came in on, so preview URLs can sign in too.
+2. Add the domain `rainshare.dev`, and set `RAINSHARE_SITE=https://rainshare.dev` in the
+   project's environment variables (for Production, and Preview if previews should name it
+   too), then redeploy. That one setting is where Rainshare lives (`SITE` in `core/ns.js`):
+   every link it writes starts there (an ask's page in a brief, the link an agent hands back
+   to turn work in, the link in a Bluesky post, the CLI's install line, `og:url`). The build
+   bakes it into the page, `index.html` and the CLI, and the functions read it as they run.
+   Until it's set, the address is the deployment's own, `https://rainshare.vercel.app`, so
+   nothing points at a domain that isn't there yet. Links written to the old address keep
+   working after the move wherever Rainshare reads one (a pull request that mentions an ask
+   is matched by its path, not its host), and Vercel can redirect the old host to the new.
+   `/oauth-client-metadata.json` serves the OAuth client for whichever host the request came
+   in on, so preview URLs can sign in too.
 3. Publish the lexicons: `node lexicons/publish.mjs` as the account that should own them, then
    add the `_lexicon.rainshare.dev` TXT record it prints.
 
-The link-preview image (`public/og.jpg`) is referenced at `https://rainshare.dev/og.jpg`, so
-previews show it once that domain is live.
+**Link previews.** The app is drawn in the browser and crawlers don't run scripts, so a
+link to an ask would show the home page's card. Two functions fix that. `api/page.js` serves
+the site's one page with the tags in its head set for the address asked for: `vercel.json`
+sends an ask's page, a person's page, `/agents` and the example circle through it, and the
+body isn't touched, so the app starts as it does from the plain file. `api/og.js` draws that
+page's picture, 1200 by 630, with `@vercel/og`: the site's sky and wordmark, an ask's title,
+what it is, its own plant and who's asking (with a "Done" mark once it is); a person's
+picture, name and bio; a card each for `/agents` and the example. The home page keeps
+`public/og.jpg`. The words and the picture come from one place (`api/_og/describe.js`), which
+asks only two fixed hosts, Slingshot for the records and Bluesky's AppView for names and
+pictures, within 2.5 seconds: never the servers an address points at. Anything missing,
+invalid or slow gets the home page's card, and an ask that's for some people only says
+nothing in its preview. The renderer can't read WebP, so every plant picture has a small JPEG
+copy on white (`api/_og/plants`, made by `npm run plants`, or `npm run plants:og` alone), and
+the logo on a card is a copy of the header's picture of it (`npm run logo` makes both).
+`@vercel/og` is pinned to 0.11.1: 1.0.3 doesn't load in Node as an ES module.
 
 ## What's been checked, and what hasn't
 
@@ -654,11 +730,19 @@ sideways scrolling, nothing past the edge of the phone sheet, and nothing blocke
 
 Not yet checked:
 
-- Signing in with a real account (asking for `atproto`, `repo:dev.rainshare.*` and what
-  posting to knotless and Tangled needs) and writing to a real PDS. Private seeds in a real group are off until the spaces alpha
-  settles; they depend on opensocial.fyi accepting a `dev.rainshare.board` space.
-- The signed-out board against the live relay and AppView from this repo. The code that reads
-  them is unchanged from the prototype, where it was checked.
+- Signing in with a real account, past the point where a password is typed, and writing to a
+  real PDS. Checked on 12 November 2026, from the dev server and from the deployment at
+  rainshare.vercel.app: typing a handle resolves it, bsky.social takes Rainshare's client
+  document and the whole list of permissions (`atproto`, `repo:dev.rainshare.*` and what
+  posting to knotless and Tangled needs) without refusing any, and shows its sign-in page; a
+  handle that doesn't exist says so. Private seeds in a real group are off until the spaces
+  alpha settles; they depend on opensocial.fyi accepting a `dev.rainshare.board` space.
+- Signed out, against the live network (12 November 2026): the board under the landing shows
+  the asks the relay knows of, with names and pictures from Bluesky; an ask's page opens by its
+  DID and by its handle; a person's page opens; and the deployment runs under its Content
+  Security Policy with nothing blocked. The CLI's `board`, `check` and `brief` were run the same
+  way, signed out. Not checked: a board with many asks on it, and what a slow relay feels like
+  (each relay is given 15 seconds before the next is tried).
 - GitHub's side of `look` (`core/status.js`) has only been run against made-up answers. Two
   things to watch when it meets GitHub: a browser that isn't signed in may ask 60 things an
   hour, after which the forge's side is left unknown rather than guessed; and matching by
@@ -691,9 +775,10 @@ Not yet checked:
   repo (the repo's own setting decides); whether knotless indexes a pull written without its
   own CLI; and `open-pr` with an app password, which leans on a server giving an app password
   a token for these calls.
-- Sign-in asking for everything up front has only been tested as a list of scopes, not
-  against a server. If a server refuses the longer list, the step down to a plain sign-in is
-  the thing to watch on the first real sign-in.
+- Sign-in asking for everything up front: bsky.social accepted the whole list when the sign-in
+  was started (see above). Not checked: how its consent screen words them, servers other than
+  Bluesky's, and the step down to a plain sign-in when a server refuses the longer list, which
+  is still the thing to watch on the first real sign-in elsewhere.
 - Tangled's vouches: the record's shape was checked against real ones on the network, and
   reading a circle and writing a vouch run against a made-up network in `test/vouch.test.mjs`
   and in the example circle. Not checked: reading a real circle from real servers (they
@@ -720,7 +805,7 @@ Not yet checked:
   following the title as it's typed, ending open to everyone; picking AI plans (a paid one
   clears "No AI plan" and the other way round) and saving them, with the set-aside forecast,
   priorities and budget still in the saved profile; "AI plan" first on profiles, "Their AI
-  plan" in the picked card, and your plan in the board's header; nothing set aside showing;
+  plan" in the picked card, and (then) your plan in the board's header; nothing set aside showing;
   "Models" as a family and a level (picked when asking, shown on asks, matched against plans
   and setups, and in the brief), and every switch turned back on (the tests pass both ways).
   Not done: publishing the profile lexicon with `plans` in it (`lexicons/publish.mjs`).
@@ -735,5 +820,26 @@ Not yet checked:
   a real delivery).
 - The CLI's `run` end to end with a real agent: starting it, finding the pull request with
   `gh` afterwards, and turning it in.
+- Before launch (12 November 2026), in a headless browser at 1280 and 390 pixels wide: a
+  pasted GitHub issue starting the next step off with its title and details, whether Next is
+  pressed after it's found or before; each page of the example circle keeping its own title
+  while the real board loads behind it; "Sign in to take it on" under the landing leading to
+  the landing's own form, with the phone sheet closed; and the signed-out "Ask for rain" and
+  profile screens, each with one sign-in button. The CLI's hints name the file as it was
+  started (`node ~/.rainshare.mjs …` where the install line puts it).
+- Later that day (12 November 2026). Checked in a headless browser, with the network held
+  back so the waiting state could be seen: the placeholders for the board, an ask's page and
+  a person's page at 1280 and 390 pixels wide, light and dark, the swap to the real thing
+  (and that a redraw a moment later doesn't cut it short), and sixteen wrong addresses, each
+  ending where it should or saying nothing is there. Link previews: both functions run on a
+  Vercel preview deployment, where an ask's page came back with its own title, description
+  and picture address, and the pictures for an ask and for `/agents` came back the same size
+  to the byte as they render locally (so the fonts, the plant and the asker's picture all
+  reached the function). One ask's page was read from the live network by way of
+  Constellation. Not checked: how Bluesky's or anyone's card service shows a preview (branch
+  deployments sit behind Vercel's sign-in, so that waits for production); a take or delivery
+  found through Constellation, since none exists on the network yet (that path has run only
+  against the made-up network in `test/source.test.mjs`); `RAINSHARE_SITE` set on Vercel;
+  and how the placeholders' light and the swap feel on a real phone.
 - How smoothly the scene runs on real phones and older laptops. It has only been run on a
   software renderer so far, which says it draws correctly and nothing about frame rate.

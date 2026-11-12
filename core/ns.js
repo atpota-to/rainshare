@@ -5,7 +5,17 @@ export const PROFILE = NS + '.profile', SEED = NS + '.seed', TAKE = NS + '.take'
 export const COLLECTIONS = [PROFILE, SEED, TAKE, DELIVERY];
 // The space type a group's Rainshare lives in (its private seeds, takes, deliveries and profiles).
 export const BOARD = NS + '.board';
-export const SITE = 'https://rainshare.dev';
+// Where Rainshare lives: every link it writes starts here (an ask's page in a brief, the link an
+// agent hands back, a Bluesky post, the CLI's install line, the link preview). It's the
+// deployment's own address until the real domain is live. To move it, set RAINSHARE_SITE where
+// the site is built and run (Vercel's environment variables), and nothing else changes: the
+// build bakes it into the page and the CLI (vite.config.js), and the functions in ../api read it
+// as they run. Links to the old address keep working wherever one is read (a pull request that
+// mentions an ask is matched by its path, not its host).
+export const DEFAULT_SITE = 'https://rainshare.vercel.app';
+const siteFrom = v => { try { const u = new URL(String(v || '')); return u.protocol === 'https:' || u.hostname === 'localhost' || u.hostname === '127.0.0.1' ? u.origin : ''; } catch (_) { return ''; } };
+/* global __RAINSHARE_SITE__ */
+export const SITE = siteFrom(typeof __RAINSHARE_SITE__ !== 'undefined' ? __RAINSHARE_SITE__ : typeof process !== 'undefined' ? process.env?.RAINSHARE_SITE : '') || DEFAULT_SITE;
 // How far along Rainshare itself is: the board note, the ask screen, the CLI and the MCP server
 // read it. index.html writes the word out by hand in the badge, the badge's title and the
 // landing line, so change those three with it.

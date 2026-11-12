@@ -7,6 +7,12 @@
 //   the graph    Bluesky's public AppView: relationships, profiles, lists
 export const APPVIEW = 'https://public.api.bsky.app';
 export const RELAYS = ['https://relay1.us-east.bsky.network', 'https://bsky.network'];
+// Constellation (microcosm.blue): an index of which records link to what, across the network.
+// It's asked who points at one seed, so nobody's server has to be searched to find out.
+export const CONSTELLATION = 'https://constellation.microcosm.blue';
+// How long each kind of server is given. A relay that's slow gets company rather than patience:
+// after RELAY_HEDGE the next one is asked as well, and whichever answers first is used.
+const RELAY_TIMEOUT = 8000, RELAY_HEDGE = 2500, PDS_TIMEOUT = 8000, INDEX_TIMEOUT = 4000;
 export const PLC = 'https://plc.directory';
 
 export class NetError extends Error {
@@ -29,7 +35,7 @@ export async function getJSON(url, { timeout = 15000, headers } = {}){
   } finally { if (t) clearTimeout(t); }
 }
 const q = params => new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '').flatMap(([k, v]) => Array.isArray(v) ? v.map(x => [k, x]) : [[k, v]])).toString();
-export const xrpc = (base, nsid, params = {}) => getJSON(`${base.replace(/\/+$/, '')}/xrpc/${nsid}?${q(params)}`);
+export const xrpc = (base, nsid, params = {}, opts) => getJSON(`${base.replace(/\/+$/, '')}/xrpc/${nsid}?${q(params)}`, opts);
 
 /* ---------- identity ---------- */
 const docs = new Map(), handles = new Map();
@@ -97,7 +103,7 @@ export async function listRecords(did, collection, { limit = 100, pages = 3 } = 
   const pds = await pdsOf(did), out = [];
   let cursor;
   for (let i = 0; i < pages; i++) {
-    const r = await xrpc(pds, 'com.atproto.repo.listRecords', { repo: did, collection, limit, cursor });
+    const r = await xrpc(pds, 'com.atproto.repo.listRecords', { repo: did, collection, limit, cursor }, { timeout: PDS_TIMEOUT });
     out.push(...(Array.isArray(r.records) ? r.records : []));
     cursor = r.cursor;
     if (!cursor || (r.records || []).length < limit) break;
@@ -111,7 +117,7 @@ export async function listRecords(did, collection, { limit = 100, pages = 3 } = 
 export async function getRecord(did, collection, rkey){
   if (!isDid(did) || !isRkey(rkey)) throw new NetError('RecordNotFound', 'No such record', 400);
   const pds = await pdsOf(did);
-  const r = await xrpc(pds, 'com.atproto.repo.getRecord', { repo: did, collection, rkey });
+  const r = await xrpc(pds, 'com.atproto.repo.getRecord', { repo: did, collection, rkey }, { timeout: PDS_TIMEOUT });
   const at = parseUri(r?.uri);
   if ((at && (at.repo !== did || at.collection !== collection || at.rkey !== rkey)) || !valueOf(r)) throw new NetError('RecordNotFound', 'No such record', 404);
   return { uri: recordUri(did, collection, rkey), cid: typeof r.cid === 'string' ? r.cid : null, repo: did, collection, rkey, value: r.value };
@@ -121,22 +127,52 @@ export async function getRecordOrNull(did, collection, rkey){
   catch (e) { if (e.status === 400 || e.status === 404 || e.name === 'RecordNotFound') return null; throw e; }
 }
 
+// The first answer, of several ways to ask the same thing. The next way is started when the
+// one before it fails, or hasn't answered after `wait` ms; it fails only if they all do.
+export function firstOf(ways, wait){
+  return new Promise((resolve, reject) => {
+    let i = 0, pending = 0, done = false, last, timer;
+    const start = () => {
+      clearTimeout(timer);
+      if (done || i >= ways.length) return;
+      const way = ways[i++]; pending++;
+      Promise.resolve().then(way).then(
+        v => { if (!done) { done = true; clearTimeout(timer); resolve(v); } },
+        e => { last = e; pending--; if (done) return; if (i < ways.length) start(); else if (!pending) { done = true; reject(last); } });
+      if (i < ways.length) timer = setTimeout(start, wait);
+    };
+    start();
+  });
+}
 /** Every repo the network has seen with a record in `collection`. */
-export async function reposWith(collection, { max = 2000 } = {}){
-  let last;
-  for (const relay of RELAYS) {
-    try {
-      const out = [];
-      let cursor;
-      do {
-        const r = await xrpc(relay, 'com.atproto.sync.listReposByCollection', { collection, limit: 500, cursor });
-        out.push(...(Array.isArray(r.repos) ? r.repos : []).map(x => x?.did).filter(isDid));
-        cursor = r.cursor;
-      } while (cursor && out.length < max);
-      return [...new Set(out)];
-    } catch (e) { last = e; }
-  }
-  throw last;
+export function reposWith(collection, { max = 2000 } = {}){
+  const from = async relay => {
+    const out = [];
+    let cursor;
+    do {
+      const r = await xrpc(relay, 'com.atproto.sync.listReposByCollection', { collection, limit: 500, cursor }, { timeout: RELAY_TIMEOUT });
+      out.push(...(Array.isArray(r.repos) ? r.repos : []).map(x => x?.did).filter(isDid));
+      cursor = r.cursor;
+    } while (cursor && out.length < max);
+    return [...new Set(out)];
+  };
+  return firstOf(RELAYS.map(relay => () => from(relay)), RELAY_HEDGE);
+}
+/**
+ * Which records of `collection` point at `subject` from the field at `path` ("seed.uri"), as
+ * [{ repo, rkey }]: Constellation's answer. It says where to look, not what's there: each
+ * record is still read from its owner's own server, and one that doesn't point back is dropped.
+ */
+export async function backlinks(subject, collection, path, { max = 300 } = {}){
+  const out = [];
+  let cursor;
+  do {
+    const r = await xrpc(CONSTELLATION, 'blue.microcosm.links.getBacklinks', { subject, source: `${collection}:${path}`, limit: 100, cursor }, { timeout: INDEX_TIMEOUT });
+    if (!Array.isArray(r?.records)) throw new NetError('BadAnswer', 'No list from ' + new URL(CONSTELLATION).host);
+    for (const x of r.records) if (isDid(x?.did) && x.collection === collection && isRkey(x.rkey)) out.push({ repo: x.did, rkey: x.rkey });
+    cursor = typeof r.cursor === 'string' && r.records.length ? r.cursor : null;
+  } while (cursor && out.length < max);
+  return [...new Map(out.map(x => [x.repo + ' ' + x.rkey, x])).values()];
 }
 
 /* ---------- the social graph (Bluesky) ---------- */

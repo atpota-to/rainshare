@@ -30,6 +30,8 @@ import { strongRef, HARNESS_NAMES } from '../core/records.js';
 import { resolveHandle, knownPerson, parseUri, profiles } from '../core/net.js';
 import { esc, lit, unb64url, ago, until, nameOf, firstName, ico, skyIco, lifeIco, lifeOf, face, drops, pathOf, plantPic, avatarFallback } from './bits.js';
 import { createPoster } from './post.js';
+import { headSk, boardSk, seedSk, personSk, gardenSk, meSk, listSk } from './skeleton.js';
+import { known, reroute } from '../core/route.js';
 
 export { pathOf };
 
@@ -56,6 +58,15 @@ export function createRainshare({ root, base = '/', host }){
 
   /* ---------- small pieces ---------- */
   const a = (sub, inner, cls = '') => `<a href="${esc(href(sub))}" data-rs-go="${esc(sub)}" class="${cls}">${inner}</a>`;
+  const back = () => a('', `${ico('back')}Back to the board`, 'rs-back');
+  // Nothing's at an address, or what was there is gone: said plainly, with the ways on from it.
+  const nothingHere = (what, more = '') => `${back()}<div class="rs-empty rs-need"><p>${what}</p><div class="rs-row">${a('', 'Go to the board', 'rs-btn rs-primary')}${more}</div></div>`;
+  // Someone who followed a link here from somewhere else hasn't seen the landing. Signed out,
+  // an ask's page and a person's page say in a line what this place is, with the way to the rest.
+  // (Before the page knows who's looking, the host says whether there's a sign-in to wait for.)
+  const newHere = (more = '') => (S.source ? signedIn() || S.source.demo : !host.visitor) ? '' : `<aside class="rs-note rs-newhere">${ico('drop')}<span><b>${lit('New to Rainshare?')}</b> People ask for a hand with an idea or a project, and friends send their own AI agent to do it, on their own plan.${more ? ' ' + esc(more) : ''}</span>${host.brand === 'rainshare' ? a('', 'How it works', 'rs-link') : ''}</aside>`;
+  // A screen that's only for someone signed in says so once, with the way in beside it.
+  const needSignIn = what => `${a('', `${ico('back')}Back to the board`, 'rs-back')}<div class="rs-empty rs-need"><p>${what}</p>${host.signIn ? '<button class="rs-btn rs-primary" type="button" data-rs-act="signin">Sign in</button>' : ''}</div>`;
   const seg = (name, opts, value) => `<div class="rs-seg" role="group" data-rs-seg="${name}">${opts.map(([v, l]) => `<button type="button" data-v="${esc(v)}" aria-pressed="${v === value}">${esc(l)}</button>`).join('')}</div>`;
   const toggles = (name, opts, values) => `<div class="rs-toggles" data-rs-toggles="${name}">${opts.map(([v, l]) => `<button type="button" data-v="${esc(v)}" aria-pressed="${(values || []).includes(v)}">${esc(l)}</button>`).join('')}</div>`;
   function plain(e){
@@ -139,7 +150,7 @@ export function createRainshare({ root, base = '/', host }){
   }
   // A garden, drawn: a line saying what's in it, and a plant for each one, which opens it.
   function gardenBlock(garden, whose){
-    if (!garden) return '<p class="rs-muted">Looking over the garden…</p>';
+    if (!garden) return gardenSk();
     const yours = whose === 'You';
     return `<div class="rs-panel">
       <p>${garden.length ? `${esc(whose)}${yours ? '’ve' : ' has'} helped with ${esc(wateredText(garden))}.` : yours ? 'Nothing here yet.' : `${esc(whose)} hasn’t helped with anything yet.`}</p>
@@ -277,8 +288,7 @@ export function createRainshare({ root, base = '/', host }){
         }</div></div>
         <div class="rs-head-actions">
           ${signedIn() && S.garden?.length ? a('u/' + viewer(), `${plantPic(S.garden[0].picture || S.garden[0].stage, 26, { key: S.garden[0].uri })}Helped with ${S.garden.length}`, 'rs-btn rs-quiet rs-watered-btn') : ''}
-          ${!signedIn() ? '' : FEATURES.forecast ? a('me', `${skyIco(fc?.[0])}${fc ? esc(fc[1]) : 'Your forecast'}`, 'rs-btn rs-quiet rs-fc' + (fc ? ' rs-fc-' + fc[0] : ''))
-            : a('me', `${ico('person')}<span class="rs-plan-btn">${esc(planText(S.mine?.merged) || 'Your AI plan')}</span>`, 'rs-btn rs-quiet')}
+          ${signedIn() && FEATURES.forecast ? a('me', `${skyIco(fc?.[0])}${fc ? esc(fc[1]) : 'Your forecast'}`, 'rs-btn rs-quiet rs-fc' + (fc ? ' rs-fc-' + fc[0] : '')) : ''}
           ${signedIn() ? a('new', `${ico('plus')}Ask for rain`, 'rs-btn rs-primary') : host.signIn ? `<button class="rs-btn rs-primary" type="button" data-rs-act="signin">Sign in</button>` : ''}
         </div>
       </header>
@@ -291,7 +301,7 @@ export function createRainshare({ root, base = '/', host }){
         ${items.length && hint ? `<p class="rs-muted">${esc([hint, S.tab !== 'yours' && FROM_HINT[S.from]].filter(Boolean).join(' '))}</p>` : ''}
       </div>` : ''}
       ${S.error ? `<p class="rs-note rs-bad">${plain(S.error)}</p>` : ''}
-      ${!S.board ? `<div class="rs-split"><ul class="rs-list">${'<li class="rs-ghost"><div></div></li>'.repeat(4)}</ul><div class="rs-side rs-ghost"><div></div></div></div><p class="rs-muted">Looking across the network…</p>`
+      ${!S.board ? boardSk({ fit: signedIn() })
         : items.length ? `<div class="rs-split${S.sheet ? ' rs-open' : ''}">
             <ul class="rs-list" aria-label="Ideas and projects">${items.map(it => card(it)).join('')}</ul>
             <div class="rs-scrim" data-rs-close-sheet aria-hidden="true"></div>
@@ -396,7 +406,7 @@ export function createRainshare({ root, base = '/', host }){
     if (S.view === 'seed') render();
     try {
       const fresh = await S.source.seed(uri, { force: !!cached });
-      if (fresh) S.seed = carry(cached, fresh); else if (!cached) S.seedErr = { message: 'It’s gone, or it isn’t one you can see.' };
+      if (fresh) S.seed = carry(cached, fresh); else if (!cached) S.seedErr = { message: 'It’s gone, or it isn’t one you can see.', who: parseUri(uri)?.repo };
     } catch (e) { if (!cached) S.seedErr = e; console.warn('rainshare seed', e); }
     seen(S.seed);
     if (S.seed && S.open.pull) loadPull(S.seed);
@@ -675,10 +685,9 @@ export function createRainshare({ root, base = '/', host }){
   }
 
   function renderSeed(){
-    const back = a('', `${ico('back')}Back to the board`, 'rs-back');
-    if (S.seedErr) return `${back}<p class="rs-empty">${plain(S.seedErr)}</p>`;
+    if (S.seedErr) { title('Nothing here'); return nothingHere(plain(S.seedErr), S.seedErr.who ? a('u/' + S.seedErr.who, 'See who asked', 'rs-btn rs-quiet') : ''); }
     const it = S.seed;
-    if (!it) return `${back}<div class="rs-seed rs-ghost"><div></div></div>`;
+    if (!it) return newHere() + back() + seedSk();
     const sq = it.value || {}, p = it.author || {}, mine = it.repo === viewer(), taken = myTake(it), d = describeSubject(sq.subject), clone = cloneUrlOf(sq.subject);
     const page = pageOf(it), open = isOpen(it), issue = it.issue, st = stand(it), forge = FORGE_NAMES[d?.forge] || 'the forge';
     title(sq.title);
@@ -779,7 +788,7 @@ export function createRainshare({ root, base = '/', host }){
           <div class="rs-row"><button class="rs-btn rs-primary" type="submit">Turn it in</button>${S.launch ? '' : '<button class="rs-link" type="button" data-rs-act="show-launch">Show the ways to send an agent</button>'}</div>
         </form>`}`;
     }
-    return `${back}
+    return `${newHere(open && !mine ? `${firstName(p)} is asking for one here.` : '')}${back()}
       <article class="rs-seed">
         <div class="rs-seed-main">
           <div class="rs-seed-head">
@@ -811,8 +820,8 @@ export function createRainshare({ root, base = '/', host }){
 
   /* ---------- your profile ---------- */
   function renderMe(){
-    if (!signedIn()) return `${a('', `${ico('back')}Back to the board`, 'rs-back')}<p class="rs-empty">Sign in to set up your profile.</p>`;
-    if (!S.mine) return `${a('', `${ico('back')}Back to the board`, 'rs-back')}<p class="rs-muted">Loading your profile…</p>`;
+    if (!signedIn()) return needSignIn('Sign in to set up your profile.');
+    if (!S.mine) return back() + meSk();
     // "Only my groups" exists only where there are groups to share with (GROUPS in ../core/ns.js).
     const priv = !!S.source.canPrivate;
     const p = S.form?.profile || structuredClone(S.mine.merged || {}), hidden = !priv ? [] : S.form?.hidden || (S.mine.merged ? S.mine.hidden : ['budget', 'circumstances']);
@@ -931,17 +940,23 @@ export function createRainshare({ root, base = '/', host }){
       const kept = takeKept(); if (kept?.vouching?.did === did) S.vouching = kept.vouching;
       const person = S.other;
       S.source.gardenOf?.(did).then(g => { person.garden = g; if (S.other === person && S.view === 'person') render(); }, () => { person.garden = []; });
-    } catch (e) { S.other = { error: e }; }
+    } catch (e) {
+      // A handle that picked up a full stop or a capital on the way here is looked up again without it.
+      const meant = reroute(sub);
+      if (meant && meant !== sub && known(meant) && S.sub === sub) return go(meant, { replace: true });
+      S.other = { error: e };
+    }
     if (S.view === 'person') render();
     loadBoard();
   }
   function renderPerson(){
-    const o = S.other, back = a('', `${ico('back')}Back to the board`, 'rs-back');
-    if (!o) return `${back}<p class="rs-muted">Looking them up…</p>`;
-    if (o.error) return `${back}<p class="rs-empty">We couldn’t find that person.</p>`;
+    const o = S.other;
+    if (!o) return newHere() + back() + personSk();
+    if (o.error) title('Nothing here');
+    if (o.error) return nothingHere('We couldn’t find that person. The link may have been cut short, or their handle has changed.');
     const p = o.person || {}, theirs = (S.board?.items || []).filter(it => it.repo === o.did);
     title(nameOf(p));
-    return `${back}
+    return `${newHere()}${back()}
       <section class="rs-person">
         <header>${face(p, 'lg')}<div><h1>${esc(nameOf(p))}${hat(o.did)}</h1>${p.handle ? `<a class="rs-link" href="https://bsky.app/profile/${esc(p.handle)}" target="_blank" rel="noopener">@${esc(p.handle)}</a>` : ''}</div>${o.did === viewer() ? a('me', 'Edit', 'rs-btn rs-quiet rs-sm') : ''}</header>
         <div class="rs-panel">${profileCard(o.merged, p)}${o.groups?.length && o.did !== viewer() ? `<p class="rs-muted">${ico('lock')} Some of this is shared only with ${esc(o.groups.map(g => g.name).join(' and '))}.</p>` : ''}</div>
@@ -949,7 +964,7 @@ export function createRainshare({ root, base = '/', host }){
         ${vouchBlock(o.did, p)}
         ${S.source.gardenOf ? `<h2>${o.did === viewer() ? 'What you’ve helped with' : `What ${esc(firstName(p))} has helped with`}</h2>${gardenBlock(o.garden, o.did === viewer() ? 'You' : firstName(p))}` : ''}
         <h2>${o.did === viewer() ? 'Your ideas and projects' : `${esc(firstName(p))}’s ideas and projects`}</h2>
-        ${!S.board ? '<p class="rs-muted">Loading…</p>' : theirs.length ? `<ul class="rs-list">${theirs.map(it => card(it, { nav: true })).join('')}</ul>` : '<p class="rs-muted">None that you can see.</p>'}
+        ${!S.board ? listSk(2, 'theirs') : theirs.length ? `<ul class="rs-list">${theirs.map(it => card(it, { nav: true })).join('')}</ul>` : '<p class="rs-muted">None that you can see.</p>'}
       </section>`;
   }
 
@@ -1060,18 +1075,58 @@ export function createRainshare({ root, base = '/', host }){
     onPosted(){ S.board = null; loadBoard(true); }
   });
   const renderNew = () => signedIn() ? poster.view()
-    : `${a('', `${ico('back')}Back to the board`, 'rs-back')}<p class="rs-empty">Sign in to ask for rain.</p>${host.signIn ? '<button class="rs-btn rs-primary" type="button" data-rs-act="signin">Sign in</button>' : ''}`;
+    : needSignIn('Sign in to ask for rain.');
 
   /* ---------- render ---------- */
   const datalists = `<datalist id="rsModels">${MODELS.map(m => `<option value="${m}">`).join('')}</datalist><datalist id="rsValues">${VALUES.map(m => `<option value="${m}">`).join('')}</datalist>`;
+  // A screen that was waiting, and now isn't: its placeholders dissolve where they stood, and
+  // what took their place rises in under them. Only the part that arrived (each region of
+  // placeholders is named: see ./skeleton.js), and only as it arrives. A page is often drawn
+  // again a moment later (the forge answers, someone's name comes in), so what's under way is
+  // carried over to the new drawing and picks up where it was, rather than starting again or
+  // being cut off. Anyone who's asked for less motion gets the plain swap.
+  const still = () => !!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const RISE = 900, FADE = 320;
+  let lastView = null, rising = new Map(), fading = [];   // region -> when it arrived; placeholders on their way out
+  function paint(html, view){
+    const now = Date.now();
+    if (lastView !== view) { rising = new Map(); fading = []; }
+    const was = lastView === view && !still() ? [...root.querySelectorAll('[data-rs-sk]')].map(el => ({ el, key: el.dataset.rsSk, at: el.getBoundingClientRect() })) : [];
+    root.innerHTML = html;
+    lastView = view;
+    const box = root.firstElementChild;
+    if (!box) return;
+    if (was.length) {
+      const waiting = new Set([...root.querySelectorAll('[data-rs-sk]')].map(el => el.dataset.rsSk));
+      const arrived = was.filter(w => !waiting.has(w.key) && w.at.width && w.at.height), base = box.getBoundingClientRect();
+      for (const w of arrived) rising.set(w.key, now);
+      for (const { el, at } of arrived.filter(w => !arrived.some(o => o !== w && o.el.contains(w.el)))) {
+        el.removeAttribute('data-rs-sk'); el.setAttribute('aria-hidden', 'true'); el.classList.add('rs-sk-out');
+        Object.assign(el.style, { left: `${at.left - base.left}px`, top: `${at.top - base.top}px`, width: `${at.width}px`, height: `${at.height}px` });
+        fading.push({ el, at: now });
+        setTimeout(() => { el.remove(); fading = fading.filter(f => f.el !== el); }, FADE);
+      }
+    }
+    for (const [key, at] of rising) if (now - at > RISE) rising.delete(key);
+    if (rising.size) {
+      box.dataset.rsIn = [...rising.keys()].join(' ');
+      for (const [key, at] of rising) box.style.setProperty(`--rs-at-${key}`, `${at - now}ms`);
+    }
+    for (const f of fading) { f.el.style.animationDelay = `${f.at - now}ms`; box.appendChild(f.el); }
+  }
+  // Before it's known who's looking, the address already says which screen is coming.
+  const viewOf = sub => !sub ? 'board' : /^seed\//.test(sub) ? 'seed' : /^u\//.test(sub) ? 'person' : sub;
+  const ahead = sub => ({ board: () => headSk() + boardSk(), seed: () => newHere() + back() + seedSk(), person: () => newHere() + back() + personSk() })[viewOf(sub)]?.() || '';
+  const renderLost = () => { title('Nothing here'); return nothingHere('There’s nothing at this address. The link may have been cut short, or what it led to has been deleted.'); };
   function render(){
-    if (!S.source) { root.innerHTML = '<div class="rs"><p class="rs-muted">One moment…</p></div>'; return; }
-    const body = { board: renderBoard, seed: renderSeed, new: renderNew, me: renderMe, person: renderPerson, agents: renderAgents }[S.view]?.() || renderBoard();
+    // (Until a screen has been entered with someone to show it to, the address says what to hold its place with.)
+    if (!S.source || !S.view) { paint(`<div class="rs">${ahead(S.sub)}</div>`, viewOf(S.sub)); return; }
+    const body = { board: renderBoard, seed: renderSeed, new: renderNew, me: renderMe, person: renderPerson, agents: renderAgents, lost: renderLost }[S.view]?.() || renderBoard();
     // Redrawing keeps whichever field had focus, and where its cursor was.
     const focus = document.activeElement && root.contains(document.activeElement) ? document.activeElement : null;
     const keep = focus?.name ? { name: focus.name, pos: focus.selectionStart } : null;
     const demo = S.source.demo ? `<p class="rs-note rs-demo">${ico('sky')}<span>An example circle with made-up people. Nothing you do here leaves this browser.</span>${host.exitDemo ? `<button class="rs-link" type="button" data-rs-act="exit-demo">${host.exitDemo}</button>` : ''}</p>` : '';
-    root.innerHTML = `<div class="rs rs-v-${S.view}">${demo}${S.signin ? signinForm() : ''}${body}${datalists}</div>`;
+    paint(`<div class="rs rs-v-${S.view}">${demo}${S.signin ? signinForm() : ''}${body}${datalists}</div>`, S.view);
     if (keep) {
       const el = root.querySelector(`[name="${keep.name}"]`);
       if (el) { el.focus({ preventScroll: true }); try { if (keep.pos != null) el.setSelectionRange(keep.pos, keep.pos); } catch (_) {} }
@@ -1099,7 +1154,12 @@ export function createRainshare({ root, base = '/', host }){
   async function act(name, el){
     const it = S.seed;
     try {
-      if (name === 'signin') { S.signin = S.signin || {}; S.sheet = false; render(); root.querySelector('[data-rs-form="signin"] input')?.focus(); window.scrollTo?.({ top: 0, behavior: 'smooth' }); return; }
+      if (name === 'signin') {
+        S.sheet = false;
+        // A host with a sign-in form of its own in view (rainshare.dev's landing) takes it from here.
+        if (host.signInHere?.()) { root.querySelector('.rs-split')?.classList.remove('rs-open'); return; }
+        S.signin = S.signin || {}; render(); root.querySelector('[data-rs-form="signin"] input')?.focus(); window.scrollTo?.({ top: 0, behavior: 'smooth' }); return;
+      }
       if (name === 'signin-cancel') { S.signin = null; render(); return; }
       if (name === 'exit-demo') return host.onExitDemo?.();
       if (name === 'stage-seen') { stageDismissed = true; try { localStorage.setItem(STAGE_SEEN, '1'); } catch (_) {} root.querySelector('.rs-stage-note')?.remove(); return; }
@@ -1271,6 +1331,12 @@ export function createRainshare({ root, base = '/', host }){
     if (sub !== S.sub && !(S.view === 'me' && sub === 'me')) S.form = null;
     if (sub !== S.sub) S.vouching = null;
     S.sub = sub;
+    // Not an address Rainshare has. If it's clear what was meant (../core/route.js), go there; if not, say so.
+    if (!known(sub)) {
+      const meant = reroute(sub);
+      if (meant != null && meant !== sub && known(meant)) return go(meant, { replace: true });
+      S.view = 'lost'; render(); return;
+    }
     if (!sub) { S.view = 'board'; render(); loadBoard(); loadCircle(); }
     else if (sub === 'new') { S.view = 'new'; if (signedIn()) poster.enter(); else title('Ask for rain'); render(); }
     else if (sub === 'me') {
@@ -1283,10 +1349,11 @@ export function createRainshare({ root, base = '/', host }){
     else if (/^seed\//.test(sub)) {
       S.view = 'seed'; render(); loadCircle(); await loadSeed(sub);
       if (S.sub !== sub) return;
+      // A link that picked up a full stop or a capital on the way here is tried again without it.
+      if (S.seedErr && !S.seed) { const meant = reroute(sub); if (meant && meant !== sub && known(meant)) return go(meant, { replace: true }); }
       render();
       if (S.launch) root.querySelector('#rsLaunch')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-    else { S.view = 'board'; render(); loadBoard(); loadCircle(); }
   }
 
   return {

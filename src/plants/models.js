@@ -6,7 +6,8 @@
 // They're grown, not drawn once. `buildPlant(stage, kind)` returns a THREE.Group about 2 units
 // wide, standing on y = 0, and `kind` (any whole number) says what sort of plant it is: the
 // outline, markings and green of its leaves, how they're set round the stem, how tall it stands
-// and which way it leans, what its flowers are like, what its seed looked like, and the pebbles
+// and which way it leans, what its flowers are like, what its seed looked like (a seedling may
+// still wear the coat), the colour on the marker where an idea is sown, and the pebbles
 // in its soil (see `traitsOf`). A kind keeps all of that from seed to flower, so a project's
 // plant is still recognisably its own as it grows. The same kind always grows the same plant,
 // and kind 0 is the plant as it was first drawn.
@@ -254,6 +255,15 @@ function petalGeometry(form){
   if (taper) { const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const k = 1 - taper * Math.pow(Math.max(0, p.getX(i)), 2); p.setY(i, p.getY(i) * k); p.setZ(i, p.getZ(i) * k); } g.computeVertexNormals(); }
   return g;
 }
+/** A plant marker's tag: a slab `w` wide and `h` tall with rounded corners, `d` thick, centred on its middle. */
+function tagGeometry(w, h, d){
+  const x = w / 2, y = h / 2, c = Math.min(x, y) * .55, sh = new THREE.Shape();
+  sh.moveTo(-x + c, -y); sh.lineTo(x - c, -y); sh.quadraticCurveTo(x, -y, x, -y + c); sh.lineTo(x, y - c); sh.quadraticCurveTo(x, y, x - c, y);
+  sh.lineTo(-x + c, y); sh.quadraticCurveTo(-x, y, -x, y - c); sh.lineTo(-x, -y + c); sh.quadraticCurveTo(-x, -y, -x + c, -y);
+  const g = new THREE.ExtrudeGeometry(sh, { depth: d, bevelEnabled: false, curveSegments: 6 });
+  g.translate(0, 0, -d / 2);
+  return g;
+}
 /** A small flower: this kind's petals round a warm heart. */
 function flower(at, size, turn, T, P, r){
   const g = new THREE.Group(), [len, wid, out] = PETALS[T.petalForm], n = T.petals, w = wid * Math.min(1, Math.sqrt(5 / n));
@@ -282,11 +292,22 @@ function bud(tip, T, P, L, r){
 }
 
 const BUILD = {
-  // An idea: a seed lying in the soil, not yet anything.
+  // An idea: sown, and not yet anything. The seed is under the soil, so what shows is the
+  // marker a gardener leaves where one was planted: a short stake with a tag in the colour
+  // this kind will flower in. (The seed used to lie on top, in a ring of soil. On a round
+  // mound, a nub in a ring read as something else entirely.)
   seed(g, T, P){
-    const S = SEEDS[T.seed], s = new THREE.Mesh(seedGeometry(T.seed), P.seed), [dx, dz] = T.seedAt;
-    s.scale.set(...S.size); s.position.set(-.02 + dx, TOP + .05 - (T.seed === 'pea' ? .03 : 0), .08 + dz); s.rotation.set(-.32, T.seedTurn, .35); g.add(s);
-    const dimple = new THREE.Mesh(new THREE.TorusGeometry(.26, .045, 10, 36), P.soil); dimple.rotation.x = Math.PI / 2; dimple.scale.set(1, 1.2, .5); dimple.position.set(-.02 + dx, TOP - .014, .08 + dz); g.add(dimple);
+    const [dx, dz] = T.seedAt, x = -.16 + dx * 2, z = -.04 + dz * 2, wood = P.pebble.clone();
+    wood.color.set('#D2AE7C'); wood.roughness = .8;
+    // The tag is wood too, so it shows on a light page and a dark one alike, with a face of the flower's colour on each side.
+    // (It stands shorter than any seedling: each stage is taller than the one before it.)
+    const m = new THREE.Group(), stake = new THREE.Mesh(new THREE.CylinderGeometry(.024, .03, .52, 10), wood);
+    const tag = new THREE.Mesh(tagGeometry(.46, .3, .05), wood), face = new THREE.Mesh(tagGeometry(.35, .19, .075), P.petal);
+    stake.position.y = .19; tag.position.set(0, .43, .02); face.position.copy(tag.position);
+    m.add(stake, tag, face);
+    m.position.set(x, TOP * Math.sqrt(Math.max(0, 1 - (Math.hypot(x, z) / R) ** 2)) - .05, z);
+    m.rotation.set(-.08, Math.sin(T.seedTurn) * .3, .1 + Math.cos(T.seedTurn) * .07);
+    g.add(m);
   },
   // Just started: a short stem, its two seed leaves, and the first of its own.
   seedling(g, T, P, r){

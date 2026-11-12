@@ -32,6 +32,13 @@ import { spawn, spawnSync } from 'node:child_process';
 import readline from 'node:readline';
 
 const VERSION = '0.1.0';
+// How this file was started, for the commands it suggests: "node ~/.rainshare.mjs" where the
+// install line puts it, and the path it was run by anywhere else. (A hint that names a file
+// which isn't there is no help to someone who's just installed it.)
+const SELF = (() => {
+  const p = process.argv[1] || 'rainshare.mjs', home = homedir();
+  return 'node ' + (home && p.startsWith(home + '/') ? '~' + p.slice(home.length) : p);
+})();
 const CONFIG_DIR = join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'rainshare');
 const SESSION_FILE = join(CONFIG_DIR, 'session.json');
 // Most of what's printed was written by other people (titles, specs, names), so control
@@ -93,7 +100,7 @@ let sessionP;
 async function source({ required } = {}){
   sessionP ??= loadSession();
   const s = await sessionP;
-  if (!s && required) throw new CliError('Not signed in to Rainshare here. Sign in once with: node rainshare.mjs login you.bsky.social (it asks for an app password), or set RAINSHARE_HANDLE and RAINSHARE_APP_PASSWORD. The work doesn’t have to wait for that: an agent can finish it and hand its user the link in the brief, which turns it in from its Rainshare page.');
+  if (!s && required) throw new CliError(`Not signed in to Rainshare here. Sign in once with: ${SELF} login you.bsky.social (it asks for an app password), or set RAINSHARE_HANDLE and RAINSHARE_APP_PASSWORD. The work doesn’t have to wait for that: an agent can finish it and hand its user the link in the brief, which turns it in from its Rainshare page.`);
   return { src: createSource({ agent: s ? agentFor(s) : null }), session: s };
 }
 
@@ -198,7 +205,7 @@ async function doCheck(ref){
 }
 function checkText({ item: it, st, mine }){
   const next = !mine ? st.advice : !st.planter ? 'Nothing needs doing on it right now.'
-    : st.planter.text + ({ sprout: `\n  node rainshare.mjs done ${it.uri}`, look: `\n  node rainshare.mjs done ${it.uri}`, close: `\n  node rainshare.mjs done ${it.uri}\n  node rainshare.mjs close ${it.uri}` }[st.planter.do] || (st.planter.href ? '\n  ' + st.planter.href : ''));
+    : st.planter.text + ({ sprout: `\n  ${SELF} done ${it.uri}`, look: `\n  ${SELF} done ${it.uri}`, close: `\n  ${SELF} done ${it.uri}\n  ${SELF} close ${it.uri}` }[st.planter.do] || (st.planter.href ? '\n  ' + st.planter.href : ''));
   return [it.value.title, '', ...st.lines.map(l => '- ' + l), '', next].join('\n');
 }
 // Taking a seed on looks first. If someone else is on it, or it's been turned in, or the issue
@@ -351,11 +358,11 @@ async function wrapUp(item, dir, setup){
   if ((now.deliveries || []).some(d => d.repo === session.did)) return err('\n' + turnedInText(now));       // the agent turned it in itself
   // An idea has no pull request: what's turned in is where the new repository ended up, which its remote says.
   const idea = !item.value?.subject, thing = idea ? 'repository' : 'pull request';
-  const later = `Still yours. When ${idea ? 'it has somewhere to live' : 'there’s a pull request'}: node rainshare.mjs turn-in ${item.uri} --url <its address>\nIf you won’t be finishing it: node rainshare.mjs drop ${item.uri}`;
+  const later = `Still yours. When ${idea ? 'it has somewhere to live' : 'there’s a pull request'}: ${SELF} turn-in ${item.uri} --url <its address>\nIf you won’t be finishing it: ${SELF} drop ${item.uri}`;
   const said = (cmd, args) => String(spawnSync(cmd, args, { cwd: dir, encoding: 'utf8' }).stdout || '').trim();
   const found = idea ? (have('git') ? said('git', ['remote', 'get-url', 'origin']).replace(/\.git$/, '') : '') : have('gh') ? said('gh', ['pr', 'view', '--json', 'url', '-q', '.url']) : '';
   const url = /^https:\/\/\S+$/.test(found) ? found : '';
-  if (!process.stdin.isTTY) return err('\n' + (url ? `The ${thing}: ${url}\nTurn it in: node rainshare.mjs turn-in ${item.uri} --url ${url}` : later));
+  if (!process.stdin.isTTY) return err('\n' + (url ? `The ${thing}: ${url}\nTurn it in: ${SELF} turn-in ${item.uri} --url ${url}` : later));
   const answer = url ? await ask(`\nFound the ${thing}: ${url}\nTurn it in? [Y/n] `) : await ask(`\nPaste the ${thing}’s address to turn it in (or press Enter to leave it for later): `);
   const link = url ? (/^n/i.test(answer) ? '' : url) : answer;
   if (!link) return err(later);
@@ -371,7 +378,7 @@ async function doctor(){
   return [
     row(+process.versions.node.split('.')[0] >= 18, `Node ${process.versions.node}${+process.versions.node.split('.')[0] >= 18 ? '' : ' (needs 18 or later)'}`),
     row(reach, reach ? 'The network answers' : 'The network didn’t answer, so nothing can be read right now'),
-    row(!!s, s ? `Signed in to Rainshare as @${s.handle}` : 'Not signed in to Rainshare: node rainshare.mjs login you.bsky.social'),
+    row(!!s, s ? `Signed in to Rainshare as @${s.handle}` : `Not signed in to Rainshare: ${SELF} login you.bsky.social`),
     row(tool('git'), tool('git') ? 'git' : 'git isn’t installed, so repos can’t be cloned'),
     row(ghIn, ghIn ? 'GitHub CLI, signed in' : tool('gh') ? 'GitHub CLI is here but not signed in: gh auth login' : 'No GitHub CLI: pull requests on GitHub are opened some other way'),
     row(tool('knotless'), tool('knotless') ? 'knotless CLI' : 'No knotless CLI: only what’s on knotless.dev needs it, to open pulls there'),
@@ -511,7 +518,7 @@ Expect rough edges, and commands and records that may still change.
   close | reopen <link>      done <link> [--delivery <uri>]
   profile [--json]           your Rainshare profile
 ${FEATURES.forecast ? '  forecast <dry|drizzle|showers|downpour> [--until date] [--models a,b] [--note n]\n' : ''}  doctor                     what's set up here, and so which of these will work
-  mcp                        run as an MCP server over stdio (claude mcp add rainshare -- node rainshare.mjs mcp)
+  mcp                        run as an MCP server over stdio (claude mcp add rainshare -- ${SELF} mcp)
 
 <link> is its at:// URI, its rainshare.dev link, or <handle>/<rkey>.`;
 
@@ -562,7 +569,7 @@ async function main(){
     case 'close': case 'reopen': case 'done': case 'sprout': { const it = await doState(pos[0], cmd === 'close' ? 'closed' : cmd === 'reopen' ? 'open' : 'sprouted', opts.delivery); return out(`${cmd === 'close' ? 'Closed' : cmd === 'reopen' ? 'Reopened' : 'Done'}: ${it.value.title}`); }
     case 'profile': { const { src, session } = await source({ required: true }); return json(await profileWithGarden(src, session.did)); }
     case 'forecast': { const f = await doForecast(pos[0], opts); return out(`Forecast: ${labelOf(FORECAST, f.level)}${f.until ? ' until ' + f.until.slice(0, 10) : ''}`); }
-    default: throw new CliError(`Unknown command “${cmd}”. Try: node rainshare.mjs help`);
+    default: throw new CliError(`Unknown command “${cmd}”. Try: ${SELF} help`);
   }
 }
 

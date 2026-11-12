@@ -121,13 +121,19 @@ export function createPoster(ui){
   // title is looked up so the next step can start from it.
   let infoTimer;
   function setLink(value){
+    // A field says it changed again when it loses focus, which pressing Next does. The same
+    // link is nothing new, and looking it up afresh would drop what was just found.
+    if (value === P.link) return;
     P.link = value; P.subject = parseSubject(value); P.info = null;
     if (P.subject) P.repo = null;
     clearTimeout(infoTimer);
     const sub = P.subject;
     if (sub && /Issue$/.test(kindOf(sub) || '')) infoTimer = setTimeout(async () => {
       const info = await subjectInfo(sub);
-      if (P.subject === sub && info) { P.info = info; paint(); }
+      if (P.subject !== sub || !info) return;
+      P.info = info;
+      // Next was pressed before the issue answered: the step it starts off still starts from it.
+      if (P.step === 2 && !P.title.trim() && !P.spec.trim()) { prefill(); ui.render(); } else paint();
     }, 350);
     paint();
   }

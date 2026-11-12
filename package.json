@@ -10,12 +10,14 @@
     "preview": "vite preview --host 127.0.0.1",
     "build:cli": "node -e \"import('./vite.config.js').then(m => m.bundleCli('dist-cli'))\"",
     "test": "node --test test/*.test.mjs",
-    "plants": "node scripts/render-plants.mjs",
-    "logo": "node scripts/render-logo.mjs"
+    "plants": "node scripts/render-plants.mjs && node scripts/og-plants.mjs",
+    "plants:og": "node scripts/og-plants.mjs",
+    "logo": "node scripts/render-logo.mjs && node -e \"require('fs').copyFileSync('public/logo.png', 'api/_og/logo.png')\""
   },
   "dependencies": {
     "@atproto/oauth-client-browser": "0.5.10",
     "@fontsource/zen-maru-gothic": "^5.3.1",
+    "@vercel/og": "0.11.1",
     "three": "0.187.0"
   },
   "devDependencies": {
