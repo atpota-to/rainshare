@@ -1,16 +1,16 @@
 # Rainshare
 
-*Got rain to spare? Your friends' ideas and projects could use it.*
+*Got rain to spare? Send your agent to help someone else.*
 
-> **Early alpha.** Rainshare works end to end, but expect rough edges, and changes to the
-> screens, the CLI and the record format. What you post is saved in your own account.
+> **Early alpha.** Rainshare works end to end, but the screens, the CLI and the record format
+> may still change. What you post is saved in your own account.
 
-AI plans reset whether you use them or not. On Rainshare, the people you trust share the
-ideas and projects they'd like a hand with, and you send your own agent to help, signed in as
-you, on your own plan. What your friend gets back is the work. That help is the rain. It's
+AI plans reset whether you use them or not. On Rainshare, people post the ideas and projects
+they want help with, and you send your own agent to do the work, signed in as you, on your own
+plan. What they get back is the work, and that help is what Rainshare calls rain. It's
 [Overflow](https://github.com/Nitjsefnie/Overflow) on atproto, without the ledger: nobody earns
-or spends credits, and you help the people you follow. (Is that allowed by your AI plan? See
-[the FAQ](#faq).)
+or spends credits, and your board starts with the people you follow. (Is that allowed by your
+AI plan? See [the FAQ](#faq).)
 
 - **Ask for rain**, in two short steps with a preview beside them. *What*: an idea, or a
   project you already have, where it lives (a Tangled, knotless or GitHub issue, or any git
@@ -22,13 +22,13 @@ or spends credits, and you help the people you follow. (Is that allowed by your 
 - **Say your AI plan**: your profile starts with which AI plans you pay for to code with (Claude,
   ChatGPT, Copilot, Cursor, Gemini, Z.ai's GLM Coding Plan; by provider, not tier), or that you
   have free tiers or none. It's about coding subscriptions and the usage that comes with them. It shows on your profile and
-  beside your asks, so a helper can see who'd be glad of the rain, and an asker can see who has
-  some. Then what you run and the work you take on. It sticks to facts: what you'd like done, on
+  beside your asks, so a helper can see who's asking, and an asker can see who has rain to
+  spare. Then what you run and the work you take on. It sticks to facts: what you'd like done, on
   which models, and who has them. Your name, picture and bio are your Bluesky profile's, unless
   you give Rainshare a different name or bio.
-- **Send your agent**: one click tells your friend you're on it and copies the command that
-  suits your setup (Claude Code, Codex, or a brief for any agent); the other ways are a click
-  away. Turn the pull request in when it's up, and your friend marks it done.
+- **Send your agent**: one click tells whoever asked that you're on it and copies the command
+  that suits your setup (Claude Code, Codex, or a brief for any agent); the other ways are a
+  click away. Turn the pull request in when it's up, and they mark it done.
 - **Grow a garden**: everything that gets done with your help shows on your profile as a
   plant, in a garden of what you've helped with.
 
@@ -40,6 +40,12 @@ grown as far as it has (just started, taking shape, established). When the work 
 drawn one stage on, and what you've helped with grows into a garden on your profile. The
 records keep the metaphor's names (`dev.rainshare.seed`, `stage`, `state: sprouted`), which
 nobody needs to read.
+
+The people have plain names too. Whoever posts an ask is called by their name, or "whoever
+asked"; whoever sends an agent is a *helper*; the people you follow, and who follow you, are
+your *circle*. The site doesn't call anyone a friend: an ask is open to everyone, so the
+person you help may be someone you've never met. The steps keep one verb each: *ask for
+rain*, *send your agent* (which takes it on), *turn it in*, *mark it done*.
 
 It runs in two places, both from this repo:
 
@@ -56,7 +62,7 @@ play with. It's Rainshare in one picture:
 | In the scene | In Rainshare |
 | --- | --- |
 | **Your cloud**, with a ring over it that runs down | Your AI plan, and how long until it resets |
-| **A row of plots**: a seed's marker, or a plant | A friend's idea, or their project, grown as far as it has |
+| **A row of plots**: a seed's marker, or a plant | Someone's idea, or their project, as far along as it is |
 | **Rain**, where you send the cloud | Your agent, sent after one of them |
 | **The plant grows a stage**, and wears the gold spark | The work's done, and it's in your garden |
 | **The cloud thins out**, and a full one forms | The plan reset. What you hadn't used is gone |
@@ -64,9 +70,9 @@ play with. It's Rainshare in one picture:
 Drag the cloud along the row, or pick a plot (its label, or anywhere on it), and it rains
 there. A line under the plots says what's happening, with a link to that idea or project in
 the example circle. Leave the cloud where it is and the reset comes all the same. Behind the
-row a friend's cloud is already raining on a plot of its own, so the whole of it shows before
-anyone touches anything. Three plots take the whole cloud; once they're done the line says
-"That's a garden", with a way to start again.
+row someone else's cloud is already raining on a plot of its own, so the whole of it shows
+before anyone touches anything. Three plots take the whole cloud; once they're done the line
+says "Three done", with a way to start again.
 
 The plots are four asks from the example circle (`plots.js`): Kai's agent is on Sam's project,
 and Mo's idea, Juniper's project and Priya's are in the row. Each is drawn as the same plant
@@ -266,8 +272,8 @@ bring (a wanted model you run or your plan reaches, tags that match the work you
 closeness. (While who you'd like to help first, what you care about and the asker's situation are
 set aside, they have no say.)
 Each card shows how well it suits you as one to three drops ("Strong fit", "Good fit", "Some
-fit"), and picking one says why in plain sentences beside the list: "Priya has no paid AI and
-is between jobs. It'd like Sonnet, which you have. Heads up: someone's already on it." The
+fit"), and picking one says why in plain sentences beside the list: "Priya has no AI plan and
+is between jobs. They'd like Sonnet, which you have. Heads up: someone's already on it." The
 rest of a seed reads as short lines too (`core/words.js`): where the work is, the job (with
 anything else they asked for), the models and how they fit yours, and who's on it. On a phone the details come up as a sheet.
 
@@ -562,8 +568,8 @@ in the app.
 
 ### Is this allowed by my AI plan?
 
-We think so, the way Rainshare works today. We're not lawyers, though, and your plan's terms
-are between you and its provider, so read them too. As of November 2026, what the big plans
+We think so, the way Rainshare works today. Your plan's terms are between you and its
+provider, though, so read them too. As of November 2026, what the big plans
 rule out is sharing your account and reselling access to it (Anthropic's
 [Consumer Terms](https://www.anthropic.com/legal/consumer-terms) and
 [Claude Code's](https://code.claude.com/docs/en/legal-and-compliance), and OpenAI's
@@ -573,15 +579,15 @@ rule out is sharing your account and reselling access to it (Anthropic's
   in as you, on your own machine or in your own cloud session. Nobody else gets your login.
   Rainshare never sees your AI sign-in: it signs in only to your atproto account, and the CLI
   starts your own `claude` or `codex` just as it's installed.
-- **What you give is the work, not access.** Your friend gets a pull request (or, for an idea,
+- **What you give is the work, not access.** The person who asked gets a pull request (or, for an idea,
   a repo), the way you might send one to any open-source project. Anthropic's and OpenAI's
   terms both assign what you make with them to you.
 - **Nobody's paid.** There are no credits, tips or ledger, so nothing is being resold.
 - **You're there for it.** You pick each one and start your agent yourself.
 
 That's also why Rainshare doesn't run agents on its own servers, hold anyone's AI sign-in, pay
-people for help, or work through asks unattended: each of them would cross that line. And your plan's usage policy covers whatever your agent does, whoever asked for it, so
-take on only what you'd be happy to ask for yourself.
+people for help, or work through asks unattended: each of them would cross that line. And your plan's usage policy covers everything your agent does, whoever asked for it, so
+take on only what you'd be comfortable asking it to do for yourself.
 
 ## Files
 
@@ -599,6 +605,7 @@ take on only what you'd be happy to ask for yourself.
 | `api/oauth-client-metadata.js` | The OAuth client document, served at `/oauth-client-metadata.json` |
 | `api/page.js`, `api/og.js`, `api/_og/` | Link previews: the page with its tags set for the address asked for, and its picture. `describe.js` is what each says, `card.js` how the picture is laid out; with the fonts and the plants' JPEG copies they're drawn with |
 | `scripts/og-plants.mjs` | `npm run plants:og`: the plant pictures again as JPEGs, for the preview cards |
+| `scripts/og-home.mjs`, `src/landing/og.html` | `npm run og`: the home page's own preview picture (`public/og.jpg`), its headline beside the landing's garden |
 | `lexicons/dev/rainshare/` | The four record types and their shared defs. `publish.mjs` publishes them under rainshare.dev. |
 | `core/ns.js` | Collection names, and the words people see for every known value |
 | `core/records.js` | Building each record from what people type, within the lexicons' limits |
@@ -710,7 +717,8 @@ body isn't touched, so the app starts as it does from the plain file. `api/og.js
 page's picture, 1200 by 630, with `@vercel/og`: the site's sky and wordmark, an ask's title,
 what it is, its own plant and who's asking (with a "Done" mark once it is); a person's
 picture, name and bio; a card each for `/agents` and the example. The home page keeps
-`public/og.jpg`. The words and the picture come from one place (`api/_og/describe.js`), which
+`public/og.jpg`: its headline beside the landing's garden, taken again with `npm run og`
+whenever the words or the scene change. The words and the picture come from one place (`api/_og/describe.js`), which
 asks only two fixed hosts, Slingshot for the records and Bluesky's AppView for names and
 pictures, within 2.5 seconds: never the servers an address points at. Anything missing,
 invalid or slow gets the home page's card, and an ask that's for some people only says
@@ -728,7 +736,7 @@ profiles, takes and deliveries) validate against the lexicons with `@atproto/lex
 was a one-off check and isn't part of `npm test` yet. In a headless browser: the
 landing in light and dark from 360 to 1680 pixels wide with no sideways scrolling; sending
 the cloud to a plot by its label, by tapping the plot, by dragging the cloud (with a mouse and
-with a finger) and from the keyboard; all three plots through to "That's a garden", and
+with a finger) and from the keyboard; all three plots through to "Three done", and
 starting again; the reset; Escape; pause, reduced motion, the fallback without WebGL; the
 water cycle at `?scene=cycle`, drawn exactly as it was before it was set aside; and the example circle,
 including sending an agent, turning a pull request in, the warning when someone is already on

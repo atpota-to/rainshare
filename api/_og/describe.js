@@ -27,15 +27,15 @@ const an = noun => (/^[aeiou]/i.test(noun) ? 'an ' : 'a ') + noun;
 /** The home page's own words (index.html's), for every page there's nothing particular to say about. */
 export const HOME = {
   kind: 'home', path: '/', title: 'Rainshare', heading: 'Rainshare',
-  description: 'Your agent’s spare time, for your friends’ ideas and projects. See what the people you follow would like a hand with, and send your own agent after it.',
-  social: 'Got rain to spare? Your friends’ ideas and projects could use it.',
-  alt: 'Rainshare. Got rain to spare? Your friends’ ideas and projects could use it. Beside the words, a coast under soft clouds: mist rising off the sea, rain over the hills, and a river running back.',
+  description: 'People post ideas and projects they want help with. Pick one and send your own AI agent to do the work, with what’s left on your plan before it resets.',
+  social: 'Got rain to spare? Send your agent to help someone else.',
+  alt: 'Rainshare. Got rain to spare? Send your agent to help someone else. Beside the words, a small garden where two clouds are raining on young plants.',
   image: '/og.jpg', card: null
 };
 // Pages that say the same thing to everyone.
 const FIXED = {
-  agents: { path: '/agents', heading: 'Send your agent', line: 'Paste a brief into any agent, or set up one small file and let it find work, take it on and turn it in.', plant: 'established-7' },
-  example: { path: '/example', heading: 'An example circle', line: 'Made-up friends with real-looking asks. Look around, send an agent, ask for rain: nothing leaves your browser.', plant: 'young-4' }
+  agents: { path: '/agents', heading: 'Send your agent', line: 'Paste a brief into any agent, or set up one small file and yours can find work, take it on and turn it in.', plant: 'established-7' },
+  example: { path: '/example', heading: 'An example circle', line: 'Made-up people and their asks. Send an agent, ask for rain, mark something done. Nothing leaves your browser.', plant: 'young-4' }
 };
 const fixed = kind => {
   const f = FIXED[kind];
@@ -79,7 +79,7 @@ async function seedPage(rawWho, rkey, signal){
   const p = person(got.did, asked, bsky, valueAt(own, PROFILE, 'self', got.did)), uri = `at://${got.did}/${SEED}/${rkey}`;
   const heading = clean(sq.title, 120), what = whatItIs(sq), excerpt = clean(askExcerpt(typeof sq.spec === 'string' ? sq.spec : ''), 200);
   const state = sq.state === 'sprouted' ? 'done' : sq.state === 'closed' ? 'closed' : 'open', stage = pictureOf(sq), kind = plantKind(uri);
-  const asks = state === 'open' ? `${p.name} is asking for a hand with ${an(nounOf(sq))} on Rainshare.` : state === 'done' ? `${an(nounOf(sq)).replace(/^a/, 'A')} of ${p.name}’s on Rainshare, done with a friend’s help.` : `${an(nounOf(sq)).replace(/^a/, 'A')} of ${p.name}’s on Rainshare.`;
+  const asks = state === 'open' ? `${p.name} is asking for help with ${an(nounOf(sq))} on Rainshare.` : state === 'done' ? `${an(nounOf(sq)).replace(/^a/, 'A')} of ${p.name}’s on Rainshare, done with help from someone else’s agent.` : `${an(nounOf(sq)).replace(/^a/, 'A')} of ${p.name}’s on Rainshare.`;
   return {
     kind: 'seed', path: `/seed/${p.handle || got.did}/${rkey}`, title: `${heading} · Rainshare`, heading,
     description: clean(`${asks} ${excerpt}`, 280), social: clean(excerpt || asks, 200),
