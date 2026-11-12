@@ -1,7 +1,7 @@
 // What a helper's agent is handed: the brief (a seed written up for an agent), and the
 // commands that start one on it. The brief frames the seed as a request from another
 // person, so an agent weighs it rather than obeying it.
-import { SITE, labelOf, TESTS } from './ns.js';
+import { SITE, labelOf, TESTS, LEVELS } from './ns.js';
 import { nounOf, whatItIs } from './words.js';
 import { wantPhrase } from './rank.js';
 import { describeSubject, cloneUrlOf, kindOf, safeHttp, FORGE_NAMES, REPO_NAME, KNOTLESS, KNOTLESS_NAME } from './subjects.js';
@@ -133,7 +133,8 @@ export function brief(item, { viewer, now = Date.now() } = {}){
   const g = [];
   // Lists from someone else's record go in one line each, whatever they hold.
   const one = a => (Array.isArray(a) ? a : []).filter(x => typeof x === 'string').map(x => x.replace(/\s+/g, ' ').trim()).filter(Boolean).join(', ');
-  if (wantPhrase(sq)) g.push(`- Models they’d prefer: ${wantPhrase(sq)}${w.level === 'frontier' ? ' (frontier: the most capable model a family has)' : ''}`);
+  const level = LEVELS.find(l => l[0] === w.level);
+  if (wantPhrase(sq)) g.push(`- Models they’d prefer: ${wantPhrase(sq)}${level ? ` (${level[1].toLowerCase()}: ${level[2]})` : ''}`);
   if (one(w.harnesses)) g.push(`- Harnesses they’d like: ${one(w.harnesses)}`);
   if (w.tests) g.push(`- ${labelOf(TESTS, w.tests)}`);
   if (w.maxDiffLines) g.push(`- Keep the change under about ${w.maxDiffLines} lines`);

@@ -15,8 +15,8 @@ or spends credits, and you help the people you follow. (Is that allowed by your 
 - **Ask for rain**, in two short steps with a preview beside them. *What*: an idea, or a
   project you already have, where it lives (a Tangled, knotless or GitHub issue, or any git
   repo) and how far along the project is as a whole, each drawn as its own little 3D plant. *Details*: what done looks
-  like and which models you'd prefer (a family, like Claude or GLM, and whether it should be a
-  frontier model), with tests, size and tags folded under "More options",
+  like and which models you'd prefer (a family, like Claude or GLM, and a level: frontier,
+  mid-tier or small), with tests, size and tags folded under "More options",
   and a Bluesky post to tell people it's there. It's open to everyone. An idea needs no repo and no developer: say
   what it should do, and whether someone else can run with it.
 - **Say your AI plan**: your profile starts with which AI plans you pay for to code with (Claude
@@ -131,10 +131,12 @@ when there's no plan: a setup's typed `plan` ("Claude Max 20x") and `budget` ("u
 Picking a paid plan clears "No AI plan" and "Free tiers only", and the other way round.
 
 **Models: a family and a level, matched to plans.** An ask says which model families it would
-prefer (Claude, GPT, Gemini, Grok, DeepSeek, Qwen, GLM, Kimi, Mistral, or another) and at what
-level: any, or **frontier**, the most capable model a family has. It doesn't name models, which
-change every few months; "Any model, any level" is the default (`FAMILIES` and `LEVELS` in
-`core/ns.js`). Its page says it as "Models" ("A frontier Claude model", "Claude or GPT"), and
+prefer (Claude, GPT, Gemini, DeepSeek, Qwen, GLM, Kimi, Mistral, or another typed in) and at
+what level: any, **frontier** (the most capable model a family has), **mid-tier** (a step below,
+capable and lighter on a plan) or **small** (quick and light, for simple jobs). It doesn't name
+models, which change every few months; "Any model, any level" is the default (`FAMILIES` and
+`LEVELS` in `core/ns.js`). Its page says it as "Models" ("A frontier Claude model", "A small
+Qwen or GLM model", "Claude or GPT"), and
 each helper sees how theirs fit: a model they run from one of those families ("You run
 Sonnet"), else a plan that reaches one ("Your Claude Pro plan has Claude models"), else, if their
 profile says enough to tell, "Not in your plan or setup". Plans are matched by family

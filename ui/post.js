@@ -367,7 +367,7 @@ export function createPoster(ui){
           <button type="button" data-rs-level="" aria-pressed="${!P.level}">Any level</button>
           ${LEVELS.map(([k, l]) => `<button type="button" data-rs-level="${k}" aria-pressed="${P.level === k}">${esc(l)}</button>`).join('')}
         </div>
-        <small>Frontier means the most capable model a family has. Helpers whose plan or setup reaches one of these families see it as a better fit, and their agents get it in the brief.</small>
+        <small>${(l => l ? `${l[1]}: ${l[2]}.` : 'Frontier is the most capable model a family has, mid-tier a step below, and small is quick and light.')(LEVELS.find(l => l[0] === P.level))} Helpers whose plan or setup reaches one of these families see it as a better fit, and their agents get it in the brief.</small>
       </fieldset>
       ${moreOptions('More options: tests, size, tags', `
       <p class="rs-muted">These help the right helpers find it, and their agents get them in the brief.</p>

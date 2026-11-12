@@ -95,8 +95,8 @@
     "wants": {
       "type": "object",
       "properties": {
-        "families": { "type": "array", "maxLength": 8, "items": { "type": "string", "maxLength": 320, "maxGraphemes": 32, "knownValues": ["claude", "gpt", "gemini", "grok", "deepseek", "qwen", "glm", "kimi", "mistral"] }, "description": "The model families you'd prefer, most wanted first. Left out, any model." },
-        "level": { "type": "string", "maxLength": 320, "maxGraphemes": 32, "knownValues": ["frontier"], "description": "How capable a model you'd prefer. frontier: the most capable model a family has. Left out, any level." },
+        "families": { "type": "array", "maxLength": 8, "items": { "type": "string", "maxLength": 320, "maxGraphemes": 32, "knownValues": ["claude", "gpt", "gemini", "deepseek", "qwen", "glm", "kimi", "mistral"] }, "description": "The model families you'd prefer, most wanted first. Left out, any model." },
+        "level": { "type": "string", "maxLength": 320, "maxGraphemes": 32, "knownValues": ["frontier", "mid", "small"], "description": "How capable a model you'd prefer. frontier: the most capable model a family has. mid: a step below the frontier, capable and lighter on a plan. small: quick and light, for simple jobs. Left out, any level." },
         "models": { "type": "array", "maxLength": 6, "items": { "type": "string", "maxLength": 640, "maxGraphemes": 64 }, "description": "Specific models you'd like used, most wanted first. What older asks said: apps now ask for families and a level." },
         "harnesses": { "type": "array", "maxLength": 6, "items": { "type": "string", "maxLength": 640, "maxGraphemes": 64 } },
         "tests": { "type": "string", "maxLength": 320, "maxGraphemes": 32, "knownValues": ["required", "welcome", "none"] },

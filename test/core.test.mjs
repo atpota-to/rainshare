@@ -1,7 +1,7 @@
 // Run with: npm test (node --test, no dependencies)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SEED, lowBudgetOf } from '../core/ns.js';
+import { SEED, FAMILIES, lowBudgetOf } from '../core/ns.js';
 import { parseSubject, describeSubject, cloneUrlOf } from '../core/subjects.js';
 import * as R from '../core/records.js';
 import { meantFor, closeness } from '../core/circle.js';
@@ -204,6 +204,20 @@ test('an ask says a model family and a level, not a model', () => {
   const w = R.seed({ title: 't', wants: { families: ['Claude', 'claude', 'Llama 4'], level: 'frontier' } }).wants;
   assert.deepEqual(w, { families: ['claude', 'llama-4'], level: 'frontier' });
   assert.equal(R.seed({ title: 't', wants: { level: 'galaxy-brain' } }).wants, undefined);
+});
+
+test('levels below the frontier, and a family that isn’t built in', () => {
+  const ask = (families, level) => ({ wants: { families, level } });
+  assert.equal(modelsText(ask(['claude'], 'mid')), 'A mid-tier Claude model.');
+  assert.equal(modelsText(ask(['qwen', 'glm'], 'small')), 'A small Qwen or GLM model.');
+  assert.equal(modelsText(ask([], 'small')), 'A small model.');
+  assert.deepEqual(R.seed({ title: 't', wants: { level: 'mid' } }).wants, { level: 'mid' });
+  // Grok isn't offered, but it can be typed in, and a helper who runs it matches.
+  assert.ok(!FAMILIES.some(([k]) => k === 'grok'));
+  assert.equal(modelsText(ask(['grok']), { setups: [{ harness: 'other', models: ['grok-4'] }] }), 'Grok. You run grok-4.');
+  // The brief says what a level means.
+  const b = brief({ uri: `at://did:plc:a/${SEED}/3kmid`, repo: 'did:plc:a', rkey: '3kmid', value: { title: 'T', wants: { families: ['claude'], level: 'mid' } }, author: {} }, {});
+  assert.match(b, /^- Models they’d prefer: a mid-tier Claude model \(mid-tier: a step below the frontier, capable and lighter on a plan\)$/m);
 });
 
 test('AI plans: one line, from plans first and an older profile’s budget otherwise', () => {

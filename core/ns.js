@@ -65,9 +65,16 @@ export const PLANS = [
 export const UNPAID = ['free', 'none'];
 // Which model families an ask can prefer, and how capable a model: families and a level rather
 // than model names, since names change every few months and a helper knows which of theirs fit.
-export const FAMILIES = [['claude', 'Claude'], ['gpt', 'GPT'], ['gemini', 'Gemini'], ['grok', 'Grok'], ['deepseek', 'DeepSeek'], ['qwen', 'Qwen'], ['glm', 'GLM'], ['kimi', 'Kimi'], ['mistral', 'Mistral']];
-// Left out, any level does. [value, name, what it means]
-export const LEVELS = [['frontier', 'Frontier', 'The most capable model a family has']];
+// Any other can be typed in ("Or another"), and a model someone runs from it still matches.
+export const FAMILIES = [['claude', 'Claude'], ['gpt', 'GPT'], ['gemini', 'Gemini'], ['deepseek', 'DeepSeek'], ['qwen', 'Qwen'], ['glm', 'GLM'], ['kimi', 'Kimi'], ['mistral', 'Mistral']];
+// How capable a model, without naming one. Left out, any level does. [value, name, what it means]
+export const LEVELS = [
+  ['frontier', 'Frontier', 'the most capable model a family has'],
+  ['mid', 'Mid-tier', 'a step below the frontier, capable and lighter on a plan'],
+  ['small', 'Small', 'quick and light, for simple jobs']
+];
+/** A level as it goes before a family: "frontier", "mid-tier", "small". */
+export const levelWord = l => String(labelOf(LEVELS, l)).toLowerCase();
 /** A family's name: "Claude", or one nobody knows as it was written. */
 export const familyName = f => labelOf(FAMILIES, f);
 /** A model's family, from its name ("claude-opus-5-5", "gpt-5-codex"), or null. */

@@ -1,7 +1,7 @@
 // Putting a helper's board in order: who they'd like to help first, what their setup can
 // do, and how close they are to whoever asked. Each item says why it's where it is: as
 // short reasons (for the CLI), and as a fit level with one plain sentence (for the apps).
-import { FEATURES, PLANS, PLAN_FAMILIES, plansIn, familyOf, familyName, lowBudgetOf, labelOf, BUDGETS, modelName } from './ns.js';
+import { FEATURES, PLANS, PLAN_FAMILIES, LEVELS, plansIn, familyOf, familyName, levelWord, lowBudgetOf, labelOf, BUDGETS, modelName } from './ns.js';
 
 const has = (a, v) => Array.isArray(a) && a.includes(v);
 const lower = a => (a || []).map(s => String(s).toLowerCase());
@@ -20,23 +20,23 @@ export function modelsOf(profile){
 export const modelMatch = (want, have) => have.some(h => h === want || h.includes(want) || want.includes(h));
 /**
  * What an ask would like, model-wise: { families, level, models }. An ask says families
- * ('claude', 'gpt'…) and a level ('frontier', or null for any). An older one named models
+ * ('claude', 'gpt'…) and a level ('frontier', 'mid', 'small', or null for any). An older one named models
  * (`models`), and their families count as its families.
  */
 export function wantedOf(sq){
   const w = sq?.wants || {}, models = words(w.models, 64);
-  return { families: [...new Set([...words(w.families, 32), ...models.map(familyOf).filter(Boolean)])], level: w.level === 'frontier' ? 'frontier' : null, models };
+  return { families: [...new Set([...words(w.families, 32), ...models.map(familyOf).filter(Boolean)])], level: LEVELS.some(l => l[0] === w.level) ? w.level : null, models };
 }
 // What someone else's record lists, as it's safe to show and to put in a brief: strings only, each
 // on one line and clipped, lower case. (A record can say anything: a string, numbers, line breaks.)
 const words = (a, max) => [...new Set((Array.isArray(a) ? a : []).filter(x => typeof x === 'string').map(x => x.replace(/\s+/g, ' ').trim().slice(0, max).toLowerCase()).filter(Boolean))].slice(0, 8);
-/** That in words, or '' for any model at all: "a frontier Claude model", "Claude or GPT", "Opus or Sonnet", "a frontier model". */
+/** That in words, or '' for any model at all: "a frontier Claude model", "Claude or GPT", "Opus or Sonnet", "a small model". */
 export function wantPhrase(sq){
   const { families, level, models } = wantedOf(sq);
   if (models.length) return join(models.map(modelName), 'or');
-  if (!families.length) return level ? 'a frontier model' : '';
+  if (!families.length) return level ? `a ${levelWord(level)} model` : '';
   const names = join(families.map(familyName), 'or');
-  return level ? `a frontier ${names} model` : names;
+  return level ? `a ${levelWord(level)} ${names} model` : names;
 }
 /**
  * What someone brings to what an ask would like (wantedOf):
