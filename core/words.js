@@ -73,7 +73,7 @@ export function modelsText(sq, myProfile){
   if (!phrase) return 'Any model.';
   const lead = phrase[0].toUpperCase() + phrase.slice(1) + '.', r = want.families.length && myProfile ? modelReach(want, myProfile) : null;
   if (r?.run) return `${lead} You run ${r.run}.`;
-  if (r?.plan) return `${lead} Your ${r.plan.name} plan has ${join(r.plan.families)} models.`;
+  if (r?.plan) return `${lead} Your ${r.plan.name} has ${join(r.plan.families)} models.`;
   return r?.said ? `${lead} Not in your plan or setup.` : lead;
 }
 /** Anything else they asked for, in their words: "Made with Claude Code. No new dependencies." */

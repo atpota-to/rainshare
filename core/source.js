@@ -25,6 +25,16 @@ export function splitSpaceUri(uri){
   return m && /\/space\//.test(m[1]) ? { space: m[1], repo: m[2], collection: m[3], rkey: m[4] } : null;
 }
 
+/**
+ * Someone as Rainshare shows them: their Bluesky profile, with the name from their Rainshare
+ * profile if it gives one. (Their bio is the Rainshare one if there is one, else Bluesky's; the
+ * screens pick between `profile.bio` and `description`.)
+ */
+export function shown(person, profile){
+  const name = typeof profile?.displayName === 'string' ? profile.displayName.replace(/\s+/g, ' ').trim().slice(0, 64) : '';
+  return name ? { ...person, displayName: name } : person;
+}
+
 export class SourceError extends Error {
   constructor(name, message){ super(message || name); this.name = name; }
 }
@@ -127,12 +137,18 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     for (const it of items) { it.takes = by(takes, it.uri); it.deliveries = by(deliveries, it.uri); }
     return items;
   }
+  // Everyone is named as their Bluesky profile names them, unless their Rainshare profile gives
+  // a name of its own (`displayName`), for Rainshare only.
   async function named(items){
     const dids = [...new Set(items.flatMap(it => [it.repo, ...(it.takes || []).map(t => t.repo), ...(it.deliveries || []).map(d => d.repo)]))];
-    const who = await people(dids);
+    const [who, profs] = await Promise.all([people(dids), Promise.all(dids.map(d => publicProfile(d).then(r => r?.value || null, () => null)))]);
+    const own = new Map(dids.map((d, i) => [d, profs[i]]));
+    // A group copy of someone's profile is fuller than the public one, so its name wins.
+    for (const it of items) if (it.profile) own.set(it.repo, { ...(own.get(it.repo) || {}), ...it.profile });
+    const as = d => shown(who.get(d) || { did: d }, own.get(d));
     for (const it of items) {
-      it.author = who.get(it.repo) || { did: it.repo };
-      for (const r of [...(it.takes || []), ...(it.deliveries || [])]) r.author = who.get(r.repo) || { did: r.repo };
+      it.author = as(it.repo);
+      for (const r of [...(it.takes || []), ...(it.deliveries || [])]) r.author = as(r.repo);
     }
     return items;
   }
@@ -248,7 +264,9 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     }
     const merged = pub || full ? { ...(pub?.value || {}), ...(full || {}) } : null;
     const hidden = full ? R.PRIVATE_FIELDS.filter(k => full[k] !== undefined && pub?.value?.[k] === undefined) : [];
-    return { person: who.get(did) || { did }, public: pub?.value || null, merged, hidden, groups: inGroups, ties: ties.get(did) || null };
+    // `bluesky` is them as their Bluesky profile has them; `person` is how Rainshare shows them.
+    const bluesky = who.get(did) || { did };
+    return { person: shown(bluesky, merged), bluesky, public: pub?.value || null, merged, hidden, groups: inGroups, ties: ties.get(did) || null };
   }
 
   /* ---------- writes ---------- */

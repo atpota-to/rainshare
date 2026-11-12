@@ -11,7 +11,7 @@ import { wateredBy, wateredText } from '../core/garden.js';
 import { renderMarkdown } from '../core/markdown.js';
 import { brief, launchers, handBack, readHandBack, readBranchBack, handBackBranch } from '../core/brief.js';
 import { createDemoSource } from '../core/demo.js';
-import { splitSpaceUri } from '../core/source.js';
+import { splitSpaceUri, shown } from '../core/source.js';
 import { lifeOf } from '../ui/bits.js';
 import { standing, since, carry } from '../core/status.js';
 import { newRepoPlaces, placesFor, repoNameFor } from '../core/forges.js';
@@ -120,7 +120,7 @@ test('audiences decide who a seed is meant for', () => {
 
 // Who a helper would like to help first, and what they care about, are set aside for now
 // (FEATURES in core/ns.js); these run with them on, as they will be when they come back.
-const ON = { priorities: true, values: true };
+const ON = { priorities: true, values: true, circumstances: true };
 test('ranking puts the people a helper prioritises first, and says why', () => {
   const me = { did: 'did:me', profile: { priorities: ['low-budget', 'values-aligned'], values: ['climate'], setups: [{ harness: 'claude-code', models: ['claude-opus-5-5'] }] } };
   const items = [
@@ -149,14 +149,15 @@ test('fit says how well a seed suits a helper, in one sentence', () => {
   assert.ok(rank([{ closeness: 'mutual', value: {} }], me)[0].fit.label);
 });
 
-test('set aside, who you’d like to help first has no say in the board', () => {
+test('set aside, who you’d like to help first and their situation have no say in the board', () => {
   const me = { did: 'did:me', profile: { priorities: ['low-budget', 'students'], setups: [{ harness: 'claude-code', models: ['claude-sonnet-5-5'] }] } };
   const juniper = { closeness: 'mutual', author: { displayName: 'Juniper Hale' }, value: {}, profile: { plans: ['none'], circumstances: ['student'] } };
-  const OFF = { priorities: false, values: false }, off = score(juniper, me, OFF), on = score(juniper, me, ON);
+  const OFF = { priorities: false, values: false, circumstances: false }, off = score(juniper, me, OFF), on = score(juniper, me, ON);
   assert.ok(on.score > off.score);
   // Said either way, but as a match rather than as something you asked for.
-  assert.deepEqual(off.reasons.map(r => [r.text, r.tone]), [['No paid AI', 'match'], ['Student', 'match']]);
-  assert.equal(fit(juniper, me, OFF).why, 'Juniper has no paid AI and is a student.');
+  // Without a plan is a fact about their plan, so it's said either way; being a student is set aside.
+  assert.deepEqual(off.reasons.map(r => [r.text, r.tone]), [['No paid AI', 'match']]);
+  assert.equal(fit(juniper, me, OFF).why, 'Juniper has no paid AI.');
 });
 
 test('the models an ask would like, against your plans and what you run', () => {
@@ -218,6 +219,26 @@ test('levels below the frontier, and a family that isn’t built in', () => {
   // The brief says what a level means.
   const b = brief({ uri: `at://did:plc:a/${SEED}/3kmid`, repo: 'did:plc:a', rkey: '3kmid', value: { title: 'T', wants: { families: ['claude'], level: 'mid' } }, author: {} }, {});
   assert.match(b, /^- Models they’d prefer: a mid-tier Claude model \(mid-tier: a step below the frontier, capable and lighter on a plan\)$/m);
+});
+
+test('Z.ai’s GLM Coding Plan reaches GLM models, and is said once', () => {
+  const glm = { wants: { families: ['glm'] } };
+  assert.equal(modelsText(glm, { plans: ['zai'] }), 'GLM. Your Z.ai GLM Coding Plan has GLM models.');
+  assert.equal(modelsText({ wants: { families: ['claude'] } }, { plans: ['claude-pro'] }), 'Claude. Your Claude Pro plan has Claude models.');
+  assert.equal(planText({ plans: ['zai'] }), 'Z.ai GLM Coding Plan');
+  assert.deepEqual(R.plans(['zai', 'none']), ['zai']);
+});
+
+test('a name and a bio of your own on Rainshare, over your Bluesky profile’s', () => {
+  const bsky = { did: 'did:plc:a', handle: 'a.test', displayName: 'Ana B.', description: 'Bluesky bio' };
+  assert.equal(shown(bsky, { displayName: '  Ana  ' }).displayName, 'Ana');
+  assert.equal(shown(bsky, {}), bsky, 'nothing of their own: their Bluesky profile, as it is');
+  assert.equal(shown(bsky, null).displayName, 'Ana B.');
+  // From someone else's record: one line, clipped.
+  assert.equal(shown(bsky, { displayName: 'A\n## B'.padEnd(200, 'x') }).displayName.length, 64);
+  assert.doesNotMatch(shown(bsky, { displayName: 'A\n## B' }).displayName, /\n/);
+  assert.equal(R.profile({ displayName: '  Ana  ', bio: '' }).displayName, 'Ana');
+  assert.equal(R.profile({}).displayName, undefined);
 });
 
 test('AI plans: one line, from plans first and an older profile’s budget otherwise', () => {

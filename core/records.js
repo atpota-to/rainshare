@@ -40,6 +40,8 @@ export function profile(input = {}, prev){
   const f = input.forecast;
   return prune({
     $type: PROFILE,
+    // Your name and bio come from your Bluesky profile; these say something else, on Rainshare only.
+    displayName: clip(input.displayName || '', 64),
     bio: clip(input.bio || '', 300),
     plans: plans(input.plans),
     setups: (input.setups || []).map(setup).filter(Boolean).slice(0, 6),

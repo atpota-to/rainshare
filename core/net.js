@@ -157,13 +157,13 @@ export async function relationships(actor, others){
 }
 
 const people = new Map();
-/** Bluesky profiles (name, handle, avatar), falling back to the handle from the DID document. */
+/** Bluesky profiles (name, handle, avatar, bio), falling back to the handle from the DID document. */
 export async function profiles(dids){
   const todo = [...new Set(dids)].filter(d => isDid(d) && !people.has(d));
   await Promise.all(chunk(todo, 25).map(async part => {
     try {
       const r = await xrpc(APPVIEW, 'app.bsky.actor.getProfiles', { actors: part });
-      for (const p of r.profiles || []) if (isDid(p?.did)) people.set(p.did, { did: p.did, handle: isHandle(p.handle) ? p.handle : null, displayName: typeof p.displayName === 'string' ? p.displayName : '', avatar: /^https:\/\//.test(p.avatar || '') ? p.avatar : null });
+      for (const p of r.profiles || []) if (isDid(p?.did)) people.set(p.did, { did: p.did, handle: isHandle(p.handle) ? p.handle : null, displayName: typeof p.displayName === 'string' ? p.displayName : '', avatar: /^https:\/\//.test(p.avatar || '') ? p.avatar : null, description: typeof p.description === 'string' ? p.description.slice(0, 600) : '' });
     } catch (_) { /* fall through to the DID documents */ }
     await Promise.all(part.filter(d => !people.has(d)).map(async d => people.set(d, { did: d, handle: await handleOf(d).catch(() => null), displayName: '', avatar: null })));
   }));

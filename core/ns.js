@@ -24,7 +24,9 @@ export const GROUPS = false;
 //   forecast     how much rain you have to spare: on profiles, the board, and the CLI's `forecast`
 //   values       what you care about: on profiles, and its say in a board's order (./rank.js).
 //                Rainshare sticks to the facts of a job for now: where, how big, which models.
-export const FEATURES = { audience: false, seedValues: false, priorities: false, forecast: false, values: false };
+//   circumstances  "About them" (a student, between jobs, a maintainer…): on profiles, and its
+//                say in a board's order
+export const FEATURES = { audience: false, seedValues: false, priorities: false, forecast: false, values: false, circumstances: false };
 
 export const HARNESSES = [
   ['claude-code', 'Claude Code'], ['codex', 'Codex'], ['cursor', 'Cursor'], ['gemini-cli', 'Gemini CLI'],
@@ -59,7 +61,7 @@ export const LOW_BUDGET = ['none', 'free', 'low'];
 // [value, what people read]
 export const PLANS = [
   ['claude-pro', 'Claude Pro'], ['claude-max', 'Claude Max'], ['chatgpt-plus', 'ChatGPT Plus'], ['chatgpt-pro', 'ChatGPT Pro'],
-  ['copilot', 'GitHub Copilot'], ['cursor', 'Cursor'], ['gemini', 'Gemini'], ['api', 'Pay as I go (API)'],
+  ['copilot', 'GitHub Copilot'], ['cursor', 'Cursor'], ['gemini', 'Gemini'], ['zai', 'Z.ai GLM Coding Plan'], ['api', 'Pay as I go (API)'],
   ['work', 'Paid by work or school'], ['free', 'Free tiers only'], ['none', 'No AI plan']
 ];
 export const UNPAID = ['free', 'none'];
@@ -87,7 +89,7 @@ export const familyOf = m => {
 // plan includes keeps changing, so a match says "Claude models", never which ones or how capable.
 // Pay as you go and work or school could be anything, so they say nothing.
 export const PLAN_FAMILIES = {
-  'claude-pro': ['claude'], 'claude-max': ['claude'], 'chatgpt-plus': ['gpt'], 'chatgpt-pro': ['gpt'], gemini: ['gemini'],
+  'claude-pro': ['claude'], 'claude-max': ['claude'], 'chatgpt-plus': ['gpt'], 'chatgpt-pro': ['gpt'], gemini: ['gemini'], zai: ['glm'],
   copilot: ['claude', 'gpt', 'gemini'], cursor: ['claude', 'gpt', 'gemini']
 };
 /** Someone's plans, as their record has them: strings only, at most 12. */

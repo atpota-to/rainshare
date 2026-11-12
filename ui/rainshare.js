@@ -416,11 +416,13 @@ export function createRainshare({ root, base = '/', host }){
   const setupText = s => s ? `${HARNESS_NAMES[s.harness] || s.harness}${s.models?.length ? ` (${join(s.models.map(modelName))})` : ''}` : '';
   // Someone's profile as a few plain lines.
   function profileCard(p, person, { compact } = {}){
-    if (!p) return `<p class="rs-muted">${esc(nameOf(person))} hasn’t set up a Rainshare profile yet.</p>`;
+    // The bio is their Rainshare one if they wrote one, and their Bluesky profile's otherwise.
+    const bio = p?.bio || person?.description || '';
+    if (!p) return `${bio ? `<p class="rs-bio">${esc(bio)}</p>` : ''}<p class="rs-muted">${esc(nameOf(person))} hasn’t set up a Rainshare profile yet.</p>`;
     const fc = forecastOf(p);
     const rows = [
       ['AI plan', planText(p)],
-      ['About them', p.circumstances?.length && p.circumstances.map(c => labelOf(CIRCUMSTANCES, c)).join(', ')],
+      FEATURES.circumstances && ['About them', p.circumstances?.length && p.circumstances.map(c => labelOf(CIRCUMSTANCES, c)).join(', ')],
       ['Runs', (p.setups || []).map(s => setupText(s)).join('; ')],
       FEATURES.forecast && ['Forecast', fc && `${fc[1]}: ${fc[2].toLowerCase()}${p.forecast.until ? `, until ${until(p.forecast.until)}` : ''}.${p.forecast.note ? ` “${p.forecast.note}”` : ''}`],
       FEATURES.values && ['Cares about', p.values?.length && join(p.values.map(pretty))],
@@ -429,7 +431,7 @@ export function createRainshare({ root, base = '/', host }){
         ['Takes on', p.offering?.length && join(p.offering)]
       ])
     ].filter(r => r && r[1]);
-    return `${p.bio ? `<p class="rs-bio">${esc(p.bio)}</p>` : ''}${rows.length ? `<dl class="rs-facts rs-facts-sm">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${k === 'Forecast' ? `<span class="rs-fc-${fc[0]}">${skyIco(fc[0])}</span>` : ''}${esc(v)}</dd>`).join('')}</dl>` : p.bio ? '' : '<p class="rs-muted">Nothing shared yet.</p>'}`;
+    return `${bio ? `<p class="rs-bio">${esc(bio)}</p>` : ''}${rows.length ? `<dl class="rs-facts rs-facts-sm">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${k === 'Forecast' ? `<span class="rs-fc-${fc[0]}">${skyIco(fc[0])}</span>` : ''}${esc(v)}</dd>`).join('')}</dl>` : bio ? '' : '<p class="rs-muted">Nothing shared yet.</p>'}`;
   }
   // Every way to hand a seed to an agent: the brief, to paste into one, and then the commands
   // that start one from a terminal.
@@ -820,6 +822,9 @@ export function createRainshare({ root, base = '/', host }){
     const fc = p.forecast || {}, raining = !!fc.level && fc.level !== 'dry';
     // An older profile has no plans: what it said with its budget starts them off, and a plan it typed is shown.
     const typedPlans = [...new Set((p.setups || []).map(x => x.plan).filter(Boolean))];
+    const bsky = S.mine.bluesky || S.mine.person || {};
+    // "Help the right people find you" folds away your situation, values and who you'd help first: only while one of them is on.
+    const folded = FEATURES.circumstances || FEATURES.values || FEATURES.priorities;
     const plansNow = p.plans?.length ? p.plans : { none: ['none'], free: ['free'], sponsored: ['work'] }[p.budget] || [];
     const visSel = field => !priv ? '' : `<div class="rs-vis"><select data-rs-vis="${field}" aria-label="Who sees this"><option value="public"${!hidden.includes(field) ? ' selected' : ''}>Everyone sees this</option><option value="private"${hidden.includes(field) ? ' selected' : ''}>Only my groups</option></select></div>`;
     const withBoard = (groups || []).filter(g => g.space);
@@ -828,7 +833,10 @@ export function createRainshare({ root, base = '/', host }){
       <form class="rs-form rs-me" data-rs-form="me">
         <h1>Your profile</h1>
         <p class="rs-muted">What your circle sees. It’s all optional, and it’s saved in your own account.</p>
-        <label>About you<textarea name="bio" rows="2" maxlength="300" placeholder="What you’re building, what you’re into">${esc(p.bio || '')}</textarea></label>
+        <fieldset><legend>You</legend><p class="rs-muted">Your name, picture and bio come from your Bluesky profile. Fill these in only if you’d like Rainshare to show something different.</p>
+          <label>Name <small>(optional)</small><input name="displayName" maxlength="64" autocomplete="off" placeholder="${esc(bsky.displayName || (bsky.handle ? '@' + bsky.handle : 'Your name'))}" value="${esc(p.displayName || '')}"></label>
+          <label>About you <small>(optional)</small><textarea name="bio" rows="2" maxlength="300" placeholder="${esc(bsky.description || 'What you’re building, what you’re into')}">${esc(p.bio || '')}</textarea></label>
+        </fieldset>
         <fieldset><legend>Your AI plan</legend><p class="rs-muted">What you pay for to code with AI, if anything. It’s the first thing people see about you, on your profile and beside your asks. Pick as many as you have.</p>
           ${toggles('plans', PLANS, plansNow)}
           ${!p.plans?.length && typedPlans.length ? `<p class="rs-muted">You’d written “${esc(typedPlans.join('”, “'))}”. Pick the closest.</p>` : ''}
@@ -848,14 +856,15 @@ export function createRainshare({ root, base = '/', host }){
           <label>With <small>(models)</small><input name="fcModels" list="rsModels" value="${esc((fc.models || []).join(', '))}"></label></div>
           <label>A note <small>(optional)</small><input name="fcNote" maxlength="300" value="${esc(fc.note || '')}" placeholder="Send me your gnarly ones"></label>` : ''}
         </fieldset>`}
+        ${folded ? `
         <details class="rs-more rs-options-more" data-rs-keep="me-more"${S.open['me-more'] ? ' open' : ''}>
           <summary>Help the right people find you <small>optional</small></summary>
           <div class="rs-more-body">
             <p class="rs-muted">${FEATURES.priorities ? 'Some helpers look first for students, people without big AI plans, or projects they care about.' : 'So whoever looks at your asks knows who they’d be helping.'} ${priv ? 'Anything marked “only my groups” goes only into your groups’ private spaces.' : 'Everyone can see what you share here.'}</p>
-            <fieldset><legend>About your situation</legend><p class="rs-muted">Only if you’d like to share.</p>
+            ${FEATURES.circumstances ? `<fieldset><legend>About your situation</legend><p class="rs-muted">Only if you’d like to share.</p>
               ${toggles('circumstances', CIRCUMSTANCES, p.circumstances)}
               ${visSel('circumstances')}
-            </fieldset>
+            </fieldset>` : ''}
             ${FEATURES.values ? `<fieldset><legend>What you care about</legend>
               ${toggles('values', [...new Set([...VALUES, ...(p.values || [])])].map(v => [v, v]), p.values)}
               <label>Add your own <small>(comma separated)</small><input name="moreValues" placeholder="birding, zines"></label>
@@ -866,6 +875,7 @@ export function createRainshare({ root, base = '/', host }){
             <label>Work you’re happy to take on <small>(comma separated)</small><input name="offering" value="${esc((p.offering || []).join(', '))}" placeholder="rust, css, docs, testing"></label>
           </div>
         </details>
+        ` : `<label>Work you’re happy to take on <small>(comma separated)</small><input name="offering" value="${esc((p.offering || []).join(', '))}" placeholder="rust, css, docs, testing"></label>`}
         ${priv ? `<fieldset><legend>Your groups</legend>
           ${groups === null ? '<p class="rs-muted">Finding your groups…</p>' : withBoard.length ? `<p class="rs-muted">Your full profile, including anything marked “only my groups”, goes into these groups’ private Rainshare spaces.</p>
             <div class="rs-toggles" data-rs-toggles="share">${withBoard.map(g => `<button type="button" data-v="${esc(g.did)}" aria-pressed="${share.includes(g.did)}">${ico('lock')}${esc(g.name)}</button>`).join('')}</div>`
@@ -885,6 +895,7 @@ export function createRainshare({ root, base = '/', host }){
     const p = S.form.profile, fd = new FormData(form), shows = sel => !!form.querySelector(sel);
     const on = name => [...form.querySelectorAll(`[data-rs-toggles="${name}"] [aria-pressed="true"]`)].map(b => b.dataset.v);
     p.bio = fd.get('bio');
+    p.displayName = fd.get('displayName') ?? p.displayName;
     if (shows('[data-rs-toggles="plans"]')) p.plans = on('plans');
     // A plan typed into a setup before there were plans to pick stays in the record.
     const before = p.setups || [];
@@ -894,7 +905,7 @@ export function createRainshare({ root, base = '/', host }){
     }));
     if (shows('[data-rs-seg="forecast"]')) readForecast(form, p, fd);
     if (shows('[data-rs-seg="budget"]')) p.budget = form.querySelector('[data-rs-seg="budget"] [aria-pressed="true"]')?.dataset.v || undefined;
-    p.circumstances = on('circumstances');
+    if (shows('[data-rs-toggles="circumstances"]')) p.circumstances = on('circumstances');
     if (shows('[data-rs-toggles="values"]')) p.values = [...on('values'), ...String(fd.get('moreValues') || '').split(',').map(s => s.trim()).filter(Boolean)];
     if (shows('[data-rs-toggles="priorities"]')) p.priorities = on('priorities');
     p.offering = String(fd.get('offering') || '').split(',').map(s => s.trim()).filter(Boolean);
