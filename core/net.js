@@ -148,10 +148,11 @@ const chunk = (a, n) => Array.from({ length: Math.ceil(a.length / n) }, (_, i) =
  */
 export async function relationships(actor, others){
   const out = new Map(), dids = [...new Set(others.filter(d => d && d !== actor && isDid(d)))];
-  await Promise.all(chunk(dids, 30).map(async part => {
+  // A few calls at a time: a long list of people (everyone you follow) is dozens of them.
+  await pool(chunk(dids, 30), 6, async part => {
     const r = await xrpc(APPVIEW, 'app.bsky.graph.getRelationships', { actor, others: part });
     for (const x of r.relationships || []) if (x.did) out.set(x.did, { following: !!x.following, followedBy: !!x.followedBy, blocking: !!(x.blocking || x.blockingByList), blockedBy: !!x.blockedBy });
-  }));
+  });
   return out;
 }
 
@@ -195,19 +196,27 @@ export async function counts(did){
   return { following: p.followsCount ?? null, followers: p.followersCount ?? null };
 }
 /**
- * How many of the people `did` follows follow them back. It reads the whole follow list, so
- * it gives up (null) past `max` follows rather than make hundreds of calls.
+ * Who `did` follows on Bluesky, the most recently followed first: { dids, partial }. It stops
+ * at `max`, and `partial` says there were more.
  */
-export async function mutualCount(did, { max = 600 } = {}){
+export async function followsOf(did, { max = 1000 } = {}){
   const follows = [];
   let cursor;
   do {
     const r = await xrpc(APPVIEW, 'app.bsky.graph.getFollows', { actor: did, limit: 100, cursor });
-    follows.push(...(r.follows || []).map(f => f.did));
+    follows.push(...(r.follows || []).map(f => f?.did).filter(isDid));
     cursor = r.cursor;
-    if (follows.length > max) return null;
-  } while (cursor);
-  const rel = await relationships(did, follows);
+  } while (cursor && follows.length < max);
+  return { dids: [...new Set(follows)].slice(0, max), partial: !!cursor || follows.length > max };
+}
+/**
+ * How many of the people `did` follows follow them back. It reads the whole follow list, so
+ * it gives up (null) past `max` follows rather than make hundreds of calls.
+ */
+export async function mutualCount(did, { max = 600 } = {}){
+  const { dids, partial } = await followsOf(did, { max });
+  if (partial) return null;
+  const rel = await relationships(did, dids);
   return [...rel.values()].filter(r => r.following && r.followedBy).length;
 }
 /** Someone's own Bluesky lists, for picking who a seed is for. */

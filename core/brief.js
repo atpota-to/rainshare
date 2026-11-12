@@ -1,8 +1,9 @@
 // What a helper's agent is handed: the brief (a seed written up for an agent), and the
 // commands that start one on it. The brief frames the seed as a request from another
 // person, so an agent weighs it rather than obeying it.
-import { SITE, labelOf, TESTS } from './ns.js';
+import { SITE, labelOf, TESTS, LEVELS } from './ns.js';
 import { nounOf, whatItIs } from './words.js';
+import { wantPhrase } from './rank.js';
 import { describeSubject, cloneUrlOf, kindOf, safeHttp, FORGE_NAMES, REPO_NAME, KNOTLESS, KNOTLESS_NAME } from './subjects.js';
 import { parseUri, safeAtUri } from './net.js';
 import { standing } from './status.js';
@@ -130,12 +131,15 @@ export function brief(item, { viewer, now = Date.now() } = {}){
 
   lines.push('## What they want', '', sq.spec?.trim() || (idea ? '(No details beyond the title. Keep the first version small, and ask before guessing at anything large.)' : '(No details beyond the title. Read the issue, and keep it small.)'), '');
   const g = [];
-  if (w.models?.length) g.push(`- Models they’d like used: ${w.models.join(', ')}`);
-  if (w.harnesses?.length) g.push(`- Harnesses they’d like: ${w.harnesses.join(', ')}`);
+  // Lists from someone else's record go in one line each, whatever they hold.
+  const one = a => (Array.isArray(a) ? a : []).filter(x => typeof x === 'string').map(x => x.replace(/\s+/g, ' ').trim()).filter(Boolean).join(', ');
+  const level = LEVELS.find(l => l[0] === w.level);
+  if (wantPhrase(sq)) g.push(`- Models they’d prefer: ${wantPhrase(sq)}${level ? ` (${level[1].toLowerCase()}: ${level[2]})` : ''}`);
+  if (one(w.harnesses)) g.push(`- Harnesses they’d like: ${one(w.harnesses)}`);
   if (w.tests) g.push(`- ${labelOf(TESTS, w.tests)}`);
   if (w.maxDiffLines) g.push(`- Keep the change under about ${w.maxDiffLines} lines`);
   if (w.notes) g.push(`- ${w.notes.replace(/\n+/g, ' ')}`);
-  if (sq.tags?.length) g.push(`- Tags: ${sq.tags.join(', ')}`);
+  if (one(sq.tags)) g.push(`- Tags: ${one(sq.tags)}`);
   if (g.length) lines.push('## Their guidelines', '', ...g, '');
 
   const credit = `say that it came from Rainshare and which model did the work${page ? `, and include its Rainshare link: ${page} (that link is how the two find each other)` : ''}`;

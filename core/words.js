@@ -1,9 +1,10 @@
 // An ask in plain words, for the board's details and its own page: where the
 // work is, how big the job is, what the asker would like, and who's on it. Each is a short
 // line of text, so nothing needs a coloured chip.
-import { labelOf, SIZES, HARNESSES, audienceOf, modelName } from './ns.js';
+import { labelOf, SIZES, HARNESSES, PLANS, BUDGETS, plansIn, audienceOf, modelName } from './ns.js';
 import { describeSubject, kindOf, FORGE_NAMES } from './subjects.js';
-import { join, modelsOf, modelMatch } from './rank.js';
+import { join, modelReach, wantedOf, wantPhrase } from './rank.js';
+import { tieOf, TIE_SHORT } from './ties.js';
 
 const firstName = p => String(p?.displayName || '').trim().split(/\s+/)[0] || (p?.handle ? '@' + p.handle : 'Someone');
 const harnessName = h => labelOf(HARNESSES, h);
@@ -62,20 +63,30 @@ export function jobShort(sq){
   return [sq?.size ? `${sq.size} job` : '', { required: 'tests required', welcome: 'tests welcome', none: 'no tests needed' }[w.tests] || ''].filter(Boolean).join(', ');
 }
 
-/** "Opus or Sonnet (you have Sonnet). No new dependencies, please." */
-export function wantsText(sq, myProfile){
+/**
+ * The models an ask would like, and how they fit yours (`myProfile`, left out for the asker):
+ * "A frontier Claude model. You run Sonnet." "Claude or GPT. Your Claude Pro plan has Claude
+ * models." "GLM. Not in your plan or setup." "Any model."
+ */
+export function modelsText(sq, myProfile){
+  const want = wantedOf(sq), phrase = wantPhrase(sq);
+  if (!phrase) return 'Any model.';
+  const lead = phrase[0].toUpperCase() + phrase.slice(1) + '.', r = want.families.length && myProfile ? modelReach(want, myProfile) : null;
+  if (r?.run) return `${lead} You run ${r.run}.`;
+  if (r?.plan) return `${lead} Your ${r.plan.name} plan has ${join(r.plan.families)} models.`;
+  return r?.said ? `${lead} Not in your plan or setup.` : lead;
+}
+/** Anything else they asked for, in their words: "Made with Claude Code. No new dependencies." */
+export function notesText(sq){
   const w = sq?.wants || {}, out = [];
-  if (w.models?.length) {
-    const have = modelsOf(myProfile || {}), hit = w.models.find(m => modelMatch(String(m).toLowerCase(), have));
-    const names = w.models.map(modelName);
-    out.push(hit && myProfile ? (names.length === 1 ? `${names[0]}, which you have.` : `${join(names, 'or')} (you have ${modelName(hit)}).`) : join(names, 'or') + '.');
-  }
   if (w.harnesses?.length) out.push(`Made with ${join(w.harnesses.map(harnessName), 'or')}.`);
   if (w.notes) out.push(String(w.notes).trim().replace(/([^.!?])$/, '$1.'));
-  return out.join(' ') || 'Nothing in particular.';
+  return out.join(' ');
 }
-/** "wants Opus or Sonnet", for a one-line summary. */
-export const wantsShort = sq => sq?.wants?.models?.length ? 'wants ' + join(sq.wants.models.map(modelName), 'or') : '';
+/** The job, then their notes: "Small. Tests required. No new dependencies." */
+export const jobAndNotes = sq => { const j = jobText(sq), n = notesText(sq); return n ? (j === 'Not said.' ? n : `${j} ${n}`) : j; };
+/** "wants a frontier Claude model", for a one-line summary. */
+export const wantsShort = sq => { const p = wantPhrase(sq); return p ? 'wants ' + p : ''; };
 
 /** "Nobody yet", "Kai, with Claude Code", "You". Deliveries are added: "Kai turned it in". */
 export function onItText(item, viewer){
@@ -94,11 +105,25 @@ export function takenShort(item, viewer){
   return t[0].repo === viewer ? 'You’re on it' : `${firstName(t[0].author)}’s on it`;
 }
 
+/**
+ * Someone's AI plan as one line: "Claude Max and GitHub Copilot", "No AI plan". An older
+ * profile without plans says it with the plan typed into its setups, or its budget. '' when
+ * they haven't said. (A plan nobody knows is shown as written, clipped.)
+ */
+export function planText(p){
+  const plans = plansIn(p);
+  if (plans.length) return join([...new Set(plans.map(x => String(labelOf(PLANS, x)).slice(0, 40)))]);
+  const typed = [...new Set((p?.setups || []).map(x => typeof x?.plan === 'string' ? x.plan.trim().slice(0, 64) : '').filter(Boolean))];
+  if (typed.length) return join(typed.slice(0, 3));
+  return BUDGETS.find(b => b[0] === p?.budget)?.[2] || '';
+}
+
 /** How the asker relates to you: "mutual", "follows you", "Spine Club", "open to everyone". */
 export function relationText(item, viewer){
   if (viewer && item?.repo === viewer) return 'you';
   if (item?.space) return item.group?.name || 'private';
-  return { mutual: 'mutual', 'follows-you': 'follows you', 'you-follow': 'you follow them', group: item.group?.name || 'your group' }[item?.closeness]
+  // A follow on Bluesky or on Tangled counts here (./ties.js); without ties, Bluesky's alone.
+  return { ...TIE_SHORT, group: item.group?.name || 'your group' }[tieOf(item?.ties) || item?.closeness]
     || (audienceOf(item?.value) === 'anyone' ? 'open to everyone' : '');
 }
 

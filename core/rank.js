@@ -1,7 +1,7 @@
 // Putting a helper's board in order: who they'd like to help first, what their setup can
 // do, and how close they are to whoever asked. Each item says why it's where it is: as
 // short reasons (for the CLI), and as a fit level with one plain sentence (for the apps).
-import { LOW_BUDGET, labelOf, BUDGETS, modelName } from './ns.js';
+import { FEATURES, PLANS, PLAN_FAMILIES, LEVELS, plansIn, familyOf, familyName, levelWord, lowBudgetOf, labelOf, BUDGETS, modelName } from './ns.js';
 
 const has = (a, v) => Array.isArray(a) && a.includes(v);
 const lower = a => (a || []).map(s => String(s).toLowerCase());
@@ -18,6 +18,45 @@ export function modelsOf(profile){
 }
 // A wanted model matches one you have when either names the other ("opus" matches claude-opus-5-5).
 export const modelMatch = (want, have) => have.some(h => h === want || h.includes(want) || want.includes(h));
+/**
+ * What an ask would like, model-wise: { families, level, models }. An ask says families
+ * ('claude', 'gpt'…) and a level ('frontier', 'mid', 'small', or null for any). An older one named models
+ * (`models`), and their families count as its families.
+ */
+export function wantedOf(sq){
+  const w = sq?.wants || {}, models = words(w.models, 64);
+  return { families: [...new Set([...words(w.families, 32), ...models.map(familyOf).filter(Boolean)])], level: LEVELS.some(l => l[0] === w.level) ? w.level : null, models };
+}
+// What someone else's record lists, as it's safe to show and to put in a brief: strings only, each
+// on one line and clipped, lower case. (A record can say anything: a string, numbers, line breaks.)
+const words = (a, max) => [...new Set((Array.isArray(a) ? a : []).filter(x => typeof x === 'string').map(x => x.replace(/\s+/g, ' ').trim().slice(0, max).toLowerCase()).filter(Boolean))].slice(0, 8);
+/** That in words, or '' for any model at all: "a frontier Claude model", "Claude or GPT", "Opus or Sonnet", "a small model". */
+export function wantPhrase(sq){
+  const { families, level, models } = wantedOf(sq);
+  if (models.length) return join(models.map(modelName), 'or');
+  if (!families.length) return level ? `a ${levelWord(level)} model` : '';
+  const names = join(families.map(familyName), 'or');
+  return level ? `a ${levelWord(level)} ${names} model` : names;
+}
+/**
+ * What someone brings to what an ask would like (wantedOf):
+ *   run    a model they run that fits: the very one an older ask named, or one of a family it
+ *          would like ("Sonnet"), or null. How capable it is is theirs to judge.
+ *   exact  whether `run` is the very model asked for
+ *   plan   else, a plan of theirs that reaches one of the families: { name, families: ['Claude'] }, or null
+ *   said   whether their profile says enough to tell: models they run, or a plan that reaches a family
+ */
+export function modelReach(want, profile){
+  const have = modelsOf(profile), plans = plansIn(profile);
+  const exact = want.models.find(w => modelMatch(w, have)) || null;
+  const fits = exact ? null : have.find(h => want.families.includes(familyOf(h))) || null;
+  const by = exact || fits ? null : plans.find(p => (PLAN_FAMILIES[p] || []).some(f => want.families.includes(f)));
+  return {
+    run: exact || fits ? modelName(exact || fits) : null, exact: !!exact,
+    plan: by ? { name: labelOf(PLANS, by), families: want.families.filter(f => PLAN_FAMILIES[by].includes(f)).map(familyName) } : null,
+    said: have.length > 0 || plans.some(p => PLAN_FAMILIES[p])
+  };
+}
 
 /**
  * Score one item for a helper. `item` carries the seed (`value`), its author's profile
@@ -25,17 +64,20 @@ export const modelMatch = (want, have) => have.some(h => h === want || h.include
  * its takes. Returns { score, reasons: [{ text, say, tone, about }] }: `text` is a short
  * label, tone is 'up', 'match' or 'down', and `say` is how fit() words it: about 'them' (the
  * asker) finishes a sentence that starts with their name; about 'job' is a sentence itself.
+ * Who the helper would like to help first, and what they care about, count only while those
+ * are on (FEATURES in ./ns.js), or when `priorities` or `values` says so.
  */
-export function score(item, me){
+export function score(item, me, { priorities = FEATURES.priorities, values = FEATURES.values } = {}){
   const sq = item.value || {}, them = item.profile || {}, mine = me?.profile || {};
-  const pr = mine.priorities || [], reasons = [];
+  const pr = priorities ? mine.priorities || [] : [], reasons = [];
   const add = (text, say, tone, about = 'them') => reasons.push({ text, say, tone, about });
   let s = { self: 0, group: 3, mutual: 3, 'follows-you': 2, 'you-follow': 1 }[item.closeness] ?? 0;
   if (has(pr, 'friends-first') && (item.closeness === 'mutual' || item.closeness === 'group')) { s += 2; add('Close friend', 'is a close friend', 'up'); }
 
-  if (LOW_BUDGET.includes(them.budget)) {
+  const low = lowBudgetOf(them);
+  if (low) {
     s += has(pr, 'low-budget') ? 4 : 1;
-    const [text, say] = { none: ['No paid AI', 'has no paid AI'], free: ['Free tiers only', 'is on free tiers'], low: ['Small AI budget', 'is on a small AI budget'] }[them.budget];
+    const [text, say] = { none: ['No paid AI', 'has no paid AI'], free: ['Free tiers only', 'is on free tiers'], low: ['Small AI budget', 'is on a small AI budget'] }[low];
     add(text, say, has(pr, 'low-budget') ? 'up' : 'match');
   }
   const c = them.circumstances || [];
@@ -48,18 +90,17 @@ export function score(item, me){
   if (has(c, 'nonprofit')) { s += has(pr, 'nonprofits') ? 3 : 0; add('Community project', 'runs a community project', has(pr, 'nonprofits') ? 'up' : 'match'); }
   if (has(c, 'oss-maintainer')) { s += has(pr, 'maintainers') ? 2 : 0; if (has(pr, 'maintainers')) add('Maintainer', 'maintains open source', 'up'); }
 
-  const shared = [...new Set([...lower(them.values), ...lower(sq.values)])].filter(v => lower(mine.values).includes(v));
+  const shared = !values ? [] : [...new Set([...lower(them.values), ...lower(sq.values)])].filter(v => lower(mine.values).includes(v));
   if (shared.length) {
     s += Math.min(shared.length, 3) * (has(pr, 'values-aligned') ? 2 : 1);
     add('Shares ' + shared.slice(0, 3).join(', '), `cares about ${join(shared.slice(0, 3).map(pretty))} too`, has(pr, 'values-aligned') ? 'up' : 'match');
   }
 
-  const want = lower(sq.wants?.models), have = modelsOf(mine);
-  if (want.length && have.length) {
-    const hit = want.find(w => modelMatch(w, have));
-    if (hit) { s += 2; add(`Wants ${short(hit)}: you have it`, `It’d like ${modelName(hit)}, which you have`, 'match', 'job'); }
-    else { s -= 2; add(`Wants ${want.map(short).join(' or ')}`, `they’d like ${join(want.map(modelName), 'or')}, which isn’t in your setup`, 'down', 'job'); }
-  }
+  // The models it'd like (families, or an older ask's models), against what you run and your plans.
+  const want = wantedOf(sq), phrase = wantPhrase(sq), reach = want.families.length ? modelReach(want, mine) : null;
+  if (reach?.run) { s += 2; add(`Wants ${phrase}: you run ${reach.run}`, reach.exact ? `It’d like ${phrase}, which you have` : `It’d like ${phrase}, and you run ${reach.run}`, 'match', 'job'); }
+  else if (reach?.plan) { s += 1; add(`Wants ${phrase}: your ${reach.plan.name} has ${join(reach.plan.families)} models`, `It’d like ${phrase}, and your ${reach.plan.name} plan has ${join(reach.plan.families)} models`, 'match', 'job'); }
+  else if (reach?.said) { s -= 2; add(`Wants ${phrase}`, `they’d like ${phrase}, which isn’t in your plan or setup`, 'down', 'job'); }
   const skills = lower(mine.offering), fits = lower(sq.tags).filter(t => skills.includes(t));
   if (fits.length) { s += Math.min(fits.length, 2); add('Your kind of work: ' + fits.slice(0, 2).join(', '), `It’s ${join(fits.slice(0, 2))}, your kind of work`, 'match', 'job'); }
 
@@ -76,8 +117,8 @@ export const FIT = { 3: 'Strong fit', 2: 'Good fit', 1: 'Some fit' };
  * sentences that say why ("Priya has no paid AI and is between jobs. It’d like Sonnet,
  * which you have. Heads up: someone’s already on it.").
  */
-export function fit(item, me){
-  const { score: s, reasons } = score(item, me);
+export function fit(item, me, opts){
+  const { score: s, reasons } = score(item, me, opts);
   const level = s >= 12 ? 3 : s >= 6 ? 2 : 1;
   const name = String(item.author?.displayName || '').trim().split(/\s+/)[0] || (item.author?.handle ? '@' + item.author.handle : 'They');
   const ups = reasons.filter(r => r.tone !== 'down');
@@ -91,8 +132,8 @@ export function fit(item, me){
 }
 
 /** The board in order for this helper, best first, each with its fit. */
-export function rank(items, me){
-  return items.map(it => ({ ...it, ...score(it, me), fit: fit(it, me) })).sort((a, b) => b.score - a.score || String(b.value?.createdAt).localeCompare(String(a.value?.createdAt)));
+export function rank(items, me, opts){
+  return items.map(it => ({ ...it, ...score(it, me, opts), fit: fit(it, me, opts) })).sort((a, b) => b.score - a.score || String(b.value?.createdAt).localeCompare(String(a.value?.createdAt)));
 }
 
 export const budgetLabel = b => labelOf(BUDGETS, b);

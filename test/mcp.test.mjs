@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { FEATURES } from '../core/ns.js';
 
 const CLI = fileURLToPath(new URL('../cli/rainshare.mjs', import.meta.url));
 
@@ -30,7 +31,10 @@ test('speaks MCP over stdio', async () => {
     child.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) + '\n');
     const list = await call('tools/list', {});
     const names = list.result.tools.map(t => t.name);
-    assert.deepEqual(names, ['rainshare_board', 'rainshare_show', 'rainshare_check', 'rainshare_take', 'rainshare_drop', 'rainshare_turn_in', 'rainshare_open_pr', 'rainshare_ask', 'rainshare_close_out', 'rainshare_profile', 'rainshare_set_forecast', 'rainshare_whoami']);
+    // Forecasts are set aside for now (FEATURES in core/ns.js), and their tool with them.
+    assert.deepEqual(names, ['rainshare_board', 'rainshare_show', 'rainshare_check', 'rainshare_take', 'rainshare_drop', 'rainshare_turn_in', 'rainshare_open_pr', 'rainshare_ask', 'rainshare_close_out', 'rainshare_profile', ...(FEATURES.forecast ? ['rainshare_set_forecast'] : []), 'rainshare_whoami']);
+    // So is who an ask is for: every ask is open to everyone.
+    assert.equal('audience' in list.result.tools.find(t => t.name === 'rainshare_ask').inputSchema.properties, FEATURES.audience);
     assert.ok(list.result.tools.every(t => t.inputSchema?.type === 'object' && !('run' in t)));
     const take = await call('tools/call', { name: 'rainshare_take', arguments: { ref: 'at://did:plc:abc/dev.rainshare.seed/3k2a4zxq5zs2a' } });
     assert.equal(take.result.isError, true);
@@ -40,6 +44,13 @@ test('speaks MCP over stdio', async () => {
     assert.equal(pr.result.isError, true);
     assert.match(pr.result.content[0].text, /Not signed in to Rainshare here/);
     assert.match(list.result.tools.find(t => t.name === 'rainshare_open_pr').description, /knotless or Tangled only/);
+    // Narrowing the board to who asked is worked out from your own account, so it needs one too.
+    assert.deepEqual(list.result.tools.find(t => t.name === 'rainshare_board').inputSchema.properties.from.enum, ['anyone', 'mutuals', 'following', 'followers', 'vouched']);
+    const mutuals = await call('tools/call', { name: 'rainshare_board', arguments: { from: 'mutuals' } });
+    assert.equal(mutuals.result.isError, true);
+    assert.match(mutuals.result.content[0].text, /Sign in first/);
+    const odd = await call('tools/call', { name: 'rainshare_board', arguments: { from: 'friends' } });
+    assert.match(odd.result.content[0].text, /--from is one of anyone, mutuals/);
     const bad = await call('tools/call', { name: 'nope', arguments: {} });
     assert.equal(bad.error.code, -32602);
     const missing = await call('resources/list', {});

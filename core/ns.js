@@ -15,6 +15,16 @@ export const STAGE = 'alpha';
 // groups as coming. Turning this on brings back everything private (src/scope.js, the
 // "Private, in a group" choice, "only my groups" on a profile, and groups in the example).
 export const GROUPS = false;
+// Set aside for now, to keep Rainshare simple while it's early. Each is still in the records
+// (old records keep theirs, and nothing is deleted), and turning one on brings it all back:
+//   audience     the "Who's it for?" step when asking, and that line on an ask's page. New asks
+//                are open to everyone; an ask's audience is still honoured (./circle.js).
+//   seedValues   what an ask stands for: asked when asking, and shown on its page
+//   priorities   who you'd like to help first: on profiles, and its say in a board's order (./rank.js)
+//   forecast     how much rain you have to spare: on profiles, the board, and the CLI's `forecast`
+//   values       what you care about: on profiles, and its say in a board's order (./rank.js).
+//                Rainshare sticks to the facts of a job for now: where, how big, which models.
+export const FEATURES = { audience: false, seedValues: false, priorities: false, forecast: false, values: false };
 
 export const HARNESSES = [
   ['claude-code', 'Claude Code'], ['codex', 'Codex'], ['cursor', 'Cursor'], ['gemini-cli', 'Gemini CLI'],
@@ -43,6 +53,54 @@ export const BUDGETS = [
   ['sponsored', 'Paid for', 'An employer, school or grant pays']
 ];
 export const LOW_BUDGET = ['none', 'free', 'low'];
+// AI plans: what someone pays for to code with AI, or that they don't. It's the first thing
+// said about a person, on their profile and beside their asks. It takes over from `budget` and
+// a setup's typed `plan`, which older profiles still have and are read when there's no plan.
+// [value, what people read]
+export const PLANS = [
+  ['claude-pro', 'Claude Pro'], ['claude-max', 'Claude Max'], ['chatgpt-plus', 'ChatGPT Plus'], ['chatgpt-pro', 'ChatGPT Pro'],
+  ['copilot', 'GitHub Copilot'], ['cursor', 'Cursor'], ['gemini', 'Gemini'], ['api', 'Pay as I go (API)'],
+  ['work', 'Paid by work or school'], ['free', 'Free tiers only'], ['none', 'No AI plan']
+];
+export const UNPAID = ['free', 'none'];
+// Which model families an ask can prefer, and how capable a model: families and a level rather
+// than model names, since names change every few months and a helper knows which of theirs fit.
+// Any other can be typed in ("Or another"), and a model someone runs from it still matches.
+export const FAMILIES = [['claude', 'Claude'], ['gpt', 'GPT'], ['gemini', 'Gemini'], ['deepseek', 'DeepSeek'], ['qwen', 'Qwen'], ['glm', 'GLM'], ['kimi', 'Kimi'], ['mistral', 'Mistral']];
+// How capable a model, without naming one. Left out, any level does. [value, name, what it means]
+export const LEVELS = [
+  ['frontier', 'Frontier', 'the most capable model a family has'],
+  ['mid', 'Mid-tier', 'a step below the frontier, capable and lighter on a plan'],
+  ['small', 'Small', 'quick and light, for simple jobs']
+];
+/** A level as it goes before a family: "frontier", "mid-tier", "small". */
+export const levelWord = l => String(labelOf(LEVELS, l)).toLowerCase();
+/** A family's name: "Claude", or one nobody knows as it was written. */
+export const familyName = f => labelOf(FAMILIES, f);
+/** A model's family, from its name ("claude-opus-5-5", "gpt-5-codex"), or null. */
+export const familyOf = m => {
+  const s = String(m || '').toLowerCase();
+  return /claude|opus|sonnet|haiku|fable/.test(s) ? 'claude' : /gpt|codex|^o\d/.test(s) ? 'gpt' : /gemini/.test(s) ? 'gemini' : /grok/.test(s) ? 'grok'
+    : /deepseek/.test(s) ? 'deepseek' : /qwen/.test(s) ? 'qwen' : /glm|zhipu/.test(s) ? 'glm' : /kimi|moonshot/.test(s) ? 'kimi' : /mistral|devstral|codestral/.test(s) ? 'mistral' : null;
+};
+// Which families a plan reaches, for matching against the families an ask would like. What each
+// plan includes keeps changing, so a match says "Claude models", never which ones or how capable.
+// Pay as you go and work or school could be anything, so they say nothing.
+export const PLAN_FAMILIES = {
+  'claude-pro': ['claude'], 'claude-max': ['claude'], 'chatgpt-plus': ['gpt'], 'chatgpt-pro': ['gpt'], gemini: ['gemini'],
+  copilot: ['claude', 'gpt', 'gemini'], cursor: ['claude', 'gpt', 'gemini']
+};
+/** Someone's plans, as their record has them: strings only, at most 12. */
+export const plansIn = p => (Array.isArray(p?.plans) ? p.plans : []).filter(x => typeof x === 'string' && x).slice(0, 12);
+/**
+ * Whether someone is without a paid plan: 'none', 'free', 'low' (an older profile's "under $25"
+ * budget), or null when they pay for one or haven't said. Plans decide it when there are any.
+ */
+export function lowBudgetOf(p){
+  const plans = plansIn(p);
+  if (plans.length) return plans.some(x => !UNPAID.includes(x)) ? null : plans.includes('free') ? 'free' : 'none';
+  return LOW_BUDGET.includes(p?.budget) ? p.budget : null;
+}
 
 export const FORECAST = [
   ['dry', 'Dry', 'Nothing to spare right now'],
