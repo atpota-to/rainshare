@@ -1,6 +1,6 @@
 // Building the four records from what people type, so every app writes the same shapes.
 // Each builder trims, clips to the lexicon's limits and leaves out what's empty.
-import { PROFILE, SEED, TAKE, DELIVERY, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, HARNESSES, RUNS_ON, AUDIENCES, TESTS, SIZES, OWNERS, STAGES, audienceOf } from './ns.js';
+import { PROFILE, SEED, TAKE, DELIVERY, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, PLANS, UNPAID, HARNESSES, RUNS_ON, AUDIENCES, TESTS, SIZES, OWNERS, STAGES, audienceOf } from './ns.js';
 import { parseUri } from './net.js';
 import { kindOf } from './subjects.js';
 
@@ -29,12 +29,19 @@ export function setup(s){
   return prune({ harness, models: strings(s.models, 8, 64), plan: clip(s.plan || '', 64), runsOn: known(RUNS_ON, s.runsOn), note: clip(s.note || '', 300) });
 }
 
+/** AI plans, known ones only. A paid plan means "none" and "free tiers only" no longer apply. */
+export function plans(input){
+  const k = [...new Set((Array.isArray(input) ? input : []).filter(p => known(PLANS, p)))], paid = k.filter(p => !UNPAID.includes(p));
+  return paid.length ? paid : k.includes('free') ? ['free'] : k.includes('none') ? ['none'] : [];
+}
+
 /** A Rainshare profile. `prev` keeps its createdAt. */
 export function profile(input = {}, prev){
   const f = input.forecast;
   return prune({
     $type: PROFILE,
     bio: clip(input.bio || '', 300),
+    plans: plans(input.plans),
     setups: (input.setups || []).map(setup).filter(Boolean).slice(0, 6),
     budget: known(BUDGETS, input.budget),
     forecast: f && known(FORECAST, f.level) ? prune({ level: f.level, models: strings(f.models, 8, 64), until: iso(f.until), note: clip(f.note || '', 300) }) : undefined,

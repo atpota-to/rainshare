@@ -19,20 +19,20 @@ const GROUPS = { [GROUP.did]: GROUP, [HACKERS.did]: HACKERS };
 
 const PEOPLE = {
   'did:example:juniper': { handle: 'juniper.example', displayName: 'Juniper Hale', color: '#FFB495', rel: 'mutual', known: ['did:example:kai', 'did:example:priya'],
-    profile: { bio: 'Second-year CS student. Building study tools for people who learn differently.', budget: 'none', circumstances: ['student'], values: ['accessibility', 'education'], setups: [{ harness: 'other', models: ['local'], plan: 'Whatever runs on my laptop', runsOn: 'local' }] } },
+    profile: { bio: 'Second-year CS student. Building study tools for people who learn differently.', plans: ['none'], budget: 'none', circumstances: ['student'], values: ['accessibility', 'education'], setups: [{ harness: 'other', models: ['local'], plan: 'Whatever runs on my laptop', runsOn: 'local' }] } },
   'did:example:tomas': { handle: 'tomas.example', displayName: 'Tomás Rivera', color: '#86DFC4', rel: 'follows-you', tangled: 'mutual', known: ['did:example:priya', 'did:example:kai'], knownMore: 3,
-    profile: { bio: 'I maintain tidepool, a tiny sync tool for local-first apps.', budget: 'low', circumstances: ['oss-maintainer'], values: ['local-first', 'open-source'], setups: [{ harness: 'aider', models: ['claude-haiku-5-5'], plan: 'API, pay as I go', runsOn: 'local' }] } },
+    profile: { bio: 'I maintain tidepool, a tiny sync tool for local-first apps.', plans: ['api'], budget: 'low', circumstances: ['oss-maintainer'], values: ['local-first', 'open-source'], setups: [{ harness: 'aider', models: ['claude-haiku-5-5'], plan: 'API, pay as I go', runsOn: 'local' }] } },
   'did:example:amara': { handle: 'amara.example', displayName: 'Amara Okafor', color: '#FFD978', rel: null, known: ['did:example:sam'],
-    profile: { bio: 'I keep the Eastside Food Share’s volunteer site running in my evenings.', budget: 'free', circumstances: ['nonprofit'], values: ['mutual-aid', 'civic'] } },
+    profile: { bio: 'I keep the Eastside Food Share’s volunteer site running in my evenings.', plans: ['free'], budget: 'free', circumstances: ['nonprofit'], values: ['mutual-aid', 'civic'] } },
   'did:example:kai': { handle: 'kai.example', displayName: 'Kai Nakamura', color: '#8E9BFF', rel: 'mutual', tangled: 'you-follow', known: ['did:example:priya', 'did:example:juniper', 'did:example:sam'], knownMore: 9,
-    profile: { bio: 'Staff engineer. My plan resets on Mondays and I hate wasting it.', budget: 'high', values: ['open-source', 'climate'], priorities: ['low-budget', 'students'], offering: ['go', 'rust', 'testing'],
+    profile: { bio: 'Staff engineer. My plan resets on Mondays and I hate wasting it.', plans: ['claude-max'], budget: 'high', values: ['open-source', 'climate'], priorities: ['low-budget', 'students'], offering: ['go', 'rust', 'testing'],
       setups: [{ harness: 'claude-code', models: ['claude-opus-5-5'], plan: 'Claude Max 20x', runsOn: 'cloud' }], forecast: { level: 'downpour', models: ['claude-opus-5-5'], until: new Date(Date.now() + 3 * day).toISOString(), note: 'Send me your gnarly ones' } } },
   'did:example:priya': { handle: 'priya.example', displayName: 'Priya Shah', color: '#F5B3D6', rel: 'mutual', tangled: 'mutual', known: ['did:example:kai', 'did:example:juniper'], knownMore: 1,
-    profile: { bio: 'Climate data nerd, between jobs and building in public.', budget: 'none', circumstances: ['between-jobs'], values: ['climate', 'open-source'] } },
+    profile: { bio: 'Climate data nerd, between jobs and building in public.', plans: ['none'], budget: 'none', circumstances: ['between-jobs'], values: ['climate', 'open-source'] } },
   'did:example:mo': { handle: 'mo.example', displayName: 'Mo Adeyemi', color: '#C3B8FF', rel: 'group', known: [],
-    profile: { bio: 'Spine Club’s unofficial web person. Learning as I go!', budget: 'free', circumstances: ['learning'], values: ['education'] } },
+    profile: { bio: 'Spine Club’s unofficial web person. Learning as I go!', plans: ['free'], budget: 'free', circumstances: ['learning'], values: ['education'] } },
   'did:example:sam': { handle: 'sam.example', displayName: 'Sam Lindqvist', color: '#5ED6B2', rel: 'you-follow', tangled: 'follows-you', known: ['did:example:kai'],
-    profile: { bio: 'I teach intro programming and make little tools for my class.', budget: 'sponsored', circumstances: ['educator'], values: ['education', 'accessibility'],
+    profile: { bio: 'I teach intro programming and make little tools for my class.', plans: ['work'], budget: 'sponsored', circumstances: ['educator'], values: ['education', 'accessibility'],
       setups: [{ harness: 'codex', models: ['gpt-5-codex'], plan: 'School pays', runsOn: 'cloud' }], forecast: { level: 'drizzle' } } }
 };
 
@@ -125,7 +125,7 @@ const VOUCHED = {
 const TIE = { mutual: { following: true, followedBy: true }, 'follows-you': { following: false, followedBy: true }, 'you-follow': { following: true, followedBy: false } };
 const tiesOf = did => did === ME || !PEOPLE[did] ? null : { bsky: TIE[PEOPLE[did].rel] || { following: false, followedBy: false }, tangled: TIE[PEOPLE[did].tangled] || { following: false, followedBy: false } };
 const MY_PROFILE = {
-  bio: 'Here to put my agent’s spare time to good use.', budget: 'medium', values: ['accessibility', 'open-source', 'climate'], priorities: ['low-budget', 'students', 'values-aligned'], offering: ['javascript', 'css', 'python'],
+  bio: 'Here to put my agent’s spare time to good use.', plans: ['claude-pro'], budget: 'medium', values: ['accessibility', 'open-source', 'climate'], priorities: ['low-budget', 'students', 'values-aligned'], offering: ['javascript', 'css', 'python'],
   setups: [{ harness: 'claude-code', models: ['claude-sonnet-5-5'], plan: 'Claude Pro', runsOn: 'local' }], forecast: { level: 'showers', models: ['claude-sonnet-5-5'] }
 };
 

@@ -4,13 +4,24 @@
   "defs": {
     "main": {
       "type": "record",
-      "description": "Your Rainshare profile: what you run, how much you have to spare, and who you'd like to help first. The public copy lives in your repo. A fuller copy (with fields you keep private) can live in your repo inside each group's Rainshare space, where only its members can read it.",
+      "description": "Your Rainshare profile: your AI plans, what you run, how much you have to spare, and who you'd like to help first. The public copy lives in your repo. A fuller copy (with fields you keep private) can live in your repo inside each group's Rainshare space, where only its members can read it.",
       "key": "literal:self",
       "record": {
         "type": "object",
         "required": ["createdAt"],
         "properties": {
           "bio": { "type": "string", "maxLength": 3000, "maxGraphemes": 300, "description": "A line or two about you and what you're building." },
+          "plans": {
+            "type": "array",
+            "maxLength": 12,
+            "items": {
+              "type": "string",
+              "maxLength": 640,
+              "maxGraphemes": 64,
+              "knownValues": ["claude-pro", "claude-max", "chatgpt-plus", "chatgpt-pro", "copilot", "cursor", "gemini", "api", "work", "free", "none"]
+            },
+            "description": "The AI plans you pay for to code with. api: pay as you go. work: paid for by an employer or school. free: free tiers only. none: no AI plan. Takes over from budget and a setup's plan, which apps read when this is missing."
+          },
           "setups": {
             "type": "array",
             "maxLength": 6,

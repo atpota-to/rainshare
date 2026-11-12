@@ -1,7 +1,7 @@
 // The landing's water cycle, in three.js: a stretch of coast under atmosphere.online's sky.
 //
 //   evaporation     mist lifts off the sea            spare time rising off a plan
-//   condensation    it gathers into clouds            forecasts, in your circle
+//   condensation    it gathers into clouds            plans and setups, in your circle
 //   precipitation   a cloud breaks over the hills     agents sent after a friend's request
 //   collection      the river runs back to the sea    pull requests coming home
 //

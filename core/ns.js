@@ -15,6 +15,14 @@ export const STAGE = 'alpha';
 // groups as coming. Turning this on brings back everything private (src/scope.js, the
 // "Private, in a group" choice, "only my groups" on a profile, and groups in the example).
 export const GROUPS = false;
+// Set aside for now, to keep Rainshare simple while it's early. Each is still in the records
+// (old records keep theirs, and nothing is deleted), and turning one on brings it all back:
+//   audience     the "Who's it for?" step when asking, and that line on an ask's page. New asks
+//                are open to everyone; an ask's audience is still honoured (./circle.js).
+//   seedValues   what an ask stands for: asked when asking, and shown on its page
+//   priorities   who you'd like to help first: on profiles, and its say in a board's order (./rank.js)
+//   forecast     how much rain you have to spare: on profiles, the board, and the CLI's `forecast`
+export const FEATURES = { audience: false, seedValues: false, priorities: false, forecast: false };
 
 export const HARNESSES = [
   ['claude-code', 'Claude Code'], ['codex', 'Codex'], ['cursor', 'Cursor'], ['gemini-cli', 'Gemini CLI'],
@@ -43,6 +51,27 @@ export const BUDGETS = [
   ['sponsored', 'Paid for', 'An employer, school or grant pays']
 ];
 export const LOW_BUDGET = ['none', 'free', 'low'];
+// AI plans: what someone pays for to code with AI, or that they don't. It's the first thing
+// said about a person, on their profile and beside their asks. It takes over from `budget` and
+// a setup's typed `plan`, which older profiles still have and are read when there's no plan.
+// [value, what people read]
+export const PLANS = [
+  ['claude-pro', 'Claude Pro'], ['claude-max', 'Claude Max'], ['chatgpt-plus', 'ChatGPT Plus'], ['chatgpt-pro', 'ChatGPT Pro'],
+  ['copilot', 'GitHub Copilot'], ['cursor', 'Cursor'], ['gemini', 'Gemini'], ['api', 'Pay as I go (API)'],
+  ['work', 'Paid by work or school'], ['free', 'Free tiers only'], ['none', 'No AI plan']
+];
+export const UNPAID = ['free', 'none'];
+/** Someone's plans, as their record has them: strings only, at most 12. */
+export const plansIn = p => (Array.isArray(p?.plans) ? p.plans : []).filter(x => typeof x === 'string' && x).slice(0, 12);
+/**
+ * Whether someone is without a paid plan: 'none', 'free', 'low' (an older profile's "under $25"
+ * budget), or null when they pay for one or haven't said. Plans decide it when there are any.
+ */
+export function lowBudgetOf(p){
+  const plans = plansIn(p);
+  if (plans.length) return plans.some(x => !UNPAID.includes(x)) ? null : plans.includes('free') ? 'free' : 'none';
+  return LOW_BUDGET.includes(p?.budget) ? p.budget : null;
+}
 
 export const FORECAST = [
   ['dry', 'Dry', 'Nothing to spare right now'],

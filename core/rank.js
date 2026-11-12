@@ -1,7 +1,7 @@
 // Putting a helper's board in order: who they'd like to help first, what their setup can
 // do, and how close they are to whoever asked. Each item says why it's where it is: as
 // short reasons (for the CLI), and as a fit level with one plain sentence (for the apps).
-import { LOW_BUDGET, labelOf, BUDGETS, modelName } from './ns.js';
+import { FEATURES, lowBudgetOf, labelOf, BUDGETS, modelName } from './ns.js';
 
 const has = (a, v) => Array.isArray(a) && a.includes(v);
 const lower = a => (a || []).map(s => String(s).toLowerCase());
@@ -25,17 +25,20 @@ export const modelMatch = (want, have) => have.some(h => h === want || h.include
  * its takes. Returns { score, reasons: [{ text, say, tone, about }] }: `text` is a short
  * label, tone is 'up', 'match' or 'down', and `say` is how fit() words it: about 'them' (the
  * asker) finishes a sentence that starts with their name; about 'job' is a sentence itself.
+ * Who the helper would like to help first counts only while that's on (FEATURES in ./ns.js),
+ * or when `priorities` says so.
  */
-export function score(item, me){
+export function score(item, me, { priorities = FEATURES.priorities } = {}){
   const sq = item.value || {}, them = item.profile || {}, mine = me?.profile || {};
-  const pr = mine.priorities || [], reasons = [];
+  const pr = priorities ? mine.priorities || [] : [], reasons = [];
   const add = (text, say, tone, about = 'them') => reasons.push({ text, say, tone, about });
   let s = { self: 0, group: 3, mutual: 3, 'follows-you': 2, 'you-follow': 1 }[item.closeness] ?? 0;
   if (has(pr, 'friends-first') && (item.closeness === 'mutual' || item.closeness === 'group')) { s += 2; add('Close friend', 'is a close friend', 'up'); }
 
-  if (LOW_BUDGET.includes(them.budget)) {
+  const low = lowBudgetOf(them);
+  if (low) {
     s += has(pr, 'low-budget') ? 4 : 1;
-    const [text, say] = { none: ['No paid AI', 'has no paid AI'], free: ['Free tiers only', 'is on free tiers'], low: ['Small AI budget', 'is on a small AI budget'] }[them.budget];
+    const [text, say] = { none: ['No paid AI', 'has no paid AI'], free: ['Free tiers only', 'is on free tiers'], low: ['Small AI budget', 'is on a small AI budget'] }[low];
     add(text, say, has(pr, 'low-budget') ? 'up' : 'match');
   }
   const c = them.circumstances || [];
@@ -76,8 +79,8 @@ export const FIT = { 3: 'Strong fit', 2: 'Good fit', 1: 'Some fit' };
  * sentences that say why ("Priya has no paid AI and is between jobs. It’d like Sonnet,
  * which you have. Heads up: someone’s already on it.").
  */
-export function fit(item, me){
-  const { score: s, reasons } = score(item, me);
+export function fit(item, me, opts){
+  const { score: s, reasons } = score(item, me, opts);
   const level = s >= 12 ? 3 : s >= 6 ? 2 : 1;
   const name = String(item.author?.displayName || '').trim().split(/\s+/)[0] || (item.author?.handle ? '@' + item.author.handle : 'They');
   const ups = reasons.filter(r => r.tone !== 'down');
@@ -91,8 +94,8 @@ export function fit(item, me){
 }
 
 /** The board in order for this helper, best first, each with its fit. */
-export function rank(items, me){
-  return items.map(it => ({ ...it, ...score(it, me), fit: fit(it, me) })).sort((a, b) => b.score - a.score || String(b.value?.createdAt).localeCompare(String(a.value?.createdAt)));
+export function rank(items, me, opts){
+  return items.map(it => ({ ...it, ...score(it, me, opts), fit: fit(it, me, opts) })).sort((a, b) => b.score - a.score || String(b.value?.createdAt).localeCompare(String(a.value?.createdAt)));
 }
 
 export const budgetLabel = b => labelOf(BUDGETS, b);

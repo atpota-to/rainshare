@@ -1,11 +1,11 @@
-// Asking for rain, in three short steps with a preview beside them of how it will look:
-// what it is (an idea, or a project and where it lives), what you'd like done (with how,
-// folded away under "More options"), and who it's for. Then a confirmation that says who
-// can see it and what happens next.
+// Asking for rain, in short steps with a preview beside them of how it will look: what it is
+// (an idea, or a project and where it lives), what you'd like done (with how, folded away
+// under "More options"), and, when it's on (FEATURES.audience in ../core/ns.js), who it's
+// for. Then a confirmation that says who can see it and what happens next.
 //
 // rainshare.js owns the screen and hands in what this needs as `ui`; this keeps the draft
 // (so it survives leaving and coming back) and draws the steps.
-import { SEED, STAGE, STAGES, MODEL_PICKS, GROUPS, modelName } from '../core/ns.js';
+import { SEED, STAGE, STAGES, MODEL_PICKS, GROUPS, FEATURES, modelName } from '../core/ns.js';
 import { parseSubject, describeSubject, kindOf, subjectInfo, knotlessIssueSubject } from '../core/subjects.js';
 import { newRepoPlaces } from '../core/forges.js';
 import { writableForge, FORGE_SAID } from '../core/forgewrite.js';
@@ -14,7 +14,10 @@ import { join } from '../core/rank.js';
 import { pageOf } from '../core/brief.js';
 import { esc, ago, ico, forgeIco, face, people, pathOf, plantPic } from './bits.js';
 
-const STEPS = ['What', 'Details', 'Who'];
+// "Who's it for?" is set aside for now: without it every ask is open to everyone, and its last
+// few choices (more than one helper, a Bluesky post) close the Details step instead.
+const STEPS = FEATURES.audience ? ['What', 'Details', 'Who'] : ['What', 'Details'];
+const LAST = STEPS.length;
 // A project says how far along it is (and is drawn as a plant that far grown).
 const PLANT_STAGES = STAGES.filter(([k]) => k !== 'seed');
 const KINDS = [
@@ -67,9 +70,9 @@ export function createPoster(ui){
     const s = src(), mine = P;
     P.lists = P.groups = undefined;
     const [lists, groups, reach] = await Promise.all([
-      s.lists().catch(() => []),
+      FEATURES.audience ? s.lists().catch(() => []) : [],
       s.canPrivate ? s.groups().catch(() => []) : [],
-      s.reach ? s.reach().catch(() => null) : null
+      FEATURES.audience && s.reach ? s.reach().catch(() => null) : null
     ]);
     if (P !== mine) return;
     Object.assign(P, { lists, groups, reach });
@@ -134,10 +137,10 @@ export function createPoster(ui){
   const listNow = () => (P.lists || []).find(l => l.uri === P.list) || null;
   function input(){
     return {
-      title: P.title, subject: subjectNow(), stage: P.stage || undefined, owner: P.kind === 'idea' ? P.owner : undefined, spec: P.spec, specUrl: P.specUrl, tags: P.tags, values: P.values, size: P.size, parallel: P.parallel,
+      title: P.title, subject: subjectNow(), stage: P.stage || undefined, owner: P.kind === 'idea' ? P.owner : undefined, spec: P.spec, specUrl: P.specUrl, tags: P.tags, values: FEATURES.seedValues ? P.values : undefined, size: P.size, parallel: P.parallel,
       wants: P.kind === 'idea' && P.owner === 'helper' ? { notes: P.notes.trim() }
         : { models: [...new Set([...P.models, ...list(P.otherModel)])], tests: P.tests, maxDiffLines: parseInt(P.maxDiffLines, 10) || undefined, notes: P.notes.trim() },
-      audience: P.audience, list: P.audience === 'list' ? P.list : undefined
+      ...(FEATURES.audience ? { audience: P.audience, list: P.audience === 'list' ? P.list : undefined } : { audience: 'anyone' })
     };
   }
   const countFor = aud => aud === 'list' ? listNow()?.count ?? null : aud === 'anyone' ? null : P.reach?.[aud] ?? null;
@@ -174,7 +177,7 @@ export function createPoster(ui){
     if (w.maxDiffLines) out.push(`Under about ${w.maxDiffLines} lines.`);
     if (w.notes) out.push(w.notes.replace(/([^.!?])$/, '$1.'));
     if (list(sq.tags).length) out.push(`Tagged ${join(list(sq.tags))}.`);
-    if (list(sq.values).length) out.push(`It stands for ${join(list(sq.values))}.`);
+    if (FEATURES.seedValues && list(sq.values).length) out.push(`It stands for ${join(list(sq.values))}.`);
     return out.filter(Boolean).join(' ') || 'Whatever a helper thinks best.';
   }
   function whoText(){
@@ -226,7 +229,7 @@ export function createPoster(ui){
     if (h.closest('.rs-post').getBoundingClientRect().top < 0) h.closest('.rs-post').scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
   async function post(){
-    for (const s of [1, 2, 3]) { const e = problem(s); if (e) { P.err = e; P.step = s; ui.render(); return; } }
+    for (let s = 1; s <= LAST; s++) { const e = problem(s); if (e) { P.err = e; P.step = s; ui.render(); return; } }
     P.busy = true; P.err = ''; ui.render();
     try {
       const g = P.vis === 'group' ? groupNow() : null;
@@ -329,14 +332,14 @@ export function createPoster(ui){
       <label>What should it do? <small>Plain words are fine.</small>
         <textarea name="spec" rows="8" maxlength="10000" placeholder="I’d love a little tool that… It’s for… It should… It doesn’t need to…">${esc(P.spec)}</textarea></label>
       <label>Written up somewhere already? <small>Optional: a link to notes or a sketch</small><input name="specUrl" type="url" inputmode="url" placeholder="https://…" value="${esc(P.specUrl)}"></label>
-      ${howFields()}`;
+      ${howFields()}${LAST === 2 ? lastChoices() : ''}`;
     return `<h1 tabindex="-1">What would you like done?</h1>
       <p class="rs-lede">Say it the way you would to a friend.${P.prefilled ? ' We’ve started you off from the issue.' : ''}</p>
       <label>A short title<input name="title" maxlength="120" required autocomplete="off" placeholder="Keep drafts out of the RSS feed" value="${esc(P.title)}"></label>
       <label>What does done look like? <small>Markdown works.</small>
         <textarea name="spec" rows="8" maxlength="10000" placeholder="Right now… It’d be great if… Please don’t…">${esc(P.spec)}</textarea></label>
       <label>A longer spec somewhere? <small>Optional, like a SPEC.md in the repo</small><input name="specUrl" type="url" inputmode="url" placeholder="https://…/SPEC.md" value="${esc(P.specUrl)}"></label>
-      ${howFields()}`;
+      ${howFields()}${LAST === 2 ? lastChoices() : ''}`;
   }
   function howFields(){
     const custom = P.models.filter(m => !MODEL_PICKS.includes(m));
@@ -346,7 +349,7 @@ export function createPoster(ui){
       <fieldset><legend>How big does it feel?</legend><div class="rs-options" role="radiogroup" aria-label="How big does it feel?">${SIZE_PICKS.map(([k, l, n]) => row('data-rs-size', k, P.size === k, l, '', n)).join('')}</div></fieldset>
       <div class="rs-two">
         <label>Tags <small>so the right person finds it</small><input name="tags" autocomplete="off" placeholder="teaching, printing" value="${esc(P.tags)}"></label>
-        <label>What it stands for <small>optional</small><input name="values" list="rsValues" autocomplete="off" placeholder="education, accessibility" value="${esc(P.values)}"></label>
+        ${FEATURES.seedValues ? `<label>What it stands for <small>optional</small><input name="values" list="rsValues" autocomplete="off" placeholder="education, accessibility" value="${esc(P.values)}"></label>` : ''}
       </div>
       <label>Anything else?<input name="notes" maxlength="1000" autocomplete="off" placeholder="It should work on a phone." value="${esc(P.notes)}"></label>`);
     return moreOptions('More options: models, tests, size, tags', `
@@ -367,10 +370,10 @@ export function createPoster(ui){
         <label>Keep the change under <small>lines, optional</small><input name="maxDiffLines" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="200" value="${esc(P.maxDiffLines)}"></label>
         <label>Tags <small>so helpers can find it</small><input name="tags" autocomplete="off" placeholder="go, rss" value="${esc(P.tags)}"></label>
       </div>
-      <div class="rs-two">
+      ${FEATURES.seedValues ? `<div class="rs-two">
         <label>What it stands for <small>optional</small><input name="values" list="rsValues" autocomplete="off" placeholder="accessibility, climate" value="${esc(P.values)}"></label>
         <label>Anything else?<input name="notes" maxlength="1000" autocomplete="off" placeholder="No new dependencies, please." value="${esc(P.notes)}"></label>
-      </div>`);
+      </div>` : `<label>Anything else?<input name="notes" maxlength="1000" autocomplete="off" placeholder="No new dependencies, please." value="${esc(P.notes)}"></label>`}`);
   }
   function stepWho(){
     const pub = P.vis === 'public';
@@ -397,12 +400,17 @@ export function createPoster(ui){
       <p class="rs-lede">Only the people you pick see it on their board and can take it on.</p>
       ${vis}
       ${body}
-      <label class="rs-check"><input type="checkbox" name="parallel"${P.parallel ? ' checked' : ''}> More than one helper can try at once</label>
+      ${lastChoices()}`;
+  }
+  // The last few choices, and what happens to it: at the end of whichever step is last.
+  function lastChoices(){
+    const pub = P.vis === 'public';
+    return `<label class="rs-check"><input type="checkbox" name="parallel"${P.parallel ? ' checked' : ''}> More than one helper can try at once</label>
       ${pub ? `<div class="rs-bsky-opt">
         <label class="rs-check"><input type="checkbox" name="bsky"${P.bsky ? ' checked' : ''}> Also post it on Bluesky, so ${P.audience === 'anyone' ? 'people' : FOR[P.audience]} notice</label>
         ${P.bsky ? `<textarea name="bskyText" rows="3" maxlength="230" aria-label="Your Bluesky post">${esc(bskyText())}</textarea><small>Bluesky opens with this ready, and the link on the end. You post it there.</small>` : ''}
       </div>` : ''}
-      <p class="rs-muted">${pub ? 'It’s saved in your own account' : `It’s saved in your own account, inside ${esc(groupNow()?.name || 'the group')}’s private Rainshare space`}, and you can close, reopen or delete it any time. Rainshare is in early ${STAGE}, so expect rough edges.</p>`;
+      <p class="rs-muted">${pub ? `It’s saved in your own account${FEATURES.audience ? '' : ', open to everyone on Rainshare'}` : `It’s saved in your own account, inside ${esc(groupNow()?.name || 'the group')}’s private Rainshare space`}, and you can close, reopen or delete it any time. Rainshare is in early ${STAGE}, so expect rough edges.</p>`;
   }
 
   // The preview beside the steps: the card as the board will show it, then (on the last
@@ -432,6 +440,8 @@ export function createPoster(ui){
     const s = ui.root.querySelector('.rs-post-side'); if (s) { s.innerHTML = side(); ui.live?.(); }
     const f = ui.root.querySelector('[data-rs-found]'); if (f) f.innerHTML = found();
     const o = ui.root.querySelector('[data-rs-issue-offer]'); if (o) o.innerHTML = issueOffer();
+    // The Bluesky post follows the title until it's been edited (it's on the same step as the title when that's the last).
+    const b = ui.root.querySelector('.rs-post [name="bskyText"]'); if (b && P.bskyText == null && document.activeElement !== b) b.value = bskyText();
   }
 
   function done(){
@@ -465,7 +475,7 @@ export function createPoster(ui){
     ui.title('Ask for rain');
     if (P.done) return `<div class="rs-post">${done()}</div>`;
     const body = [, stepWhere, stepWhat, stepWho][P.step]();
-    const next = { 1: P.stage === 'seed' ? 'Next: the idea' : 'Next: what you’d like done', 2: 'Next: who it’s for', 3: P.busy ? 'Asking…' : 'Ask for rain' }[P.step];
+    const next = P.step === LAST ? (P.busy ? 'Asking…' : 'Ask for rain') : { 1: P.stage === 'seed' ? 'Next: the idea' : 'Next: what you’d like done', 2: 'Next: who it’s for' }[P.step];
     return `<div class="rs-post">
       <header class="rs-post-head"><span>Ask for rain</span><button class="rs-link" type="button" data-rs-post-cancel>Cancel</button></header>
       <ol class="rs-stepper" aria-label="Steps">${STEPS.map((l, i) => {

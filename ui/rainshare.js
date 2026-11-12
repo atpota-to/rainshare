@@ -9,11 +9,11 @@
 //   seed/<did>/<rkey>  a public seed (a handle works in place of the DID)
 //   seed/s/<code>      a private one, in a group's space (its record URI, base64url)
 //   new                plant a seed (./post.js)
-//   me                 your profile: setups, budget, forecast, who you'd like to help first,
+//   me                 your profile: your AI plan, what you run, and who you are to helpers,
 //                      with what you've helped with beside it
 //   u/<did>            someone's profile and their seeds
 //   agents             the CLI and MCP server, for sending agents from a terminal
-import { SEED, STAGE, HARNESSES, MODELS, RUNS_ON, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, labelOf, audienceOf, modelName } from '../core/ns.js';
+import { SEED, STAGE, FEATURES, PLANS, UNPAID, HARNESSES, MODELS, RUNS_ON, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, labelOf, audienceOf, modelName } from '../core/ns.js';
 import { describeSubject, cloneUrlOf, safeHttp, pullPageOf, FORGE_NAMES } from '../core/subjects.js';
 import { look, carry, standing } from '../core/status.js';
 import { newRepoPlaces, placesFor } from '../core/forges.js';
@@ -23,7 +23,7 @@ import { tieOf, tieLines, knownText, TIE_SHORT, FROM, fromMatches } from '../cor
 import { wateredText } from '../core/garden.js';
 import { audienceLine } from '../core/circle.js';
 import { rank, fit, join, pretty } from '../core/rank.js';
-import { whereText, shortWhere, jobText, jobShort, wantsText, onItText, takenShort, relationText, askExcerpt, stateText, pictureOf, nounOf, whatItIs } from '../core/words.js';
+import { whereText, shortWhere, jobText, jobShort, wantsText, onItText, takenShort, relationText, askExcerpt, stateText, pictureOf, nounOf, whatItIs, planText } from '../core/words.js';
 import { renderMarkdown } from '../core/markdown.js';
 import { brief, launchers, pageOf, readHandBack, readBranchBack, sh, INSTALL, MCP_ADD, CLI_HOME } from '../core/brief.js';
 import { strongRef, HARNESS_NAMES } from '../core/records.js';
@@ -239,7 +239,10 @@ export function createRainshare({ root, base = '/', host }){
       ${f ? fitBox(f) : !open ? `<p class="rs-state${sq.state === 'sprouted' ? ' rs-ok' : ''}">${sq.state === 'sprouted' ? `${lifeIco('sprouted')}Done. Thanks, everyone.` : 'Closed.'}</p>`
         // Signed out, who it's for is said once: beside the name when it's everyone, here when it's narrower.
         : !signedIn() && !rel ? `<p class="rs-muted">${esc(audienceLine(sq, { authorName: firstName(p), groupName: it.group?.name }))}.</p>` : ''}
-      ${facts(it, signedIn() && !mine ? [['You and them', tiesList(it.repo, it.ties, p)]] : [])}
+      ${facts(it, [
+        !mine && planText(it.profile) ? ['Their AI plan', esc(planText(it.profile))] : null,
+        signedIn() && !mine ? ['You and them', tiesList(it.repo, it.ties, p)] : null
+      ].filter(Boolean))}
       <div class="rs-ask"><span class="rs-label">The ask</span><p>${esc(askExcerpt(sq.spec) || 'No details beyond the title.')}</p>${a(page, 'Read all of it', 'rs-link')}</div>
       ${heedNote(it, st)}
       <div class="rs-row rs-detail-actions">${buttons}</div>
@@ -274,12 +277,13 @@ export function createRainshare({ root, base = '/', host }){
         }</div></div>
         <div class="rs-head-actions">
           ${signedIn() && S.garden?.length ? a('u/' + viewer(), `${plantPic(S.garden[0].picture || S.garden[0].stage, 26)}Helped with ${S.garden.length}`, 'rs-btn rs-quiet rs-watered-btn') : ''}
-          ${signedIn() ? a('me', `${skyIco(fc?.[0])}${fc ? esc(fc[1]) : 'Your forecast'}`, 'rs-btn rs-quiet rs-fc' + (fc ? ' rs-fc-' + fc[0] : '')) : ''}
+          ${!signedIn() ? '' : FEATURES.forecast ? a('me', `${skyIco(fc?.[0])}${fc ? esc(fc[1]) : 'Your forecast'}`, 'rs-btn rs-quiet rs-fc' + (fc ? ' rs-fc-' + fc[0] : ''))
+            : a('me', `${ico('person')}<span class="rs-plan-btn">${esc(planText(S.mine?.merged) || 'Your AI plan')}</span>`, 'rs-btn rs-quiet')}
           ${signedIn() ? a('new', `${ico('plus')}Ask for rain`, 'rs-btn rs-primary') : host.signIn ? `<button class="rs-btn rs-primary" type="button" data-rs-act="signin">Sign in</button>` : ''}
         </div>
       </header>
       ${signedIn() && !S.source?.demo && !stageSeen() ? `<p class="rs-note rs-stage-note">${ico('info')}<span>Rainshare is in early ${esc(STAGE)}, so things may change or break. What you post stays in your own account.</span><button class="rs-link" type="button" data-rs-act="stage-seen">Got it</button></p>` : ''}
-      ${signedIn() && S.mine && !S.mine.merged ? `<p class="rs-note">${ico('person')}<span>Say what you run and who you’d like to help, and the best fits rise to the top.</span>${a('me', 'Set up your profile', 'rs-link')}</p>` : ''}
+      ${signedIn() && S.mine && !S.mine.merged ? `<p class="rs-note">${ico('person')}<span>${FEATURES.priorities ? 'Say what you run and who you’d like to help, and the best fits rise to the top.' : 'Say which AI plan you have and what you run, so friends know who they’d be helping and the best fits rise to the top.'}</span>${a('me', 'Set up your profile', 'rs-link')}</p>` : ''}
       ${tabs.length ? `<div class="rs-board-head">
         <div class="rs-board-bar"><nav class="rs-tabs" aria-label="Ideas and projects">${tabs.map(([k, l]) => `<button type="button" data-rs-tab="${k}" aria-pressed="${S.tab === k}">${l}</button>`).join('')}</nav>
           <button type="button" class="rs-link rs-refresh" data-rs-act="refresh"${S.loading ? ' disabled' : ''}>${ico('refresh')}${S.loading ? 'Checking…' : 'Refresh'}</button></div>
@@ -415,16 +419,16 @@ export function createRainshare({ root, base = '/', host }){
     if (!p) return `<p class="rs-muted">${esc(nameOf(person))} hasn’t set up a Rainshare profile yet.</p>`;
     const fc = forecastOf(p);
     const rows = [
-      ['AI budget', p.budget && labelOf(BUDGETS, p.budget)],
+      ['AI plan', planText(p)],
       ['About them', p.circumstances?.length && p.circumstances.map(c => labelOf(CIRCUMSTANCES, c)).join(', ')],
-      ['Runs', (p.setups || []).map(s => setupText(s) + (s.plan ? ` (${s.plan})` : '')).join('; ')],
-      ['Forecast', fc && `${fc[1]}: ${fc[2].toLowerCase()}${p.forecast.until ? `, until ${until(p.forecast.until)}` : ''}.${p.forecast.note ? ` “${p.forecast.note}”` : ''}`],
+      ['Runs', (p.setups || []).map(s => setupText(s)).join('; ')],
+      FEATURES.forecast && ['Forecast', fc && `${fc[1]}: ${fc[2].toLowerCase()}${p.forecast.until ? `, until ${until(p.forecast.until)}` : ''}.${p.forecast.note ? ` “${p.forecast.note}”` : ''}`],
       ['Cares about', p.values?.length && join(p.values.map(pretty))],
       ...(compact ? [] : [
-        ['Helps first', p.priorities?.length && p.priorities.map(v => labelOf(PRIORITIES, v)).join(', ')],
+        FEATURES.priorities && ['Helps first', p.priorities?.length && p.priorities.map(v => labelOf(PRIORITIES, v)).join(', ')],
         ['Takes on', p.offering?.length && join(p.offering)]
       ])
-    ].filter(r => r[1]);
+    ].filter(r => r && r[1]);
     return `${p.bio ? `<p class="rs-bio">${esc(p.bio)}</p>` : ''}${rows.length ? `<dl class="rs-facts rs-facts-sm">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${k === 'Forecast' ? `<span class="rs-fc-${fc[0]}">${skyIco(fc[0])}</span>` : ''}${esc(v)}</dd>`).join('')}</dl>` : p.bio ? '' : '<p class="rs-muted">Nothing shared yet.</p>'}`;
   }
   // Every way to hand a seed to an agent: the brief, to paste into one, and then the commands
@@ -692,8 +696,8 @@ export function createRainshare({ root, base = '/', host }){
       ['The job', esc(jobText(sq))],
       ['Would like', esc(wantsText(sq, mine ? null : S.mine?.merged))],
       sq.tags?.length ? ['Tagged', esc(join(sq.tags))] : null,
-      sq.values?.length ? ['Stands for', esc(join(sq.values.map(pretty)))] : null,
-      ['Who it’s for', esc(audienceLine(sq, { authorName: mine ? 'you' : firstName(p), groupName: it.group?.name })) + (it.space ? '. Only the group’s members can read it.' : '.')],
+      FEATURES.seedValues && sq.values?.length ? ['Stands for', esc(join(sq.values.map(pretty)))] : null,
+      FEATURES.audience || it.space ? ['Who it’s for', esc(audienceLine(sq, { authorName: mine ? 'you' : firstName(p), groupName: it.group?.name })) + (it.space ? '. Only the group’s members can read it.' : '.')] : null,
       ['On it', esc(takes.length ? takes.join('; ') : 'Nobody yet')]
     ].filter(Boolean);
     const sprouted = new Set((sq.sproutedWith || []).map(r => r.uri));
@@ -814,6 +818,9 @@ export function createRainshare({ root, base = '/', host }){
     S.form = { ...S.form, profile: p, hidden, groups, share };
     const setups = p.setups?.length ? p.setups : [{ harness: 'claude-code', models: [] }];
     const fc = p.forecast || {}, raining = !!fc.level && fc.level !== 'dry';
+    // An older profile has no plans: what it said with its budget starts them off, and a plan it typed is shown.
+    const typedPlans = [...new Set((p.setups || []).map(x => x.plan).filter(Boolean))];
+    const plansNow = p.plans?.length ? p.plans : { none: ['none'], free: ['free'], sponsored: ['work'] }[p.budget] || [];
     const visSel = field => !priv ? '' : `<div class="rs-vis"><select data-rs-vis="${field}" aria-label="Who sees this"><option value="public"${!hidden.includes(field) ? ' selected' : ''}>Everyone sees this</option><option value="private"${hidden.includes(field) ? ' selected' : ''}>Only my groups</option></select></div>`;
     const withBoard = (groups || []).filter(g => g.space);
     return `${a('', `${ico('back')}Back to the board`, 'rs-back')}
@@ -822,30 +829,29 @@ export function createRainshare({ root, base = '/', host }){
         <h1>Your profile</h1>
         <p class="rs-muted">What your circle sees. It’s all optional, and it’s saved in your own account.</p>
         <label>About you<textarea name="bio" rows="2" maxlength="300" placeholder="What you’re building, what you’re into">${esc(p.bio || '')}</textarea></label>
+        <fieldset><legend>Your AI plan</legend><p class="rs-muted">What you pay for to code with AI, if anything. It’s the first thing people see about you, on your profile and beside your asks. Pick as many as you have.</p>
+          ${toggles('plans', PLANS, plansNow)}
+          ${!p.plans?.length && typedPlans.length ? `<p class="rs-muted">You’d written “${esc(typedPlans.join('”, “'))}”. Pick the closest.</p>` : ''}
+        </fieldset>
         <fieldset><legend>What you run</legend><p class="rs-muted">So friends know what your agent can do, and “Send my agent” copies the right command.</p>
           <ol class="rs-setups">${setups.map((s, i) => `<li data-setup="${i}">
             <label>Harness<select name="harness">${HARNESSES.map(([k, l]) => `<option value="${k}"${s.harness === k ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
             <label>Models<input name="models" list="rsModels" value="${esc((s.models || []).join(', '))}" placeholder="claude-opus-5-5"></label>
-            <label>Plan<input name="plan" maxlength="64" value="${esc(s.plan || '')}" placeholder="Claude Max 20x"></label>
             <label>Runs<select name="runsOn"><option value="">—</option>${RUNS_ON.map(([k, l]) => `<option value="${k}"${s.runsOn === k ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
             ${setups.length > 1 ? `<button class="rs-link" type="button" data-rs-remove-setup="${i}">Remove</button>` : ''}</li>`).join('')}</ol>
           ${setups.length < 6 ? `<button class="rs-link" type="button" data-rs-act="add-setup">${ico('plus')}Add another setup</button>` : ''}
         </fieldset>
-        <fieldset><legend>Your forecast</legend><p class="rs-muted">How much your agent has to spare right now, so friends know when to ask.</p>
+        ${!FEATURES.forecast ? '' : `<fieldset><legend>Your forecast</legend><p class="rs-muted">How much your agent has to spare right now, so friends know when to ask.</p>
           ${seg('forecast', FORECAST.map(f => [f[0], f[1]]), fc.level || '')}
           <p class="rs-muted">${esc(FORECAST.find(f => f[0] === fc.level)?.[2] || 'Pick one when you have rain to spare.')}</p>
           ${raining ? `<div class="rs-two"><label>Until <small>(often when your plan resets)</small><input name="until" type="date" value="${esc(fc.until ? fc.until.slice(0, 10) : '')}"></label>
           <label>With <small>(models)</small><input name="fcModels" list="rsModels" value="${esc((fc.models || []).join(', '))}"></label></div>
           <label>A note <small>(optional)</small><input name="fcNote" maxlength="300" value="${esc(fc.note || '')}" placeholder="Send me your gnarly ones"></label>` : ''}
-        </fieldset>
+        </fieldset>`}
         <details class="rs-more rs-options-more" data-rs-keep="me-more"${S.open['me-more'] ? ' open' : ''}>
           <summary>Help the right people find you <small>optional</small></summary>
           <div class="rs-more-body">
-            <p class="rs-muted">Some helpers look first for students, people without big AI plans, or projects they care about. ${priv ? 'Anything marked “only my groups” goes only into your groups’ private spaces.' : 'Everyone can see what you share here.'}</p>
-            <fieldset><legend>Your AI budget</legend><p class="rs-muted">Roughly what you spend on AI a month.</p>
-              ${seg('budget', BUDGETS.map(b => [b[0], b[1]]), p.budget || '')}
-              ${visSel('budget')}
-            </fieldset>
+            <p class="rs-muted">${FEATURES.priorities ? 'Some helpers look first for students, people without big AI plans, or projects they care about.' : 'So whoever looks at your asks knows who they’d be helping.'} ${priv ? 'Anything marked “only my groups” goes only into your groups’ private spaces.' : 'Everyone can see what you share here.'}</p>
             <fieldset><legend>About your situation</legend><p class="rs-muted">Only if you’d like to share.</p>
               ${toggles('circumstances', CIRCUMSTANCES, p.circumstances)}
               ${visSel('circumstances')}
@@ -854,9 +860,9 @@ export function createRainshare({ root, base = '/', host }){
               ${toggles('values', [...new Set([...VALUES, ...(p.values || [])])].map(v => [v, v]), p.values)}
               <label>Add your own <small>(comma separated)</small><input name="moreValues" placeholder="birding, zines"></label>
             </fieldset>
-            <fieldset><legend>Who you’d like to help first</legend><p class="rs-muted">When you have rain to spare, these rise to the top of your board.</p>
+            ${FEATURES.priorities ? `<fieldset><legend>Who you’d like to help first</legend><p class="rs-muted">When you have rain to spare, these rise to the top of your board.</p>
               ${toggles('priorities', PRIORITIES, p.priorities)}
-            </fieldset>
+            </fieldset>` : ''}
             <label>Work you’re happy to take on <small>(comma separated)</small><input name="offering" value="${esc((p.offering || []).join(', '))}" placeholder="rust, css, docs, testing"></label>
           </div>
         </details>
@@ -876,24 +882,30 @@ export function createRainshare({ root, base = '/', host }){
   }
   // Read the profile form back into S.form.profile (selects, inputs and toggles).
   function readMe(form){
-    const p = S.form.profile, fd = new FormData(form);
+    const p = S.form.profile, fd = new FormData(form), shows = sel => !!form.querySelector(sel);
+    const on = name => [...form.querySelectorAll(`[data-rs-toggles="${name}"] [aria-pressed="true"]`)].map(b => b.dataset.v);
     p.bio = fd.get('bio');
-    p.setups = [...form.querySelectorAll('[data-setup]')].map(li => ({
+    if (shows('[data-rs-toggles="plans"]')) p.plans = on('plans');
+    // A plan typed into a setup before there were plans to pick stays in the record.
+    const before = p.setups || [];
+    p.setups = [...form.querySelectorAll('[data-setup]')].map((li, i) => ({
       harness: li.querySelector('[name=harness]').value, models: li.querySelector('[name=models]').value.split(',').map(s => s.trim()).filter(Boolean),
-      plan: li.querySelector('[name=plan]').value, runsOn: li.querySelector('[name=runsOn]').value || undefined
+      plan: li.querySelector('[name=plan]')?.value ?? before[i]?.plan, runsOn: li.querySelector('[name=runsOn]').value || undefined
     }));
+    if (shows('[data-rs-seg="forecast"]')) readForecast(form, p, fd);
+    if (shows('[data-rs-seg="budget"]')) p.budget = form.querySelector('[data-rs-seg="budget"] [aria-pressed="true"]')?.dataset.v || undefined;
+    p.circumstances = on('circumstances');
+    p.values = [...on('values'), ...String(fd.get('moreValues') || '').split(',').map(s => s.trim()).filter(Boolean)];
+    if (shows('[data-rs-toggles="priorities"]')) p.priorities = on('priorities');
+    p.offering = String(fd.get('offering') || '').split(',').map(s => s.trim()).filter(Boolean);
+    S.form.hidden = [...form.querySelectorAll('[data-rs-vis]')].filter(s => s.value === 'private').map(s => s.dataset.rsVis);
+    if (form.querySelector('[data-rs-toggles="share"]')) S.form.share = on('share');
+  }
+  function readForecast(form, p, fd){
     const level = form.querySelector('[data-rs-seg="forecast"] [aria-pressed="true"]')?.dataset.v;
     // Until, with and the note show only once it's raining; off screen, they keep what they had.
     const was = p.forecast || {}, shown = !!form.querySelector('[name="fcModels"]');
     p.forecast = level ? !shown ? { ...was, level } : { level, until: fd.get('until') ? new Date(fd.get('until') + 'T23:59:00').toISOString() : undefined, models: String(fd.get('fcModels') || '').split(',').map(s => s.trim()).filter(Boolean), note: fd.get('fcNote') } : undefined;
-    p.budget = form.querySelector('[data-rs-seg="budget"] [aria-pressed="true"]')?.dataset.v || undefined;
-    const on = name => [...form.querySelectorAll(`[data-rs-toggles="${name}"] [aria-pressed="true"]`)].map(b => b.dataset.v);
-    p.circumstances = on('circumstances');
-    p.values = [...on('values'), ...String(fd.get('moreValues') || '').split(',').map(s => s.trim()).filter(Boolean)];
-    p.priorities = on('priorities');
-    p.offering = String(fd.get('offering') || '').split(',').map(s => s.trim()).filter(Boolean);
-    S.form.hidden = [...form.querySelectorAll('[data-rs-vis]')].filter(s => s.value === 'private').map(s => s.dataset.rsVis);
-    if (form.querySelector('[data-rs-toggles="share"]')) S.form.share = on('share');
   }
 
   /* ---------- someone's profile ---------- */
@@ -980,7 +992,7 @@ export function createRainshare({ root, base = '/', host }){
               <li><h3>On Tangled and knotless, open the pull request too</h3>${block(`node ${CLI_HOME} open-pr <link> --branch <pushed branch>`)}
                 <p class="rs-muted">From a branch already pushed to the repo or your fork. It opens the pull request as you, and turns it in.</p></li>
             </ol>
-            <p class="rs-muted"><code>node ${CLI_HOME} doctor</code> says what’s set up and what’s missing. <code>node ${CLI_HOME} help</code> lists the rest: asking for rain yourself, closing one out, setting your forecast.</p>
+            <p class="rs-muted"><code>node ${CLI_HOME} doctor</code> says what’s set up and what’s missing. <code>node ${CLI_HOME} help</code> lists the rest: asking for rain yourself${FEATURES.forecast ? ', closing one out, setting your forecast' : ' and closing one out'}.</p>
           </section>
           <section class="rs-panel" aria-labelledby="rsWayMcp">
             <h2 id="rsWayMcp">${ico('sky')}From inside your agent</h2>
@@ -1182,7 +1194,17 @@ export function createRainshare({ root, base = '/', host }){
       if (key === 'pull' && S.open.pull && S.seed) loadPull(S.seed);
       return;
     }
-    const tgl = t.closest('[data-rs-toggles] button'); if (tgl) { tgl.setAttribute('aria-pressed', String(tgl.getAttribute('aria-pressed') !== 'true')); return; }
+    const tgl = t.closest('[data-rs-toggles] button');
+    if (tgl) {
+      const now = tgl.getAttribute('aria-pressed') !== 'true';
+      tgl.setAttribute('aria-pressed', String(now));
+      // Plans: "No AI plan" and "Free tiers only" stand alone, and a paid plan clears them.
+      if (now && tgl.closest('[data-rs-toggles="plans"]')) {
+        const unpaid = UNPAID.includes(tgl.dataset.v);
+        tgl.parentElement.querySelectorAll('button').forEach(b => { if (b !== tgl && (unpaid || UNPAID.includes(b.dataset.v))) b.setAttribute('aria-pressed', 'false'); });
+      }
+      return;
+    }
     const pl = t.closest('[data-rs-launch]');
     if (pl && !t.closest('button')) { const l = ways(S.seed)[+pl.dataset.rsLaunch]; if (l) { S.launch = l.id; root.querySelectorAll('.rs-launchers li').forEach(li => li.classList.toggle('on', li === pl)); } return; }
     const cp = t.closest('[data-rs-copy]'); if (cp) { const l = ways(S.seed)[+cp.dataset.rsCopy]; if (l) { S.launch = l.id; copy(l.command, l.copied); root.querySelectorAll('.rs-launchers li').forEach(li => li.classList.toggle('on', li.dataset.rsLaunch === cp.dataset.rsCopy)); } return; }

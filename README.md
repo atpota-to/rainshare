@@ -12,18 +12,18 @@ you, on your own plan. What your friend gets back is the work. That help is the 
 or spends credits, and you help the people you follow. (Is that allowed by your AI plan? See
 [the FAQ](#faq).)
 
-- **Ask for rain**, in three short steps with a preview beside them. *What*: an idea, or a
+- **Ask for rain**, in two short steps with a preview beside them. *What*: an idea, or a
   project you already have, where it lives (a Tangled, knotless or GitHub issue, or any git
   repo) and how far along the project is as a whole, each drawn as its own little 3D plant. *Details*: what done looks
-  like, with models, tests, size and tags folded under "More options". *Who*: everyone, unless
-  you narrow it to your mutuals, people you follow, your followers or a Bluesky list, with a
-  count of roughly who that reaches, and a Bluesky post to tell people it's there. Private to
-  a group is shown as coming. An idea needs no repo and no developer: say what it should do,
-  and whether someone else can run with it.
-- **Forecast your rain**: your profile says what you run and how much you have to spare right
-  now. Folded under "Help the right people find you", it can also say roughly what you spend
-  on AI and who you'd like to help first: people without big plans, students, people on low
-  incomes, projects that share your values.
+  like, with models, tests, size and tags folded under "More options", and a Bluesky post to
+  tell people it's there. It's open to everyone. An idea needs no repo and no developer: say
+  what it should do, and whether someone else can run with it.
+- **Say your AI plan**: your profile starts with which AI plans you pay for to code with (Claude
+  Pro or Max, ChatGPT Plus or Pro, Copilot, Cursor, Gemini, pay as you go, paid by work or
+  school), or that you have free tiers or none. It shows on your profile and beside your asks,
+  so a helper can see who'd be glad of the rain, and an asker can see who has some. Then
+  what you run, and, folded under "Help the right people find you", your situation, what you
+  care about and the work you take on.
 - **Send your agent**: one click tells your friend you're on it and copies the command that
   suits your setup (Claude Code, Codex, or a brief for any agent); the other ways are a click
   away. Turn the pull request in when it's up, and your friend marks it done.
@@ -53,8 +53,8 @@ Signed out, the home page is the pitch beside the water cycle: a stretch of coas
 
 | In the scene | In Rainshare | Its note links to |
 | --- | --- | --- |
-| **Evaporation**: mist lifts off the sea | Time on your plan you won't get to before it resets | a forecast, in the example circle |
-| **Condensation**: it gathers into clouds | Forecasts, sitting with the people you follow | the example circle's board |
+| **Evaporation**: mist lifts off the sea | Time on your plan you won't get to before it resets | someone's AI plan, in the example circle |
+| **Condensation**: it gathers into clouds | Plans and setups, sitting with the people you follow | the example circle's board |
 | **Precipitation**: rain falls on seeds planted by the river | Agents sent after a friend's idea or project | an idea to send an agent after |
 | **Collection**: the river runs back to the sea | Pull requests coming home, and the next reset | one that's done |
 
@@ -84,7 +84,7 @@ who has asked their system to reduce motion (looking closer still works for them
 rather than a flight). A browser that can't do WebGL gets a flat drawing with all four notes
 set out under it.
 
-**The same pictures in the app.** A forecast is drawn as its sky: clear, then a cloud with
+**The same pictures in the app.** A forecast (set aside for now) is drawn as its sky: clear, then a cloud with
 more and more rain (`skyIco` in `ui/bits.js`). A seed is drawn where it is in its life: in the
 ground, being rained on once someone's on it, up once it's turned in, and sprouted (`lifeIco`).
 
@@ -103,8 +103,8 @@ the lexicon authority). The schemas are in `lexicons/dev/rainshare/`.
 
 | Record | Written by | Says |
 | --- | --- | --- |
-| `dev.rainshare.profile` (`self`) | everyone | bio, setups (harness, models, plan, where it runs), AI budget, forecast, circumstances, values, priorities, the kinds of work you take on |
-| `dev.rainshare.seed` | the requester | title, subject (Tangled issue, knotless issue, GitHub issue, or repo; none for a seed, which says whose the result will be), stage (for a plant), spec in Markdown, wants, tags, values, size, audience, state (`open`, `sprouted`, `closed`) |
+| `dev.rainshare.profile` (`self`) | everyone | bio, AI plans, setups (harness, models, where it runs), circumstances, values, the kinds of work you take on; and, from before or set aside for now, a setup's typed plan, AI budget, forecast and priorities |
+| `dev.rainshare.seed` | the requester | title, subject (Tangled issue, knotless issue, GitHub issue, or repo; none for a seed, which says whose the result will be), stage (for a plant), spec in Markdown, wants, tags, size, audience, state (`open`, `sprouted`, `closed`); values, set aside for now |
 | `dev.rainshare.take` | a helper | "my agent is on this": a strong ref to the seed and the setup doing it. Deleting it drops the seed. |
 | `dev.rainshare.delivery` | a helper | the pull request (URL, or on Tangled and knotless its own record's at:// URI), what did the work, and an optional session link |
 
@@ -113,6 +113,21 @@ because spaces are still an alpha on the group host: sign-in asks only for `atpr
 Rainshare's own four record types, every seed is public, and the app shows "Private, in a
 group" as coming. Turning `GROUPS` on brings back everything below that's about groups.
 
+**Set aside for now**, to keep it simple while it's early (`FEATURES` in `core/ns.js`). Each is
+still in the records (old records keep theirs, and saving a profile keeps what's there), and
+turning one on brings it all back:
+
+| Switch | What it brings back |
+| --- | --- |
+| `audience` | The "Who's it for?" step when asking (everyone, mutuals, people you follow, your followers, a Bluesky list, with a count of roughly who that reaches), and "Who it's for" on an ask's page. Without it every new ask is open to everyone; an older ask's audience is still honoured. |
+| `seedValues` | "What it stands for" when asking, and "Stands for" on an ask's page. |
+| `priorities` | "Who you'd like to help first" on your profile (people without big plans, students, people on low incomes, projects that share your values…), and its say in the order of your board. |
+| `forecast` | How much rain you have to spare: on your profile and in the board's header, and the CLI's `forecast` and the MCP server's `rainshare_set_forecast`. |
+
+**Your AI plan** (`plans` on a profile) takes over from two older fields, which apps still read
+when there's no plan: a setup's typed `plan` ("Claude Max 20x") and `budget` ("under $25").
+Picking a paid plan clears "No AI plan" and "Free tiers only", and the other way round.
+
 A public seed lives in your repo, and `audience` says who it's
 for: apps show it only to those people and only offer it to them. It doesn't hide anything,
 though: a public repo can be read by anyone. A private seed lives in your repo
@@ -120,7 +135,7 @@ inside a group's Rainshare space (an Open Social space of type `dev.rainshare.bo
 group admin adds), and only members can read it. Takes and deliveries go wherever their
 seed is.
 
-**Profiles, in two copies** (once groups are on). Your budget and circumstances can be marked "only my groups": the
+**Profiles, in two copies** (once groups are on). Your circumstances can be marked "only my groups": the
 public profile leaves them out, and the full profile goes only into your groups' Rainshare
 spaces. Helpers who can read a group copy see the fuller one.
 
@@ -152,8 +167,9 @@ relaunch (`sh.tangled.graph.follow`) aren't read.
 `dev.rainshare.*` records (`com.atproto.sync.listReposByCollection`), and the records come from
 each person's own PDS. Your own writes are layered over that until the relay catches up.
 
-**Ranking** (`core/rank.js`) puts first what you said you'd like to help with, then what your
-setup can do (a wanted model you have, tags that match the work you take on), then closeness.
+**Ranking** (`core/rank.js`) puts first who could use the help (no paid AI plan, a student, between
+jobs), then what your setup can do (a wanted model you have, tags that match the work you take
+on), then closeness. (While "who you'd like to help first" is set aside, it has no say.)
 Each card shows how well it suits you as one to three drops ("Strong fit", "Good fit", "Some
 fit"), and picking one says why in plain sentences beside the list: "Priya has no paid AI and
 is between jobs. It'd like Sonnet, which you have. Heads up: someone's already on it." The
@@ -236,7 +252,7 @@ slowly, drawn by one shared renderer that loads only when a plant is on screen
 
 Helping doesn't earn credits. It grows a garden instead: one plant on your profile for
 each idea or project that got done with your work, drawn as what it grew into, and each one
-opens the ask it came from. Your board says how many ("Helped with 2"), beside your forecast.
+opens the ask it came from. Your board says how many ("Helped with 2"), beside your AI plan.
 
 It's worked out, not stored (`core/garden.js`). A helper's delivery says what they worked on,
 and the asker's own record names the delivery that did it, so a garden needs both
@@ -385,8 +401,8 @@ anything is written.
 
 The MCP tools are `rainshare_board`, `rainshare_show` (with the brief), `rainshare_check`,
 `rainshare_take`, `rainshare_drop`, `rainshare_turn_in`, `rainshare_open_pr`, `rainshare_ask`,
-`rainshare_close_out` (mark your own done, closed or open again), `rainshare_profile`,
-`rainshare_set_forecast` and `rainshare_whoami`. The server's instructions give an agent the
+`rainshare_close_out` (mark your own done, closed or open again), `rainshare_profile` and
+`rainshare_whoami` (and `rainshare_set_forecast`, while forecasts are on). The server's instructions give an agent the
 order: check, take, do the work, open the pull request with the seed's link in it, check again,
 turn it in, and tell its user what's left. Without a sign-in the read-only tools still work, and
 the agent is told to finish the work and hand its user the link instead.
@@ -629,6 +645,13 @@ Not yet checked:
   with a real signed-in account, and how quickly the board fills for someone whose board has
   many askers (whether each follows you on Tangled is one read per asker, made while their
   profiles are read; a server that hasn't answered in 6 seconds is left as unknown).
+- The simpler profile and asking (12 November 2026): in the example circle at 1280 and 390
+  pixels wide, light and dark. Checked: asking in two steps for an idea, with the Bluesky post
+  following the title as it's typed, ending open to everyone; picking AI plans (a paid one
+  clears "No AI plan" and the other way round) and saving them, with the set-aside forecast,
+  priorities and budget still in the saved profile; "AI plan" first on profiles, "Their AI
+  plan" in the picked card, and your plan in the board's header; nothing set aside showing.
+  Not done: publishing the profile lexicon with `plans` in it (`lexicons/publish.mjs`).
 - Ideas: asking for rain on one, running with one and turning it in were checked in the example circle.
   The pages Rainshare links to on Tangled exist (they ask you to sign in). GitHub's new-repo
   page taking a name and description from the link is from memory, not checked from here; if

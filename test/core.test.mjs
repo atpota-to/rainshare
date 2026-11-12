@@ -1,12 +1,12 @@
 // Run with: npm test (node --test, no dependencies)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SEED } from '../core/ns.js';
+import { SEED, lowBudgetOf } from '../core/ns.js';
 import { parseSubject, describeSubject, cloneUrlOf } from '../core/subjects.js';
 import * as R from '../core/records.js';
 import { meantFor, closeness } from '../core/circle.js';
 import { rank, score, fit } from '../core/rank.js';
-import { whereText, shortWhere, jobText, jobShort, wantsText, onItText, takenShort, askExcerpt, stageOf, nounOf, aNoun, pictureOf, whatItIs, stateText } from '../core/words.js';
+import { whereText, shortWhere, jobText, jobShort, wantsText, onItText, takenShort, askExcerpt, stageOf, nounOf, aNoun, pictureOf, whatItIs, stateText, planText } from '../core/words.js';
 import { wateredBy, wateredText } from '../core/garden.js';
 import { renderMarkdown } from '../core/markdown.js';
 import { brief, launchers, handBack, readHandBack, readBranchBack, handBackBranch } from '../core/brief.js';
@@ -118,32 +118,70 @@ test('audiences decide who a seed is meant for', () => {
   assert.equal(closeness({ ...base, group: true }), 'group');
 });
 
+// Who a helper would like to help first is set aside for now (FEATURES in core/ns.js); these
+// run with it on, as it will be when it comes back.
+const ON = { priorities: true };
 test('ranking puts the people a helper prioritises first, and says why', () => {
   const me = { did: 'did:me', profile: { priorities: ['low-budget', 'values-aligned'], values: ['climate'], setups: [{ harness: 'claude-code', models: ['claude-opus-5-5'] }] } };
   const items = [
     { uri: 'a', closeness: 'mutual', value: { createdAt: '2026-01-02T00:00:00Z', wants: { models: ['gpt-5'] } }, profile: { budget: 'high' } },
     { uri: 'b', closeness: 'you-follow', value: { createdAt: '2026-01-01T00:00:00Z', values: ['climate'], wants: { models: ['opus'] } }, profile: { budget: 'none' } }
   ];
-  const out = rank(items, me);
+  const out = rank(items, me, ON);
   assert.equal(out[0].uri, 'b');
   const texts = out[0].reasons.map(r => r.text);
   assert.ok(texts.includes('No paid AI')); assert.ok(texts.some(t => /Shares climate/.test(t))); assert.ok(texts.some(t => /opus: you have it/.test(t)));
   assert.ok(out[1].reasons.some(r => r.tone === 'down'));
-  const taken = score({ closeness: 'mutual', value: {}, takes: [{ repo: 'did:other' }] }, me);
+  const taken = score({ closeness: 'mutual', value: {}, takes: [{ repo: 'did:other' }] }, me, ON);
   assert.ok(taken.reasons.some(r => r.text === 'Someone’s on it'));
 });
 
 test('fit says how well a seed suits a helper, in one sentence', () => {
   const me = { did: 'did:me', profile: { priorities: ['low-budget', 'students'], values: ['accessibility'], offering: ['css'], setups: [{ harness: 'claude-code', models: ['claude-sonnet-5-5'] }] } };
-  const strong = fit({ closeness: 'mutual', author: { displayName: 'Juniper Hale' }, value: { tags: ['css'], values: ['accessibility'], wants: { models: ['claude-sonnet-5-5'] } }, profile: { budget: 'none', circumstances: ['student'] } }, me);
+  const strong = fit({ closeness: 'mutual', author: { displayName: 'Juniper Hale' }, value: { tags: ['css'], values: ['accessibility'], wants: { models: ['claude-sonnet-5-5'] } }, profile: { budget: 'none', circumstances: ['student'] } }, me, ON);
   assert.equal(strong.level, 3); assert.equal(strong.label, 'Strong fit');
   assert.equal(strong.why, 'Juniper has no paid AI, is a student and cares about accessibility too. It’d like Sonnet, which you have. It’s css, your kind of work.');
-  const some = fit({ closeness: 'you-follow', author: { handle: 'kai.example' }, value: { wants: { models: ['gpt-5'] } }, takes: [{ repo: 'did:other' }] }, me);
+  const some = fit({ closeness: 'you-follow', author: { handle: 'kai.example' }, value: { wants: { models: ['gpt-5'] } }, takes: [{ repo: 'did:other' }] }, me, ON);
   assert.equal(some.level, 1);
   assert.equal(some.why, 'It’s from your circle. Heads up: they’d like GPT-5, which isn’t in your setup. Someone’s already on it.');
   assert.equal(fit({ closeness: 'group', author: { displayName: 'Mo' }, value: {} }, me).why, 'Mo is in your group.');
   assert.equal(fit({ value: {} }, me).why, 'It’s open to everyone.');
   assert.ok(rank([{ closeness: 'mutual', value: {} }], me)[0].fit.label);
+});
+
+test('set aside, who you’d like to help first has no say in the board', () => {
+  const me = { did: 'did:me', profile: { priorities: ['low-budget', 'students'], setups: [{ harness: 'claude-code', models: ['claude-sonnet-5-5'] }] } };
+  const juniper = { closeness: 'mutual', author: { displayName: 'Juniper Hale' }, value: {}, profile: { plans: ['none'], circumstances: ['student'] } };
+  const OFF = { priorities: false }, off = score(juniper, me, OFF), on = score(juniper, me, ON);
+  assert.ok(on.score > off.score);
+  // Said either way, but as a match rather than as something you asked for.
+  assert.deepEqual(off.reasons.map(r => [r.text, r.tone]), [['No paid AI', 'match'], ['Student', 'match']]);
+  assert.equal(fit(juniper, me, OFF).why, 'Juniper has no paid AI and is a student.');
+});
+
+test('AI plans: one line, from plans first and an older profile’s budget otherwise', () => {
+  assert.equal(planText({ plans: ['claude-max', 'copilot'] }), 'Claude Max and GitHub Copilot');
+  assert.equal(planText({ plans: ['none'] }), 'No AI plan');
+  // Plans win over what an older profile said.
+  assert.equal(planText({ plans: ['free'], budget: 'high', setups: [{ harness: 'codex', plan: 'ChatGPT Pro' }] }), 'Free tiers only');
+  assert.equal(planText({ setups: [{ harness: 'claude-code', plan: 'Claude Max 20x' }], budget: 'high' }), 'Claude Max 20x');
+  assert.equal(planText({ budget: 'none' }), 'Nothing paid');
+  assert.equal(planText({ budget: 'low' }), 'Under $25 a month');
+  assert.equal(planText({}), '');
+  // From someone else's record: a plan nobody knows is shown as written; anything else is dropped.
+  assert.equal(planText({ plans: ['kagi', 42, null, ''] }), 'kagi');
+  // Who's without a paid plan.
+  assert.equal(lowBudgetOf({ plans: ['free'] }), 'free');
+  assert.equal(lowBudgetOf({ plans: ['none'], budget: 'high' }), 'none');
+  assert.equal(lowBudgetOf({ plans: ['claude-pro'], budget: 'none' }), null);
+  assert.equal(lowBudgetOf({ budget: 'low' }), 'low');
+  assert.equal(lowBudgetOf({}), null);
+  // What's written: known plans only, and a paid one means "none" and "free" don't apply.
+  assert.deepEqual(R.plans(['claude-pro', 'none', 'kagi', 'claude-pro']), ['claude-pro']);
+  assert.deepEqual(R.plans(['none', 'free']), ['free']);
+  assert.deepEqual(R.plans('claude-pro'), []);
+  assert.deepEqual(R.profile({ plans: ['none'] }).plans, ['none']);
+  assert.equal(R.profile({}).plans, undefined);
 });
 
 test('a seed reads as plain lines, not chips', () => {

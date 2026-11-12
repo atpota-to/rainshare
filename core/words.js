@@ -1,7 +1,7 @@
 // An ask in plain words, for the board's details and its own page: where the
 // work is, how big the job is, what the asker would like, and who's on it. Each is a short
 // line of text, so nothing needs a coloured chip.
-import { labelOf, SIZES, HARNESSES, audienceOf, modelName } from './ns.js';
+import { labelOf, SIZES, HARNESSES, PLANS, BUDGETS, plansIn, audienceOf, modelName } from './ns.js';
 import { describeSubject, kindOf, FORGE_NAMES } from './subjects.js';
 import { join, modelsOf, modelMatch } from './rank.js';
 import { tieOf, TIE_SHORT } from './ties.js';
@@ -93,6 +93,19 @@ export function takenShort(item, viewer){
   if (!t.length) return '';
   if (t.length > 1) return `${t.length} helpers on it`;
   return t[0].repo === viewer ? 'You’re on it' : `${firstName(t[0].author)}’s on it`;
+}
+
+/**
+ * Someone's AI plan as one line: "Claude Max and GitHub Copilot", "No AI plan". An older
+ * profile without plans says it with the plan typed into its setups, or its budget. '' when
+ * they haven't said. (A plan nobody knows is shown as written, clipped.)
+ */
+export function planText(p){
+  const plans = plansIn(p);
+  if (plans.length) return join([...new Set(plans.map(x => String(labelOf(PLANS, x)).slice(0, 40)))]);
+  const typed = [...new Set((p?.setups || []).map(x => typeof x?.plan === 'string' ? x.plan.trim().slice(0, 64) : '').filter(Boolean))];
+  if (typed.length) return join(typed.slice(0, 3));
+  return BUDGETS.find(b => b[0] === p?.budget)?.[2] || '';
 }
 
 /** How the asker relates to you: "mutual", "follows you", "Spine Club", "open to everyone". */

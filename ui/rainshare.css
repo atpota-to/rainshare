@@ -457,3 +457,5 @@
 .rs-pull summary .rs-i{width:16px;height:16px;margin-right:6px;vertical-align:-3px}
 .rs-pull textarea{font-family:var(--rs-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:13px;line-height:1.5}
 @media (prefers-reduced-motion:reduce){.rs *{transition:none!important}}
+/* your AI plan, in the board's header */
+.rs-plan-btn{max-width:18ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

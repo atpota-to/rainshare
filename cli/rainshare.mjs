@@ -18,9 +18,9 @@ import { rank } from '../core/rank.js';
 import { parseSubject, describeSubject, cloneUrlOf, FORGE_NAMES } from '../core/subjects.js';
 import { writableForge, pickSource, matchSource, pullText, FORGE_SAID } from '../core/forgewrite.js';
 import { audienceLine, CLOSENESS } from '../core/circle.js';
-import { SEED, STAGE, FORECAST, BUDGETS, TESTS, HARNESSES, labelOf, audienceOf, modelName } from '../core/ns.js';
+import { SEED, STAGE, FEATURES, FORECAST, TESTS, HARNESSES, labelOf, audienceOf, modelName } from '../core/ns.js';
 import { strongRef } from '../core/records.js';
-import { stateText } from '../core/words.js';
+import { stateText, planText } from '../core/words.js';
 import { tieOf, TIE_SHORT, FROM_KEYS, fromMatches } from '../core/ties.js';
 import { wordOn } from '../core/vouch.js';
 import * as net from '../core/net.js';
@@ -149,7 +149,7 @@ function details(it){
   lines.push(sq.spec || '(No details beyond the title.)', '');
   const g = [w.models?.length && 'Models: ' + w.models.join(', '), w.harnesses?.length && 'Harnesses: ' + w.harnesses.join(', '), w.tests && labelOf(TESTS, w.tests), w.maxDiffLines && `Under about ${w.maxDiffLines} lines`, w.notes].filter(Boolean);
   if (g.length) lines.push('What they’d like:', ...g.map(x => '  - ' + x), '');
-  const about = [p.budget && 'AI budget: ' + labelOf(BUDGETS, p.budget), p.circumstances?.length && 'About them: ' + p.circumstances.join(', '), p.values?.length && 'Cares about: ' + p.values.join(', ')].filter(Boolean);
+  const about = [planText(p) && 'AI plan: ' + planText(p), p.circumstances?.length && 'About them: ' + p.circumstances.join(', '), p.values?.length && 'Cares about: ' + p.values.join(', ')].filter(Boolean);
   if (about.length) lines.push(...about, '');
   for (const t of it.takes || []) lines.push(`On it: ${nameOf(t.author)}${t.value?.setup ? ` with ${harnessName(t.value.setup.harness)} ${(t.value.setup.models || []).join(', ')}` : ''}`);
   for (const dl of it.deliveries || []) lines.push(`Turned in: ${nameOf(dl.author)} ${dl.value?.url || dl.value?.pull || ''}`);
@@ -268,11 +268,12 @@ async function doPlant(o){
   const spec = o.specFile ? await readFile(o.specFile, 'utf8') : o.spec;
   const list = v => Array.isArray(v) ? v : String(v || '').split(',').map(s => s.trim()).filter(Boolean);
   const r = await src.plant({
-    title: o.title, subject, stage: o.stage, spec, specUrl: o.specUrl, tags: list(o.tags), values: list(o.values), size: o.size,
+    title: o.title, subject, stage: o.stage, spec, specUrl: o.specUrl, tags: list(o.tags), values: FEATURES.seedValues ? list(o.values) : undefined, size: o.size,
     // With no repo it's an idea: `--give-away` means whoever builds it keeps it, and more than one person may.
     owner: subject ? undefined : o.owner || (o.giveAway ? 'helper' : undefined), parallel: !!o.parallel || (!subject && (o.giveAway || o.owner === 'helper')),
     wants: { models: list(o.models), harnesses: list(o.harnesses), tests: o.tests, maxDiffLines: o.maxLines ?? o.maxDiffLines, notes: o.notes },
-    audience: o.audience || 'anyone', list: o.list
+    // Who it's for is set aside for now (FEATURES in ../core/ns.js): every ask is open to everyone.
+    ...(FEATURES.audience ? { audience: o.audience || 'anyone', list: o.list } : { audience: 'anyone' })
   });
   return r;
 }
@@ -288,6 +289,7 @@ async function doState(ref, state, deliveryUri){
   return it;
 }
 async function doForecast(level, { until, models, note } = {}){
+  if (!FEATURES.forecast) throw new CliError('Forecasts are set aside for now. Your profile says which AI plan you have.');
   if (!FORECAST.some(f => f[0] === level)) throw new CliError(`Forecast is one of: ${FORECAST.map(f => f[0]).join(', ')}.`);
   const { src, session } = await source({ required: true });
   const now = await src.profileOf(session.did);
@@ -414,17 +416,17 @@ const TOOLS = [
   { name: 'rainshare_open_pr', description: 'On knotless or Tangled only: open the pull request for one from a branch you have already pushed, as the signed-in person, and turn it in. Posts publicly on their behalf, so only once the work is done and pushed. Anywhere else (GitHub and so on), open the pull request on the forge and use rainshare_turn_in.',
     inputSchema: { type: 'object', required: ['ref', 'branch'], properties: { ref: { type: 'string' }, branch: { type: 'string', description: 'The pushed branch with the changes' }, from: { type: 'string', description: 'The repo it was pushed to, if that’s a fork: its address or owner/name. Left out, a fork of theirs that has the branch is used, then the repo itself.' }, base: { type: 'string', description: 'The branch to merge into. The repo’s usual one when left out.' }, title: { type: 'string', description: 'The ask’s title when left out' }, body: { type: 'string', description: 'Markdown. When left out: the issue it fixes and its Rainshare link. A repo with a template for pull requests needs one written from it; the tool says so and shows the template.' }, harness: { type: 'string' }, model: { type: 'string' }, sessionUrl: { type: 'string' }, note: { type: 'string' } } }, annotations: { destructiveHint: false, openWorldHint: true },
     run: async a => ({ text: openedText(await doOpenPr(a.ref, a)) + ' Tell your user where the pull request is, and that it’s turned in.' }) },
-  { name: 'rainshare_ask', description: 'Ask for rain on something of the signed-in person’s: an idea (nothing built yet, no repo) or a project they already have, that they’d like a friend’s agent to help with. Public, for the audience given (everyone by default).',
-    inputSchema: { type: 'object', required: ['title'], properties: { title: { type: 'string' }, where: { type: 'string', description: 'A GitHub, Tangled or knotless issue or repo link. Leave it out for an idea with no repo yet.' }, stage: { type: 'string', enum: ['seedling', 'young', 'established'], description: 'For a project (something with a repo), how far along it is: seedling (just started), young (it works, still taking shape) or established (people rely on it).' }, owner: { type: 'string', enum: ['helper', 'requester'], description: 'For an idea with no repo: "helper" if whoever builds it should keep it, "requester" if it should be started for the person asking.' }, spec: { type: 'string', description: 'Markdown: what’s wrong, what done looks like, what to avoid' }, models: { type: 'array', items: { type: 'string' } }, tests: { type: 'string', enum: ['required', 'welcome', 'none'] }, maxDiffLines: { type: 'integer' }, tags: { type: 'array', items: { type: 'string' } }, audience: { type: 'string', enum: ['anyone', 'mutuals', 'following', 'followers', 'list'], description: 'Who it’s for. Everyone, unless they asked for it to stay among their mutuals or the people they follow.' }, list: { type: 'string' }, parallel: { type: 'boolean' } } },
+  { name: 'rainshare_ask', description: `Ask for rain on something of the signed-in person’s: an idea (nothing built yet, no repo) or a project they already have, that they’d like a friend’s agent to help with. ${FEATURES.audience ? 'Public, for the audience given (everyone by default).' : 'Public, and open to everyone.'}`,
+    inputSchema: { type: 'object', required: ['title'], properties: { title: { type: 'string' }, where: { type: 'string', description: 'A GitHub, Tangled or knotless issue or repo link. Leave it out for an idea with no repo yet.' }, stage: { type: 'string', enum: ['seedling', 'young', 'established'], description: 'For a project (something with a repo), how far along it is: seedling (just started), young (it works, still taking shape) or established (people rely on it).' }, owner: { type: 'string', enum: ['helper', 'requester'], description: 'For an idea with no repo: "helper" if whoever builds it should keep it, "requester" if it should be started for the person asking.' }, spec: { type: 'string', description: 'Markdown: what’s wrong, what done looks like, what to avoid' }, models: { type: 'array', items: { type: 'string' } }, tests: { type: 'string', enum: ['required', 'welcome', 'none'] }, maxDiffLines: { type: 'integer' }, tags: { type: 'array', items: { type: 'string' } }, ...(FEATURES.audience ? { audience: { type: 'string', enum: ['anyone', 'mutuals', 'following', 'followers', 'list'], description: 'Who it’s for. Everyone, unless they asked for it to stay among their mutuals or the people they follow.' }, list: { type: 'string' } } : {}), parallel: { type: 'boolean' } } },
     run: async a => { const r = await doPlant(a); return { text: `Asked for rain: ${a.title}\n${r.uri}`, data: r }; } },
   { name: 'rainshare_close_out', description: 'For one of the signed-in person’s own ideas or projects: mark it done (the work landed), close it (no longer wanted), or reopen it. Only do this when your user asks, or after rainshare_check says a pull request for it has been merged and your user agrees it did the job.',
     inputSchema: { type: 'object', required: ['ref', 'state'], properties: { ref: { type: 'string' }, state: { type: 'string', enum: ['done', 'closed', 'open'] }, delivery: { type: 'string', description: 'With done: the at:// URI of the delivery that did it, if there’s more than one' } } },
     run: async a => { const state = a.state === 'done' ? 'sprouted' : a.state; const it = await doState(a.ref, state, a.delivery); const r = await doCheck(it.uri).catch(() => null); return { text: `${{ sprouted: 'Done', closed: 'Closed', open: 'Reopened' }[state]}: ${it.value.title}${r?.st.planter ? '\n' + r.st.planter.text + (r.st.planter.href ? ' ' + r.st.planter.href : '') : ''}` }; } },
-  { name: 'rainshare_profile', description: 'The signed-in person’s Rainshare profile: setups, budget, forecast, values and who they’d like to help first, and what they’ve helped with (the ideas and projects done with their help).', inputSchema: { type: 'object', properties: {} }, annotations: { readOnlyHint: true },
+  { name: 'rainshare_profile', description: 'The signed-in person’s Rainshare profile: their AI plans, what they run, their situation and values, and what they’ve helped with (the ideas and projects done with their help).', inputSchema: { type: 'object', properties: {} }, annotations: { readOnlyHint: true },
     run: async () => { const { src, session } = await source({ required: true }); const p = await profileWithGarden(src, session.did); return { text: JSON.stringify(p, null, 2), data: p }; } },
-  { name: 'rainshare_set_forecast', description: 'Say how much time the signed-in person’s agent has to spare right now: dry, drizzle, showers or downpour, optionally until a date.',
+  ...!FEATURES.forecast ? [] : [{ name: 'rainshare_set_forecast', description: 'Say how much time the signed-in person’s agent has to spare right now: dry, drizzle, showers or downpour, optionally until a date.',
     inputSchema: { type: 'object', required: ['level'], properties: { level: { type: 'string', enum: FORECAST.map(f => f[0]) }, until: { type: 'string', description: 'A date' }, models: { type: 'string' }, note: { type: 'string' } } },
-    run: async a => { const f = await doForecast(a.level, a); return { text: `Forecast: ${labelOf(FORECAST, f.level)}${f.until ? ' until ' + f.until.slice(0, 10) : ''}` }; } },
+    run: async a => { const f = await doForecast(a.level, a); return { text: `Forecast: ${labelOf(FORECAST, f.level)}${f.until ? ' until ' + f.until.slice(0, 10) : ''}` }; } }],
   { name: 'rainshare_whoami', description: 'Whether Rainshare is signed in here, and as whom. Reading and checking works either way. Taking one on, turning it in and asking for rain need a sign-in; without one, do the work and give your user the link in the brief, which turns it in from its Rainshare page.', inputSchema: { type: 'object', properties: {} }, annotations: { readOnlyHint: true },
     run: async () => { const s = (await source()).session; return { text: s ? `Signed in as @${s.handle}.` : 'Not signed in here. Reading and checking still works. To take things on and turn them in from here, your user signs in once in a terminal: node ~/.rainshare.mjs login <their handle>. Otherwise, finish the work and give them the link in the brief.', data: { signedIn: !!s, handle: s?.handle || null, did: s?.did || null } }; } }
 ];
@@ -501,15 +503,14 @@ Expect rough edges, and commands and records that may still change.
                              knotless and Tangled only: open the pull request as you, from a branch
                              that's already pushed, and turn it in
   ask --title t [--where <issue or repo link>] [--spec text | --spec-file f] [--models a,b]
-        [--tests required|welcome|none] [--max-lines n] [--tags a,b] [--audience anyone|mutuals|following|followers]
+        [--tests required|welcome|none] [--max-lines n] [--tags a,b]${FEATURES.audience ? ' [--audience anyone|mutuals|following|followers]' : ''}
         [--stage seedling|young|established]
                              ask for rain: with --where it's a project you already have, as far along
                              as --stage says; with none it's an idea, and --give-away says whoever
                              builds it should keep it
   close | reopen <link>      done <link> [--delivery <uri>]
   profile [--json]           your Rainshare profile
-  forecast <dry|drizzle|showers|downpour> [--until date] [--models a,b] [--note n]
-  doctor                     what's set up here, and so which of these will work
+${FEATURES.forecast ? '  forecast <dry|drizzle|showers|downpour> [--until date] [--models a,b] [--note n]\n' : ''}  doctor                     what's set up here, and so which of these will work
   mcp                        run as an MCP server over stdio (claude mcp add rainshare -- node rainshare.mjs mcp)
 
 <link> is its at:// URI, its rainshare.dev link, or <handle>/<rkey>.`;
