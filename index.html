@@ -39,17 +39,14 @@
     <div class="rd-pitch">
       <h1><span class="rd-sr">Got rain to spare? Send your agent to help someone else.</span><span aria-hidden="true">Got r<span class="rd-ai">ai</span>n to spare? Send your agent to help someone else.</span></h1>
       <p>Your AI plan resets whether you use it or not. On Rainshare, people post ideas and projects they want help with. Pick one and your agent does the work, on your plan. Or post one yourself and <span class="rd-sr">ask for rain.</span><span aria-hidden="true">ask for r<span class="rd-ai">ai</span>n.</span></p>
-      <form class="rd-signin" id="rdSignIn">
-        <input name="handle" placeholder="you.bsky.social" autocomplete="username" autocapitalize="none" spellcheck="false" inputmode="url" required aria-label="Your handle">
-        <button type="submit">Sign in with your handle</button>
+      <form class="rd-signin" id="rdSignIn" novalidate>
+        <input name="handle" placeholder="you.bsky.social" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="url" enterkeyhint="go" aria-label="Your handle" aria-describedby="rdWith">
+        <button type="submit">Sign in</button>
       </form>
       <p class="rd-err" id="rdErr" role="alert" hidden></p>
+      <p class="rd-with" id="rdWith">Use your handle from Bluesky, Tangled or any Atmosphere app. Rainshare never sees your password.</p>
       <p class="rd-also">Or <a href="/example" data-nav>try an example</a> first, with made-up people.</p>
       <p class="rd-alpha">Rainshare is in early alpha. What you post stays in your own account, and you can delete it any time.</p>
-      <details class="rd-asks">
-        <summary>What signing in allows</summary>
-        <p>Rainshare asks to keep its own records in your account, and to post to Tangled and knotless as you: issues, comments, pull requests, and vouches on Tangled. Your server shows you the list before you agree. Nothing is posted to either until you press a button that says so.</p>
-      </details>
     </div>
 
     <figure class="rd-scene rd-garden" id="scene">

@@ -1,0 +1,84 @@
+/* Signing in (./signin.js): the accounts offered as a handle is typed, and the dialog with
+   "Is this you?" in it. Colours and the typeface come from ./theme.css. */
+.si,.si-list{--on:#fff;--sunk:rgba(18,32,58,.045)}
+@media (prefers-color-scheme:dark){.si,.si-list{--on:#0B1220;--sunk:rgba(255,255,255,.05)}}
+
+/* accounts that match what's typed */
+.si-list{list-style:none;margin:0;padding:6px;border-radius:16px;background:var(--card);color:var(--ink);box-shadow:0 0 0 1.5px var(--line),0 22px 44px -20px rgba(11,18,32,.45);display:flex;flex-direction:column;gap:2px;text-align:left}
+.si-list li{display:flex;align-items:center;gap:12px;min-width:0;min-height:52px;padding:6px 10px;border-radius:11px;cursor:pointer}
+.si-list li[aria-selected="true"]{background:var(--accent-soft)}
+.si-list .rs-face{width:36px;height:36px;font-size:15px}
+.si-who{display:flex;flex-direction:column;min-width:0;line-height:1.3}
+.si-who b{font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.si-who span{color:var(--muted);font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* on the landing they float under the field and its button */
+.rd-signin{position:relative}
+.rd-signin>.si-list{position:absolute;left:0;right:0;top:calc(100% + 8px);z-index:6}
+/* (the line under the field would show past the list's round corner) */
+.rd-signin:has(.si-list:not([hidden]))~.rd-with{visibility:hidden}
+
+/* The dialog fills the window, and the box sits toward the top of it, so it doesn't jump about
+   as accounts are offered or the keyboard comes up. */
+.si{position:fixed;inset:0;width:100%;height:100%;max-width:none;max-height:none;margin:0;border:0;padding:clamp(12px,12vh,120px) 12px 12px;background:none;color:var(--ink);overflow:auto;overscroll-behavior:contain;font-family:var(--body)}
+.si[open]{display:grid;place-items:start center}
+.si::backdrop{background:rgba(11,18,32,.5);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.si-box{width:min(440px,100%);border-radius:26px;background:var(--card);box-shadow:0 0 0 1px var(--line),0 40px 80px -30px rgba(11,18,32,.6);animation:si-in .28s cubic-bezier(.2,.9,.3,1.1)}
+@keyframes si-in{from{opacity:0;transform:translateY(10px) scale(.98)}}
+.si-step{display:flex;flex-direction:column;gap:14px;padding:22px 22px 20px;margin:0}
+.si-step p{margin:0}
+.si-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.si-head h2{margin:0;font:800 24px/1.15 var(--display);letter-spacing:-.02em}
+.si-x{flex:none;width:40px;height:40px;margin:-6px -8px -6px 0;border:0;border-radius:50%;background:none;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+@media (hover:hover){.si-x:hover{background:var(--sunk);color:var(--ink)}}
+.si-lede{font-size:16px;line-height:1.5;color:var(--muted)}
+.si-small{font-size:14px;line-height:1.5;color:var(--muted)}
+.si-err{font-size:15px;line-height:1.45;font-weight:700;color:#B3261E}
+@media (prefers-color-scheme:dark){.si-err{color:#FF8A80}}
+
+.si-input{width:100%;min-height:54px;border:0;border-radius:16px;padding:12px 16px;font:500 17px var(--body);color:var(--ink);background:var(--card);box-shadow:inset 0 0 0 1.5px var(--line)}
+.si-input:focus{outline:none;box-shadow:inset 0 0 0 2px var(--accent)}
+@media (prefers-color-scheme:dark){.si-input{background:#0F1727}}
+/* in the dialog the accounts are part of the layout, not over it */
+.si-offer:has(.si-list[hidden]){display:none}
+.si-offer .si-list{padding:0;background:none;box-shadow:none}
+
+/* who it found */
+.si-card{display:flex;align-items:center;gap:14px;min-width:0;padding:14px 16px;border-radius:18px;background:var(--sunk);box-shadow:inset 0 0 0 1px var(--line)}
+.si-card .rs-face{width:52px;height:52px;font-size:22px}
+.si-card .si-who b{font-size:18px;font-family:var(--display)}
+.si-card .si-who span{font-size:15px}
+
+/* what's asked for: one that's needed, and the ones that are yours to untick */
+.si-asks{border:0;margin:0;padding:0;min-width:0;display:flex;flex-direction:column;gap:2px}
+.si-asks legend{padding:0;margin-bottom:6px;font:700 13px/1.3 var(--body);letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.si-ask{display:flex;align-items:flex-start;gap:12px;padding:8px 10px;margin:0 -10px;border-radius:14px;cursor:pointer}
+.si-ask:has(input:disabled){cursor:default}
+@media (hover:hover){.si-ask:has(input:not(:disabled)):hover{background:var(--sunk)}}
+.si-ask>span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.si-ask b{font-weight:700;font-size:16px;line-height:1.4}
+.si-ask i{font-style:normal;font-weight:500;color:var(--muted)}
+.si-ask small{font-size:14px;line-height:1.45;color:var(--muted)}
+.si-ask input{-webkit-appearance:none;appearance:none;flex:none;width:24px;height:24px;margin:0;border-radius:8px;background:var(--card);box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--ink) 34%,transparent);display:grid;place-content:center;cursor:inherit;transition:background .15s}
+.si-ask input::after{content:"";width:12px;height:7px;border:solid var(--on);border-width:0 0 2.5px 2.5px;transform:translateY(-1.5px) rotate(-45deg) scale(0);transition:transform .15s cubic-bezier(.3,1.45,.5,1)}
+.si-ask input:checked{background:var(--accent);box-shadow:none}
+.si-ask input:checked::after{transform:translateY(-1.5px) rotate(-45deg) scale(1)}
+/* the one that's needed is ticked for good */
+.si-ask input:disabled{background:color-mix(in srgb,var(--accent) 55%,var(--card))}
+@media (forced-colors:active){.si-ask input{-webkit-appearance:auto;appearance:auto;box-shadow:none}.si-ask input::after{display:none}}
+
+/* the way on: it names the site it leads to */
+.si-go{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:56px;padding:12px 18px;border:0;border-radius:16px;background:var(--accent);color:var(--on);font:700 17px/1.25 var(--body);text-align:center;overflow-wrap:anywhere;cursor:pointer;transition:transform .2s cubic-bezier(.3,1.45,.5,1),opacity .2s}
+@media (hover:hover){.si-go:hover{transform:translateY(-1px)}}
+.si-go:active{transform:scale(.98)}
+.si-go[aria-disabled="true"]{opacity:.6;cursor:progress;transform:none}
+.si-go .rs-i{width:20px;height:20px;stroke-width:2.2}
+.si-next{font-size:14px;line-height:1.5;color:var(--muted)}
+.si-next:empty{display:none}
+.si-next b{color:var(--ink);font-weight:700;overflow-wrap:anywhere}
+.si-foot{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px;padding-top:12px;border-top:1px solid var(--line);font-size:14px;color:var(--muted)}
+.si-link{border:0;background:none;padding:4px 0;font:700 15px var(--body);color:var(--accent-text);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+@media (max-width:420px){
+  .si-step{padding:18px 18px 16px}
+  .si-head h2{font-size:22px}
+}
+@media (prefers-reduced-motion:reduce){.si-box{animation:none}.si-go,.si-ask input,.si-ask input::after{transition:none}}

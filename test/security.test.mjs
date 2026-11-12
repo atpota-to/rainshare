@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { SEED } from '../core/ns.js';
-import { listRecords, getRecordOrNull, pdsOf, handleOf, isRkey, safeAtUri } from '../core/net.js';
+import { listRecords, getRecordOrNull, pdsOf, handleOf, isRkey, safeAtUri, suggestPeople } from '../core/net.js';
 import { parseSubject, cloneUrlOf, describeSubject } from '../core/subjects.js';
 import { brief, launchers, printable, workDir } from '../core/brief.js';
 import { renderMarkdown } from '../core/markdown.js';
@@ -171,4 +171,28 @@ test('Markdown: an address followed by <placeholder> ends before the bracket', (
   const out = renderMarkdown('GET https://api.example.com/users/<id>/posts returns them');
   assert.match(out, /href="https:\/\/api\.example\.com\/users\/"/);
   assert.match(out, /<\/a>&lt;id&gt;\/posts returns them/);
+});
+
+test('accounts offered while a handle is typed are taken only as far as they’re well formed', async () => {
+  const asked = [];
+  const done = network({ answer: (method, q) => {
+    asked.push([method, q.get('q'), q.get('limit')]);
+    return { actors: [
+      { did: 'did:plc:alice', handle: 'Alice.Test', displayName: 'Alice', avatar: 'https://cdn.test/a.jpg' },
+      { did: 'did:plc:bob', handle: 'bob.test', displayName: 7, avatar: 'javascript:alert(1)' },
+      { did: 'not-a-did', handle: 'carol.test' },
+      { did: 'did:plc:dan', handle: '"><img src=x onerror=alert(1)>' },
+      null
+    ] };
+  } });
+  try {
+    assert.deepEqual(await suggestPeople(' @Ali '), [
+      { did: 'did:plc:alice', handle: 'alice.test', displayName: 'Alice', avatar: 'https://cdn.test/a.jpg' },
+      { did: 'did:plc:bob', handle: 'bob.test', displayName: '', avatar: null }
+    ]);
+    assert.deepEqual(asked, [['app.bsky.actor.searchActorsTypeahead', 'ali', '5']]);
+    // One letter, or a DID, isn't looked up at all.
+    assert.deepEqual([await suggestPeople('a'), await suggestPeople('did:plc:alice')], [[], []]);
+    assert.equal(asked.length, 1);
+  } finally { done(); }
 });
