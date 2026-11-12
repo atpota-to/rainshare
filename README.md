@@ -43,7 +43,7 @@ It runs in two places, both from this repo:
 
 | Where | What |
 | --- | --- |
-| **rainshare.dev** | The site: the landing, sign-in, your circle, and an example circle at `/example` that's kept in your browser. Light and dark. |
+| **rainshare.dev** | The site: the landing, sign-in, the board, and an example circle at `/example` that's kept in your browser (linked from the landing and the footer, with its own tab in the bar while you're in it). Light and dark. |
 | **Your terminal and your agents** | `rainshare.mjs`: a CLI and an MCP server in one dependency-free file, served at `rainshare.dev/rainshare.mjs`. |
 
 ## The landing

@@ -24,9 +24,9 @@
   <a class="rd-logo" href="/" data-nav aria-label="Rainshare, home"><svg viewBox="0 0 32 32" aria-hidden="true"><path class="rd-drop" d="M16 3.5c4.6 5.9 8.6 10.6 8.6 15.2a8.6 8.6 0 0 1-17.2 0c0-4.6 4-9.3 8.6-15.2z"/><path class="rd-spark" d="M24.5 4l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/></svg><span class="rd-word" aria-hidden="true">R<span class="rd-ai">ai</span>nshare</span></a>
   <span class="rd-stage" title="Rainshare is in early alpha: expect rough edges, and things to change.">Alpha</span>
   <nav class="rd-nav" aria-label="Rainshare">
-    <a href="/" data-nav data-tab="circle">Your circle</a>
-    <a href="/example" data-nav data-tab="example">Example</a>
+    <a href="/" data-nav data-tab="circle">Board</a>
     <a href="/agents" data-nav data-tab="agents">Agents</a>
+    <a href="/example" data-nav data-tab="example" hidden>Example</a>
   </nav>
   <div class="rd-me" id="rdMe"></div>
 </header>
@@ -37,15 +37,18 @@
   <section class="rd-landing" id="landing" hidden>
     <div class="rd-pitch">
       <h1><span class="rd-sr">Got rain to spare? Your friends’ ideas and projects could use it.</span><span aria-hidden="true">Got r<span class="rd-ai">ai</span>n to spare? Your friends’ ideas and projects could use it.</span></h1>
-      <p>Your AI plan resets whether you use it or not. Here, the people you follow share the ideas and projects they’d like a hand with, and you send your own agent to help. That help is <span class="rd-sr">the rain.</span><span aria-hidden="true">the r<span class="rd-ai">ai</span>n.</span></p>
+      <p>Your AI plan resets whether you use it or not. Send your agent to help with what the people you follow are building. That help is <span class="rd-sr">the rain.</span><span aria-hidden="true">the r<span class="rd-ai">ai</span>n.</span></p>
       <form class="rd-signin" id="rdSignIn">
         <input name="handle" placeholder="you.bsky.social" autocomplete="username" autocapitalize="none" spellcheck="false" inputmode="url" required aria-label="Your handle">
         <button type="submit">Sign in with your handle</button>
       </form>
       <p class="rd-err" id="rdErr" role="alert" hidden></p>
-      <p class="rd-also">Or <a href="/example" data-nav>look around an example circle</a> first.</p>
-      <p class="rd-alpha">Rainshare is in early alpha, so expect rough edges and things to change. Whatever you post stays in your own account, and you can delete your asks any time.</p>
-      <p class="rd-alpha">When you sign in, your server shows what Rainshare asks for: its own records in your account, and posting to Tangled and knotless as you (issues, comments, pull requests, and vouches on Tangled). On this site nothing goes to either unless you press a button that says so.</p>
+      <p class="rd-also">Or <a href="/example" data-nav>explore an example circle</a> first.</p>
+      <p class="rd-alpha">Rainshare is in early alpha. What you post stays in your own account, and you can delete it any time.</p>
+      <details class="rd-asks">
+        <summary>What signing in allows</summary>
+        <p>Your server shows what Rainshare asks for: its own records in your account, and posting to Tangled and knotless as you (issues, comments, pull requests, and vouches on Tangled). Nothing goes to either unless you press a button that says so.</p>
+      </details>
     </div>
 
     <figure class="rd-scene" id="scene">
@@ -107,7 +110,11 @@
 </main>
 
 <footer class="rd-foot">
-  <p>Everything here is a record in its owner’s own account (<code>dev.rainshare.*</code>), and your circle is the people you follow on Bluesky. Works with Bluesky, Tangled, knotless and GitHub.</p>
+  <p>Every ask is a record in its owner’s own account. Works with Bluesky, Tangled, knotless and GitHub.</p>
+  <nav aria-label="More">
+    <a href="/agents" data-nav>Agents</a>
+    <a href="/example" data-nav>Example circle</a>
+  </nav>
 </footer>
 <div class="rd-toast" id="toast" role="status" aria-live="polite" hidden></div>
 <script type="module" src="/src/main.js"></script>
