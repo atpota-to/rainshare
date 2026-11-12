@@ -46,10 +46,10 @@ const host = kind => ({
   toast,
   onTitle: t => { document.title = t ? `${t} · Rainshare` : 'Rainshare'; },
   // The 3D plants are drawn on demand: the models and three.js load only when one is on screen,
-  // and until then (or if WebGL isn't to be had) the picture underneath is what shows.
-  plant3d(canvas, stage){
+  // and until then (or if WebGL isn't to be had) the picture underneath, of the same kind, is what shows.
+  plant3d(canvas, stage, kind){
     let off = null, gone = false;
-    import('./plants/live.js').then(m => { if (!gone && canvas.isConnected) off = m.mountPlant(canvas, stage); }).catch(() => {});
+    import('./plants/live.js').then(m => { if (!gone && canvas.isConnected) off = m.mountPlant(canvas, stage, kind); }).catch(() => {});
     return () => { gone = true; off?.(); };
   },
   // The query comes along, so a link an agent handed back still has its pull request after signing in.

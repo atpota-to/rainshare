@@ -1,23 +1,35 @@
 <!doctype html>
 <!-- Not part of the site: scripts/render-plants.mjs opens this through the dev server to take
-     the plants' pictures (public/plants/*.webp). Open it yourself to see them turning. -->
+     the plants' pictures (public/plants/*.webp). Open it yourself to see every kind turning,
+     one row each (?dark for a dark page, ?kinds=40 to look further than the pictures go). -->
 <meta charset="utf-8">
 <title>Rainshare's plants</title>
 <style>
-  body{margin:0;padding:24px;font:15px system-ui;background:#eef3ff;color:#12203a;display:flex;gap:24px;flex-wrap:wrap}
+  body{margin:0;padding:24px;font:13px system-ui;background:#eef3ff;color:#12203a}
   body.dark{background:#0b1220;color:#e2e9f7}
+  section{display:flex;gap:12px;align-items:center;margin-bottom:8px}
+  section p{width:180px;margin:0;line-height:1.4;opacity:.8}
   figure{margin:0;text-align:center}
-  canvas{width:192px;height:192px;display:block}
+  canvas{width:144px;height:144px;display:block}
 </style>
 <body>
 <script type="module">
   import { mountPlant, stillOf } from './live.js';
-  import { PLANT_STAGES } from './models.js';
-  if (new URLSearchParams(location.search).has('dark')) document.body.classList.add('dark');
-  for (const s of PLANT_STAGES) {
-    const f = document.createElement('figure'), c = document.createElement('canvas');
-    f.append(c, s); document.body.append(f); mountPlant(c, s);
+  import { PLANT_STAGES, traitsOf } from './models.js';
+  import { PLANT_KINDS, plantFile } from '../../ui/bits.js';
+  const q = new URLSearchParams(location.search), kinds = Math.max(1, Number(q.get('kinds')) || PLANT_KINDS);
+  if (q.has('dark')) document.body.classList.add('dark');
+  // ?stills is how the script opens it: nothing turning, just the pictures to take.
+  if (!q.has('stills')) for (let k = 0; k < kinds; k++) {
+    const T = traitsOf(k), row = document.createElement('section'), note = document.createElement('p');
+    note.innerHTML = `<b>Kind ${k}</b><br>${T.leaf} leaves${T.pattern === 'plain' ? '' : ', ' + T.pattern}, ${T.set}<br>${T.bloom.name}, ${T.petals} ${T.petalForm} petals${T.cluster ? ' in threes' : ''}<br>${T.seed} seed`;
+    row.append(note); document.body.append(row);
+    for (const s of PLANT_STAGES) {
+      const f = document.createElement('figure'), c = document.createElement('canvas');
+      f.append(c, s); row.append(f); mountPlant(c, s, k);
+    }
   }
-  window.plantStills = size => Object.fromEntries(PLANT_STAGES.map(s => [s, stillOf(s, size)]));
+  // Every picture the app uses, by file name: each stage, of each kind.
+  window.plantStills = size => Object.fromEntries(Array.from({ length: PLANT_KINDS }, (_, k) => PLANT_STAGES.map(s => [plantFile(s, k), stillOf(s, size, k)])).flat());
   window.plantsReady = true;
 </script>

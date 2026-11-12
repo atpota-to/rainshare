@@ -68,12 +68,27 @@ const FORGE_ICON = {
   knotless: '<path d="M4 13c2.4-4.5 5.6-4.5 8 0s5.6 4.5 8 0"/>',
   other: '<circle cx="6" cy="6" r="2.2"/><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="8" r="2.2"/><path d="M6 8.2v7.6M18 10.2c0 4-6 3-12 6"/>'
 };
-// The four plants (../src/plants). A picture of each is at <base><stage>.webp; with `live`, a
-// canvas sits over it for the host to draw the turning model on, where it can.
+// The four plants (../src/plants). Each seed or plant grows its own kind of plant, picked by its
+// record's address (`key`), so it's drawn the same wherever it shows, by anyone, and stays the
+// same kind as it grows from seed to flower. There are pictures of PLANT_KINDS kinds of each
+// stage: kind 0 at <base><stage>.webp, the rest at <base><stage>-<kind>.webp (`npm run plants`
+// takes them). With `live`, a canvas sits over the picture for the host to draw the turning
+// model of the same kind on, where it can.
+export const PLANT_KINDS = 12;
+export function plantKind(key){
+  if (!key) return 0;
+  let h = 0x811c9dc5;
+  for (const c of String(key)) h = Math.imul(h ^ c.codePointAt(0), 0x01000193);
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b); h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35); h ^= h >>> 16;   // stirred, so keys that differ only at the end still land apart
+  return (h >>> 0) % PLANT_KINDS;
+}
+export const plantFile = (stage, kind = 0) => `${stage}${kind ? '-' + kind : ''}.webp`;
 let plantBase = '/plants/';
 export const setPlantBase = base => { plantBase = base; };
-export const plantPic = (stage, px = 40, { live = false, cls = '' } = {}) =>
-  `<span class="rs-plant${cls ? ' ' + cls : ''}" style="--rs-plant:${px}px">${live ? `<canvas data-rs-plant="${esc(stage)}" aria-hidden="true"></canvas>` : ''}<img src="${esc(plantBase + stage + '.webp')}" width="${px}" height="${px}" alt="" decoding="async"></span>`;
+export const plantPic = (stage, px = 40, { live = false, cls = '', key = '' } = {}) => {
+  const kind = plantKind(key);
+  return `<span class="rs-plant${cls ? ' ' + cls : ''}" style="--rs-plant:${px}px">${live ? `<canvas data-rs-plant="${esc(stage)}" data-rs-kind="${kind}" aria-hidden="true"></canvas>` : ''}<img src="${esc(plantBase + plantFile(stage, kind))}" width="${px}" height="${px}" alt="" decoding="async"></span>`;
+};
 export const forgeIco = f => `<svg class="rs-i rs-forge" viewBox="0 0 24 24" aria-hidden="true">${FORGE_ICON[f] || FORGE_ICON.other}</svg>`;
 
 const initialOf = p => [...String(p?.displayName || p?.handle || '?').replace(/^@/, '').trim()][0]?.toUpperCase() || '?';
