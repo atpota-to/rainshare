@@ -58,11 +58,15 @@ export const BUDGETS = [
 // said about a person, on their profile and beside their asks. It takes over from `budget` and
 // a setup's typed `plan`, which older profiles still have and are read when there's no plan.
 // [value, what people read]
+// By provider, not by tier: whether it's Pro or Max, Plus or Pro, isn't asked.
 export const PLANS = [
-  ['claude-pro', 'Claude Pro'], ['claude-max', 'Claude Max'], ['chatgpt-plus', 'ChatGPT Plus'], ['chatgpt-pro', 'ChatGPT Pro'],
-  ['copilot', 'GitHub Copilot'], ['cursor', 'Cursor'], ['gemini', 'Gemini'], ['zai', 'Z.ai GLM Coding Plan'],
+  ['claude', 'Claude'], ['chatgpt', 'ChatGPT'], ['copilot', 'GitHub Copilot'], ['cursor', 'Cursor'], ['gemini', 'Gemini'], ['zai', 'Z.ai GLM'],
   ['free', 'Free tiers only'], ['none', 'No AI plan']
 ];
+// Plans were by tier for a while: a record that says one counts as its provider's.
+const PLAN_ALIASES = { 'claude-pro': 'claude', 'claude-max': 'claude', 'chatgpt-plus': 'chatgpt', 'chatgpt-pro': 'chatgpt' };
+/** A plan as it's kept now: a tier from an older record becomes its provider ("claude-max" is "claude"). */
+export const planKey = x => PLAN_ALIASES[x] || x;
 export const UNPAID = ['free', 'none'];
 // Which model families an ask can prefer, and how capable a model: families and a level rather
 // than model names, since names change every few months and a helper knows which of theirs fit.
@@ -87,14 +91,14 @@ export const familyOf = m => {
 // Which families a plan reaches, for matching against the families an ask would like. What each
 // plan includes keeps changing, so a match says "Claude models", never which ones or how capable.
 export const PLAN_FAMILIES = {
-  'claude-pro': ['claude'], 'claude-max': ['claude'], 'chatgpt-plus': ['gpt'], 'chatgpt-pro': ['gpt'], gemini: ['gemini'], zai: ['glm'],
+  claude: ['claude'], chatgpt: ['gpt'], gemini: ['gemini'], zai: ['glm'],
   copilot: ['claude', 'gpt', 'gemini'], cursor: ['claude', 'gpt', 'gemini']
 };
 // Rainshare is about coding subscriptions and the usage they come with, so pay as you go and
 // paid by work or school, which were offered for a while, are left out when a record has them.
 const RETIRED_PLANS = ['api', 'work'];
 /** Someone's plans, as their record has them: strings only, at most 12. */
-export const plansIn = p => (Array.isArray(p?.plans) ? p.plans : []).filter(x => typeof x === 'string' && x && !RETIRED_PLANS.includes(x)).slice(0, 12);
+export const plansIn = p => [...new Set((Array.isArray(p?.plans) ? p.plans : []).filter(x => typeof x === 'string' && x && !RETIRED_PLANS.includes(x)).map(planKey))].slice(0, 12);
 /**
  * Whether someone is without a coding subscription: 'none', 'free', or null when they have one
  * or haven't said. Plans decide it; an older profile's budget only when it said none or free.

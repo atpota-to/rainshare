@@ -19,8 +19,8 @@ or spends credits, and you help the people you follow. (Is that allowed by your 
   mid-tier or small), with tests, size and tags folded under "More options",
   and a Bluesky post to tell people it's there. It's open to everyone. An idea needs no repo and no developer: say
   what it should do, and whether someone else can run with it.
-- **Say your AI plan**: your profile starts with which AI plans you pay for to code with (Claude
-  Pro or Max, ChatGPT Plus or Pro, Copilot, Cursor, Gemini, Z.ai's GLM Coding Plan), or that you
+- **Say your AI plan**: your profile starts with which AI plans you pay for to code with (Claude,
+  ChatGPT, Copilot, Cursor, Gemini, Z.ai's GLM Coding Plan; by provider, not tier), or that you
   have free tiers or none. It's about coding subscriptions and the usage that comes with them. It shows on your profile and
   beside your asks, so a helper can see who'd be glad of the rain, and an asker can see who has
   some. Then what you run and the work you take on. It sticks to facts: what you'd like done, on
@@ -140,9 +140,9 @@ models, which change every few months; "Any model, any level" is the default (`F
 `LEVELS` in `core/ns.js`). Its page says it as "Models" ("A frontier Claude model", "A small
 Qwen or GLM model", "Claude or GPT"), and
 each helper sees how theirs fit: a model they run from one of those families ("You run
-Sonnet"), else a plan that reaches one ("Your Claude Pro plan has Claude models"), else, if their
+Sonnet"), else a plan that reaches one ("Your Claude plan has Claude models"), else, if their
 profile says enough to tell, "Not in your plan or setup". Plans are matched by family
-(`PLAN_FAMILIES`): Claude Pro and Max reach Claude, ChatGPT Plus and Pro reach GPT, Gemini
+(`PLAN_FAMILIES`): Claude reaches Claude, ChatGPT reaches GPT, Gemini
 reaches Gemini, Z.ai's GLM Coding Plan reaches GLM, and Copilot and Cursor reach Claude, GPT and
 Gemini. The level is shown and goes in the brief, but
 isn't matched: whether a plan includes a family's frontier model changes too often to say, and

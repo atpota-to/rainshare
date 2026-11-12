@@ -19,9 +19,9 @@
               "type": "string",
               "maxLength": 640,
               "maxGraphemes": 64,
-              "knownValues": ["claude-pro", "claude-max", "chatgpt-plus", "chatgpt-pro", "copilot", "cursor", "gemini", "zai", "free", "none"]
+              "knownValues": ["claude", "chatgpt", "copilot", "cursor", "gemini", "zai", "free", "none"]
             },
-            "description": "The coding subscriptions you have. zai: Z.ai's GLM Coding Plan. free: free tiers only. none: no AI plan. Takes over from budget and a setup's plan, which apps read when this is missing."
+            "description": "The coding subscriptions you have, by provider rather than tier. zai: Z.ai's GLM Coding Plan. free: free tiers only. Older records may say claude-pro, claude-max, chatgpt-plus or chatgpt-pro, which apps read as claude or chatgpt. none: no AI plan. Takes over from budget and a setup's plan, which apps read when this is missing."
           },
           "setups": {
             "type": "array",

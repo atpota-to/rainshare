@@ -65,7 +65,7 @@ export function jobShort(sq){
 
 /**
  * The models an ask would like, and how they fit yours (`myProfile`, left out for the asker):
- * "A frontier Claude model. You run Sonnet." "Claude or GPT. Your Claude Pro plan has Claude
+ * "A frontier Claude model. You run Sonnet." "Claude or GPT. Your Claude plan has Claude
  * models." "GLM. Not in your plan or setup." "Any model."
  */
 export function modelsText(sq, myProfile){
@@ -106,7 +106,7 @@ export function takenShort(item, viewer){
 }
 
 /**
- * Someone's AI plan as one line: "Claude Max and GitHub Copilot", "No AI plan". An older
+ * Someone's AI plan as one line: "Claude and GitHub Copilot", "No AI plan". An older
  * profile without plans says it with the plan typed into its setups, or with its budget when
  * that said none or free (a budget's spending brackets aren't subscriptions). '' when they
  * haven't said. (A plan nobody knows is shown as written, clipped.)

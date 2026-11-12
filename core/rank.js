@@ -38,7 +38,7 @@ export function wantPhrase(sq){
   const names = join(families.map(familyName), 'or');
   return level ? `a ${levelWord(level)} ${names} model` : names;
 }
-/** A plan as it's said after "your": "Claude Pro plan", "Z.ai GLM Coding Plan". */
+/** A plan as it's said after "your": "Claude plan", "Z.ai GLM plan". */
 const yourPlan = n => /\bplan\b/i.test(n) ? n : n + ' plan';
 /**
  * What someone brings to what an ask would like (wantedOf):

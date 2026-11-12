@@ -1,6 +1,6 @@
 // Building the four records from what people type, so every app writes the same shapes.
 // Each builder trims, clips to the lexicon's limits and leaves out what's empty.
-import { PROFILE, SEED, TAKE, DELIVERY, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, PLANS, UNPAID, LEVELS, HARNESSES, RUNS_ON, AUDIENCES, TESTS, SIZES, OWNERS, STAGES, audienceOf } from './ns.js';
+import { PROFILE, SEED, TAKE, DELIVERY, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, PLANS, UNPAID, LEVELS, planKey, HARNESSES, RUNS_ON, AUDIENCES, TESTS, SIZES, OWNERS, STAGES, audienceOf } from './ns.js';
 import { parseUri } from './net.js';
 import { kindOf } from './subjects.js';
 
@@ -29,9 +29,9 @@ export function setup(s){
   return prune({ harness, models: strings(s.models, 8, 64), plan: clip(s.plan || '', 64), runsOn: known(RUNS_ON, s.runsOn), note: clip(s.note || '', 300) });
 }
 
-/** AI plans, known ones only. A paid plan means "none" and "free tiers only" no longer apply. */
+/** AI plans, known ones only (a tier from before is kept as its provider). A paid plan means "none" and "free tiers only" no longer apply. */
 export function plans(input){
-  const k = [...new Set((Array.isArray(input) ? input : []).filter(p => known(PLANS, p)))], paid = k.filter(p => !UNPAID.includes(p));
+  const k = [...new Set((Array.isArray(input) ? input : []).map(planKey).filter(p => known(PLANS, p)))], paid = k.filter(p => !UNPAID.includes(p));
   return paid.length ? paid : k.includes('free') ? ['free'] : k.includes('none') ? ['none'] : [];
 }
 
