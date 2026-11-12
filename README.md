@@ -50,41 +50,51 @@ It runs in two places, both from this repo:
 
 ## The landing
 
-Signed out, the home page is the pitch beside the water cycle: a stretch of coast, drawn in 3D
-(`src/landing/`), to look around in. It's the same loop the app runs on:
+Signed out, the home page is the pitch beside a small garden, drawn in 3D (`src/landing/`), to
+play with. It's Rainshare in one picture:
 
-| In the scene | In Rainshare | Its note links to |
-| --- | --- | --- |
-| **Evaporation**: mist lifts off the sea | Time on your plan you won't get to before it resets | someone's AI plan, in the example circle |
-| **Condensation**: it gathers into clouds | Plans and setups, sitting with the people you follow | the example circle's board |
-| **Precipitation**: rain falls on seeds planted by the river | Agents sent after a friend's idea or project | an idea to send an agent after |
-| **Collection**: the river runs back to the sea | Pull requests coming home, and the next reset | one that's done |
+| In the scene | In Rainshare |
+| --- | --- |
+| **Your cloud**, with a ring over it that runs down | Your AI plan, and how long until it resets |
+| **A row of plots**: a seed's marker, or a plant | A friend's idea, or their project, grown as far as it has |
+| **Rain**, where you send the cloud | Your agent, sent after one of them |
+| **The plant grows a stage**, and wears the gold spark | The work's done, and it's in your garden |
+| **The cloud thins out**, and a full one forms | The plan reset. What you hadn't used is gone |
 
-Picking a part (its pin, or anywhere near it in the scene) flies the camera in for a closer
-look and shows a short note: what that part stands for, and a link to the screen where it
-happens. "Next" walks round the cycle, and "Whole view" or Escape backs out. The board of open
-asks sits under the scene.
+Drag the cloud along the row, or pick a plot (its label, or anywhere on it), and it rains
+there. A line under the plots says what's happening, with a link to that idea or project in
+the example circle. Leave the cloud where it is and the reset comes all the same. Behind the
+row a friend's cloud is already raining on a plot of its own, so the whole of it shows before
+anyone touches anything. Three plots take the whole cloud; once they're done the line says
+"That's a garden", with a way to start again.
 
-The clouds are the ones atmosphere.online's sky is made of: each is a few hundred soft, lit
+The plots are four asks from the example circle (`plots.js`): Kai's agent is on Sam's project,
+and Mo's idea, Juniper's project and Priya's are in the row. Each is drawn as the same plant
+it is on its own page (`src/plants/models.js`), a stage further on once it's done.
+
+The clouds are the ones atmosphere.online's sky is made of: each is a hundred or so soft, lit
 "puffs" with noisy edges (`puffs.js`, brought over from that repo's `src/puff3d.js` and
-`src/sky.js`), under the same Morning and Night colours. Each cloud starts small over the sea, takes on puffs as it drifts inland, towers into a thunderhead over the
-hills, rains, and thins out past the mountains.
+`src/sky.js`), under the same Morning and Night colours (`sky.js`). Yours loses puffs as its
+rain is spent. The gold in the rain, and over a plant that's done, is the spark from the logo.
 
-There are seeds in the ground too: rows of them in plots beside the river. Rain brings one
-up; once it has sprouted it holds a gold bud for a while, and then a new seed goes in. The
-gold is the spark from the logo. It also rises with the mist, falls in the rain and rides the
-river home.
-
-The land, sea, river and woods are generated in code from one fixed number (`scene.js`), so
-there are no models or textures to download. The scene follows the system's light or dark
-setting as day or night, and has no frame: its edges fade into the page.
+The ground, the grass and the far woods are generated in code from one fixed number
+(`garden-scene.js`), so there are no models or textures to download. The scene follows the
+system's light or dark setting as day or night, and has no frame: its edges fade into the page.
+Under 880 pixels wide it has the page's width to itself, so it frames the row more closely and
+the line of words goes under it.
 
 It's three.js, about 150 kB gzipped, and the page asks for it only when the landing is on
 screen, so someone who's signed in never downloads it. It holds still when it's scrolled out
 of view, when the tab is hidden, when someone presses pause, and from the start for anyone
-who has asked their system to reduce motion (looking closer still works for them, as a cut
-rather than a flight). A browser that can't do WebGL gets a flat drawing with all four notes
-set out under it.
+who has asked their system to reduce motion (sending the cloud still works for them: it's
+there at once, and the work done). A browser that can't do WebGL gets a flat drawing with the
+same story in three notes under it.
+
+**The water cycle.** The scene used to be the water cycle: a stretch of coast where mist rose
+off the sea, gathered into clouds, rained on seeds by a river and ran home. It had nobody in
+it, and a cycle promises that what you give comes back, which Rainshare doesn't. It's kept,
+whole, in `src/landing/cycle/` in case it's wanted back: set `SCENE` in `landing.js` to
+`'cycle'`, or add `?scene=cycle` to the address to look at it. Nobody downloads it otherwise.
 
 **The same pictures in the app.** A forecast (set aside for now) is drawn as its sky: clear, then a cloud with
 more and more rain (`skyIco` in `ui/bits.js`). A seed is drawn where it is in its life: in the
@@ -578,7 +588,7 @@ take on only what you'd be happy to ask for yourself.
 | Path | What it is |
 | --- | --- |
 | `index.html`, `src/main.js` | The site: the page, its routes, and who's signed in |
-| `src/landing/` | The signed-out landing: `scene.js` (the coast and its weather), `puffs.js` (how a cloud is drawn), `landing.js` (looking closer, the notes and pause), `landing.css` |
+| `src/landing/` | The signed-out landing: `landing.js` (which scene, and when it runs), `garden.js` (the cloud to drag, the plots' labels and the line under them), `garden-scene.js` (the garden itself), `plots.js` (what's planted), `puffs.js` and `sky.js` (how a cloud and the sky are drawn), `landing.css`, and `cycle/` (the water cycle it replaced) |
 | `src/plants/` | The four 3D plants: `models.js` (how each stage of each kind is grown), `live.js` (one renderer drawing them all, turning), `sheet.html` (a page to look at every kind on) |
 | `scripts/render-plants.mjs`, `public/plants/` | `npm run plants`, and the pictures it takes of every stage of every kind |
 | `src/logo/` | The logo in 3D: `drop.js` (the drop and the spark, how they're lit and how they move), `live.js` (the moving one in the bar), `sheet.html` (a page to look at it on) |
@@ -716,9 +726,11 @@ writes against a fake network; the MCP server's handshake and tools; the product
 its bundled CLI. The records the app builds (`core/records.js`: seeds for every audience,
 profiles, takes and deliveries) validate against the lexicons with `@atproto/lexicon`. That
 was a one-off check and isn't part of `npm test` yet. In a headless browser: the
-landing in light and dark from 360 to 1680 pixels wide with no sideways scrolling; looking
-closer at each part by its pin, by tapping the scene and from the keyboard; Next, Whole view
-and Escape; pause, reduced motion, the fallback without WebGL; and the example circle,
+landing in light and dark from 360 to 1680 pixels wide with no sideways scrolling; sending
+the cloud to a plot by its label, by tapping the plot, by dragging the cloud (with a mouse and
+with a finger) and from the keyboard; all three plots through to "That's a garden", and
+starting again; the reset; Escape; pause, reduced motion, the fallback without WebGL; the
+water cycle at `?scene=cycle`, drawn exactly as it was before it was set aside; and the example circle,
 including sending an agent, turning a pull request in, the warning when someone is already on
 a seed, and marking your own seed sprouted after a merge. Asking for rain in three steps (an
 idea and a project, "More options" staying open across redraws, everyone by default, the

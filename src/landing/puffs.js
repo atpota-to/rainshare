@@ -4,7 +4,13 @@
 // material and two of its cloud shapes, brought over from atmosphere.online (src/puff3d.js
 // and the generators in src/sky.js), with the parts Rainshare doesn't need left behind
 // (picking, lightning, tints, the far ring's own haze curve).
-import { ShaderMaterial, DataTexture, RGBAFormat, RepeatWrapping, LinearFilter, LinearMipmapLinearFilter, CustomBlending, OneFactor, OneMinusSrcAlphaFactor } from 'three';
+//
+// Both of the landing's scenes draw their clouds with it: the garden (./garden-scene.js) and
+// the water cycle it replaced (./cycle/scene.js).
+import {
+  ShaderMaterial, DataTexture, RGBAFormat, RepeatWrapping, LinearFilter, LinearMipmapLinearFilter, CustomBlending, OneFactor, OneMinusSrcAlphaFactor,
+  InstancedBufferGeometry, InstancedBufferAttribute, PlaneGeometry, Mesh, Vector3, DynamicDrawUsage
+} from 'three';
 
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -46,7 +52,7 @@ export function makeNoise(size, rand = Math.random){
 // stretches with the puff, and a long streak gets it combed into fibres (a shaft of rain);
 // a squashed one (w < 1) is a pancake (a cloud's level base).
 // The colours go to the screen as they're given, the way the sky they came from draws them,
-// so hand them in unconverted (see `raw` in scene.js).
+// so hand them in unconverted (see SKY_RAW in ./sky.js).
 export function puffMaterial(o){
   return new ShaderMaterial({
     transparent: true, depthWrite: false,
@@ -103,6 +109,100 @@ export function puffMaterial(o){
         gl_FragColor = vec4(col * alpha, alpha);
       }`
   });
+}
+
+/**
+ * Up to `max` puffs, drawn as one mesh with the material above (`o` is what puffMaterial takes).
+ * Each frame: begin(camera), put() every puff in any order, then flush(), which writes them
+ * out far to near so they lie over one another properly.
+ */
+export function puffBatch(max, o){
+  const geo = new InstancedBufferGeometry();
+  { const pl = new PlaneGeometry(2, 2); geo.index = pl.index; geo.setAttribute('position', pl.getAttribute('position')); }
+  const attr = n => { const a = new InstancedBufferAttribute(new Float32Array(max * n), n); a.setUsage(DynamicDrawUsage); return a; };
+  const aPos = attr(3), aRad = attr(1), aData = attr(4), aEro = attr(1), aShape = attr(4);
+  geo.setAttribute('aPos', aPos); geo.setAttribute('aRad', aRad); geo.setAttribute('aData', aData); geo.setAttribute('aEro', aEro); geo.setAttribute('aShape', aShape);
+  geo.instanceCount = 0;
+  const mesh = new Mesh(geo, puffMaterial(o));
+  mesh.frustumCulled = false;
+  // Puffs are staged unsorted, then written out by how far they are from the camera.
+  const stPos = new Float32Array(max * 3), stRad = new Float32Array(max), stData = new Float32Array(max * 4), stEro = new Float32Array(max), stAx = new Float32Array(max * 4), depth = new Float32Array(max), order = new Uint32Array(max);
+  const fwd = new Vector3(), cam = new Vector3();
+  let staged = 0;
+  return {
+    mesh,
+    /** Start a frame's puffs, as seen from `camera` (its world matrix up to date). */
+    begin(camera){ staged = 0; camera.getWorldDirection(fwd); cam.copy(camera.position); },
+    /** One puff: where, how big, its light, storm shade, alpha and seed, how ragged, and its axis and stretch. */
+    put(x, y, z, r, light, storm, alpha, seed, ero, ax, ay, az, st){
+      if (staged >= max || r < .004 || alpha < .003) return;
+      const n = staged++, i3 = n * 3, i4 = n * 4;
+      stPos[i3] = x; stPos[i3 + 1] = y; stPos[i3 + 2] = z; stRad[n] = r;
+      stData[i4] = light; stData[i4 + 1] = storm; stData[i4 + 2] = alpha; stData[i4 + 3] = seed; stEro[n] = ero;
+      stAx[i4] = ax; stAx[i4 + 1] = ay; stAx[i4 + 2] = az; stAx[i4 + 3] = st;
+      depth[n] = (x - cam.x) * fwd.x + (y - cam.y) * fwd.y + (z - cam.z) * fwd.z;
+    },
+    flush(){
+      const n = staged;
+      for (let i = 0; i < n; i++) order[i] = i;
+      order.subarray(0, n).sort((a, b) => depth[b] - depth[a]);
+      const P = aPos.array, R = aRad.array, D = aData.array, E = aEro.array, A = aShape.array;
+      for (let i = 0; i < n; i++) {
+        const j = order[i];
+        P[i * 3] = stPos[j * 3]; P[i * 3 + 1] = stPos[j * 3 + 1]; P[i * 3 + 2] = stPos[j * 3 + 2]; R[i] = stRad[j]; E[i] = stEro[j];
+        for (let k = 0; k < 4; k++) { D[i * 4 + k] = stData[j * 4 + k]; A[i * 4 + k] = stAx[j * 4 + k]; }
+      }
+      geo.instanceCount = n;
+      aPos.needsUpdate = aRad.needsUpdate = aData.needsUpdate = aEro.needsUpdate = aShape.needsUpdate = true;
+    }
+  };
+}
+
+/* A cloud: a seed, how fluffy it is, and the puffs it's made of just now. */
+export const newCloud = (seed, fluff = .5) => ({ seed, fluff, rand: mulberry(seed * 31 + 7), puffs: [], top: 1, form: 0, key: '', type: '' });
+/**
+ * Give a cloud a shape (a kind from GEN below, how many puffs, how tall): its puffs glide to
+ * their new places, new ones swell from nothing, and any left over shrink away.
+ */
+export function shapeCloud(c, type, count, tall){
+  const gen = GEN[type](c.seed, { count, height: tall, fluff: c.fluff }), next = [];
+  // Growing leaves every puff where it is and adds to them. Turning into another kind of
+  // cloud seats them again from the bottom up, so the base stays the base.
+  if (type !== c.type) { gen.sort((a, b) => a.y - b.y); c.puffs.sort((a, b) => a.y - b.y); c.type = type; }
+  let top = .5;
+  for (let i = 0; i < gen.length; i++) {
+    const g = gen[i], p = c.puffs[i] || { x: g.x, y: g.y, z: g.z, r: 0, sh: g.sh, ax: g.ax ?? 0, ay: g.ay ?? 1, az: g.az ?? 0, st: g.st ?? 1, seed: c.rand() };
+    p.tx = g.x; p.ty = g.y; p.tz = g.z; p.tr = g.r; p.tsh = g.sh; p.tax = g.ax ?? 0; p.tay = g.ay ?? 1; p.taz = g.az ?? 0; p.tst = g.st ?? 1; p.dying = false;
+    top = Math.max(top, g.y + g.r * .5);
+    next.push(p);
+  }
+  for (let i = gen.length; i < c.puffs.length; i++) { const p = c.puffs[i]; p.tr = 0; p.dying = true; next.push(p); }
+  c.puffs = next; c.top = top; c.form = 1;
+}
+/** Move a cloud's puffs toward the shape it was last given: `k` of the way (1 puts them there). */
+export function settleCloud(c, k){
+  let gone = false;
+  for (const p of c.puffs) {
+    p.x += (p.tx - p.x) * k; p.y += (p.ty - p.y) * k; p.z += (p.tz - p.z) * k; p.r += (p.tr - p.r) * k; p.sh += (p.tsh - p.sh) * k;
+    // an axis turned end for end is the same shape, so it turns the short way round
+    if (p.ax * p.tax + p.ay * p.tay + p.az * p.taz < 0) { p.tax = -p.tax; p.tay = -p.tay; p.taz = -p.taz; }
+    p.ax += (p.tax - p.ax) * k; p.ay += (p.tay - p.ay) * k; p.az += (p.taz - p.az) * k; p.st += (p.tst - p.st) * k;
+    if (p.dying && p.r < .01) gone = p.gone = true;
+  }
+  if (gone) c.puffs = c.puffs.filter(p => !p.gone);
+}
+/**
+ * Stage a cloud's puffs (with a batch's `put`) with its base at (x, y, z) and `s` times its
+ * own size: each lit by how high it sits in the cloud and whether it's on the side the light
+ * comes from (`sun`, a direction). `mood` darkens it from the base up, the way rain does.
+ */
+export function stageCloud(put, sun, c, x, y, z, s, alpha, ero, mood){
+  const my = y + c.top * s * .45;
+  for (const p of c.puffs) {
+    const wx = x + p.x * s, wy = y + p.y * s, wz = z + p.z * s, ox = wx - x, oy = wy - my, oz = wz - z, ol = Math.hypot(ox, oy, oz) || 1;
+    const side = (ox * sun.x + oy * sun.y + oz * sun.z) / ol, h = clamp(p.y / c.top, 0, 1), al = Math.hypot(p.ax, p.ay, p.az) || 1;
+    put(wx, wy, wz, p.r * s, .17 + .5 * h + .45 * (.5 + .5 * side), clamp(p.sh + mood * .55 * (1 - h * .55), 0, .92), alpha, p.seed, ero, p.ax / al, p.ay / al, p.az / al, p.st);
+  }
 }
 
 // Puffs come out in the cloud's own space: about 12 units wide at size 1, base at y = 0. A
