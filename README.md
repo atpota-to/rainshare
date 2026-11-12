@@ -205,12 +205,25 @@ seed or a plant.
 
 Each has a small 3D model (`src/plants/models.js`): a seed lying in a mound of soil, a stem
 with its first two leaves, a stem with leaves up it, and several stems in flower. They share
-one mound and one framing, so how big each stands says how far along it is. A picture of each
-(`public/plants/*.webp`, about 60 KB for all four) is what shows on cards, lists and the
-first step of asking. On an ask's own page and in the preview beside those steps the model itself turns
-slowly, drawn by one shared renderer that loads only when a plant is on screen
+one mound and one framing, so how big each stands says how far along it is.
+
+The plants are grown rather than drawn once, so no two asks need look alike. Each one grows
+its own kind of plant, picked from its record's address (`plantKind` in `ui/bits.js`), so
+it's the same plant for everyone who sees it, wherever it shows. A kind decides the outline
+of its leaves (oval, heart, lance, round, lobed or ruffled), their markings and green, whether
+they come singly, in pairs or in threes, how tall it stands and which way it leans, the colour
+and petals of its flowers, which seed it started as, and the pebbles in its soil. A kind keeps
+all of that as it grows, so the seedling an idea becomes is recognisably the same plant when
+it's established. Kind 0 is the plant as first drawn, and it's what the steps of asking show.
+
+There's a picture of every stage of each of the 12 kinds the app picks between
+(`public/plants/*.webp`, about 750 KB for all 48, of which a page fetches only the ones it
+shows), and that's what shows on cards, lists, gardens and the first step of asking. On an
+ask's own page and in the preview beside those steps the model itself turns slowly, the same
+kind as its picture, drawn by one shared renderer that loads only when a plant is on screen
 (`src/plants/live.js`); without WebGL, or with reduced motion on, the picture stays.
-`npm run plants` takes the pictures again after a model changes.
+`npm run plants` takes the pictures again after a model changes, and `src/plants/sheet.html`
+on the dev server shows every kind turning, side by side.
 
 ## What you've helped with
 
@@ -435,8 +448,8 @@ take on only what you'd be happy to ask for yourself.
 | --- | --- |
 | `index.html`, `src/main.js` | The site: the page, its routes, and who's signed in |
 | `src/landing/` | The signed-out landing: `scene.js` (the coast and its weather), `puffs.js` (how a cloud is drawn), `landing.js` (looking closer, the notes and pause), `landing.css` |
-| `src/plants/` | The four 3D plants: `models.js` (how each is built), `live.js` (one renderer drawing them all, turning), `sheet.html` (a page to look at them on) |
-| `scripts/render-plants.mjs`, `public/plants/` | `npm run plants`, and the pictures it takes of them |
+| `src/plants/` | The four 3D plants: `models.js` (how each stage of each kind is grown), `live.js` (one renderer drawing them all, turning), `sheet.html` (a page to look at every kind on) |
+| `scripts/render-plants.mjs`, `public/plants/` | `npm run plants`, and the pictures it takes of every stage of every kind |
 | `src/theme.css`, `src/fonts.css` | The site's look: colours, the bar, light and dark, and its typeface |
 | `src/oauth.js`, `src/scope.js` | Signing in, and the OAuth scope and client metadata: what's asked for up front, and the steps down if a server refuses |
 | `src/spaces.js` | Private seeds: reading and writing a group's space, and the group host's methods |
@@ -462,7 +475,7 @@ take on only what you'd be happy to ask for yourself.
 | `ui/post.js` | Asking for rain on an idea or a project: three steps, a live preview and a confirmation |
 | `ui/bits.js` | Small shared pieces: escaping, times, icons, faces, and the glyphs for a forecast's sky and a seed's life |
 | `cli/rainshare.mjs` | The CLI and MCP server |
-| `test/` | `npm test`: the core, the data source against a fake network, the MCP server, posting to the forges and vouching against made-up ones, and what other people's records can't do (`security.test.mjs`) |
+| `test/` | `npm test`: the core, the data source against a fake network, the MCP server, posting to the forges and vouching against made-up ones, what other people's records can't do (`security.test.mjs`), and the plants: which kind each grows, that every picture is there, and that every kind fits its frame (`plants.test.mjs`, the models only once three.js is installed) |
 
 ## Security
 

@@ -139,7 +139,7 @@ export function createRainshare({ root, base = '/', host }){
     const yours = whose === 'You';
     return `<div class="rs-panel">
       <p>${garden.length ? `${esc(whose)}${yours ? '’ve' : ' has'} helped with ${esc(wateredText(garden))}.` : yours ? 'Nothing here yet.' : `${esc(whose)} hasn’t helped with anything yet.`}</p>
-      ${garden.length ? `<ul class="rs-garden">${garden.map(g => `<li><a href="${esc(href(pathOf(g)))}" data-rs-go="${esc(pathOf(g))}" title="${esc(g.title)}" aria-label="${esc(`${g.title}: ${nameOf(g.author)}’s ${g.stage === 'seed' ? 'idea' : 'project'}`)}">${plantPic(g.picture || g.stage, 76)}</a></li>`).join('')}</ul>` : ''}
+      ${garden.length ? `<ul class="rs-garden">${garden.map(g => `<li><a href="${esc(href(pathOf(g)))}" data-rs-go="${esc(pathOf(g))}" title="${esc(g.title)}" aria-label="${esc(`${g.title}: ${nameOf(g.author)}’s ${g.stage === 'seed' ? 'idea' : 'project'}`)}">${plantPic(g.picture || g.stage, 76, { key: g.uri })}</a></li>`).join('')}</ul>` : ''}
       <p class="rs-muted">${garden.length ? `One plant for each idea or project finished with ${yours ? 'your' : 'their'} help, drawn as what it grew into.`
         : `${yours ? 'The first idea or project that gets done with your help shows up here.' : 'What gets done with their help shows up here.'}`}</p>
     </div>`;
@@ -175,7 +175,7 @@ export function createRainshare({ root, base = '/', host }){
       <span class="rs-item-top">${face(p, 'xs')}<span class="rs-item-who"><b>${esc(mine ? 'You' : nameOf(p))}</b>${rel ? `<span> · ${it.space ? ico('lock') : ''}${esc(rel)}</span>` : ''}</span><time>${esc(ago(sq.createdAt))}</time></span>
       <span class="rs-item-title">${esc(sq.title)}</span>
       <span class="rs-item-line">${line}${taken ? `<span class="rs-item-taken">${lifeIco(lifeOf(it))}${esc(taken)}</span>` : ''}</span>
-      ${plantPic(pictureOf(sq), 52)}
+      ${plantPic(pictureOf(sq), 52, { key: it.uri })}
     </a></li>`;
   }
   // Where, the job, what they'd like and who's on it, each as a plain line.
@@ -205,7 +205,7 @@ export function createRainshare({ root, base = '/', host }){
     return `<article class="rs-detail">
       <div class="rs-detail-top">${a('u/' + it.repo, face(p) + `<b>${esc(mine ? 'You' : nameOf(p))}</b>`, 'rs-who')}${hat(it.repo)}<span class="rs-muted">${rel ? ' · ' + (it.space ? ico('lock') : '') + esc(rel) : ''} · ${esc(ago(sq.createdAt))}</span>
         <button class="rs-sheet-close" type="button" data-rs-close-sheet aria-label="Close">${ico('close')}</button></div>
-      <div class="rs-seed-head"><div class="rs-seed-title"><h2 tabindex="-1">${esc(sq.title)}</h2><p class="rs-muted"><span class="rs-stage-name">${esc(whatItIs(sq).name)}</span> · ${esc(whatItIs(sq).note)}</p></div>${plantPic(pictureOf(sq), 88)}</div>
+      <div class="rs-seed-head"><div class="rs-seed-title"><h2 tabindex="-1">${esc(sq.title)}</h2><p class="rs-muted"><span class="rs-stage-name">${esc(whatItIs(sq).name)}</span> · ${esc(whatItIs(sq).note)}</p></div>${plantPic(pictureOf(sq), 88, { key: it.uri })}</div>
       ${f ? fitBox(f) : !open ? `<p class="rs-state${sq.state === 'sprouted' ? ' rs-ok' : ''}">${sq.state === 'sprouted' ? `${lifeIco('sprouted')}Done. Thanks, everyone.` : 'Closed.'}</p>`
         // Signed out, who it's for is said once: beside the name when it's everyone, here when it's narrower.
         : !signedIn() && !rel ? `<p class="rs-muted">${esc(audienceLine(sq, { authorName: firstName(p), groupName: it.group?.name }))}.</p>` : ''}
@@ -243,7 +243,7 @@ export function createRainshare({ root, base = '/', host }){
               : '<h2>Ideas and projects anyone can help with</h2><p>Sign in to see your own circle’s too, sorted for you.</p>'
         }</div></div>
         <div class="rs-head-actions">
-          ${signedIn() && S.garden?.length ? a('u/' + viewer(), `${plantPic(S.garden[0].picture || S.garden[0].stage, 26)}Helped with ${S.garden.length}`, 'rs-btn rs-quiet rs-watered-btn') : ''}
+          ${signedIn() && S.garden?.length ? a('u/' + viewer(), `${plantPic(S.garden[0].picture || S.garden[0].stage, 26, { key: S.garden[0].uri })}Helped with ${S.garden.length}`, 'rs-btn rs-quiet rs-watered-btn') : ''}
           ${signedIn() ? a('me', `${skyIco(fc?.[0])}${fc ? esc(fc[1]) : 'Your forecast'}`, 'rs-btn rs-quiet rs-fc' + (fc ? ' rs-fc-' + fc[0] : '')) : ''}
           ${signedIn() ? a('new', `${ico('plus')}Ask for rain`, 'rs-btn rs-primary') : host.signIn ? `<button class="rs-btn rs-primary" type="button" data-rs-act="signin">Sign in</button>` : ''}
         </div>
@@ -717,7 +717,7 @@ export function createRainshare({ root, base = '/', host }){
             <div class="rs-detail-top">${a('u/' + it.repo, face(p) + `<b>${esc(mine ? 'You' : nameOf(p))}</b>`, 'rs-who')}${hat(it.repo)}<span class="rs-muted">${mine ? '' : ' · ' + (it.space ? ico('lock') : '') + esc(relationText(it, viewer()) || 'open to everyone')} · ${esc(ago(sq.createdAt))}</span></div>
             <div class="rs-seed-title"><h1>${esc(sq.title)}</h1>
               <p class="rs-muted"><span class="rs-stage-name">${esc(whatItIs(sq).name)}</span> · ${esc(whatItIs(sq).note)}</p></div>
-            ${plantPic(pictureOf(sq), 128, { live: true })}
+            ${plantPic(pictureOf(sq), 128, { live: true, key: it.uri })}
           </div>
           ${!open ? `<p class="rs-state${sq.state === 'sprouted' ? ' rs-ok' : ''}">${sq.state === 'sprouted' ? `${lifeIco('sprouted')}Done` : 'Closed'}</p>` : ''}
           ${f ? fitBox(f) : ''}
@@ -955,13 +955,13 @@ export function createRainshare({ root, base = '/', host }){
     catch (e) { S.signin = { handle, error: e?.message || 'Your server didn’t let us start signing in. Try again in a moment.' }; render(); }
   }
 
-  // Plants marked to turn are handed to the host, which draws the 3D model over each picture
-  // if it can (../src/plants/live.js). Each redraw takes the old ones down first.
+  // Plants marked to turn are handed to the host, which draws the 3D model of the same kind over
+  // each picture if it can (../src/plants/live.js). Each redraw takes the old ones down first.
   let turning = [];
   function livePlants(){
     turning.forEach(off => { try { off(); } catch (_) {} }); turning = [];
     if (!host.plant3d) return;
-    root.querySelectorAll('canvas[data-rs-plant]').forEach(c => { try { const off = host.plant3d(c, c.dataset.rsPlant); if (off) turning.push(off); } catch (_) {} });
+    root.querySelectorAll('canvas[data-rs-plant]').forEach(c => { try { const off = host.plant3d(c, c.dataset.rsPlant, Number(c.dataset.rsKind) || 0); if (off) turning.push(off); } catch (_) {} });
   }
 
   /* ---------- asking for rain on a seed or a plant (./post.js draws the steps) ---------- */
