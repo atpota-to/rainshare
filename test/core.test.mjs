@@ -1,7 +1,7 @@
 // Run with: npm test (node --test, no dependencies)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SEED, FAMILIES, PLANS, lowBudgetOf } from '../core/ns.js';
+import { SEED, SITE, FAMILIES, PLANS, lowBudgetOf } from '../core/ns.js';
 import { parseSubject, describeSubject, cloneUrlOf } from '../core/subjects.js';
 import * as R from '../core/records.js';
 import { meantFor, closeness } from '../core/circle.js';
@@ -323,7 +323,7 @@ test('the brief frames the request and the launchers paste as one command', () =
   // It says where things stood, what to check first, and what to tell the person at the end.
   assert.match(b, /## Where it stands\n\nAs of \d+ \w+ \d{4}, when this was copied from Rainshare:\n\n- It’s open\.\n- Nobody has taken it on yet\./);
   assert.match(b, /## Before you start[\s\S]*gh issue view 5 --repo o\/r --comments[\s\S]*rainshare\.mjs check at:\/\/did:plc:abc/);
-  assert.match(b, /include its Rainshare link: https:\/\/rainshare\.dev\/seed\/friend\.example\/3k1/);
+  assert.match(b, /include its Rainshare link: https:\/\/[a-z.]+\/seed\/friend\.example\/3k1/);
   assert.match(b, /## When you’re done[\s\S]*@friend\.example marks it done once the pull request is merged/);
   // Whoever it's made for reads as "your user", and what the forge said comes along.
   const taken = { ...item, takes: [{ repo: 'did:plc:me', author: { handle: 'me.example' }, value: { createdAt: new Date().toISOString(), setup: { harness: 'codex' } } }], issue: { state: 'open' } };
@@ -337,7 +337,7 @@ test('the brief frames the request and the launchers paste as one command', () =
   // the person: by the agent if Rainshare is signed in beside it, or by a link it hands back.
   const tb = brief({ ...item, value: { title: 't', subject: parseSubject('https://tangled.org/a/b/issues/2') } });
   assert.match(tb, /1\. Look at the issue, and at the repository’s pull requests on tangled\.org, for one that already does this: https:\/\/tangled\.org\/a\/b\/issues\/2 and https:\/\/tangled\.org\/a\/b\/pulls\./);
-  assert.match(tb, /- Push your branch first: to a\/b itself[\s\S]*open-pr at:\/\/did:plc:abc\/dev\.rainshare\.seed\/3k1 --branch <branch> --model <model>`[\s\S]*rainshare_open_pr[\s\S]*rainshare\.dev\/seed\/friend\.example\/3k1\?branch=<branch>&model=<model>[\s\S]*link the issue \(https:\/\/tangled\.org\/a\/b\/issues\/2\)[\s\S]*git format-patch[\s\S]*https:\/\/tangled\.org\/a\/b\/pulls\/new/);
+  assert.match(tb, /- Push your branch first: to a\/b itself[\s\S]*open-pr at:\/\/did:plc:abc\/dev\.rainshare\.seed\/3k1 --branch <branch> --model <model>`[\s\S]*rainshare_open_pr[\s\S]*[a-z.]+\/seed\/friend\.example\/3k1\?branch=<branch>&model=<model>[\s\S]*link the issue \(https:\/\/tangled\.org\/a\/b\/issues\/2\)[\s\S]*git format-patch[\s\S]*https:\/\/tangled\.org\/a\/b\/pulls\/new/);
   assert.match(tb, /1\. The pull request’s address, if you opened it yourself\. If you didn’t, the link above that opens it from Rainshare[^\n]*\n2\. Whether it’s turned in on Rainshare\./);
   assert.doesNotMatch(tb, /\?pr=|gh pr list|Fixes #/);
   // A private one has no link to hand back and nothing a CLI can reach: the person opens it on Tangled.
@@ -351,10 +351,10 @@ test('the brief frames the request and the launchers paste as one command', () =
   assert.deepEqual(readBranchBack('?branch=fix%2Fsync&from=https://tangled.org/me.example/b&model=opus&title=Retry%20sync'), { branch: 'fix/sync', from: 'https://tangled.org/me.example/b', title: 'Retry sync', model: 'opus', harness: '', sessionUrl: '' });
   assert.equal(readBranchBack('?pr=https://x.example/1'), null);
   for (const bad of ['?branch=', '?branch=a%20b', '?branch=' + 'x'.repeat(300), '?branch=a%0Ab']) assert.equal(readBranchBack(bad), null, bad);
-  assert.equal(handBackBranch(item, 'fix', { from: 'me/b', model: 'opus' }), 'https://rainshare.dev/seed/friend.example/3k1?branch=fix&from=me/b&model=opus');
+  assert.equal(handBackBranch(item, 'fix', { from: 'me/b', model: 'opus' }), `${SITE}/seed/friend.example/3k1?branch=fix&from=me/b&model=opus`);
   assert.equal(handBackBranch({ ...item, space: 'at://g/space/x/y' }, 'fix'), null);
   // With nothing set up, the agent hands back a link that carries the pull request.
-  assert.match(b, /rainshare\.dev\/seed\/friend\.example\/3k1\?pr=<pull request URL>&model=<model>/);
+  assert.match(b, /[a-z.]+\/seed\/friend\.example\/3k1\?pr=<pull request URL>&model=<model>/);
   assert.doesNotMatch(brief({ ...item, space: 'at://g/space/x/y' }), /\?pr=/);
   const ls = launchers(item);
   assert.deepEqual(ls.map(l => l.id), ['claude', 'cloud', 'codex', 'cli', 'mcp']);
@@ -449,7 +449,7 @@ test('a seed’s life reads from who is on it, what was turned in, and whether i
 test('a hand-back link carries the pull request into the turn-in form', () => {
   const item = { uri: 'at://did:plc:abc/dev.rainshare.seed/3k1', repo: 'did:plc:abc', author: { handle: 'friend.example' }, value: { title: 'Fix it' } };
   const link = handBack(item, 'https://github.com/o/r/pull/12', 'claude-opus-5-5');
-  assert.equal(link, 'https://rainshare.dev/seed/friend.example/3k1?pr=https://github.com/o/r/pull/12&model=claude-opus-5-5');
+  assert.equal(link, `${SITE}/seed/friend.example/3k1?pr=https://github.com/o/r/pull/12&model=claude-opus-5-5`);
   assert.deepEqual(readHandBack(new URL(link).search), { url: 'https://github.com/o/r/pull/12', model: 'claude-opus-5-5', harness: '', sessionUrl: '' });
   // Encoded works too, and so does a Tangled pull's at:// address.
   assert.equal(readHandBack('?pr=' + encodeURIComponent('https://github.com/o/r/pull/12') + '&session=https%3A%2F%2Fclaude.ai%2Fcode%2Fs1').sessionUrl, 'https://claude.ai/code/s1');
@@ -711,7 +711,7 @@ test('an idea or a project, said plainly and drawn as how far along it is', () =
   assert.deepEqual([{ state: 'sprouted' }, { subject: repo, stage: 'seedling', state: 'sprouted' }, { subject: repo, stage: 'established', state: 'sprouted' }].map(pictureOf), ['seedling', 'young', 'established']);
   // The brief leads with what it is.
   const item = v => ({ uri: 'at://did:plc:abc/dev.rainshare.seed/3k1', repo: 'did:plc:abc', author: { handle: 'friend.example' }, value: { title: 'Fix it', ...v } });
-  assert.match(brief(item({ subject: repo, stage: 'established' })), /^# Project: Fix it\n\nOn Rainshare, friends send their own agents to give each other a hand with their ideas and projects\. @friend\.example is asking for a hand with this project \(established: people use it and rely on it\): https:\/\/rainshare\.dev\/seed\/friend\.example\/3k1\./);
+  assert.match(brief(item({ subject: repo, stage: 'established' })), /^# Project: Fix it\n\nOn Rainshare, friends send their own agents to give each other a hand with their ideas and projects\. @friend\.example is asking for a hand with this project \(established: people use it and rely on it\): https:\/\/[a-z.]+\/seed\/friend\.example\/3k1\./);
   assert.match(brief(item({ owner: 'helper' })), /^# Idea: Fix it\n\n[^\n]*@friend\.example is asking for a hand with this idea \(nothing’s been built yet\): https/);
   assert.match(brief(item({ subject: repo })), /^# Project: Fix it\n\n[^\n]*is asking for a hand with this project \(it works, and it’s still taking shape\)/);
 });
