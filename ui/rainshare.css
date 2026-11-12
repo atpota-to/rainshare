@@ -152,12 +152,60 @@
 .rs-fc-dry .rs-i{color:var(--rs-dry)} .rs-fc-drizzle .rs-i{color:var(--rs-drizzle)} .rs-fc-showers .rs-i{color:var(--rs-showers)} .rs-fc-downpour .rs-i{color:var(--rs-downpour)}
 .rs-fc .rs-i{fill:currentColor;fill-opacity:.25}
 .rs-foot{display:flex;flex-direction:column;gap:6px;align-items:flex-start;padding:10px 4px}
-.rs-ghost>div{height:150px;border-radius:var(--rs-radius);background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.5) 50%,transparent 70%) var(--rs-sunk);background-size:200% 100%;animation:rs-shimmer 1.4s linear infinite}
-.rs-list .rs-ghost>div{height:104px;border-radius:18px}
-.rs-side.rs-ghost{padding:0;background:none;box-shadow:none;outline:0}
-.rs-side.rs-ghost>div{height:420px}
-@keyframes rs-shimmer{to{background-position:-200% 0}}
-@media (prefers-reduced-motion:reduce){.rs-ghost>div{animation:none}}
+/* Placeholders (./skeleton.js): blocks the shape of what's coming, laid out by the real screens' own
+   classes. One band of light passes over all of them together: it's fixed to the window, not to each block. */
+.rs{position:relative;--rs-sk:rgba(18,32,58,.07);--rs-sk-hi:rgba(255,255,255,.8)}
+.rs-sk{display:block;flex:none;border-radius:7px;background:linear-gradient(100deg,transparent 30%,var(--rs-sk-hi) 50%,transparent 70%) -130vw 0/220vw 100% no-repeat fixed,var(--rs-sk);animation:rs-sheen 1.8s cubic-bezier(.4,0,.2,1) infinite}
+@keyframes rs-sheen{to{background-position:20vw 0,0 0}}
+.rs-sk-line{height:12px;width:var(--w,100%);max-width:100%}
+.rs-sk-title{height:15px;margin:4px 0}
+.rs-sk-meta{height:10px;margin:4px 0}
+.rs-sk-h1{height:30px;border-radius:10px;margin:4px 0}
+.rs-sk-h2{height:22px;border-radius:9px;margin:3px 0}
+.rs-sk-h3{height:16px;margin:4px 0}
+.rs-sk-face{width:32px;height:32px;border-radius:50%}
+.rs-sk-face.xs{width:24px;height:24px}
+.rs-sk-face.lg{width:64px;height:64px}
+.rs-sk-plant{width:var(--rs-plant);height:var(--rs-plant);border-radius:50%;scale:.7}
+.rs-sk-pill{width:var(--w);max-width:100%;height:46px;border-radius:999px}
+.rs-sk-box{height:76px;border-radius:var(--rs-radius-sm)}
+.rs-sk-field{height:46px;border-radius:14px}
+.rs-sk-stack{display:flex;flex-direction:column;gap:8px;flex:1;min-width:0}
+.rs-sk-row{display:flex;gap:4px}
+.rs-sk-group{display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:var(--rs-radius-sm);background:var(--rs-sunk)}
+.rs-sk-item{pointer-events:none}
+.rs-sk-item>*{grid-column:1}
+.rs-sk-item>.rs-sk-plant{grid-column:2;grid-row:1/span 3;align-self:center}
+.rs-sk-item .rs-item-top{min-height:24px}
+.rs-ask .rs-sk-line,.rs-panel>.rs-sk-line{margin:3px 0}
+.rs-facts .rs-sk-line{margin:5px 0}
+.rs-detail-actions .rs-sk-pill{flex:0 1 var(--w)}
+/* A screen that was waiting, and now isn't (paint in ./rainshare.js): its placeholders stay where they
+   stood and fade, and what took their place rises in under them, a card at a time. */
+.rs-sk-out{position:absolute!important;margin:0!important;z-index:2;pointer-events:none;animation:rs-sk-out .32s ease both}
+@keyframes rs-sk-out{to{opacity:0}}
+@keyframes rs-in{from{opacity:0;transform:translateY(10px)}}
+/* (Each region's start is kept on the box as --rs-at-<region>, counted back from now, so a redraw part-way through carries on from where it was.) */
+[data-rs-in] :is(.rs-list>li,.rs-side>.rs-detail,.rs-seed-main,.rs-seed-side>*,.rs-person>*,.rs-garden>li,.rs-me-wrap>*){--rs-i:0s}
+[data-rs-in] :is(.rs-list,.rs-garden,.rs-person,.rs-seed-side)>:nth-child(2){--rs-i:.05s}
+[data-rs-in] :is(.rs-list,.rs-garden,.rs-person,.rs-seed-side)>:nth-child(3){--rs-i:.1s}
+[data-rs-in] :is(.rs-list,.rs-garden,.rs-person,.rs-seed-side)>:nth-child(4){--rs-i:.15s}
+[data-rs-in] :is(.rs-list,.rs-garden,.rs-person,.rs-seed-side)>:nth-child(5){--rs-i:.2s}
+[data-rs-in] :is(.rs-list,.rs-garden,.rs-person,.rs-seed-side)>:nth-child(6){--rs-i:.25s}
+[data-rs-in] :is(.rs-list,.rs-garden,.rs-person,.rs-seed-side)>:nth-child(n+7){--rs-i:.3s}
+[data-rs-in] :is(.rs-side>.rs-detail,.rs-seed-side>*,.rs-me-side){--rs-i:.08s}
+[data-rs-in~="board"] :is(.rs-split>.rs-list>li,.rs-side>.rs-detail){animation:rs-in .5s cubic-bezier(.2,.8,.2,1) calc(var(--rs-at-board,0s) + var(--rs-i)) backwards}
+[data-rs-in~="seed"] :is(.rs-seed-main,.rs-seed-side>*){animation:rs-in .5s cubic-bezier(.2,.8,.2,1) calc(var(--rs-at-seed,0s) + var(--rs-i)) backwards}
+[data-rs-in~="person"] .rs-person>*{animation:rs-in .5s cubic-bezier(.2,.8,.2,1) calc(var(--rs-at-person,0s) + var(--rs-i)) backwards}
+[data-rs-in~="theirs"] .rs-person>.rs-list>li{animation:rs-in .5s cubic-bezier(.2,.8,.2,1) calc(var(--rs-at-theirs,0s) + var(--rs-i)) backwards}
+[data-rs-in~="garden"] .rs-garden>li{animation:rs-in .5s cubic-bezier(.2,.8,.2,1) calc(var(--rs-at-garden,0s) + var(--rs-i)) backwards}
+[data-rs-in~="me"] .rs-me-wrap>*{animation:rs-in .5s cubic-bezier(.2,.8,.2,1) calc(var(--rs-at-me,0s) + var(--rs-i)) backwards}
+@media (prefers-reduced-motion:reduce){.rs-sk{animation:none}.rs-sk-out{display:none}[data-rs-in] *{animation:none!important}}
+/* A word for someone who came by a link, signed out */
+.rs-newhere{align-items:center}
+.rs-newhere>span{flex:1 1 280px}
+.rs-newhere>.rs-link{flex:none;font-weight:600}
+.rs-need .rs-row{justify-content:center}
 
 /* on a phone the details come up from the bottom as a sheet */
 @media (max-width:899px){
@@ -166,7 +214,7 @@
   .rs-side{position:fixed;left:0;right:0;bottom:0;top:auto;z-index:var(--rs-sheet-z);max-height:min(86vh,calc(100dvh - 48px));padding:10px 20px calc(20px + env(safe-area-inset-bottom,0px));border-radius:24px 24px 0 0;background:var(--rs-solid);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);box-shadow:0 -18px 40px -20px rgba(12,18,32,.45);transform:translateY(105%);visibility:hidden;transition:transform .32s cubic-bezier(.2,.8,.2,1),visibility 0s .32s}
   .rs-side::before{content:'';display:block;width:40px;height:5px;border-radius:3px;background:var(--rs-line);margin:0 auto 12px}
   .rs-split.rs-open .rs-side{transform:none;visibility:visible;transition:transform .32s cubic-bezier(.2,.8,.2,1),visibility 0s}
-  .rs-side.rs-ghost{display:none}
+  .rs-sk-side{display:none}
   .rs-scrim{display:block;position:fixed;inset:0;z-index:var(--rs-sheet-z);background:rgba(12,18,32,.32);opacity:0;pointer-events:none;transition:opacity .25s}
   .rs-split.rs-open .rs-scrim{opacity:1;pointer-events:auto}
   .rs-sheet-close{display:inline-flex}
@@ -460,4 +508,3 @@
 .rs-pull textarea{font-family:var(--rs-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:13px;line-height:1.5}
 @media (prefers-reduced-motion:reduce){.rs *{transition:none!important}}
 /* your AI plan, in the board's header */
-.rs-plan-btn{max-width:18ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

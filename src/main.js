@@ -12,6 +12,7 @@ import { createRainshare } from '../ui/rainshare.js';
 import { createSource } from '../core/source.js';
 import { createDemoSource } from '../core/demo.js';
 import { BOARD, GROUPS } from '../core/ns.js';
+import { closeTo } from '../core/route.js';
 import { profiles } from '../core/net.js';
 // The spaces alpha's plumbing (credentials, signed reads, writes into a space) and the group
 // host's methods, for private seeds.
@@ -27,6 +28,9 @@ const store = {
 };
 
 let session = null, me = null, ready = false;
+// Someone with no sign-in to restore and none coming back: there's nothing to wait for, so the
+// landing and the sign-in button show at once, rather than after the sign-in code has loaded.
+const visitor = !oauth.mightBeSignedIn() && !oauth.isCallback();
 let forges = [];   // the forges this sign-in lets Rainshare post to for you (knotless, tangled): see ./scope.js
 const EXAMPLE = '/example';
 const isExample = p => p === EXAMPLE || p.startsWith(EXAMPLE + '/');
@@ -42,6 +46,8 @@ function toast(msg){
 /* ---------- the two circles ---------- */
 const host = kind => ({
   brand: 'rainshare',
+  // Nobody to restore and nobody coming back from signing in: the screens needn't wait to say hello.
+  visitor: kind === 'real' && visitor,
   navigate,
   toast,
   // Only the circle on screen names the page: the other one goes on loading behind it.
@@ -111,9 +117,12 @@ function sourceNow(){
 /* ---------- moving around ---------- */
 function route(){
   const path = location.pathname, kind = isExample(path) ? 'example' : 'real', sub = subOf(path);
+  // A slip of the keys on the way to the example circle still gets there.
+  const [head, ...rest] = sub.split('/'), h = head.toLowerCase();
+  if (kind === 'real' && head && (h === 'example' || ['examples', 'demo'].includes(h) || closeTo(h, 'example'))) return navigate([EXAMPLE, ...rest].join('/'), { replace: true });
   $('#example').hidden = kind !== 'example';
   $('#circle').hidden = kind !== 'real';
-  const landing = ready && kind === 'real' && !session && !sub;
+  const landing = (ready || visitor) && kind === 'real' && !session && !sub;
   $('#landing').hidden = !landing;
   // The example circle is reached from the landing. Its tab shows only while you're in it,
   // so every one of its pages says where you are.
@@ -137,7 +146,7 @@ document.addEventListener('click', e => {
 /* ---------- you ---------- */
 function renderMe(){
   const box = $('#rdMe');
-  if (!ready) { box.innerHTML = ''; return; }
+  if (!ready && !visitor) { box.innerHTML = ''; return; }
   if (!session) { box.innerHTML = `<a class="rd-btn" href="/" data-nav data-signin>Sign in</a>`; return; }
   const p = me || { did: session.did };
   const img = p.avatar ? `<img src="${esc(p.avatar)}" alt="" referrerpolicy="no-referrer">` : esc((p.displayName || p.handle || '?')[0].toUpperCase());
@@ -165,6 +174,7 @@ document.addEventListener('click', e => { if (e.target.closest('[data-signin]') 
 
 /* ---------- boot ---------- */
 async function boot(){
+  renderMe();
   route();
   let r = null;
   try { r = await oauth.start(); }
@@ -178,7 +188,7 @@ async function boot(){
   ready = true;
   renderMe();
   route();
+  // (Handing over the source shows the screen the address points at: there's nothing left to route.)
   await app('real').setSource(sourceNow());
-  route();
 }
 boot();
