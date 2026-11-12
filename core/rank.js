@@ -1,7 +1,7 @@
 // Putting a helper's board in order: who they'd like to help first, what their setup can
 // do, and how close they are to whoever asked. Each item says why it's where it is: as
 // short reasons (for the CLI), and as a fit level with one plain sentence (for the apps).
-import { FEATURES, lowBudgetOf, labelOf, BUDGETS, modelName } from './ns.js';
+import { FEATURES, PLANS, PLAN_FAMILIES, FAMILY_NAMES, plansIn, familyOf, lowBudgetOf, labelOf, BUDGETS, modelName } from './ns.js';
 
 const has = (a, v) => Array.isArray(a) && a.includes(v);
 const lower = a => (a || []).map(s => String(s).toLowerCase());
@@ -18,6 +18,22 @@ export function modelsOf(profile){
 }
 // A wanted model matches one you have when either names the other ("opus" matches claude-opus-5-5).
 export const modelMatch = (want, have) => have.some(h => h === want || h.includes(want) || want.includes(h));
+/**
+ * What someone brings to the models an ask would like (lower case):
+ *   run    a wanted model they run (in a setup or their forecast), or null
+ *   plan   else, a plan of theirs that reaches the family of one: { name, families: ['Claude'] }, or null
+ *   said   whether their profile says enough to tell: models they run, or a plan that reaches a family
+ */
+export function modelReach(want, profile){
+  const have = modelsOf(profile), plans = plansIn(profile), fams = [...new Set(want.map(familyOf).filter(Boolean))];
+  const run = want.find(w => modelMatch(w, have)) || null;
+  const by = run ? null : plans.find(p => (PLAN_FAMILIES[p] || []).some(f => fams.includes(f)));
+  return {
+    run,
+    plan: by ? { name: labelOf(PLANS, by), families: fams.filter(f => PLAN_FAMILIES[by].includes(f)).map(f => FAMILY_NAMES[f]) } : null,
+    said: have.length > 0 || plans.some(p => PLAN_FAMILIES[p])
+  };
+}
 
 /**
  * Score one item for a helper. `item` carries the seed (`value`), its author's profile
@@ -25,10 +41,10 @@ export const modelMatch = (want, have) => have.some(h => h === want || h.include
  * its takes. Returns { score, reasons: [{ text, say, tone, about }] }: `text` is a short
  * label, tone is 'up', 'match' or 'down', and `say` is how fit() words it: about 'them' (the
  * asker) finishes a sentence that starts with their name; about 'job' is a sentence itself.
- * Who the helper would like to help first counts only while that's on (FEATURES in ./ns.js),
- * or when `priorities` says so.
+ * Who the helper would like to help first, and what they care about, count only while those
+ * are on (FEATURES in ./ns.js), or when `priorities` or `values` says so.
  */
-export function score(item, me, { priorities = FEATURES.priorities } = {}){
+export function score(item, me, { priorities = FEATURES.priorities, values = FEATURES.values } = {}){
   const sq = item.value || {}, them = item.profile || {}, mine = me?.profile || {};
   const pr = priorities ? mine.priorities || [] : [], reasons = [];
   const add = (text, say, tone, about = 'them') => reasons.push({ text, say, tone, about });
@@ -51,18 +67,17 @@ export function score(item, me, { priorities = FEATURES.priorities } = {}){
   if (has(c, 'nonprofit')) { s += has(pr, 'nonprofits') ? 3 : 0; add('Community project', 'runs a community project', has(pr, 'nonprofits') ? 'up' : 'match'); }
   if (has(c, 'oss-maintainer')) { s += has(pr, 'maintainers') ? 2 : 0; if (has(pr, 'maintainers')) add('Maintainer', 'maintains open source', 'up'); }
 
-  const shared = [...new Set([...lower(them.values), ...lower(sq.values)])].filter(v => lower(mine.values).includes(v));
+  const shared = !values ? [] : [...new Set([...lower(them.values), ...lower(sq.values)])].filter(v => lower(mine.values).includes(v));
   if (shared.length) {
     s += Math.min(shared.length, 3) * (has(pr, 'values-aligned') ? 2 : 1);
     add('Shares ' + shared.slice(0, 3).join(', '), `cares about ${join(shared.slice(0, 3).map(pretty))} too`, has(pr, 'values-aligned') ? 'up' : 'match');
   }
 
-  const want = lower(sq.wants?.models), have = modelsOf(mine);
-  if (want.length && have.length) {
-    const hit = want.find(w => modelMatch(w, have));
-    if (hit) { s += 2; add(`Wants ${short(hit)}: you have it`, `It’d like ${modelName(hit)}, which you have`, 'match', 'job'); }
-    else { s -= 2; add(`Wants ${want.map(short).join(' or ')}`, `they’d like ${join(want.map(modelName), 'or')}, which isn’t in your setup`, 'down', 'job'); }
-  }
+  // The models it'd like, against what you run and the plans you have.
+  const want = lower(sq.wants?.models), reach = want.length ? modelReach(want, mine) : null;
+  if (reach?.run) { s += 2; add(`Wants ${short(reach.run)}: you have it`, `It’d like ${modelName(reach.run)}, which you have`, 'match', 'job'); }
+  else if (reach?.plan) { s += 1; add(`Wants ${want.map(short).join(' or ')}: your ${reach.plan.name} has ${join(reach.plan.families)} models`, `It’d like ${join(want.map(modelName), 'or')}, and your ${reach.plan.name} plan has ${join(reach.plan.families)} models`, 'match', 'job'); }
+  else if (reach?.said) { s -= 2; add(`Wants ${want.map(short).join(' or ')}`, `they’d like ${join(want.map(modelName), 'or')}, which isn’t in your plan or setup`, 'down', 'job'); }
   const skills = lower(mine.offering), fits = lower(sq.tags).filter(t => skills.includes(t));
   if (fits.length) { s += Math.min(fits.length, 2); add('Your kind of work: ' + fits.slice(0, 2).join(', '), `It’s ${join(fits.slice(0, 2))}, your kind of work`, 'match', 'job'); }
 

@@ -23,7 +23,7 @@ import { tieOf, tieLines, knownText, TIE_SHORT, FROM, fromMatches } from '../cor
 import { wateredText } from '../core/garden.js';
 import { audienceLine } from '../core/circle.js';
 import { rank, fit, join, pretty } from '../core/rank.js';
-import { whereText, shortWhere, jobText, jobShort, wantsText, onItText, takenShort, relationText, askExcerpt, stateText, pictureOf, nounOf, whatItIs, planText } from '../core/words.js';
+import { whereText, shortWhere, jobAndNotes, jobShort, modelsText, onItText, takenShort, relationText, askExcerpt, stateText, pictureOf, nounOf, whatItIs, planText } from '../core/words.js';
 import { renderMarkdown } from '../core/markdown.js';
 import { brief, launchers, pageOf, readHandBack, readBranchBack, sh, INSTALL, MCP_ADD, CLI_HOME } from '../core/brief.js';
 import { strongRef, HARNESS_NAMES } from '../core/records.js';
@@ -214,8 +214,8 @@ export function createRainshare({ root, base = '/', host }){
     const open = d?.href && !it.example ? ` · <a href="${esc(d.href)}" target="_blank" rel="noopener">open it</a>` : '';
     const rows = [
       ['Where', esc(whereText(sq)) + open],
-      ['The job', esc(jobText(sq))],
-      ['Would like', esc(wantsText(sq, mine ? null : S.mine?.merged))],
+      ['The job', esc(jobAndNotes(sq))],
+      ['Models', esc(modelsText(sq, mine ? null : S.mine?.merged))],
       ...extra,
       ['On it', esc(onItText(it, viewer()))]
     ];
@@ -423,7 +423,7 @@ export function createRainshare({ root, base = '/', host }){
       ['About them', p.circumstances?.length && p.circumstances.map(c => labelOf(CIRCUMSTANCES, c)).join(', ')],
       ['Runs', (p.setups || []).map(s => setupText(s)).join('; ')],
       FEATURES.forecast && ['Forecast', fc && `${fc[1]}: ${fc[2].toLowerCase()}${p.forecast.until ? `, until ${until(p.forecast.until)}` : ''}.${p.forecast.note ? ` “${p.forecast.note}”` : ''}`],
-      ['Cares about', p.values?.length && join(p.values.map(pretty))],
+      FEATURES.values && ['Cares about', p.values?.length && join(p.values.map(pretty))],
       ...(compact ? [] : [
         FEATURES.priorities && ['Helps first', p.priorities?.length && p.priorities.map(v => labelOf(PRIORITIES, v)).join(', ')],
         ['Takes on', p.offering?.length && join(p.offering)]
@@ -693,8 +693,8 @@ export function createRainshare({ root, base = '/', host }){
     const takes = (it.takes || []).map(t => `${t.repo === viewer() ? 'You' : nameOf(t.author)}${t.value?.setup ? ', with ' + setupText(t.value.setup) : ''}${t.value?.note ? `: “${t.value.note}”` : ''}`);
     const facts = [
       ['Where', where],
-      ['The job', esc(jobText(sq))],
-      ['Would like', esc(wantsText(sq, mine ? null : S.mine?.merged))],
+      ['The job', esc(jobAndNotes(sq))],
+      ['Models', esc(modelsText(sq, mine ? null : S.mine?.merged))],
       sq.tags?.length ? ['Tagged', esc(join(sq.tags))] : null,
       FEATURES.seedValues && sq.values?.length ? ['Stands for', esc(join(sq.values.map(pretty)))] : null,
       FEATURES.audience || it.space ? ['Who it’s for', esc(audienceLine(sq, { authorName: mine ? 'you' : firstName(p), groupName: it.group?.name })) + (it.space ? '. Only the group’s members can read it.' : '.')] : null,
@@ -856,10 +856,10 @@ export function createRainshare({ root, base = '/', host }){
               ${toggles('circumstances', CIRCUMSTANCES, p.circumstances)}
               ${visSel('circumstances')}
             </fieldset>
-            <fieldset><legend>What you care about</legend>
+            ${FEATURES.values ? `<fieldset><legend>What you care about</legend>
               ${toggles('values', [...new Set([...VALUES, ...(p.values || [])])].map(v => [v, v]), p.values)}
               <label>Add your own <small>(comma separated)</small><input name="moreValues" placeholder="birding, zines"></label>
-            </fieldset>
+            </fieldset>` : ''}
             ${FEATURES.priorities ? `<fieldset><legend>Who you’d like to help first</legend><p class="rs-muted">When you have rain to spare, these rise to the top of your board.</p>
               ${toggles('priorities', PRIORITIES, p.priorities)}
             </fieldset>` : ''}
@@ -895,7 +895,7 @@ export function createRainshare({ root, base = '/', host }){
     if (shows('[data-rs-seg="forecast"]')) readForecast(form, p, fd);
     if (shows('[data-rs-seg="budget"]')) p.budget = form.querySelector('[data-rs-seg="budget"] [aria-pressed="true"]')?.dataset.v || undefined;
     p.circumstances = on('circumstances');
-    p.values = [...on('values'), ...String(fd.get('moreValues') || '').split(',').map(s => s.trim()).filter(Boolean)];
+    if (shows('[data-rs-toggles="values"]')) p.values = [...on('values'), ...String(fd.get('moreValues') || '').split(',').map(s => s.trim()).filter(Boolean)];
     if (shows('[data-rs-toggles="priorities"]')) p.priorities = on('priorities');
     p.offering = String(fd.get('offering') || '').split(',').map(s => s.trim()).filter(Boolean);
     S.form.hidden = [...form.querySelectorAll('[data-rs-vis]')].filter(s => s.value === 'private').map(s => s.dataset.rsVis);

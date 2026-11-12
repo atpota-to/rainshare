@@ -149,7 +149,7 @@ function details(it){
   lines.push(sq.spec || '(No details beyond the title.)', '');
   const g = [w.models?.length && 'Models: ' + w.models.join(', '), w.harnesses?.length && 'Harnesses: ' + w.harnesses.join(', '), w.tests && labelOf(TESTS, w.tests), w.maxDiffLines && `Under about ${w.maxDiffLines} lines`, w.notes].filter(Boolean);
   if (g.length) lines.push('What they’d like:', ...g.map(x => '  - ' + x), '');
-  const about = [planText(p) && 'AI plan: ' + planText(p), p.circumstances?.length && 'About them: ' + p.circumstances.join(', '), p.values?.length && 'Cares about: ' + p.values.join(', ')].filter(Boolean);
+  const about = [planText(p) && 'AI plan: ' + planText(p), p.circumstances?.length && 'About them: ' + p.circumstances.join(', '), FEATURES.values && p.values?.length && 'Cares about: ' + p.values.join(', ')].filter(Boolean);
   if (about.length) lines.push(...about, '');
   for (const t of it.takes || []) lines.push(`On it: ${nameOf(t.author)}${t.value?.setup ? ` with ${harnessName(t.value.setup.harness)} ${(t.value.setup.models || []).join(', ')}` : ''}`);
   for (const dl of it.deliveries || []) lines.push(`Turned in: ${nameOf(dl.author)} ${dl.value?.url || dl.value?.pull || ''}`);
@@ -422,7 +422,7 @@ const TOOLS = [
   { name: 'rainshare_close_out', description: 'For one of the signed-in person’s own ideas or projects: mark it done (the work landed), close it (no longer wanted), or reopen it. Only do this when your user asks, or after rainshare_check says a pull request for it has been merged and your user agrees it did the job.',
     inputSchema: { type: 'object', required: ['ref', 'state'], properties: { ref: { type: 'string' }, state: { type: 'string', enum: ['done', 'closed', 'open'] }, delivery: { type: 'string', description: 'With done: the at:// URI of the delivery that did it, if there’s more than one' } } },
     run: async a => { const state = a.state === 'done' ? 'sprouted' : a.state; const it = await doState(a.ref, state, a.delivery); const r = await doCheck(it.uri).catch(() => null); return { text: `${{ sprouted: 'Done', closed: 'Closed', open: 'Reopened' }[state]}: ${it.value.title}${r?.st.planter ? '\n' + r.st.planter.text + (r.st.planter.href ? ' ' + r.st.planter.href : '') : ''}` }; } },
-  { name: 'rainshare_profile', description: 'The signed-in person’s Rainshare profile: their AI plans, what they run, their situation and values, and what they’ve helped with (the ideas and projects done with their help).', inputSchema: { type: 'object', properties: {} }, annotations: { readOnlyHint: true },
+  { name: 'rainshare_profile', description: 'The signed-in person’s Rainshare profile: their AI plans, what they run, their situation, and what they’ve helped with (the ideas and projects done with their help).', inputSchema: { type: 'object', properties: {} }, annotations: { readOnlyHint: true },
     run: async () => { const { src, session } = await source({ required: true }); const p = await profileWithGarden(src, session.did); return { text: JSON.stringify(p, null, 2), data: p }; } },
   ...!FEATURES.forecast ? [] : [{ name: 'rainshare_set_forecast', description: 'Say how much time the signed-in person’s agent has to spare right now: dry, drizzle, showers or downpour, optionally until a date.',
     inputSchema: { type: 'object', required: ['level'], properties: { level: { type: 'string', enum: FORECAST.map(f => f[0]) }, until: { type: 'string', description: 'A date' }, models: { type: 'string' }, note: { type: 'string' } } },

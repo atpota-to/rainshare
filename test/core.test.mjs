@@ -6,7 +6,7 @@ import { parseSubject, describeSubject, cloneUrlOf } from '../core/subjects.js';
 import * as R from '../core/records.js';
 import { meantFor, closeness } from '../core/circle.js';
 import { rank, score, fit } from '../core/rank.js';
-import { whereText, shortWhere, jobText, jobShort, wantsText, onItText, takenShort, askExcerpt, stageOf, nounOf, aNoun, pictureOf, whatItIs, stateText, planText } from '../core/words.js';
+import { whereText, shortWhere, jobText, jobShort, modelsText, notesText, jobAndNotes, onItText, takenShort, askExcerpt, stageOf, nounOf, aNoun, pictureOf, whatItIs, stateText, planText } from '../core/words.js';
 import { wateredBy, wateredText } from '../core/garden.js';
 import { renderMarkdown } from '../core/markdown.js';
 import { brief, launchers, handBack, readHandBack, readBranchBack, handBackBranch } from '../core/brief.js';
@@ -118,9 +118,9 @@ test('audiences decide who a seed is meant for', () => {
   assert.equal(closeness({ ...base, group: true }), 'group');
 });
 
-// Who a helper would like to help first is set aside for now (FEATURES in core/ns.js); these
-// run with it on, as it will be when it comes back.
-const ON = { priorities: true };
+// Who a helper would like to help first, and what they care about, are set aside for now
+// (FEATURES in core/ns.js); these run with them on, as they will be when they come back.
+const ON = { priorities: true, values: true };
 test('ranking puts the people a helper prioritises first, and says why', () => {
   const me = { did: 'did:me', profile: { priorities: ['low-budget', 'values-aligned'], values: ['climate'], setups: [{ harness: 'claude-code', models: ['claude-opus-5-5'] }] } };
   const items = [
@@ -143,7 +143,7 @@ test('fit says how well a seed suits a helper, in one sentence', () => {
   assert.equal(strong.why, 'Juniper has no paid AI, is a student and cares about accessibility too. It’d like Sonnet, which you have. It’s css, your kind of work.');
   const some = fit({ closeness: 'you-follow', author: { handle: 'kai.example' }, value: { wants: { models: ['gpt-5'] } }, takes: [{ repo: 'did:other' }] }, me, ON);
   assert.equal(some.level, 1);
-  assert.equal(some.why, 'It’s from your circle. Heads up: they’d like GPT-5, which isn’t in your setup. Someone’s already on it.');
+  assert.equal(some.why, 'It’s from your circle. Heads up: they’d like GPT-5, which isn’t in your plan or setup. Someone’s already on it.');
   assert.equal(fit({ closeness: 'group', author: { displayName: 'Mo' }, value: {} }, me).why, 'Mo is in your group.');
   assert.equal(fit({ value: {} }, me).why, 'It’s open to everyone.');
   assert.ok(rank([{ closeness: 'mutual', value: {} }], me)[0].fit.label);
@@ -152,11 +152,30 @@ test('fit says how well a seed suits a helper, in one sentence', () => {
 test('set aside, who you’d like to help first has no say in the board', () => {
   const me = { did: 'did:me', profile: { priorities: ['low-budget', 'students'], setups: [{ harness: 'claude-code', models: ['claude-sonnet-5-5'] }] } };
   const juniper = { closeness: 'mutual', author: { displayName: 'Juniper Hale' }, value: {}, profile: { plans: ['none'], circumstances: ['student'] } };
-  const OFF = { priorities: false }, off = score(juniper, me, OFF), on = score(juniper, me, ON);
+  const OFF = { priorities: false, values: false }, off = score(juniper, me, OFF), on = score(juniper, me, ON);
   assert.ok(on.score > off.score);
   // Said either way, but as a match rather than as something you asked for.
   assert.deepEqual(off.reasons.map(r => [r.text, r.tone]), [['No paid AI', 'match'], ['Student', 'match']]);
   assert.equal(fit(juniper, me, OFF).why, 'Juniper has no paid AI and is a student.');
+});
+
+test('the models an ask would like, against your plans and what you run', () => {
+  const opus = { wants: { models: ['claude-opus-5-5', 'claude-sonnet-5-5'] } };
+  assert.equal(modelsText(opus, { plans: ['claude-pro'] }), 'Opus or Sonnet. Your Claude Pro plan has Claude models.');
+  assert.equal(modelsText(opus, { plans: ['copilot'] }), 'Opus or Sonnet. Your GitHub Copilot plan has Claude models.');
+  assert.equal(modelsText(opus, { plans: ['chatgpt-plus'] }), 'Opus or Sonnet. Not in your plan or setup.');
+  // A plan that could be anything (pay as you go, work or school) says nothing either way.
+  assert.equal(modelsText(opus, { plans: ['api'] }), 'Opus or Sonnet.');
+  // What you run comes before what your plan reaches.
+  assert.equal(modelsText(opus, { plans: ['claude-max'], setups: [{ harness: 'claude-code', models: ['claude-opus-5-5'] }] }), 'Opus or Sonnet. You run Opus.');
+  assert.equal(modelsText({ wants: { models: ['gpt-5-codex', 'gemini-3-pro'] } }, { plans: ['cursor'] }), 'GPT-5 Codex or Gemini 3 Pro. Your Cursor plan has OpenAI and Gemini models.');
+  // On the board: running it counts most, a plan that reaches it counts too, saying nothing
+  // counts nothing, and a plan that doesn't reach it counts against.
+  const me = profile => ({ did: 'did:me', profile }), it = { closeness: 'mutual', author: { displayName: 'Tomás' }, value: opus };
+  const [ran, planned, unsaid, missed] = [{ setups: [{ harness: 'claude-code', models: ['claude-sonnet-5-5'] }] }, { plans: ['claude-pro'] }, { plans: ['work'] }, { plans: ['chatgpt-pro'] }].map(p => score(it, me(p)).score);
+  assert.ok(ran > planned && planned > unsaid && unsaid > missed, [ran, planned, unsaid, missed].join(' '));
+  assert.equal(fit(it, me({ plans: ['claude-pro'] })).why, 'Tomás is a mutual. It’d like Opus or Sonnet, and your Claude Pro plan has Claude models.');
+  assert.equal(fit(it, me({ plans: ['chatgpt-pro'] })).why, 'Tomás is a mutual. Heads up: they’d like Opus or Sonnet, which isn’t in your plan or setup.');
 });
 
 test('AI plans: one line, from plans first and an older profile’s budget otherwise', () => {
@@ -191,9 +210,14 @@ test('a seed reads as plain lines, not chips', () => {
   assert.equal(whereText({}), 'No repo yet');
   assert.equal(jobText(sq), 'Small. Tests required. Under about 200 lines. More than one helper can try.');
   assert.equal(jobShort(sq), 'small job, tests required'); assert.equal(jobText({}), 'Not said.');
-  assert.equal(wantsText(sq, { setups: [{ models: ['claude-sonnet-5-5'] }] }), 'Opus or Sonnet (you have Sonnet). Made with Claude Code. No new dependencies.');
-  assert.equal(wantsText({ wants: { models: ['claude-sonnet-5-5'] } }, { setups: [{ models: ['claude-sonnet-5-5'] }] }), 'Sonnet, which you have.');
-  assert.equal(wantsText({}), 'Nothing in particular.');
+  assert.equal(modelsText(sq, { setups: [{ models: ['claude-sonnet-5-5'] }] }), 'Opus or Sonnet. You run Sonnet.');
+  assert.equal(modelsText(sq), 'Opus or Sonnet.');
+  assert.equal(modelsText({}), 'Any model.');
+  // What else they asked for goes with the job.
+  assert.equal(notesText(sq), 'Made with Claude Code. No new dependencies.');
+  assert.equal(jobAndNotes(sq), 'Small. Tests required. Under about 200 lines. More than one helper can try. Made with Claude Code. No new dependencies.');
+  assert.equal(jobAndNotes({ wants: { notes: 'Plain JS, please' } }), 'Plain JS, please.');
+  assert.equal(jobAndNotes({}), 'Not said.');
   const item = { takes: [{ repo: 'did:kai', author: { displayName: 'Kai Nakamura' }, value: { setup: { harness: 'claude-code' } } }], deliveries: [{ repo: 'did:kai', author: { displayName: 'Kai Nakamura' } }] };
   assert.equal(onItText(item, 'did:me'), 'Kai, with Claude Code. Kai turned it in'); assert.equal(onItText({}, 'did:me'), 'Nobody yet');
   assert.equal(takenShort(item, 'did:me'), 'Kai’s on it'); assert.equal(takenShort(item, 'did:kai'), 'You’re on it');

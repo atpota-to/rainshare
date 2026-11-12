@@ -15,15 +15,15 @@ or spends credits, and you help the people you follow. (Is that allowed by your 
 - **Ask for rain**, in two short steps with a preview beside them. *What*: an idea, or a
   project you already have, where it lives (a Tangled, knotless or GitHub issue, or any git
   repo) and how far along the project is as a whole, each drawn as its own little 3D plant. *Details*: what done looks
-  like, with models, tests, size and tags folded under "More options", and a Bluesky post to
-  tell people it's there. It's open to everyone. An idea needs no repo and no developer: say
+  like and which models you'd prefer, with tests, size and tags folded under "More options",
+  and a Bluesky post to tell people it's there. It's open to everyone. An idea needs no repo and no developer: say
   what it should do, and whether someone else can run with it.
 - **Say your AI plan**: your profile starts with which AI plans you pay for to code with (Claude
   Pro or Max, ChatGPT Plus or Pro, Copilot, Cursor, Gemini, pay as you go, paid by work or
   school), or that you have free tiers or none. It shows on your profile and beside your asks,
   so a helper can see who'd be glad of the rain, and an asker can see who has some. Then
-  what you run, and, folded under "Help the right people find you", your situation, what you
-  care about and the work you take on.
+  what you run, and, folded under "Help the right people find you", your situation and the work
+  you take on. It sticks to facts: what you'd like done, on which models, and who has them.
 - **Send your agent**: one click tells your friend you're on it and copies the command that
   suits your setup (Claude Code, Codex, or a brief for any agent); the other ways are a click
   away. Turn the pull request in when it's up, and your friend marks it done.
@@ -103,7 +103,7 @@ the lexicon authority). The schemas are in `lexicons/dev/rainshare/`.
 
 | Record | Written by | Says |
 | --- | --- | --- |
-| `dev.rainshare.profile` (`self`) | everyone | bio, AI plans, setups (harness, models, where it runs), circumstances, values, the kinds of work you take on; and, from before or set aside for now, a setup's typed plan, AI budget, forecast and priorities |
+| `dev.rainshare.profile` (`self`) | everyone | bio, AI plans, setups (harness, models, where it runs), circumstances, the kinds of work you take on; and, from before or set aside for now, a setup's typed plan, AI budget, forecast, values and priorities |
 | `dev.rainshare.seed` | the requester | title, subject (Tangled issue, knotless issue, GitHub issue, or repo; none for a seed, which says whose the result will be), stage (for a plant), spec in Markdown, wants, tags, size, audience, state (`open`, `sprouted`, `closed`); values, set aside for now |
 | `dev.rainshare.take` | a helper | "my agent is on this": a strong ref to the seed and the setup doing it. Deleting it drops the seed. |
 | `dev.rainshare.delivery` | a helper | the pull request (URL, or on Tangled and knotless its own record's at:// URI), what did the work, and an optional session link |
@@ -123,10 +123,21 @@ turning one on brings it all back:
 | `seedValues` | "What it stands for" when asking, and "Stands for" on an ask's page. |
 | `priorities` | "Who you'd like to help first" on your profile (people without big plans, students, people on low incomes, projects that share your values…), and its say in the order of your board. |
 | `forecast` | How much rain you have to spare: on your profile and in the board's header, and the CLI's `forecast` and the MCP server's `rainshare_set_forecast`. |
+| `values` | "What you care about" on your profile ("Cares about"), and its say in the order of your board ("cares about climate too"). For now Rainshare sticks to the facts of a job. |
 
 **Your AI plan** (`plans` on a profile) takes over from two older fields, which apps still read
 when there's no plan: a setup's typed `plan` ("Claude Max 20x") and `budget` ("under $25").
 Picking a paid plan clears "No AI plan" and "Free tiers only", and the other way round.
+
+**Models, matched to plans.** An ask says which models it would prefer ("Models" on its page:
+"Opus or Sonnet", or "Any model"), and each helper sees how theirs fit. A model in what they run
+comes first ("You run Sonnet"); otherwise a plan that reaches its family ("Your Claude Pro plan
+has Claude models"); otherwise, if their profile says enough to tell, "Not in your plan or
+setup". Plans are matched by family, never by model, because what each plan includes keeps
+changing (`PLAN_FAMILIES` in `core/ns.js`): Claude Pro and Max reach Claude models, ChatGPT Plus
+and Pro reach OpenAI's, Gemini reaches Gemini's, and Copilot and Cursor reach all three. Pay as
+you go and work or school could be anything, so they say nothing either way. The ranking
+counts the same: running it counts most, a plan that reaches it a little, and a miss against.
 
 A public seed lives in your repo, and `audience` says who it's
 for: apps show it only to those people and only offer it to them. It doesn't hide anything,
@@ -168,13 +179,14 @@ relaunch (`sh.tangled.graph.follow`) aren't read.
 each person's own PDS. Your own writes are layered over that until the relay catches up.
 
 **Ranking** (`core/rank.js`) puts first who could use the help (no paid AI plan, a student, between
-jobs), then what your setup can do (a wanted model you have, tags that match the work you take
-on), then closeness. (While "who you'd like to help first" is set aside, it has no say.)
+jobs), then what you can bring (a wanted model you run or your plan reaches, tags that match the
+work you take on), then closeness. (While "who you'd like to help first" and what you care about
+are set aside, they have no say.)
 Each card shows how well it suits you as one to three drops ("Strong fit", "Good fit", "Some
 fit"), and picking one says why in plain sentences beside the list: "Priya has no paid AI and
 is between jobs. It'd like Sonnet, which you have. Heads up: someone's already on it." The
-rest of a seed reads as short lines too (`core/words.js`): where the work is, the job, what
-they'd like, and who's on it. On a phone the details come up as a sheet.
+rest of a seed reads as short lines too (`core/words.js`): where the work is, the job (with
+anything else they asked for), the models and how they fit yours, and who's on it. On a phone the details come up as a sheet.
 
 ## Sending an agent
 
@@ -488,7 +500,7 @@ take on only what you'd be happy to ask for yourself.
 | `core/subjects.js` | Tangled, knotless and GitHub: parsing links, clone URLs, issue titles and states, pull request states, pull requests that mention a seed |
 | `core/circle.js` | Audiences and closeness |
 | `core/rank.js` | A helper's board in order, and how well each seed fits them, with reasons |
-| `core/words.js` | A seed in plain lines: where, the job, what they'd like, who's on it |
+| `core/words.js` | A seed in plain lines: where, the job, the models and how they fit yours, who's on it; and someone's AI plan in one line |
 | `core/status.js` | Where a seed stands: who's on it, what's been turned in, what the forge says, and what each side should do next |
 | `core/garden.js` | What someone has helped with: what got done with their help, worked out from the records |
 | `core/forges.js` | The right page on each forge: where to start a repo, fork one, or see its pull requests |
@@ -650,7 +662,9 @@ Not yet checked:
   following the title as it's typed, ending open to everyone; picking AI plans (a paid one
   clears "No AI plan" and the other way round) and saving them, with the set-aside forecast,
   priorities and budget still in the saved profile; "AI plan" first on profiles, "Their AI
-  plan" in the picked card, and your plan in the board's header; nothing set aside showing.
+  plan" in the picked card, and your plan in the board's header; nothing set aside showing;
+  "Models" matched against plans and setups, the model choice outside "More options", and
+  every switch turned back on (the tests pass both ways).
   Not done: publishing the profile lexicon with `plans` in it (`lexicons/publish.mjs`).
 - Ideas: asking for rain on one, running with one and turning it in were checked in the example circle.
   The pages Rainshare links to on Tangled exist (they ask you to sign in). GitHub's new-repo

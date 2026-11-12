@@ -22,7 +22,9 @@ export const GROUPS = false;
 //   seedValues   what an ask stands for: asked when asking, and shown on its page
 //   priorities   who you'd like to help first: on profiles, and its say in a board's order (./rank.js)
 //   forecast     how much rain you have to spare: on profiles, the board, and the CLI's `forecast`
-export const FEATURES = { audience: false, seedValues: false, priorities: false, forecast: false };
+//   values       what you care about: on profiles, and its say in a board's order (./rank.js).
+//                Rainshare sticks to the facts of a job for now: where, how big, which models.
+export const FEATURES = { audience: false, seedValues: false, priorities: false, forecast: false, values: false };
 
 export const HARNESSES = [
   ['claude-code', 'Claude Code'], ['codex', 'Codex'], ['cursor', 'Cursor'], ['gemini-cli', 'Gemini CLI'],
@@ -61,6 +63,20 @@ export const PLANS = [
   ['work', 'Paid by work or school'], ['free', 'Free tiers only'], ['none', 'No AI plan']
 ];
 export const UNPAID = ['free', 'none'];
+// Which models a plan reaches, by family, for matching against the models an ask would like.
+// It's by family on purpose: what each plan includes keeps changing, so a match says "Claude
+// models", never which ones. Pay as you go and work or school could be anything, so they say nothing.
+export const PLAN_FAMILIES = {
+  'claude-pro': ['claude'], 'claude-max': ['claude'], 'chatgpt-plus': ['openai'], 'chatgpt-pro': ['openai'], gemini: ['gemini'],
+  copilot: ['claude', 'openai', 'gemini'], cursor: ['claude', 'openai', 'gemini']
+};
+export const FAMILY_NAMES = { claude: 'Claude', openai: 'OpenAI', gemini: 'Gemini', open: 'open' };
+/** A model's family, from its name: 'claude', 'openai', 'gemini', 'open' (open-weight or local), or null. */
+export const familyOf = m => {
+  const s = String(m || '').toLowerCase();
+  return /claude|opus|sonnet|haiku|fable/.test(s) ? 'claude' : /gpt|codex|^o\d/.test(s) ? 'openai' : /gemini/.test(s) ? 'gemini'
+    : /local|qwen|llama|mistral|deepseek|kimi|glm|gemma/.test(s) ? 'open' : null;
+};
 /** Someone's plans, as their record has them: strings only, at most 12. */
 export const plansIn = p => (Array.isArray(p?.plans) ? p.plans : []).filter(x => typeof x === 'string' && x).slice(0, 12);
 /**

@@ -3,7 +3,7 @@
 // line of text, so nothing needs a coloured chip.
 import { labelOf, SIZES, HARNESSES, PLANS, BUDGETS, plansIn, audienceOf, modelName } from './ns.js';
 import { describeSubject, kindOf, FORGE_NAMES } from './subjects.js';
-import { join, modelsOf, modelMatch } from './rank.js';
+import { join, modelReach } from './rank.js';
 import { tieOf, TIE_SHORT } from './ties.js';
 
 const firstName = p => String(p?.displayName || '').trim().split(/\s+/)[0] || (p?.handle ? '@' + p.handle : 'Someone');
@@ -63,18 +63,28 @@ export function jobShort(sq){
   return [sq?.size ? `${sq.size} job` : '', { required: 'tests required', welcome: 'tests welcome', none: 'no tests needed' }[w.tests] || ''].filter(Boolean).join(', ');
 }
 
-/** "Opus or Sonnet (you have Sonnet). No new dependencies, please." */
-export function wantsText(sq, myProfile){
+/**
+ * The models an ask would like, and how they fit yours (`myProfile`, left out for the asker):
+ * "Opus or Sonnet. You run Sonnet." "Opus or Sonnet. Your Claude Pro plan has Claude models."
+ * "GPT-5. Not in your plan or setup." "Any model."
+ */
+export function modelsText(sq, myProfile){
+  const want = (sq?.wants?.models || []).map(m => String(m).toLowerCase());
+  if (!want.length) return 'Any model.';
+  const names = join(want.map(modelName), 'or') + '.', r = myProfile ? modelReach(want, myProfile) : null;
+  if (r?.run) return `${names} You run ${modelName(r.run)}.`;
+  if (r?.plan) return `${names} Your ${r.plan.name} plan has ${join(r.plan.families)} models.`;
+  return r?.said ? `${names} Not in your plan or setup.` : names;
+}
+/** Anything else they asked for, in their words: "Made with Claude Code. No new dependencies." */
+export function notesText(sq){
   const w = sq?.wants || {}, out = [];
-  if (w.models?.length) {
-    const have = modelsOf(myProfile || {}), hit = w.models.find(m => modelMatch(String(m).toLowerCase(), have));
-    const names = w.models.map(modelName);
-    out.push(hit && myProfile ? (names.length === 1 ? `${names[0]}, which you have.` : `${join(names, 'or')} (you have ${modelName(hit)}).`) : join(names, 'or') + '.');
-  }
   if (w.harnesses?.length) out.push(`Made with ${join(w.harnesses.map(harnessName), 'or')}.`);
   if (w.notes) out.push(String(w.notes).trim().replace(/([^.!?])$/, '$1.'));
-  return out.join(' ') || 'Nothing in particular.';
+  return out.join(' ');
 }
+/** The job, then their notes: "Small. Tests required. No new dependencies." */
+export const jobAndNotes = sq => { const j = jobText(sq), n = notesText(sq); return n ? (j === 'Not said.' ? n : `${j} ${n}`) : j; };
 /** "wants Opus or Sonnet", for a one-line summary. */
 export const wantsShort = sq => sq?.wants?.models?.length ? 'wants ' + join(sq.wants.models.map(modelName), 'or') : '';
 

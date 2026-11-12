@@ -9,7 +9,7 @@ import { SEED, STAGE, STAGES, MODEL_PICKS, GROUPS, FEATURES, modelName } from '.
 import { parseSubject, describeSubject, kindOf, subjectInfo, knotlessIssueSubject } from '../core/subjects.js';
 import { newRepoPlaces } from '../core/forges.js';
 import { writableForge, FORGE_SAID } from '../core/forgewrite.js';
-import { whereText, shortWhere, jobText, jobShort, wantsText, wantsShort, askExcerpt, stageOf, aNoun } from '../core/words.js';
+import { whereText, shortWhere, jobAndNotes, jobShort, modelsText, wantsShort, askExcerpt, stageOf, aNoun } from '../core/words.js';
 import { join } from '../core/rank.js';
 import { pageOf } from '../core/brief.js';
 import { esc, ago, ico, forgeIco, face, people, pathOf, plantPic } from './bits.js';
@@ -189,8 +189,10 @@ export function createPoster(ui){
     if (n == null) return `${cap(FOR[P.audience])}. ${one}`;
     return `${P.audience === 'following' ? `The ${people(n)} you follow` : `${cap(FOR[P.audience])}, about ${people(n)}`}. ${one}`;
   }
-  const bskyDefault = () => P.kind === 'idea' && P.owner === 'helper' ? `I’d love to see someone build this: “${P.title.trim()}”. It’s yours to run with, if your agent has time to spare.`
-    : `Got an agent with time to spare? I’d love a hand with this: “${P.title.trim()}”.${P.size ? ` It’s a ${P.size} one${P.tests === 'required' ? ' with tests' : ''}.` : ''}`;
+  // The title in quotes once there is one (the post can be on the same step as the title).
+  const quoted = () => P.title.trim() ? `: “${P.title.trim()}”.` : '.';
+  const bskyDefault = () => P.kind === 'idea' && P.owner === 'helper' ? `I’d love to see someone build this${quoted()} It’s yours to run with, if your agent has time to spare.`
+    : `Got an agent with time to spare? I’d love a hand with this${quoted()}${P.size ? ` It’s a ${P.size} one${P.tests === 'required' ? ' with tests' : ''}.` : ''}`;
   const bskyText = () => (P.bskyText ?? bskyDefault()).trim();
 
   /* ---------- moving between steps ---------- */
@@ -352,16 +354,16 @@ export function createPoster(ui){
         ${FEATURES.seedValues ? `<label>What it stands for <small>optional</small><input name="values" list="rsValues" autocomplete="off" placeholder="education, accessibility" value="${esc(P.values)}"></label>` : ''}
       </div>
       <label>Anything else?<input name="notes" maxlength="1000" autocomplete="off" placeholder="It should work on a phone." value="${esc(P.notes)}"></label>`);
-    return moreOptions('More options: models, tests, size, tags', `
-      <p class="rs-muted">These help the right helpers find it, and their agents get them in the brief.</p>
-      <fieldset><legend>Which models would you like?</legend>
+    return `<fieldset><legend>Which models would you prefer?</legend>
         <div class="rs-toggles" data-rs-models>
           <button type="button" data-rs-model="" aria-pressed="${!P.models.length}">Any model</button>
           ${[...MODEL_PICKS, ...custom].map(m => `<button type="button" data-rs-model="${esc(m)}" aria-pressed="${P.models.includes(m)}">${esc(modelName(m))}</button>`).join('')}
         </div>
         <label class="rs-inline">Or name another <input name="otherModel" list="rsModels" autocomplete="off" placeholder="qwen3-coder" value="${esc(P.otherModel)}"></label>
-        <small>Helpers who run one of these will see it as a better fit.</small>
+        <small>Helpers whose plan or setup has one of these see it as a better fit, and their agents get it in the brief.</small>
       </fieldset>
+      ${moreOptions('More options: tests, size, tags', `
+      <p class="rs-muted">These help the right helpers find it, and their agents get them in the brief.</p>
       <div class="rs-two">
         <fieldset><legend>Tests</legend><div class="rs-options" role="radiogroup" aria-label="Tests">${TEST_PICKS.map(([k, l]) => row('data-rs-tests', k, P.tests === k, l)).join('')}</div></fieldset>
         <fieldset><legend>How big is it?</legend><div class="rs-options" role="radiogroup" aria-label="How big is it?">${SIZE_PICKS.map(([k, l, n]) => row('data-rs-size', k, P.size === k, l, '', n)).join('')}</div></fieldset>
@@ -373,7 +375,7 @@ export function createPoster(ui){
       ${FEATURES.seedValues ? `<div class="rs-two">
         <label>What it stands for <small>optional</small><input name="values" list="rsValues" autocomplete="off" placeholder="accessibility, climate" value="${esc(P.values)}"></label>
         <label>Anything else?<input name="notes" maxlength="1000" autocomplete="off" placeholder="No new dependencies, please." value="${esc(P.notes)}"></label>
-      </div>` : `<label>Anything else?<input name="notes" maxlength="1000" autocomplete="off" placeholder="No new dependencies, please." value="${esc(P.notes)}"></label>`}`);
+      </div>` : `<label>Anything else?<input name="notes" maxlength="1000" autocomplete="off" placeholder="No new dependencies, please." value="${esc(P.notes)}"></label>`}`)}`;
   }
   function stepWho(){
     const pub = P.vis === 'public';
@@ -428,7 +430,7 @@ export function createPoster(ui){
         <div class="rs-mini-top">${face(me, 'xs')}<b>You</b><span>· ${esc(whoFor())} · just now</span></div>
         <b class="rs-mini-title">${esc(sq.title.trim() || 'Your title goes here')}</b>
         <span class="rs-mini-fit">Each helper sees how well it suits them here, from their own profile and yours.</span>
-        <dl class="rs-facts rs-facts-sm"><dt>Where</dt><dd>${esc(whereText(sq))}</dd><dt>The job</dt><dd>${esc(jobText(sq))}</dd><dt>Would like</dt><dd>${esc(wantsText(sq))}</dd></dl>
+        <dl class="rs-facts rs-facts-sm"><dt>Where</dt><dd>${esc(whereText(sq))}</dd><dt>The job</dt><dd>${esc(jobAndNotes(sq))}</dd><dt>Models</dt><dd>${esc(modelsText(sq))}</dd></dl>
       </div>
       <p class="rs-muted">${esc(reachText())}</p>`;
     // A hint for the step, once there's something for it to be about.
