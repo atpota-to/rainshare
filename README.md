@@ -604,7 +604,11 @@ It's a Vercel project on this repo (`vercel.json`):
 
 1. Import the repo with the framework preset Vite. The build command is `npm run build`.
 2. Add the domain `rainshare.dev`. `/oauth-client-metadata.json` serves the OAuth client for
-   whichever host the request came in on, so preview URLs can sign in too.
+   whichever host the request came in on, so preview URLs can sign in too. The site works on any
+   host, but every link Rainshare writes names this one (`SITE` in `core/ns.js`): an ask's
+   page in a brief, the link an agent hands back to turn work in, the link in a Bluesky post,
+   and the CLI's install line. `index.html` names it too, for the link preview and the note
+   shown without JavaScript. Until the domain answers, those lead nowhere.
 3. Publish the lexicons: `node lexicons/publish.mjs` as the account that should own them, then
    add the `_lexicon.rainshare.dev` TXT record it prints.
 
@@ -632,11 +636,19 @@ sideways scrolling, nothing past the edge of the phone sheet, and nothing blocke
 
 Not yet checked:
 
-- Signing in with a real account (asking for `atproto`, `repo:dev.rainshare.*` and what
-  posting to knotless and Tangled needs) and writing to a real PDS. Private seeds in a real group are off until the spaces alpha
-  settles; they depend on opensocial.fyi accepting a `dev.rainshare.board` space.
-- The signed-out board against the live relay and AppView from this repo. The code that reads
-  them is unchanged from the prototype, where it was checked.
+- Signing in with a real account, past the point where a password is typed, and writing to a
+  real PDS. Checked on 12 November 2026, from the dev server and from the deployment at
+  rainshare.vercel.app: typing a handle resolves it, bsky.social takes Rainshare's client
+  document and the whole list of permissions (`atproto`, `repo:dev.rainshare.*` and what
+  posting to knotless and Tangled needs) without refusing any, and shows its sign-in page; a
+  handle that doesn't exist says so. Private seeds in a real group are off until the spaces
+  alpha settles; they depend on opensocial.fyi accepting a `dev.rainshare.board` space.
+- Signed out, against the live network (12 November 2026): the board under the landing shows
+  the asks the relay knows of, with names and pictures from Bluesky; an ask's page opens by its
+  DID and by its handle; a person's page opens; and the deployment runs under its Content
+  Security Policy with nothing blocked. The CLI's `board`, `check` and `brief` were run the same
+  way, signed out. Not checked: a board with many asks on it, and what a slow relay feels like
+  (each relay is given 15 seconds before the next is tried).
 - GitHub's side of `look` (`core/status.js`) has only been run against made-up answers. Two
   things to watch when it meets GitHub: a browser that isn't signed in may ask 60 things an
   hour, after which the forge's side is left unknown rather than guessed; and matching by
@@ -669,9 +681,10 @@ Not yet checked:
   repo (the repo's own setting decides); whether knotless indexes a pull written without its
   own CLI; and `open-pr` with an app password, which leans on a server giving an app password
   a token for these calls.
-- Sign-in asking for everything up front has only been tested as a list of scopes, not
-  against a server. If a server refuses the longer list, the step down to a plain sign-in is
-  the thing to watch on the first real sign-in.
+- Sign-in asking for everything up front: bsky.social accepted the whole list when the sign-in
+  was started (see above). Not checked: how its consent screen words them, servers other than
+  Bluesky's, and the step down to a plain sign-in when a server refuses the longer list, which
+  is still the thing to watch on the first real sign-in elsewhere.
 - Tangled's vouches: the record's shape was checked against real ones on the network, and
   reading a circle and writing a vouch run against a made-up network in `test/vouch.test.mjs`
   and in the example circle. Not checked: reading a real circle from real servers (they
@@ -713,5 +726,12 @@ Not yet checked:
   a real delivery).
 - The CLI's `run` end to end with a real agent: starting it, finding the pull request with
   `gh` afterwards, and turning it in.
+- Before launch (12 November 2026), in a headless browser at 1280 and 390 pixels wide: a
+  pasted GitHub issue starting the next step off with its title and details, whether Next is
+  pressed after it's found or before; each page of the example circle keeping its own title
+  while the real board loads behind it; "Sign in to take it on" under the landing leading to
+  the landing's own form, with the phone sheet closed; and the signed-out "Ask for rain" and
+  profile screens, each with one sign-in button. The CLI's hints name the file as it was
+  started (`node ~/.rainshare.mjs …` where the install line puts it).
 - How smoothly the scene runs on real phones and older laptops. It has only been run on a
   software renderer so far, which says it draws correctly and nothing about frame rate.

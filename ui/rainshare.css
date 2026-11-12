@@ -69,6 +69,8 @@
 .rs-note.rs-demo,.rs-note.rs-stage-note{align-items:center}
 .rs-note.rs-demo .rs-i,.rs-note.rs-stage-note .rs-i{margin-top:0}
 .rs-empty{padding:28px 20px;text-align:center;color:var(--rs-muted);background:var(--rs-sunk);border-radius:var(--rs-radius);text-wrap:balance}
+.rs-need{display:flex;flex-direction:column;align-items:center;gap:16px}
+.rs-need p{margin:0}
 
 /* the board: short cards in a list, and the one you pick beside them */
 .rs-head{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between}

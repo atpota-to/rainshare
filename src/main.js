@@ -44,7 +44,8 @@ const host = kind => ({
   brand: 'rainshare',
   navigate,
   toast,
-  onTitle: t => { document.title = t ? `${t} · Rainshare` : 'Rainshare'; },
+  // Only the circle on screen names the page: the other one goes on loading behind it.
+  onTitle: t => { if (kind === (isExample(location.pathname) ? 'example' : 'real')) document.title = t ? `${t} · Rainshare` : 'Rainshare'; },
   // The 3D plants are drawn on demand: the models and three.js load only when one is on screen,
   // and until then (or if WebGL isn't to be had) the picture underneath, of the same kind, is what shows.
   plant3d(canvas, stage, kind){
@@ -54,6 +55,9 @@ const host = kind => ({
   },
   // The query comes along, so a link an agent handed back still has its pull request after signing in.
   signIn: kind === 'real' ? (handle, sub) => oauth.signIn(handle, '/' + (sub || '') + location.search) : null,
+  // The landing has its own sign-in form at the top of the page. While it's showing, that's the
+  // one a "Sign in" further down leads to, rather than a second form under the scene.
+  signInHere: kind === 'real' ? () => { if ($('#landing').hidden) return false; focusSignIn(); return true; } : null,
   // Posting to knotless or Tangled for you (an issue, a comment, a pull request, a vouch) is
   // asked for at sign-in. A sign-in that was granted less, or one from before Rainshare asked,
   // can add a forge: your server shows what's being added, and you come back to where you were.
@@ -153,6 +157,10 @@ $('#rdSignIn').addEventListener('submit', async e => {
   try { await oauth.signIn(handle, '/'); }
   catch (x) { console.warn(x); err.hidden = false; err.textContent = /resolve|not found|handle/i.test(String(x?.message)) ? 'We couldn’t find that handle. Check the spelling.' : 'Your server didn’t let us start signing in. Try again in a moment.'; btn.disabled = false; btn.textContent = 'Sign in with your handle'; }
 });
+function focusSignIn(){
+  scrollTo({ top: 0, behavior: 'smooth' });
+  $('#rdSignIn input')?.focus({ preventScroll: true });
+}
 document.addEventListener('click', e => { if (e.target.closest('[data-signin]') && $('#rdSignIn')) setTimeout(() => $('#rdSignIn input')?.focus(), 50); });
 
 /* ---------- boot ---------- */

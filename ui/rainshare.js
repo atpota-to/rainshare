@@ -56,6 +56,8 @@ export function createRainshare({ root, base = '/', host }){
 
   /* ---------- small pieces ---------- */
   const a = (sub, inner, cls = '') => `<a href="${esc(href(sub))}" data-rs-go="${esc(sub)}" class="${cls}">${inner}</a>`;
+  // A screen that's only for someone signed in says so once, with the way in beside it.
+  const needSignIn = what => `${a('', `${ico('back')}Back to the board`, 'rs-back')}<div class="rs-empty rs-need"><p>${what}</p>${host.signIn ? '<button class="rs-btn rs-primary" type="button" data-rs-act="signin">Sign in</button>' : ''}</div>`;
   const seg = (name, opts, value) => `<div class="rs-seg" role="group" data-rs-seg="${name}">${opts.map(([v, l]) => `<button type="button" data-v="${esc(v)}" aria-pressed="${v === value}">${esc(l)}</button>`).join('')}</div>`;
   const toggles = (name, opts, values) => `<div class="rs-toggles" data-rs-toggles="${name}">${opts.map(([v, l]) => `<button type="button" data-v="${esc(v)}" aria-pressed="${(values || []).includes(v)}">${esc(l)}</button>`).join('')}</div>`;
   function plain(e){
@@ -811,7 +813,7 @@ export function createRainshare({ root, base = '/', host }){
 
   /* ---------- your profile ---------- */
   function renderMe(){
-    if (!signedIn()) return `${a('', `${ico('back')}Back to the board`, 'rs-back')}<p class="rs-empty">Sign in to set up your profile.</p>`;
+    if (!signedIn()) return needSignIn('Sign in to set up your profile.');
     if (!S.mine) return `${a('', `${ico('back')}Back to the board`, 'rs-back')}<p class="rs-muted">Loading your profile…</p>`;
     // "Only my groups" exists only where there are groups to share with (GROUPS in ../core/ns.js).
     const priv = !!S.source.canPrivate;
@@ -1060,7 +1062,7 @@ export function createRainshare({ root, base = '/', host }){
     onPosted(){ S.board = null; loadBoard(true); }
   });
   const renderNew = () => signedIn() ? poster.view()
-    : `${a('', `${ico('back')}Back to the board`, 'rs-back')}<p class="rs-empty">Sign in to ask for rain.</p>${host.signIn ? '<button class="rs-btn rs-primary" type="button" data-rs-act="signin">Sign in</button>' : ''}`;
+    : needSignIn('Sign in to ask for rain.');
 
   /* ---------- render ---------- */
   const datalists = `<datalist id="rsModels">${MODELS.map(m => `<option value="${m}">`).join('')}</datalist><datalist id="rsValues">${VALUES.map(m => `<option value="${m}">`).join('')}</datalist>`;
@@ -1099,7 +1101,12 @@ export function createRainshare({ root, base = '/', host }){
   async function act(name, el){
     const it = S.seed;
     try {
-      if (name === 'signin') { S.signin = S.signin || {}; S.sheet = false; render(); root.querySelector('[data-rs-form="signin"] input')?.focus(); window.scrollTo?.({ top: 0, behavior: 'smooth' }); return; }
+      if (name === 'signin') {
+        S.sheet = false;
+        // A host with a sign-in form of its own in view (rainshare.dev's landing) takes it from here.
+        if (host.signInHere?.()) { root.querySelector('.rs-split')?.classList.remove('rs-open'); return; }
+        S.signin = S.signin || {}; render(); root.querySelector('[data-rs-form="signin"] input')?.focus(); window.scrollTo?.({ top: 0, behavior: 'smooth' }); return;
+      }
       if (name === 'signin-cancel') { S.signin = null; render(); return; }
       if (name === 'exit-demo') return host.onExitDemo?.();
       if (name === 'stage-seen') { stageDismissed = true; try { localStorage.setItem(STAGE_SEEN, '1'); } catch (_) {} root.querySelector('.rs-stage-note')?.remove(); return; }
