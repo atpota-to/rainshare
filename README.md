@@ -726,7 +726,9 @@ writes against a fake network; the MCP server's handshake and tools; the product
 its bundled CLI. The records the app builds (`core/records.js`: seeds for every audience,
 profiles, takes and deliveries) validate against the lexicons with `@atproto/lexicon`. That
 was a one-off check and isn't part of `npm test` yet. In a headless browser: the
-landing in light and dark from 360 to 1680 pixels wide with no sideways scrolling; sending
+landing in light and dark from 360 to 1680 pixels wide with no sideways scrolling, and none
+appearing while the scene runs or with the cloud dragged to either end (at 1280, 600 and 390
+pixels, with motion on, past the friend's cloud drifting off); sending
 the cloud to a plot by its label, by tapping the plot, by dragging the cloud (with a mouse and
 with a finger) and from the keyboard; all three plots through to "That's a garden", and
 starting again; the reset; Escape; pause, reduced motion, the fallback without WebGL; the
