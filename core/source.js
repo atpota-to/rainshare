@@ -173,12 +173,12 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     if (force) forget();
     const notes = [];
     const [sqs, takes, deliveries] = await Promise.all([everyone(SEED), everyone(TAKE).catch(() => []), everyone(DELIVERY).catch(() => [])])
-      .catch(e => { notes.push('The network didn’t answer, so public seeds are missing. Try again in a moment.'); console.warn(e); return [[], [], []]; });
+      .catch(e => { notes.push('The network didn’t answer, so public asks are missing. Try again in a moment.'); console.warn(e); return [[], [], []]; });
     const authors = [...new Set(sqs.map(r => r.repo))];
     let rels = new Map(), blocked = new Set();
     if (viewer) {
       [rels, blocked] = await Promise.all([
-        net.relationships(viewer, authors).catch(() => { notes.push('Bluesky didn’t say who you follow, so only seeds open to everyone are showing.'); return new Map(); }),
+        net.relationships(viewer, authors).catch(() => { notes.push('Bluesky didn’t say who you follow, so only asks open to everyone are showing.'); return new Map(); }),
         myBlocks()
       ]);
     }
@@ -213,7 +213,7 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
         for (const v of visible) if (profs.has(v.repo)) v.profile = { ...(v.profile || {}), ...profs.get(v.repo) };
         visible.push(...items);
       } catch (e) {
-        notes.push(e.name === 'NoSpaces' ? `Your account’s server doesn’t support private spaces yet, so ${g.name}’s private seeds stay closed to you.` : `${g.name}’s private seeds didn’t load.`);
+        notes.push(e.name === 'NoSpaces' ? `Your account’s server doesn’t support private spaces yet, so ${g.name}’s private asks stay closed to you.` : `${g.name}’s private asks didn’t load.`);
         console.warn(e);
       }
     }

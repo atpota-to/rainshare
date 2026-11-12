@@ -130,7 +130,7 @@ test('ranking puts the people a helper prioritises first, and says why', () => {
   const out = rank(items, me, ON);
   assert.equal(out[0].uri, 'b');
   const texts = out[0].reasons.map(r => r.text);
-  assert.ok(texts.includes('No paid AI')); assert.ok(texts.some(t => /Shares climate/.test(t))); assert.ok(texts.some(t => /Opus: you run Opus/.test(t)));
+  assert.ok(texts.includes('No AI plan')); assert.ok(texts.some(t => /Shares climate/.test(t))); assert.ok(texts.some(t => /Opus: you run Opus/.test(t)));
   assert.ok(out[1].reasons.some(r => r.tone === 'down'));
   const taken = score({ closeness: 'mutual', value: {}, takes: [{ repo: 'did:other' }] }, me, ON);
   assert.ok(taken.reasons.some(r => r.text === 'Someone’s on it'));
@@ -140,7 +140,7 @@ test('fit says how well a seed suits a helper, in one sentence', () => {
   const me = { did: 'did:me', profile: { priorities: ['low-budget', 'students'], values: ['accessibility'], offering: ['css'], setups: [{ harness: 'claude-code', models: ['claude-sonnet-5-5'] }] } };
   const strong = fit({ closeness: 'mutual', author: { displayName: 'Juniper Hale' }, value: { tags: ['css'], values: ['accessibility'], wants: { models: ['claude-sonnet-5-5'] } }, profile: { budget: 'none', circumstances: ['student'] } }, me, ON);
   assert.equal(strong.level, 3); assert.equal(strong.label, 'Strong fit');
-  assert.equal(strong.why, 'Juniper has no paid AI, is a student and cares about accessibility too. It’d like Sonnet, which you have. It’s css, your kind of work.');
+  assert.equal(strong.why, 'Juniper has no AI plan, is a student and cares about accessibility too. They’d like Sonnet, which you have. It’s css, your kind of work.');
   const some = fit({ closeness: 'you-follow', author: { handle: 'kai.example' }, value: { wants: { models: ['gpt-5'] } }, takes: [{ repo: 'did:other' }] }, me, ON);
   assert.equal(some.level, 1);
   assert.equal(some.why, 'It’s from your circle. Heads up: they’d like GPT-5, which isn’t in your plan or setup. Someone’s already on it.');
@@ -156,8 +156,8 @@ test('set aside, who you’d like to help first and their situation have no say 
   assert.ok(on.score > off.score);
   // Said either way, but as a match rather than as something you asked for.
   // Without a plan is a fact about their plan, so it's said either way; being a student is set aside.
-  assert.deepEqual(off.reasons.map(r => [r.text, r.tone]), [['No paid AI', 'match']]);
-  assert.equal(fit(juniper, me, OFF).why, 'Juniper has no paid AI.');
+  assert.deepEqual(off.reasons.map(r => [r.text, r.tone]), [['No AI plan', 'match']]);
+  assert.equal(fit(juniper, me, OFF).why, 'Juniper has no AI plan.');
 });
 
 test('the models an ask would like, against your plans and what you run', () => {
@@ -179,7 +179,7 @@ test('the models an ask would like, against your plans and what you run', () => 
   const me = profile => ({ did: 'did:me', profile }), it = { closeness: 'mutual', author: { displayName: 'Tomás' }, value: opus };
   const [ran, planned, unsaid, missed] = [{ setups: [{ harness: 'claude-code', models: ['claude-sonnet-5-5'] }] }, { plans: ['claude'] }, { plans: ['work'] }, { plans: ['chatgpt'] }].map(p => score(it, me(p)).score);
   assert.ok(ran > planned && planned > unsaid && unsaid > missed, [ran, planned, unsaid, missed].join(' '));
-  assert.equal(fit(it, me({ plans: ['claude'] })).why, 'Tomás is a mutual. It’d like Opus or Sonnet, and your Claude plan has Claude models.');
+  assert.equal(fit(it, me({ plans: ['claude'] })).why, 'Tomás is a mutual. They’d like Opus or Sonnet, and your Claude plan has Claude models.');
   assert.equal(fit(it, me({ plans: ['chatgpt'] })).why, 'Tomás is a mutual. Heads up: they’d like Opus or Sonnet, which isn’t in your plan or setup.');
 });
 
@@ -203,8 +203,8 @@ test('an ask says a model family and a level, not a model', () => {
   assert.equal(modelsText(ask(['llama']), sonnet), 'Llama. Not in your plan or setup.');
   // On the board.
   const it = { closeness: 'mutual', author: { displayName: 'Tomás' }, value: ask(['claude'], 'frontier') };
-  assert.equal(fit(it, { did: 'did:me', profile: sonnet }).why, 'Tomás is a mutual. It’d like a frontier Claude model, and you run Sonnet.');
-  assert.equal(fit(it, { did: 'did:me', profile: { plans: ['copilot'] } }).why, 'Tomás is a mutual. It’d like a frontier Claude model, and your Copilot plan has Claude models.');
+  assert.equal(fit(it, { did: 'did:me', profile: sonnet }).why, 'Tomás is a mutual. They’d like a frontier Claude model, and you run Sonnet.');
+  assert.equal(fit(it, { did: 'did:me', profile: { plans: ['copilot'] } }).why, 'Tomás is a mutual. They’d like a frontier Claude model, and your Copilot plan has Claude models.');
   // What's written: known families and any others as tags, and a level only if it's one there is.
   const w = R.seed({ title: 't', wants: { families: ['Claude', 'claude', 'Llama 4'], level: 'frontier' } }).wants;
   assert.deepEqual(w, { families: ['claude', 'llama-4'], level: 'frontier' });
@@ -711,9 +711,9 @@ test('an idea or a project, said plainly and drawn as how far along it is', () =
   assert.deepEqual([{ state: 'sprouted' }, { subject: repo, stage: 'seedling', state: 'sprouted' }, { subject: repo, stage: 'established', state: 'sprouted' }].map(pictureOf), ['seedling', 'young', 'established']);
   // The brief leads with what it is.
   const item = v => ({ uri: 'at://did:plc:abc/dev.rainshare.seed/3k1', repo: 'did:plc:abc', author: { handle: 'friend.example' }, value: { title: 'Fix it', ...v } });
-  assert.match(brief(item({ subject: repo, stage: 'established' })), /^# Project: Fix it\n\nOn Rainshare, friends send their own agents to give each other a hand with their ideas and projects\. @friend\.example is asking for a hand with this project \(established: people use it and rely on it\): https:\/\/[a-z.]+\/seed\/friend\.example\/3k1\./);
-  assert.match(brief(item({ owner: 'helper' })), /^# Idea: Fix it\n\n[^\n]*@friend\.example is asking for a hand with this idea \(nothing’s been built yet\): https/);
-  assert.match(brief(item({ subject: repo })), /^# Project: Fix it\n\n[^\n]*is asking for a hand with this project \(it works, and it’s still taking shape\)/);
+  assert.match(brief(item({ subject: repo, stage: 'established' })), /^# Project: Fix it\n\nOn Rainshare, people post ideas and projects they want help with, and others send their own agents to do the work\. @friend\.example is asking for help with this project \(established: people use it and rely on it\): https:\/\/[a-z.]+\/seed\/friend\.example\/3k1\./);
+  assert.match(brief(item({ owner: 'helper' })), /^# Idea: Fix it\n\n[^\n]*@friend\.example is asking for help with this idea \(nothing’s been built yet\): https/);
+  assert.match(brief(item({ subject: repo })), /^# Project: Fix it\n\n[^\n]*is asking for help with this project \(it works, and it’s still taking shape\)/);
 });
 
 test('the garden someone has helped grow is what got done with their help, and nothing else', async () => {

@@ -80,7 +80,7 @@ export function score(item, me, { priorities = FEATURES.priorities, values = FEA
   const low = lowBudgetOf(them);
   if (low) {
     s += has(pr, 'low-budget') ? 4 : 1;
-    const [text, say] = { none: ['No paid AI', 'has no paid AI'], free: ['Free tiers only', 'is on free tiers'], low: ['Small AI budget', 'is on a small AI budget'] }[low];
+    const [text, say] = { none: ['No AI plan', 'has no AI plan'], free: ['Free tiers only', 'is on free tiers'], low: ['Small AI budget', 'is on a small AI budget'] }[low];
     add(text, say, has(pr, 'low-budget') ? 'up' : 'match');
   }
   const c = circumstances && Array.isArray(them.circumstances) ? them.circumstances : [];
@@ -101,8 +101,8 @@ export function score(item, me, { priorities = FEATURES.priorities, values = FEA
 
   // The models it'd like (families, or an older ask's models), against what you run and your plans.
   const want = wantedOf(sq), phrase = wantPhrase(sq), reach = want.families.length ? modelReach(want, mine) : null;
-  if (reach?.run) { s += 2; add(`Wants ${phrase}: you run ${reach.run}`, reach.exact ? `It’d like ${phrase}, which you have` : `It’d like ${phrase}, and you run ${reach.run}`, 'match', 'job'); }
-  else if (reach?.plan) { s += 1; add(`Wants ${phrase}: your ${reach.plan.name} has ${join(reach.plan.families)} models`, `It’d like ${phrase}, and your ${reach.plan.name} has ${join(reach.plan.families)} models`, 'match', 'job'); }
+  if (reach?.run) { s += 2; add(`Wants ${phrase}: you run ${reach.run}`, reach.exact ? `They’d like ${phrase}, which you have` : `They’d like ${phrase}, and you run ${reach.run}`, 'match', 'job'); }
+  else if (reach?.plan) { s += 1; add(`Wants ${phrase}: your ${reach.plan.name} has ${join(reach.plan.families)} models`, `They’d like ${phrase}, and your ${reach.plan.name} has ${join(reach.plan.families)} models`, 'match', 'job'); }
   else if (reach?.said) { s -= 2; add(`Wants ${phrase}`, `they’d like ${phrase}, which isn’t in your plan or setup`, 'down', 'job'); }
   const skills = lower(mine.offering), fits = lower(sq.tags).filter(t => skills.includes(t));
   if (fits.length) { s += Math.min(fits.length, 2); add('Your kind of work: ' + fits.slice(0, 2).join(', '), `It’s ${join(fits.slice(0, 2))}, your kind of work`, 'match', 'job'); }
@@ -117,7 +117,7 @@ export function score(item, me, { priorities = FEATURES.priorities, values = FEA
 export const FIT = { 3: 'Strong fit', 2: 'Good fit', 1: 'Some fit' };
 /**
  * How well a seed suits a helper: a level from 1 to 3, its label, and a few short
- * sentences that say why ("Priya has no paid AI and is between jobs. It’d like Sonnet,
+ * sentences that say why ("Priya has no AI plan and is between jobs. They’d like Sonnet,
  * which you have. Heads up: someone’s already on it.").
  */
 export function fit(item, me, opts){

@@ -1,8 +1,8 @@
-// The landing's garden, on the page: your cloud to take hold of, a label under each friend's
+// The landing's garden, on the page: your cloud to take hold of, a label under each person's
 // plot, and a line under it all that says what's happening.
 //
 // The cloud is your AI plan. Drag it along the row (or pick a plot, by its label or anywhere
-// on it) and it rains there: that's your agent, sent after a friend's idea or project. When
+// on it) and it rains there: that's your agent, sent to work on someone's idea or project. When
 // the work's done the plant is a stage further on. Leave the cloud where it is and the plan
 // resets all the same: what was left in it is gone, and a full one takes its place.
 //
@@ -14,7 +14,7 @@ import { PLOTS, FRIEND, GARDEN_PATH } from './plots.js';
 const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const SPARK = '<svg class="rd-spark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.3 7.2 7.2 2.3-7.2 2.3-2.3 7.2-2.3-7.2L2.5 12l7.2-2.3z"/></svg>';
-const HINT = 'Drag your cloud over a friend’s idea or project.';
+const HINT = 'Drag your cloud over someone’s idea or project.';
 const whose = p => `${p.name}’s ${p.noun}`;
 
 /** Put the garden's labels in the landing's figure. What comes back is what ./landing.js drives a scene with. */
@@ -42,16 +42,16 @@ export function mount(figure){
     hint.hidden = i >= 0 || i === -2; note.hidden = !hint.hidden; again.hidden = i !== -2;
     if (i === -1) { hint.textContent = HINT; return; }
     if (i === -2) {
-      title.textContent = 'That’s a garden';
-      text.textContent = 'Three things your friends wanted, done with rain you’d have lost.';
-      link.textContent = 'See yours'; link.setAttribute('href', GARDEN_PATH);
+      title.textContent = 'Three done';
+      text.textContent = 'Each is a plant in your garden now, grown with rain you’d have lost at the reset.';
+      link.textContent = 'See a garden'; link.setAttribute('href', GARDEN_PATH);
       return;
     }
     const p = PLOTS[i], done = state[i] === 'done';
     title.textContent = p.title;
     text.textContent = p.theirs
       ? (done ? `Done. ${FRIEND.name}’s agent did it, on ${FRIEND.name}’s plan.` : `${FRIEND.name}’s agent is on it, on ${FRIEND.name}’s plan.`)
-      : (done ? 'Done. It’s a stage further on, and in your garden.' : 'Your agent’s on it, on your plan. That’s the rain.');
+      : (done ? 'Done. It’s grown a stage, and it’s in your garden.' : 'Your agent’s on it, on your plan. That’s the rain.');
     link.textContent = `See ${whose(p)}`; link.setAttribute('href', p.path);
   }
   // Something to say for a moment, before going back to what was there.
@@ -72,7 +72,7 @@ export function mount(figure){
       clearTimeout(doneTimer);
       if (allDone()) doneTimer = setTimeout(() => { if (allDone()) say(-2); }, 4200);
     }
-    else if (what === 'reset') toast(n > .1 ? 'Your plan reset. The rain you didn’t use is gone.' : 'Your plan reset. There’s rain again.');
+    else if (what === 'reset') toast(n > .1 ? 'Your plan reset. The rain you didn’t use is gone.' : 'Your plan reset. The cloud is full again.');
     mark();
   }
 

@@ -198,8 +198,8 @@ export function createPoster(ui){
   }
   // The title in quotes once there is one (the post can be on the same step as the title).
   const quoted = () => P.title.trim() ? `: “${P.title.trim()}”.` : '.';
-  const bskyDefault = () => P.kind === 'idea' && P.owner === 'helper' ? `I’d love to see someone build this${quoted()} It’s yours to run with, if your agent has time to spare.`
-    : `Got an agent with time to spare? I’d love a hand with this${quoted()}${P.size ? ` It’s a ${P.size} one${P.tests === 'required' ? ' with tests' : ''}.` : ''}`;
+  const bskyDefault = () => P.kind === 'idea' && P.owner === 'helper' ? `Got rain to spare? I’d like to see this built${quoted()} Whoever builds it keeps it.`
+    : `Got rain to spare? I’m asking for help with this${quoted()}${P.size ? ` It’s a ${P.size} job${P.tests === 'required' ? ', with tests' : ''}.` : ''}`;
   const bskyText = () => (P.bskyText ?? bskyDefault()).trim();
 
   /* ---------- moving between steps ---------- */
@@ -255,7 +255,7 @@ export function createPoster(ui){
       // The example circle's asks live in this browser, so they have no page anyone else could open.
       P.done = { path: pathOf(item), page: item.space || src().demo ? null : pageOf(item), group: g, issue: opened ? { href: opened.url, forge: FORGE_SAID[writableForge(opened)] } : null };
       // The new issue says where the ask is, so people who find it there can pick it up here.
-      if (opened && P.done.page) src().forgeComment(opened, `I’ve asked for a hand with this on Rainshare, for anyone who’d like to send their agent after it: ${P.done.page}`).catch(e => console.warn('rainshare issue note', e));
+      if (opened && P.done.page) src().forgeComment(opened, `I’ve posted this on Rainshare, for anyone who’d like to send their agent to work on it: ${P.done.page}`).catch(e => console.warn('rainshare issue note', e));
       P.busy = false;
       ui.onPosted(r);
       ui.render(); arrive();
@@ -318,7 +318,7 @@ export function createPoster(ui){
     // it lives and how far along it is. The pictures are the seed and the plant it'd be.
     const plant = !!P.stage && P.stage !== 'seed';
     const stageTile = (v, pic, on, t, n) => `<button type="button" class="rs-tile rs-stage" data-rs-stage="${v}" role="radio" aria-checked="${on}">${plantPic(pic, 84)}<b>${esc(t)}</b><small>${esc(n)}</small></button>`;
-    return `<h1 tabindex="-1">What would you like a hand with?</h1>
+    return `<h1 tabindex="-1">What do you want help with?</h1>
       <div class="rs-tiles rs-stages rs-stages-2" role="radiogroup" aria-label="An idea or a project">
         ${stageTile('seed', 'seed', P.stage === 'seed', 'An idea', 'Nothing’s been built yet.')}
         ${stageTile('plant', plant ? P.stage : 'young', plant, 'A project', 'Something you already have.')}
@@ -336,17 +336,16 @@ export function createPoster(ui){
       <summary>${summary} <small>optional</small></summary><div class="rs-more-body">${body}</div></details>`;
   function stepWhat(){
     if (P.kind === 'idea') return `<h1 tabindex="-1">What’s the idea?</h1>
-      <p class="rs-lede">Say it the way you would to a friend.</p>
       <label>A short title<input name="title" maxlength="120" required autocomplete="off" placeholder="A seating chart that shuffles itself" value="${esc(P.title)}"></label>
       <label>What should it do? <small>Plain words are fine.</small>
-        <textarea name="spec" rows="8" maxlength="10000" placeholder="I’d love a little tool that… It’s for… It should… It doesn’t need to…">${esc(P.spec)}</textarea></label>
+        <textarea name="spec" rows="8" maxlength="10000" placeholder="A little tool that… It’s for… It should… It doesn’t need to…">${esc(P.spec)}</textarea></label>
       <label>Written up somewhere already? <small>Optional: a link to notes or a sketch</small><input name="specUrl" type="url" inputmode="url" placeholder="https://…" value="${esc(P.specUrl)}"></label>
       ${howFields()}${LAST === 2 ? lastChoices() : ''}`;
     return `<h1 tabindex="-1">What would you like done?</h1>
-      <p class="rs-lede">Say it the way you would to a friend.${P.prefilled ? ' We’ve started you off from the issue.' : ''}</p>
+      ${P.prefilled ? '<p class="rs-lede">We’ve started you off from the issue. Change anything you like.</p>' : ''}
       <label>A short title<input name="title" maxlength="120" required autocomplete="off" placeholder="Keep drafts out of the RSS feed" value="${esc(P.title)}"></label>
       <label>What does done look like? <small>Markdown works.</small>
-        <textarea name="spec" rows="8" maxlength="10000" placeholder="Right now… It’d be great if… Please don’t…">${esc(P.spec)}</textarea></label>
+        <textarea name="spec" rows="8" maxlength="10000" placeholder="Right now… It should… Please don’t…">${esc(P.spec)}</textarea></label>
       <label>A longer spec somewhere? <small>Optional, like a SPEC.md in the repo</small><input name="specUrl" type="url" inputmode="url" placeholder="https://…/SPEC.md" value="${esc(P.specUrl)}"></label>
       ${howFields()}${LAST === 2 ? lastChoices() : ''}`;
   }
@@ -425,7 +424,7 @@ export function createPoster(ui){
         <label class="rs-check"><input type="checkbox" name="bsky"${P.bsky ? ' checked' : ''}> Also post it on Bluesky, so ${P.audience === 'anyone' ? 'people' : FOR[P.audience]} notice</label>
         ${P.bsky ? `<textarea name="bskyText" rows="3" maxlength="230" aria-label="Your Bluesky post">${esc(bskyText())}</textarea><small>Bluesky opens with this ready, and the link on the end. You post it there.</small>` : ''}
       </div>` : ''}
-      <p class="rs-muted">${pub ? `It’s saved in your own account${FEATURES.audience ? '' : ', open to everyone on Rainshare'}` : `It’s saved in your own account, inside ${esc(groupNow()?.name || 'the group')}’s private Rainshare space`}, and you can close, reopen or delete it any time. Rainshare is in early ${STAGE}, so expect rough edges.</p>`;
+      <p class="rs-muted">${pub ? `It’s saved in your own account${FEATURES.audience ? '' : ', open to everyone on Rainshare'}` : `It’s saved in your own account, inside ${esc(groupNow()?.name || 'the group')}’s private Rainshare space`}, and you can close, reopen or delete it any time. Rainshare is in early ${STAGE}, so things may change or break.</p>`;
   }
 
   // The preview beside the steps: the card as the board will show it, then (on the last
@@ -472,17 +471,17 @@ export function createPoster(ui){
         <span class="rs-mini-line">${esc([shortWhere(sq), jobShort(sq), wantsShort(sq)].filter(Boolean).join(' · '))}</span>
       </div>
       ${pub && P.bsky ? `<div class="rs-bsky">
-        <b>Tell your circle on Bluesky</b>
+        <b>Tell people on Bluesky</b>
         <p>${esc(bskyText())} <span class="rs-muted">${esc(d.page || '')}</span></p>
         ${src().demo ? '<small>This is the example circle, so nothing goes to Bluesky.</small>' : intent ? `<a class="rs-btn rs-primary" href="${esc(intent)}" target="_blank" rel="noopener">${ico('sky')}Post it on Bluesky</a>` : ''}
       </div>` : ''}
       <div class="rs-next"><h2>What happens next</h2><ol>
-        <li><b>A friend sends their agent.</b> <span>You’ll see who’s on it, and what they’re running.</span></li>
+        <li><b>Someone sends their agent.</b> <span>You’ll see who’s on it, and what they’re running.</span></li>
         ${P.kind === 'idea' ? '<li><b>They turn in what they built.</b> <span>A link to it shows up on its page, with the model that did the work.</span></li>'
           : '<li><b>They turn in a pull request.</b> <span>It shows up on its page, with the model that did the work.</span></li>'}
         <li><b>You mark it done.</b> <span>And thank them on Bluesky, if you like.</span></li>
       </ol></div>
-      <div class="rs-row">${ui.a(d.path, 'See its page', 'rs-btn rs-primary')}<button class="rs-btn rs-quiet" type="button" data-rs-again>Ask about something else</button></div>
+      <div class="rs-row">${ui.a(d.path, 'See its page', 'rs-btn rs-primary')}<button class="rs-btn rs-quiet" type="button" data-rs-again>Ask for something else</button></div>
     </section>`;
   }
 
