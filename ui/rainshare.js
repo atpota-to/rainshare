@@ -13,7 +13,7 @@
 //                      with what you've helped with beside it
 //   u/<did>            someone's profile and their seeds
 //   agents             the CLI and MCP server, for sending agents from a terminal
-import { SEED, STAGE, FEATURES, PLANS, UNPAID, HARNESSES, MODELS, RUNS_ON, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, labelOf, audienceOf, modelName } from '../core/ns.js';
+import { SEED, STAGE, FEATURES, PLANS, UNPAID, plansIn, HARNESSES, MODELS, RUNS_ON, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, labelOf, audienceOf, modelName } from '../core/ns.js';
 import { describeSubject, cloneUrlOf, safeHttp, pullPageOf, FORGE_NAMES } from '../core/subjects.js';
 import { look, carry, standing } from '../core/status.js';
 import { newRepoPlaces, placesFor } from '../core/forges.js';
@@ -825,7 +825,7 @@ export function createRainshare({ root, base = '/', host }){
     const bsky = S.mine.bluesky || S.mine.person || {};
     // "Help the right people find you" folds away your situation, values and who you'd help first: only while one of them is on.
     const folded = FEATURES.circumstances || FEATURES.values || FEATURES.priorities;
-    const plansNow = p.plans?.length ? p.plans : { none: ['none'], free: ['free'], sponsored: ['work'] }[p.budget] || [];
+    const plansNow = plansIn(p).length ? plansIn(p) : { none: ['none'], free: ['free'] }[p.budget] || [];
     const visSel = field => !priv ? '' : `<div class="rs-vis"><select data-rs-vis="${field}" aria-label="Who sees this"><option value="public"${!hidden.includes(field) ? ' selected' : ''}>Everyone sees this</option><option value="private"${hidden.includes(field) ? ' selected' : ''}>Only my groups</option></select></div>`;
     const withBoard = (groups || []).filter(g => g.space);
     return `${a('', `${ico('back')}Back to the board`, 'rs-back')}

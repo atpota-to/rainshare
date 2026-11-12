@@ -20,8 +20,8 @@ or spends credits, and you help the people you follow. (Is that allowed by your 
   and a Bluesky post to tell people it's there. It's open to everyone. An idea needs no repo and no developer: say
   what it should do, and whether someone else can run with it.
 - **Say your AI plan**: your profile starts with which AI plans you pay for to code with (Claude
-  Pro or Max, ChatGPT Plus or Pro, Copilot, Cursor, Gemini, Z.ai's GLM Coding Plan, pay as you
-  go, paid by work or school), or that you have free tiers or none. It shows on your profile and
+  Pro or Max, ChatGPT Plus or Pro, Copilot, Cursor, Gemini, Z.ai's GLM Coding Plan), or that you
+  have free tiers or none. It's about coding subscriptions and the usage that comes with them. It shows on your profile and
   beside your asks, so a helper can see who'd be glad of the rain, and an asker can see who has
   some. Then what you run and the work you take on. It sticks to facts: what you'd like done, on
   which models, and who has them. Your name, picture and bio are your Bluesky profile's, unless
@@ -144,8 +144,7 @@ Sonnet"), else a plan that reaches one ("Your Claude Pro plan has Claude models"
 profile says enough to tell, "Not in your plan or setup". Plans are matched by family
 (`PLAN_FAMILIES`): Claude Pro and Max reach Claude, ChatGPT Plus and Pro reach GPT, Gemini
 reaches Gemini, Z.ai's GLM Coding Plan reaches GLM, and Copilot and Cursor reach Claude, GPT and
-Gemini. Pay as you go and work or school could
-be anything, so they say nothing either way. The level is shown and goes in the brief, but
+Gemini. The level is shown and goes in the brief, but
 isn't matched: whether a plan includes a family's frontier model changes too often to say, and
 a helper knows which of theirs it is. The ranking counts the same: a model you run counts
 most, a plan that reaches it a little, and a miss against. Older asks named models

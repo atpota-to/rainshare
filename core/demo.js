@@ -22,7 +22,7 @@ const PEOPLE = {
   'did:example:juniper': { handle: 'juniper.example', displayName: 'Juniper Hale', color: '#FFB495', rel: 'mutual', known: ['did:example:kai', 'did:example:priya'],
     profile: { bio: 'Second-year CS student. Building study tools for people who learn differently.', plans: ['none'], budget: 'none', circumstances: ['student'], values: ['accessibility', 'education'], setups: [{ harness: 'other', models: ['local'], plan: 'Whatever runs on my laptop', runsOn: 'local' }] } },
   'did:example:tomas': { handle: 'tomas.example', displayName: 'Tomás Rivera', description: 'Local-first everything. I maintain tidepool.', color: '#86DFC4', rel: 'follows-you', tangled: 'mutual', known: ['did:example:priya', 'did:example:kai'], knownMore: 3,
-    profile: { plans: ['api'], budget: 'low', circumstances: ['oss-maintainer'], values: ['local-first', 'open-source'], setups: [{ harness: 'aider', models: ['claude-haiku-5-5'], plan: 'API, pay as I go', runsOn: 'local' }] } },
+    profile: { plans: ['copilot'], budget: 'low', circumstances: ['oss-maintainer'], values: ['local-first', 'open-source'], setups: [{ harness: 'aider', models: ['claude-haiku-5-5'], plan: 'API, pay as I go', runsOn: 'local' }] } },
   'did:example:amara': { handle: 'amara.example', displayName: 'Amara Okafor', color: '#FFD978', rel: null, known: ['did:example:sam'],
     profile: { bio: 'I keep the Eastside Food Share’s volunteer site running in my evenings.', plans: ['free'], budget: 'free', circumstances: ['nonprofit'], values: ['mutual-aid', 'civic'] } },
   'did:example:kai': { handle: 'kai.example', displayName: 'Kai Nakamura', description: 'Staff engineer. Opinions about clocks.', color: '#8E9BFF', rel: 'mutual', tangled: 'you-follow', known: ['did:example:priya', 'did:example:juniper', 'did:example:sam'], knownMore: 9,
@@ -33,7 +33,7 @@ const PEOPLE = {
   'did:example:mo': { handle: 'mo.example', displayName: 'Mo Adeyemi', color: '#C3B8FF', rel: 'group', known: [],
     profile: { bio: 'Spine Club’s unofficial web person. Learning as I go!', plans: ['free'], budget: 'free', circumstances: ['learning'], values: ['education'] } },
   'did:example:sam': { handle: 'sam.example', displayName: 'Sam Lindqvist', color: '#5ED6B2', rel: 'you-follow', tangled: 'follows-you', known: ['did:example:kai'],
-    profile: { bio: 'I teach intro programming and make little tools for my class.', plans: ['work'], budget: 'sponsored', circumstances: ['educator'], values: ['education', 'accessibility'],
+    profile: { bio: 'I teach intro programming and make little tools for my class.', plans: ['chatgpt-plus'], budget: 'sponsored', circumstances: ['educator'], values: ['education', 'accessibility'],
       setups: [{ harness: 'codex', models: ['gpt-5-codex'], plan: 'School pays', runsOn: 'cloud' }], forecast: { level: 'drizzle' } } }
 };
 

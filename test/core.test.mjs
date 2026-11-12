@@ -1,7 +1,7 @@
 // Run with: npm test (node --test, no dependencies)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SEED, FAMILIES, lowBudgetOf } from '../core/ns.js';
+import { SEED, FAMILIES, PLANS, lowBudgetOf } from '../core/ns.js';
 import { parseSubject, describeSubject, cloneUrlOf } from '../core/subjects.js';
 import * as R from '../core/records.js';
 import { meantFor, closeness } from '../core/circle.js';
@@ -165,8 +165,12 @@ test('the models an ask would like, against your plans and what you run', () => 
   assert.equal(modelsText(opus, { plans: ['claude-pro'] }), 'Opus or Sonnet. Your Claude Pro plan has Claude models.');
   assert.equal(modelsText(opus, { plans: ['copilot'] }), 'Opus or Sonnet. Your GitHub Copilot plan has Claude models.');
   assert.equal(modelsText(opus, { plans: ['chatgpt-plus'] }), 'Opus or Sonnet. Not in your plan or setup.');
-  // A plan that could be anything (pay as you go, work or school) says nothing either way.
+  // Pay as you go and paid by work or school aren't plans here any more: a record that has them says nothing either way.
   assert.equal(modelsText(opus, { plans: ['api'] }), 'Opus or Sonnet.');
+  assert.equal(planText({ plans: ['work', 'claude-pro'] }), 'Claude Pro');
+  assert.equal(planText({ plans: ['api'], budget: 'none' }), 'No AI plan');
+  assert.ok(!PLANS.some(([k]) => k === 'api' || k === 'work'));
+  assert.deepEqual(R.plans(['api', 'work', 'none']), ['none']);
   // What you run comes before what your plan reaches.
   assert.equal(modelsText(opus, { plans: ['claude-max'], setups: [{ harness: 'claude-code', models: ['claude-opus-5-5'] }] }), 'Opus or Sonnet. You run Opus.');
   assert.equal(modelsText({ wants: { models: ['gpt-5-codex', 'gemini-3-pro'] } }, { plans: ['cursor'] }), 'GPT-5 Codex or Gemini 3 Pro. Your Cursor plan has GPT and Gemini models.');
@@ -247,8 +251,10 @@ test('AI plans: one line, from plans first and an older profile’s budget other
   // Plans win over what an older profile said.
   assert.equal(planText({ plans: ['free'], budget: 'high', setups: [{ harness: 'codex', plan: 'ChatGPT Pro' }] }), 'Free tiers only');
   assert.equal(planText({ setups: [{ harness: 'claude-code', plan: 'Claude Max 20x' }], budget: 'high' }), 'Claude Max 20x');
-  assert.equal(planText({ budget: 'none' }), 'Nothing paid');
-  assert.equal(planText({ budget: 'low' }), 'Under $25 a month');
+  assert.equal(planText({ budget: 'none' }), 'No AI plan');
+  // A budget's spending brackets aren't subscriptions, so they say nothing.
+  assert.equal(planText({ budget: 'low' }), '');
+  assert.equal(planText({ budget: 'sponsored' }), '');
   assert.equal(planText({}), '');
   // From someone else's record: a plan nobody knows is shown as written; anything else is dropped.
   assert.equal(planText({ plans: ['kagi', 42, null, ''] }), 'kagi');
@@ -256,7 +262,7 @@ test('AI plans: one line, from plans first and an older profile’s budget other
   assert.equal(lowBudgetOf({ plans: ['free'] }), 'free');
   assert.equal(lowBudgetOf({ plans: ['none'], budget: 'high' }), 'none');
   assert.equal(lowBudgetOf({ plans: ['claude-pro'], budget: 'none' }), null);
-  assert.equal(lowBudgetOf({ budget: 'low' }), 'low');
+  assert.equal(lowBudgetOf({ budget: 'low' }), null);
   assert.equal(lowBudgetOf({}), null);
   // What's written: known plans only, and a paid one means "none" and "free" don't apply.
   assert.deepEqual(R.plans(['claude-pro', 'none', 'kagi', 'claude-pro']), ['claude-pro']);

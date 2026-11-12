@@ -19,9 +19,9 @@
               "type": "string",
               "maxLength": 640,
               "maxGraphemes": 64,
-              "knownValues": ["claude-pro", "claude-max", "chatgpt-plus", "chatgpt-pro", "copilot", "cursor", "gemini", "zai", "api", "work", "free", "none"]
+              "knownValues": ["claude-pro", "claude-max", "chatgpt-plus", "chatgpt-pro", "copilot", "cursor", "gemini", "zai", "free", "none"]
             },
-            "description": "The AI plans you pay for to code with. zai: Z.ai's GLM Coding Plan. api: pay as you go. work: paid for by an employer or school. free: free tiers only. none: no AI plan. Takes over from budget and a setup's plan, which apps read when this is missing."
+            "description": "The coding subscriptions you have. zai: Z.ai's GLM Coding Plan. free: free tiers only. none: no AI plan. Takes over from budget and a setup's plan, which apps read when this is missing."
           },
           "setups": {
             "type": "array",

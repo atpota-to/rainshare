@@ -54,15 +54,14 @@ export const BUDGETS = [
   ['high', '$100+', '$100 or more a month'],
   ['sponsored', 'Paid for', 'An employer, school or grant pays']
 ];
-export const LOW_BUDGET = ['none', 'free', 'low'];
 // AI plans: what someone pays for to code with AI, or that they don't. It's the first thing
 // said about a person, on their profile and beside their asks. It takes over from `budget` and
 // a setup's typed `plan`, which older profiles still have and are read when there's no plan.
 // [value, what people read]
 export const PLANS = [
   ['claude-pro', 'Claude Pro'], ['claude-max', 'Claude Max'], ['chatgpt-plus', 'ChatGPT Plus'], ['chatgpt-pro', 'ChatGPT Pro'],
-  ['copilot', 'GitHub Copilot'], ['cursor', 'Cursor'], ['gemini', 'Gemini'], ['zai', 'Z.ai GLM Coding Plan'], ['api', 'Pay as I go (API)'],
-  ['work', 'Paid by work or school'], ['free', 'Free tiers only'], ['none', 'No AI plan']
+  ['copilot', 'GitHub Copilot'], ['cursor', 'Cursor'], ['gemini', 'Gemini'], ['zai', 'Z.ai GLM Coding Plan'],
+  ['free', 'Free tiers only'], ['none', 'No AI plan']
 ];
 export const UNPAID = ['free', 'none'];
 // Which model families an ask can prefer, and how capable a model: families and a level rather
@@ -87,21 +86,23 @@ export const familyOf = m => {
 };
 // Which families a plan reaches, for matching against the families an ask would like. What each
 // plan includes keeps changing, so a match says "Claude models", never which ones or how capable.
-// Pay as you go and work or school could be anything, so they say nothing.
 export const PLAN_FAMILIES = {
   'claude-pro': ['claude'], 'claude-max': ['claude'], 'chatgpt-plus': ['gpt'], 'chatgpt-pro': ['gpt'], gemini: ['gemini'], zai: ['glm'],
   copilot: ['claude', 'gpt', 'gemini'], cursor: ['claude', 'gpt', 'gemini']
 };
+// Rainshare is about coding subscriptions and the usage they come with, so pay as you go and
+// paid by work or school, which were offered for a while, are left out when a record has them.
+const RETIRED_PLANS = ['api', 'work'];
 /** Someone's plans, as their record has them: strings only, at most 12. */
-export const plansIn = p => (Array.isArray(p?.plans) ? p.plans : []).filter(x => typeof x === 'string' && x).slice(0, 12);
+export const plansIn = p => (Array.isArray(p?.plans) ? p.plans : []).filter(x => typeof x === 'string' && x && !RETIRED_PLANS.includes(x)).slice(0, 12);
 /**
- * Whether someone is without a paid plan: 'none', 'free', 'low' (an older profile's "under $25"
- * budget), or null when they pay for one or haven't said. Plans decide it when there are any.
+ * Whether someone is without a coding subscription: 'none', 'free', or null when they have one
+ * or haven't said. Plans decide it; an older profile's budget only when it said none or free.
  */
 export function lowBudgetOf(p){
   const plans = plansIn(p);
   if (plans.length) return plans.some(x => !UNPAID.includes(x)) ? null : plans.includes('free') ? 'free' : 'none';
-  return LOW_BUDGET.includes(p?.budget) ? p.budget : null;
+  return UNPAID.includes(p?.budget) ? p.budget : null;
 }
 
 export const FORECAST = [
