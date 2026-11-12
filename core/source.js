@@ -82,15 +82,27 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
   const remember = (collection, rec) => { if (rec.uri) { gone.delete(rec.uri); recent.set(rec.uri, { collection, ...rec }); } };
   const forgetRecord = uri => { recent.delete(uri); gone.add(uri); };
   // Every public record of a collection, across everyone who has any.
+  const layered = (collection, list) => {
+    const seen = new Set(list.map(r => r.uri));
+    const mine = [...recent.values()].filter(r => r.collection === collection && !r.space && !seen.has(r.uri));
+    return [...list.map(r => recent.get(r.uri)?.collection === collection && recent.get(r.uri).cid !== r.cid ? { ...r, ...recent.get(r.uri) } : r), ...mine].filter(r => !gone.has(r.uri));
+  };
   const everyone = collection => memo('all:' + collection, async () => {
     const dids = await net.reposWith(collection);
     const lists = await net.pool(dids, 6, d => net.listRecords(d, collection, { pages: 2 }).catch(() => []));
     return lists.flat();
-  }).then(list => {
-    const seen = new Set(list.map(r => r.uri));
-    const mine = [...recent.values()].filter(r => r.collection === collection && !r.space && !seen.has(r.uri));
-    return [...list.map(r => recent.get(r.uri)?.collection === collection && recent.get(r.uri).cid !== r.cid ? { ...r, ...recent.get(r.uri) } : r), ...mine].filter(r => !gone.has(r.uri));
-  });
+  }).then(list => layered(collection, list));
+  // The takes or deliveries that point at one seed. Reading everyone's to find them, as the
+  // board does, asks every server that holds any. For one seed's page, Constellation (an index
+  // of who links to what) names just the records that point at it, and each of those is read
+  // from its owner's own server. What the board read a moment ago is used if it's there, and if
+  // Constellation doesn't answer it's the long way round.
+  const warm = key => { const hit = cache.get(key); return !!hit && Date.now() - hit.at < TTL; };
+  const pointingAt = (uri, collection) => warm('all:' + collection) ? everyone(collection) : memo(`to:${collection}:${uri}`, async () => {
+    const refs = await net.backlinks(uri, collection, 'seed.uri');
+    const recs = await net.pool(refs, 6, r => net.getRecordOrNull(r.repo, collection, r.rkey).catch(() => null));
+    return recs.filter(r => r?.value?.seed?.uri === uri);
+  }).then(list => layered(collection, list), () => everyone(collection));
   const people = dids => net.profiles(dids);
   const publicProfile = did => memo('profile:' + did, () => net.getRecordOrNull(did, PROFILE, 'self'));
   // Who you block on Bluesky. Their seeds are left out, and so are their takes and deliveries,
@@ -216,7 +228,7 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
 
   /** One seed by its URI, with its takes, deliveries and author. Null if it's gone. */
   async function seed(uri, { force } = {}){
-    if (force) forget('all:' + TAKE, 'all:' + DELIVERY);
+    if (force) forget('all:' + TAKE, 'all:' + DELIVERY, `to:${TAKE}:${uri}`, `to:${DELIVERY}:${uri}`);
     const inSpace = splitSpaceUri(uri);
     if (inSpace) {
       const g = (await myGroups()).find(x => x.space === inSpace.space);
@@ -229,7 +241,7 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     if (!p || p.collection !== SEED) return null;
     const rec = await net.getRecordOrNull(p.repo, SEED, p.rkey);
     if (!rec) return null;
-    const [takes, deliveries, prof, blocked] = await Promise.all([everyone(TAKE).catch(() => []), everyone(DELIVERY).catch(() => []), publicProfile(p.repo).catch(() => null), myBlocks()]);
+    const [takes, deliveries, prof, blocked] = await Promise.all([pointingAt(uri, TAKE).catch(() => []), pointingAt(uri, DELIVERY).catch(() => []), publicProfile(p.repo).catch(() => null), myBlocks()]);
     const rel = viewer && viewer !== p.repo ? (await net.relationships(viewer, [p.repo]).catch(() => new Map())).get(p.repo) : null;
     const item = { ...rec, space: null, group: null, rel, closeness: closeness({ viewer, author: p.repo, rel }), profile: prof?.value || null };
     attach([item], takes, deliveries, blocked);

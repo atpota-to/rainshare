@@ -4,6 +4,7 @@ import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { SEED, TAKE, DELIVERY, PROFILE } from '../core/ns.js';
 import { createSource } from '../core/source.js';
+import { firstOf } from '../core/net.js';
 import { FOLLOW, tieOf } from '../core/ties.js';
 
 const PDS = 'https://pds.test';
@@ -11,11 +12,14 @@ const people = { me: 'did:plc:me', alice: 'did:plc:alice', bob: 'did:plc:bob', c
 // who follows whom: [follower, followed]
 const follows = [['me', 'alice'], ['alice', 'me'], ['bob', 'me'], ['me', 'carol'], ['carol', 'dave'], ['alice', 'dave']];
 let repos, n, lagging;
+// Constellation, the index of who links to what: off (it throws, like a server that's down)
+// unless a test turns it on. `asked` is every address the code under test fetched.
+let index, asked;
 
 const sq = (title, audience, extra = {}) => ({ $type: SEED, title, audience: { $type: `${SEED}#${audience}` }, createdAt: new Date(Date.now() - (n++) * 1000).toISOString(), ...extra });
 function put(did, collection, rkey, value){ (repos[did] ||= {})[collection] ||= new Map(); repos[did][collection].set(rkey, { value, cid: 'bafy' + (n++) }); }
 beforeEach(() => {
-  repos = {}; n = 1; lagging = new Set();
+  repos = {}; n = 1; lagging = new Set(); index = null; asked = [];
   put(people.alice, SEED, 'a1', sq('Alice, for mutuals', 'mutuals'));
   put(people.alice, PROFILE, 'self', { $type: PROFILE, budget: 'none', circumstances: ['student'], createdAt: new Date().toISOString() });
   put(people.bob, SEED, 'b1', sq('Bob, for people he follows', 'following'));
@@ -32,6 +36,14 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), { status
 const nameOf = did => Object.keys(people).find(k => people[k] === did);
 globalThis.fetch = async (input, init = {}) => {
   const u = new URL(typeof input === 'string' ? input : input.url), q = u.searchParams, m = u.pathname.replace('/xrpc/', '');
+  asked.push(u.href);
+  if (u.host === 'constellation.microcosm.blue') {
+    if (!index) throw new Error('constellation is down');
+    const [collection, path] = q.get('source').split(':'), subject = q.get('subject');
+    if (m !== 'blue.microcosm.links.getBacklinks' || path !== 'seed.uri') return json({ error: 'InvalidRequest' }, 400);
+    const records = Object.keys(repos).flatMap(did => [...(repos[did][collection] || new Map())].filter(([, r]) => r.value?.seed?.uri === subject).map(([rkey]) => ({ did, collection, rkey })));
+    return json({ total: records.length + index.extra.length, records: [...records, ...index.extra], cursor: null });
+  }
   if (u.host === 'plc.directory') {
     const did = decodeURIComponent(u.pathname.slice(1));
     return json({ id: did, alsoKnownAs: [`at://${nameOf(did)}.test`], service: [{ id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: PDS }] });
@@ -220,4 +232,59 @@ test('names come from Bluesky, unless someone’s Rainshare profile gives one of
   const prof = await src.profileOf(people.alice);
   assert.equal(prof.person.displayName, 'Alice at Rainshare');
   assert.equal(prof.bluesky.displayName, 'alice');
+});
+
+test('one seed’s helpers come from Constellation, read from their own servers, and the long way if it’s down', async () => {
+  const uri = `at://${people.dave}/${SEED}/d1`, other = `at://${people.eve}/${SEED}/e1`;
+  put(people.alice, TAKE, 't1', { $type: TAKE, seed: { uri, cid: 'x' }, createdAt: new Date().toISOString() });
+  put(people.bob, TAKE, 't2', { $type: TAKE, seed: { uri: other, cid: 'x' }, createdAt: new Date().toISOString() });
+  put(people.carol, DELIVERY, 'x1', { $type: DELIVERY, seed: { uri, cid: 'x' }, url: 'https://github.com/o/r/pull/1', createdAt: new Date().toISOString() });
+  const scans = () => asked.filter(a => a.includes('listReposByCollection') && (a.includes(TAKE) || a.includes(DELIVERY))).length;
+
+  // With the index answering: nobody's takes are listed, only the ones that point here are read.
+  // It names one that points somewhere else and one that isn't there: neither is believed.
+  index = { extra: [{ did: people.bob, collection: TAKE, rkey: 't2' }, { did: people.bob, collection: TAKE, rkey: 'gone' }, { did: 'not a did', collection: TAKE, rkey: 't1' }] };
+  let it = await createSource().seed(uri);
+  assert.deepEqual(it.takes.map(t => t.repo), [people.alice]);
+  assert.deepEqual(it.deliveries.map(d => d.repo), [people.carol]);
+  assert.equal(it.takes[0].author.handle, 'alice.test', 'and they’re named');
+  assert.equal(scans(), 0, 'no relay was asked who has takes or deliveries');
+  assert.equal(asked.filter(a => a.includes('listRecords')).length, 0);
+
+  // Your own take shows at once, before the index or its server's listing has heard of it.
+  const me = createSource({ agent: agent(people.me) });
+  await me.take(await me.seed(uri));
+  const [key, held] = [...repos[people.me][TAKE]][0];
+  repos[people.me][TAKE].delete(key);
+  it = await me.seed(uri, { force: true });
+  assert.ok(it.takes.some(t => t.repo === people.me));
+  repos[people.me][TAKE].set(key, held);
+
+  // With the index down, everyone's are read the long way, and the answer is the same.
+  index = null; asked = [];
+  it = await createSource().seed(uri);
+  assert.deepEqual(it.takes.map(t => t.repo).sort(), [people.alice, people.me].sort());
+  assert.deepEqual(it.deliveries.map(d => d.repo), [people.carol]);
+  assert.ok(scans() >= 2, 'the relay was asked instead');
+
+  // After the board has read everyone's, a seed's page uses that and asks the index nothing.
+  index = { extra: [] }; asked = [];
+  const src = createSource();
+  await src.board();
+  asked = [];
+  it = await src.seed(uri);
+  assert.deepEqual(it.takes.map(t => t.repo).sort(), [people.alice, people.me].sort());
+  assert.equal(asked.filter(a => a.includes('constellation')).length, 0);
+});
+
+test('a slow or failing relay gets company: the next is asked, and the first answer wins', async () => {
+  const later = (ms, v, fail) => () => new Promise((ok, no) => setTimeout(() => fail ? no(new Error(v)) : ok(v), ms));
+  let started = 0;
+  const counted = way => () => { started++; return way(); };
+  assert.equal(await firstOf([counted(later(5, 'first')), counted(later(1, 'second'))], 50), 'first');
+  assert.equal(started, 1, 'a quick answer means the second is never asked');
+  assert.equal(await firstOf([later(200, 'slow'), later(5, 'second')], 20), 'second', 'a slow first is overtaken');
+  assert.equal(await firstOf([later(40, 'slow but first'), later(100, 'second')], 10), 'slow but first', 'and still wins if it answers first');
+  assert.equal(await firstOf([later(1, 'down', true), later(5, 'second')], 5000), 'second', 'a failure moves on at once, without waiting');
+  await assert.rejects(firstOf([later(1, 'a', true), later(1, 'b', true)], 10), /b/);
 });
