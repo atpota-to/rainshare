@@ -168,13 +168,13 @@ export async function completeTangled(subject){
 }
 
 /* ---------- knotless, through its public API ---------- */
-const knotlessRepo = page => { const m = String(page || '').match(/^https:\/\/knotless\.dev\/@?([^/?#]+)\/([^/?#]+)/); return m ? `at://${decode(m[1])}/${K_REPO}/${decode(m[2]).replace(/\.git$/, '')}` : null; };
+export const knotlessRepo = page => { const m = String(page || '').match(/^https:\/\/knotless\.dev\/@?([^/?#]+)\/([^/?#]+)/); return m ? `at://${decode(m[1])}/${K_REPO}/${decode(m[2]).replace(/\.git$/, '')}` : null; };
 /** A knotless issue or pull, from its page address: the repo it's on and its own record. */
-function knotlessRef(link){
+export function knotlessRef(link){
   const m = String(link || '').match(new RegExp(`^(https://knotless\\.dev/[^/?#]+/[^/?#]+)/(issue|pull)/(did(?::|%3A)[^/?#]+)/(${KEY})`, 'i'));
   return m ? { page: m[1], repo: knotlessRepo(m[1]), uri: `at://${decode(m[3])}/dev.knotless.${m[2].toLowerCase()}/${m[4]}` } : null;
 }
-const knotlessPage = (page, uri) => { const at = parseUri(uri); return at && page ? `${page}/${at.collection === K_PULL ? 'pull' : 'issue'}/${at.repo}/${at.rkey}` : null; };
+export const knotlessPage = (page, uri) => { const at = parseUri(uri); return at && page ? `${page}/${at.collection === K_PULL ? 'pull' : 'issue'}/${at.repo}/${at.rkey}` : null; };
 // One issue's thread answers two questions (is it open, and which pulls mention it), so the
 // answer is kept for a moment rather than asked for twice.
 const threads = new Map();

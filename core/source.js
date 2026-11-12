@@ -14,6 +14,7 @@ import * as R from './records.js';
 import { closeness, meantFor } from './circle.js';
 import { completeTangled, tangledRepos, tangledIssues, knotlessRepos, knotlessIssues } from './subjects.js';
 import { wateredBy } from './garden.js';
+import { forgeIssue, forgeComment } from './forgewrite.js';
 
 const TTL = 60e3;
 /** A record URI inside a space: the space, then repo/collection/rkey. */
@@ -295,6 +296,9 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     tangledIssues,
     knotlessRepos: () => viewer ? knotlessRepos(viewer) : Promise.resolve([]),
     knotlessIssues,
-    gardenOf
+    gardenOf,
+    // Posting to knotless or Tangled as you: an issue on a repo, or a comment on an issue (./forgewrite.js).
+    forgeIssue: (subject, input) => forgeIssue(agent, subject, input),
+    forgeComment: (subject, text) => forgeComment(agent, subject, text)
   };
 }

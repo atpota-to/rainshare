@@ -8,6 +8,7 @@
 import { SEED, STAGE, STAGES, MODEL_PICKS, GROUPS, modelName } from '../core/ns.js';
 import { parseSubject, describeSubject, kindOf, subjectInfo, knotlessIssueSubject } from '../core/subjects.js';
 import { newRepoPlaces } from '../core/forges.js';
+import { writableForge, FORGE_SAID } from '../core/forgewrite.js';
 import { whereText, shortWhere, jobText, jobShort, wantsText, wantsShort, askExcerpt, stageOf, aNoun } from '../core/words.js';
 import { join } from '../core/rank.js';
 import { pageOf } from '../core/brief.js';
@@ -46,6 +47,7 @@ const fresh = () => ({
   step: 1, reached: 1, done: null, busy: false, err: '',
   stage: null,       // what's being planted: 'seed' (an idea), or a plant: 'seedling', 'young' or 'established'
   kind: null, link: '', subject: null, info: null, prefilled: false,
+  openIssue: false,  // for a repo on knotless or Tangled with no issue picked: open one there, from this ask
   repos: null, repo: null, issues: null,
   title: '', spec: '', specUrl: '',
   more: false,       // whether "More options" (models, tests, size, tags…) is open
@@ -228,10 +230,20 @@ export function createPoster(ui){
     P.busy = true; P.err = ''; ui.render();
     try {
       const g = P.vis === 'group' ? groupNow() : null;
+      // The issue goes up first, so the ask can point at it. If something after this fails, the
+      // ask keeps pointing at the issue that's now there, and trying again doesn't open a second.
+      let opened = null;
+      if (P.openIssue && offerOn()) {
+        const draft = input();
+        opened = await src().forgeIssue(draft.subject, { title: draft.title, body: draft.spec });
+        Object.assign(P, { subject: opened, whole: false, openIssue: false, link: '' });
+      }
       const r = await src().plant(input(), { group: g?.did });
       const item = { uri: r.uri, space: r.space || null, repo: ui.viewer(), rkey: String(r.uri).split('/').pop(), author: ui.self() };
       // The example circle's asks live in this browser, so they have no page anyone else could open.
-      P.done = { path: pathOf(item), page: item.space || src().demo ? null : pageOf(item), group: g };
+      P.done = { path: pathOf(item), page: item.space || src().demo ? null : pageOf(item), group: g, issue: opened ? { href: opened.url, forge: FORGE_SAID[writableForge(opened)] } : null };
+      // The new issue says where the ask is, so people who find it there can pick it up here.
+      if (opened && P.done.page) src().forgeComment(opened, `I’ve asked for a hand with this on Rainshare, for anyone with spare agent usage who’d like to take it on: ${P.done.page}`).catch(e => console.warn('rainshare issue note', e));
       P.busy = false;
       ui.onPosted(r);
       ui.render(); arrive();
@@ -246,6 +258,15 @@ export function createPoster(ui){
   /* ---------- drawing ---------- */
   const tile = (attr, v, on, title, note, extra = '') => `<button type="button" class="rs-tile" ${attr}="${esc(v)}" role="radio" aria-checked="${on}"${extra}><b>${esc(title)}</b>${note ? `<small>${esc(note)}</small>` : ''}</button>`;
   const row = (attr, v, on, title, note, aside = '') => `<button type="button" class="rs-option" ${attr}="${esc(v)}" role="radio" aria-checked="${on}"><span class="rs-radio" aria-hidden="true"></span><span class="rs-option-text"><b>${esc(title)}</b>${note ? `<small>${esc(note)}</small>` : ''}</span>${aside ? `<span class="rs-option-aside">${esc(aside)}</span>` : ''}</button>`;
+  // A repo on knotless or Tangled with no issue picked: Rainshare can open one there for you,
+  // from the title and details you're about to write, so helpers have a thread to work in.
+  const offerOn = () => kindOf(P.subject) === 'repo' && P.kind !== 'idea' ? writableForge(P.subject) : null;
+  function issueOffer(){
+    const forge = offerOn(); if (!forge) return '';
+    const name = FORGE_SAID[forge];
+    if ((ui.forges?.() || []).includes(forge)) return `<label class="rs-check"><input type="checkbox" name="openIssue"${P.openIssue ? ' checked' : ''}> Open an issue for it on ${esc(name)} too, from what you write next</label>`;
+    return ui.connectForge ? `<p class="rs-muted">Rainshare can open an issue for it on ${esc(name)}, once you’ve said it may post there for you. <button class="rs-link" type="button" data-rs-connect-forge="${forge}">Connect ${esc(name)}</button> (you’ll start this step again).</p>` : '';
+  }
   const found = () => {
     if (P.kind === 'idea' || !P.link.trim()) return '';
     const d = P.subject && describeSubject(P.subject);
@@ -295,6 +316,7 @@ export function createPoster(ui){
         <div class="rs-tiles" role="radiogroup" aria-label="Where does it live?">${KINDS.map(([k, t, n]) => tile('data-rs-kind', k, P.kind === k, t, n)).join('')}</div></div>` : ''}
       ${more}
       <p class="rs-found" data-rs-found aria-live="polite">${found()}</p>
+      <div data-rs-issue-offer>${issueOffer()}</div>
       ${plant ? `<div class="rs-field" role="radiogroup" aria-label="How far along is the project as a whole?"><span>How far along is the project as a whole?</span><div class="rs-options">
         ${PLANT_STAGES.map(([k, t, n]) => row('data-rs-stage', k, P.stage === k, t, n)).join('')}</div></div>` : ''}`;
   }
@@ -409,6 +431,7 @@ export function createPoster(ui){
   function paint(){
     const s = ui.root.querySelector('.rs-post-side'); if (s) { s.innerHTML = side(); ui.live?.(); }
     const f = ui.root.querySelector('[data-rs-found]'); if (f) f.innerHTML = found();
+    const o = ui.root.querySelector('[data-rs-issue-offer]'); if (o) o.innerHTML = issueOffer();
   }
 
   function done(){
@@ -417,7 +440,7 @@ export function createPoster(ui){
     return `<section class="rs-post-done" aria-live="polite">
       <span class="rs-done-mark">${ico('check')}</span>
       <h1 tabindex="-1">It’s on the board.</h1>
-      <p class="rs-lede">${esc(doneText())}</p>
+      <p class="rs-lede">${esc(doneText())}${d.issue ? ` An issue is open for it on ${esc(d.issue.forge)}${d.issue.href && !src().demo ? `: <a href="${esc(d.issue.href)}" target="_blank" rel="noopener">see it there</a>` : ''}.` : ''}</p>
       <div class="rs-mini">
         <div class="rs-mini-top">${face(ui.self(), 'xs')}<b>You</b><span>· ${esc(whoFor())} · just now</span></div>
         <b class="rs-mini-title">${esc(sq.title)}</b>
@@ -495,6 +518,7 @@ export function createPoster(ui){
       || pick('[data-rs-group]', el => { P.group = el.dataset.rsGroup; P.err = ''; ui.render(); })
       || pick('[data-rs-add-group]', el => addGroup(el.dataset.rsAddGroup, el))
       || pick('[data-rs-again]', () => { P = fresh(); loadBits(); ui.render(); arrive(); })
+      || pick('[data-rs-connect-forge]', el => { ui.connectForge?.(el.dataset.rsConnectForge); })
       || pick('[data-rs-post-cancel]', () => { P = fresh(); ui.go(''); });
   }
   const TEXT = ['title', 'spec', 'specUrl', 'otherModel', 'maxDiffLines', 'tags', 'values', 'notes', 'bskyText'];
@@ -507,6 +531,7 @@ export function createPoster(ui){
     if (el.matches('[data-rs-repo]')) { if (el.value) loadIssues(el.value); return true; }
     if (el.name === 'list') { P.list = el.value; ui.render(); return true; }
     if (el.name === 'parallel') { P.parallel = el.checked; paint(); return true; }
+    if (el.name === 'openIssue') { P.openIssue = el.checked; return true; }
     if (el.name === 'bsky') { P.bsky = el.checked; ui.render(); return true; }
     return typed(el);
   }

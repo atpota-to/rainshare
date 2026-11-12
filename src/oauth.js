@@ -5,7 +5,7 @@
 //
 // It asks for everything private seeds need first; a server that doesn't know the
 // spaces scopes refuses with invalid_scope, and is asked again for what any server grants.
-import { SCOPE, BASIC_SCOPE, REDIRECT_PATH, PLC } from './scope.js';
+import { SCOPE, BASIC_SCOPE, DECLARED_SCOPE, REDIRECT_PATH, PLC, withForges, forgesIn } from './scope.js';
 
 const LOOPBACK = /^http:\/\/(127\.0\.0\.1|\[::1\]|localhost)(:\d+)?$/.test(location.origin);
 const SIGNED_IN = '@@atproto/oauth-client-browser(sub)';
@@ -14,7 +14,7 @@ const PENDING = 'rs:signin';
 function clientId(){
   if (!LOOPBACK) return location.origin + '/oauth-client-metadata.json';
   const redirect = `http://127.0.0.1${location.port ? ':' + location.port : ''}${REDIRECT_PATH}`;
-  return 'http://localhost?' + new URLSearchParams({ redirect_uri: redirect, scope: SCOPE });
+  return 'http://localhost?' + new URLSearchParams({ redirect_uri: redirect, scope: DECLARED_SCOPE });
 }
 
 let clientP;
@@ -44,7 +44,7 @@ export async function start(){
   try { r = await c.init(); }
   catch (e) {
     const p = pending();
-    if (e?.params?.get?.('error') === 'invalid_scope' && p?.handle && !p.basic) { signIn(p.handle, p.to, { basic: true }).catch(() => {}); return { redirecting: true }; }
+    if (e?.params?.get?.('error') === 'invalid_scope' && p?.handle && !p.basic) { signIn(p.handle, p.to, { basic: true, forges: p.forges }).catch(() => {}); return { redirecting: true }; }
     setPending(null);
     throw e;
   }
@@ -52,19 +52,25 @@ export async function start(){
   if (!r) return null;
   let to = null;
   try { to = r.state ? JSON.parse(r.state).to : null; } catch (_) {}
-  return { session: r.session, to: samePath(to) };
+  return { session: r.session, to: samePath(to), forges: await forgesOf(r.session) };
+}
+/** The forges this sign-in lets Rainshare post to (see FORGE_SCOPES): what your server granted, not what was asked for. */
+export async function forgesOf(session){
+  try { return forgesIn((await session.getTokenInfo(false)).scope); } catch (_) { return []; }
 }
 
-export async function signIn(handle, to, { basic } = {}){
+// `forges` adds what posting to those forges needs (knotless, tangled) to what's asked for.
+// It's left out of an ordinary sign-in, and passed when someone connects a forge.
+export async function signIn(handle, to, { basic, forges = [] } = {}){
   const c = await client();
   const state = JSON.stringify({ to });
-  setPending({ handle, to, basic: !!basic });
-  if (basic) return c.signIn(handle, { scope: BASIC_SCOPE, state });
-  try { await c.signIn(handle, { scope: SCOPE, state }); }
+  setPending({ handle, to, basic: !!basic, forges });
+  if (basic) return c.signIn(handle, { scope: withForges(BASIC_SCOPE, forges), state });
+  try { await c.signIn(handle, { scope: withForges(SCOPE, forges), state }); }
   catch (e) {
     if (e?.error !== 'invalid_scope') throw e;
-    setPending({ handle, to, basic: true });
-    await c.signIn(handle, { scope: BASIC_SCOPE, state });
+    setPending({ handle, to, basic: true, forges });
+    await c.signIn(handle, { scope: withForges(BASIC_SCOPE, forges), state });
   }
 }
 

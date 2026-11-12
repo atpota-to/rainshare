@@ -3,6 +3,8 @@
 // It answers the same calls as the real source (source.js); what you do is kept in this
 // browser through `store`, and nothing is written anywhere.
 import { wateredBy } from './garden.js';
+import { writableForge } from './forgewrite.js';
+import { repoPageOf, knotlessIssueSubject } from './subjects.js';
 import { PROFILE, SEED, TAKE, DELIVERY } from './ns.js';
 import * as R from './records.js';
 import { closeness } from './circle.js';
@@ -214,6 +216,16 @@ export function createDemoSource({ store = null, me: meOverride = null, groups =
       { uri: 'at://did:example:garden/org.tangled.track.ticket/3iss2', cid: 'bafyexampleiss2', title: 'Add a sitemap.xml', body: '' }
     ]),
     gardenOf: did => pause(wateredBy(did, items())),
+    // Posting to a forge is pretended here: nothing leaves this browser. An issue gets a
+    // made-up address on the repo it was opened on, and a comment just says where it would show.
+    async forgeIssue(subject){
+      const page = repoPageOf(subject), forge = writableForge(subject);
+      if (!forge || !page) throw new Error('Rainshare can open issues on knotless and Tangled only.');
+      const key = tid('is');
+      return pause(forge === 'knotless' ? knotlessIssueSubject(page, `at://${ME}/dev.knotless.issue/${key}`)
+        : { $type: `${SEED}#tangledIssue`, uri: `at://did:example:repo/org.tangled.track.ticket/${key}`, repoUrl: page, url: `${page}/issues/${key}` });
+    },
+    forgeComment: subject => pause({ href: subject?.url || null }),
     knotlessRepos: () => Promise.resolve([{ uri: 'at://did:example:you/dev.knotless.repo/tally', name: 'tally', url: 'https://knotless.dev/you.example/tally', description: 'Adds up receipts' }]),
     knotlessIssues: () => Promise.resolve([
       { uri: 'at://did:example:you/dev.knotless.issue/3iss3', title: 'Dates in ISO 8601 are read as text', body: '' },

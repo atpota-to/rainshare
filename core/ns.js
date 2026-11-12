@@ -85,3 +85,13 @@ export const OWNERS = [['helper', 'Whoever builds it keeps it'], ['requester', '
 
 export const labelOf = (list, v) => (list.find(x => x[0] === v) || [, v])[1];
 export const audienceOf = record => String(record?.audience?.$type || '').split('#')[1] || 'anyone';
+
+// What a sign-in has to allow before Rainshare can post to a forge for you. Nobody is asked
+// for these at sign-in: only when they choose to connect that forge (see ./forgewrite.js).
+//   knotless  an issue or a comment is a record in your own account
+//   Tangled   your server vouches for you to the repo's host, and a record in your own
+//             account says the post was yours
+export const FORGE_SCOPES = {
+  knotless: ['repo:dev.knotless.issue?action=create', 'repo:dev.knotless.comment?action=create'],
+  tangled: ['rpc:com.atproto.repo.createRecord?aud=*', 'repo:org.tangled.graph.attestation?action=create']
+};

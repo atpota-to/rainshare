@@ -27,6 +27,7 @@ const store = {
 };
 
 let session = null, me = null, ready = false;
+let forges = [];   // the forges this sign-in lets Rainshare post to for you (knotless, tangled): see ./scope.js
 const EXAMPLE = '/example';
 const isExample = p => p === EXAMPLE || p.startsWith(EXAMPLE + '/');
 const subOf = p => (isExample(p) ? p.slice(EXAMPLE.length) : p).replace(/^\/+/, '');
@@ -53,6 +54,11 @@ const host = kind => ({
   },
   // The query comes along, so a link an agent handed back still has its pull request after signing in.
   signIn: kind === 'real' ? (handle, sub) => oauth.signIn(handle, '/' + (sub || '') + location.search) : null,
+  // Posting an issue or a comment to knotless or Tangled for you is asked for separately, when
+  // you choose to: your server shows what's being added, and you come back to where you were.
+  // The example circle only pretends to post, so there both count as connected.
+  forges: () => kind === 'example' ? ['knotless', 'tangled'] : forges,
+  connectForge: kind === 'real' ? (forge, sub) => session && oauth.signIn(session.did, '/' + (sub || '') + location.search, { forges: [...new Set([...forges, forge])] }) : null,
   ...(kind === 'example' ? { exitDemo: session ? 'Back to your circle' : 'Sign in for your real circle', onExitDemo: () => navigate('/') } : {})
 });
 let real = null, example = null;
@@ -132,7 +138,7 @@ function renderMe(){
   box.innerHTML = `<a class="rd-who" href="/me" data-nav title="Your Rainshare profile"><span class="rd-face">${img}</span><span>${esc(p.displayName || (p.handle ? '@' + p.handle : 'You'))}</span></a><button class="rd-link" type="button" data-signout>Sign out</button>`;
 }
 async function signOut(){
-  const s = session; session = null; me = null;
+  const s = session; session = null; me = null; forges = [];
   atp.forgetCredentials();
   await oauth.signOut(s);
   renderMe(); await app('real').setSource(sourceNow()); toast('Signed out'); navigate('/');
@@ -155,7 +161,7 @@ async function boot(){
   catch (e) { console.warn('sign-in', e); toast(/denied|cancel/i.test(String(e?.message)) ? 'Sign-in was cancelled' : 'Sign-in didn’t finish. Try again.'); }
   if (r?.redirecting) return;
   if (r?.session) {
-    session = r.session;
+    session = r.session; forges = r.forges || [];
     profiles([session.did]).then(m => { me = m.get(session.did); renderMe(); }, () => {});
   }
   if (oauth.isCallback() || location.pathname === '/signed-in') history.replaceState(null, '', r?.to && r.to !== '/signed-in' ? r.to : '/');

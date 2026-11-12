@@ -15,6 +15,7 @@ import { SEED, STAGE, HARNESSES, MODELS, RUNS_ON, BUDGETS, FORECAST, CIRCUMSTANC
 import { describeSubject, cloneUrlOf, safeHttp, pullPageOf, FORGE_NAMES } from '../core/subjects.js';
 import { look, carry, standing } from '../core/status.js';
 import { newRepoPlaces, placesFor } from '../core/forges.js';
+import { writableForge, FORGE_SAID } from '../core/forgewrite.js';
 import { wateredText } from '../core/garden.js';
 import { audienceLine } from '../core/circle.js';
 import { rank, fit, join, pretty } from '../core/rank.js';
@@ -32,7 +33,7 @@ export function createRainshare({ root, base = '/', host }){
   const S = {
     source: null, view: null, sub: '', tab: 'foryou',
     board: null, boardAt: 0, loading: false, error: null, shown: [], pick: null, sheet: false,
-    mine: null, garden: null, seed: null, seedErr: null, launch: null, pendingLaunch: null, handBack: null, again: null, other: null, form: null, drafts: {}, signin: null,
+    mine: null, garden: null, seed: null, seedErr: null, unlinked: null, launch: null, pendingLaunch: null, handBack: null, again: null, other: null, form: null, drafts: {}, signin: null,
     open: {}   // which folded sections are open (<details data-rs-keep>), so a redraw leaves them be
   };
   const signedIn = () => !!S.source?.signedIn;
@@ -330,6 +331,8 @@ export function createRainshare({ root, base = '/', host }){
     S.launch = S.pendingLaunch?.uri === uri ? S.pendingLaunch.id : null;
     S.pendingLaunch = null;
     if (!uri) { S.seed = null; S.seedErr = { message: 'That link doesn’t lead to anything on Rainshare.' }; return; }
+    // A comment that was being written when you went off to connect a forge is waiting where you left it.
+    try { const kept = JSON.parse(sessionStorage.getItem(SAY_KEPT) || 'null'); sessionStorage.removeItem(SAY_KEPT); if (kept?.uri === uri && kept.text) { S.drafts.say = kept; S.open.say = true; } } catch (_) {}
     const cached = S.seed?.uri === uri ? S.seed : S.board?.items.find(i => i.uri === uri);
     S.seed = cached || null;
     if (S.view === 'seed') render();
@@ -391,6 +394,42 @@ export function createRainshare({ root, base = '/', host }){
         <p>${a('agents', 'Set up the CLI and MCP server once', 'rs-link')}</p>
       </details>
     </section>`;
+  }
+  // Where the issue is on knotless or Tangled, a comment can go straight onto it from here, as
+  // you. Rainshare has to be allowed to first: that's asked for once, when you choose to
+  // connect that forge, and not at sign-in. What's typed is kept while your server asks.
+  const SAY_KEPT = 'rs:say';
+  function sayBox(it, { mine, taken, page, d }){
+    const forge = d?.issue ? writableForge(it.value?.subject) : null;
+    if (!forge || !signedIn()) return '';
+    const name = FORGE_SAID[forge], on = (host.forges?.() || []).includes(forge) && S.unlinked !== forge;
+    const draft = S.drafts.say?.uri === it.uri ? S.drafts.say.text
+      : mine && page && isOpen(it) ? `I’ve asked for a hand with this on Rainshare, for anyone with spare agent usage who’d like to take it on: ${page}`
+        : taken && page ? `I’m having a go at this, through Rainshare: ${page}` : '';
+    const where = safeHttp(d.href) && !it.example ? `<a class="rs-link" href="${esc(safeHttp(d.href))}" target="_blank" rel="noopener">See the issue</a>` : '';
+    return `<details class="rs-more rs-say" data-rs-keep="say"${S.open.say ? ' open' : ''}><summary>Comment on the issue on ${esc(name)}</summary><div class="rs-more-body">
+      <form class="rs-form" data-rs-form="say">
+        <label>Your comment <small>(posted on ${esc(name)} as you, where anyone can read it)</small><textarea name="text" rows="3" maxlength="4000" required>${esc(draft)}</textarea></label>
+        ${it.example ? '<p class="rs-muted">This is an example, so nothing is really posted.</p>' : ''}
+        ${on ? `<div class="rs-row"><button class="rs-btn rs-primary" type="submit">Post on ${esc(name)}</button>${where}</div>`
+          : host.connectForge ? `<p class="rs-note">${ico('lock')}<span>Rainshare needs your OK before it can post on ${esc(name)} for you. Your server shows exactly what’s being added, and brings you back here with your comment still written.</span><button class="rs-btn rs-primary rs-sm" type="button" data-rs-act="connect-forge" data-rs-forge="${forge}">Connect ${esc(name)}</button></p>`
+            : `<p class="rs-muted">Posting to ${esc(name)} isn’t set up here.</p>`}
+      </form></div></details>`;
+  }
+  async function submitSay(form){
+    const it = S.seed, forge = writableForge(it?.value?.subject), text = String(new FormData(form).get('text') || '').trim(), btn = form.querySelector('[type=submit]');
+    if (!it || !forge || !text) return;
+    if (btn) btn.disabled = true;
+    try {
+      const r = await S.source.forgeComment(it.value.subject, text);
+      S.drafts.say = { uri: it.uri, text: '' }; S.open.say = false;
+      toast(r?.attested === false ? `Posted on ${FORGE_SAID[forge]}. It may show as unverified there for a while.` : `Posted on ${FORGE_SAID[forge]}.`);
+      render();
+    } catch (e) {
+      // Your server said this sign-in doesn't allow it: offer to connect, with the comment kept.
+      if (e?.name === 'NotConnected') { S.unlinked = forge; rerender(); }
+      toast(plainText(e)); if (btn) btn.disabled = false;
+    }
   }
   function renderSeed(){
     const back = a('', `${ico('back')}Back to the board`, 'rs-back');
@@ -455,7 +494,7 @@ export function createRainshare({ root, base = '/', host }){
         pl.do === 'sprout' ? `<button class="rs-btn rs-primary rs-sm" type="button" data-rs-sprout="${esc(pl.delivery)}">Mark it done</button>`
           : pl.do === 'close-issue' ? (safeHttp(pl.href) && !it.example ? `<a class="rs-btn rs-quiet rs-sm" href="${esc(safeHttp(pl.href))}" target="_blank" rel="noopener">Open the issue</a>` : '')
             : sproutBtn}</p>`;
-      const tell = open && page && d?.issue && !it.example ? `<button class="rs-link" type="button" data-rs-copy-text="${esc(`I’ve asked for a hand with this on Rainshare, for anyone with spare agent usage who’d like to take it on: ${page}`)}" data-rs-copied="Copied. Paste it as a comment on the issue.">Copy a note for the issue</button>` : '';
+      const tell = open && page && d?.issue && !it.example && !writableForge(sq.subject) ? `<button class="rs-link" type="button" data-rs-copy-text="${esc(`I’ve asked for a hand with this on Rainshare, for anyone with spare agent usage who’d like to take it on: ${page}`)}" data-rs-copied="Copied. Paste it as a comment on the issue.">Copy a note for the issue</button>` : '';
       actions = `${next}<div class="rs-row">${open ? `<button class="rs-btn rs-quiet" type="button" data-rs-act="close">Close it</button>` : `<button class="rs-btn rs-quiet" type="button" data-rs-act="reopen">Reopen it</button>`}
         ${shareBtn(it, 'Share on Bluesky')}${tell}
         <button class="rs-link rs-danger" type="button" data-rs-act="delete">Delete</button></div>
@@ -504,6 +543,7 @@ export function createRainshare({ root, base = '/', host }){
           <section class="rs-ask-full"><div class="rs-ask-head"><h2>The ask</h2>${mdBtn(it, 'rs-quiet rs-sm')}</div>
             <div class="rs-spec">${sq.spec ? renderMarkdown(sq.spec) : '<p class="rs-muted">No details beyond the title.</p>'}${safeHttp(sq.specUrl) ? `<p><a href="${esc(safeHttp(sq.specUrl))}" target="_blank" rel="noopener nofollow">The longer spec</a></p>` : ''}</div></section>
           <div class="rs-actions">${actions}</div>
+          ${sayBox(it, { mine, taken, page, d })}
           ${deliveries ? `<h2>Turned in</h2><ul class="rs-people rs-deliveries">${deliveries}</ul>` : ''}
           ${linked ? `<h2>Also on ${esc(forge)}</h2><ul class="rs-people rs-deliveries rs-linked">${linked}</ul>` : ''}
         </div>
@@ -725,6 +765,7 @@ export function createRainshare({ root, base = '/', host }){
   /* ---------- asking for rain on a seed or a plant (./post.js draws the steps) ---------- */
   const poster = createPoster({
     root, a, go, toast, title, plainText, self, viewer, live: () => livePlants(),
+    forges: () => host.forges?.() || [], connectForge: host.connectForge ? forge => host.connectForge(forge, S.sub) : null,
     source: () => S.source,
     render: () => render(),
     onPosted(){ S.board = null; loadBoard(true); }
@@ -753,6 +794,8 @@ export function createRainshare({ root, base = '/', host }){
   function stash(){
     const t = root.querySelector('[data-rs-form="turnin"]');
     if (t) S.drafts.turnIn = Object.fromEntries(new FormData(t));
+    const c = root.querySelector('[data-rs-form="say"]');
+    if (c && S.seed) S.drafts.say = { uri: S.seed.uri, text: String(new FormData(c).get('text') || '') };
     const m = root.querySelector('[data-rs-form="me"]');
     if (m && S.form?.profile) readMe(m);
   }
@@ -775,6 +818,12 @@ export function createRainshare({ root, base = '/', host }){
         return;
       }
       if (name === 'show-launch') { S.launch = S.launch || pickLauncher(launchers(it, { viewer: viewer() }))?.id || 'brief'; rerender(); root.querySelector('#rsLaunch')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+      if (name === 'connect-forge') {
+        stash();
+        try { sessionStorage.setItem(SAY_KEPT, JSON.stringify(S.drafts.say || null)); } catch (_) {}
+        await host.connectForge?.(el.dataset.rsForge, S.sub);
+        return;
+      }
       if (name === 'again') { S.again = it.uri; render(); root.querySelector('[data-rs-form="turnin"] input')?.focus(); return; }
       if (name === 'sprout') { await S.source.update(it, { state: 'sprouted' }); S.seed = await reread(it); S.board = null; loadBoard(); toast('Marked done'); render(); return; }
       if (name === 'drop') {
@@ -889,6 +938,7 @@ export function createRainshare({ root, base = '/', host }){
     if (f.dataset.rsForm === 'post') poster.submit();
     else if (f.dataset.rsForm === 'me') submitMe(f);
     else if (f.dataset.rsForm === 'turnin') submitTurnIn(f);
+    else if (f.dataset.rsForm === 'say') submitSay(f);
     else if (f.dataset.rsForm === 'signin') submitSignin(f);
   });
   root.addEventListener('input', e => { if (e.target.closest('[data-rs-form="post"]')) poster.typed(e.target); });
@@ -922,7 +972,7 @@ export function createRainshare({ root, base = '/', host }){
     show,
     /** Hand in a (new) data source: on sign-in, sign-out, or switching to the example circle. */
     async setSource(source){
-      Object.assign(S, { source, board: null, mine: null, garden: null, seed: null, form: null, drafts: {}, tab: 'foryou', signin: null, pick: null, sheet: false });
+      Object.assign(S, { source, board: null, mine: null, garden: null, unlinked: null, seed: null, form: null, drafts: {}, tab: 'foryou', signin: null, pick: null, sheet: false });
       poster.reset();
       render();
       if (source?.signedIn) { await loadMine(); loadGarden(); }

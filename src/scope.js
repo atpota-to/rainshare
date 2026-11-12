@@ -2,7 +2,7 @@
 // (plain data) behind it, because the Vercel function behind /oauth-client-metadata.json imports it too
 // (api/oauth-client-metadata.js): a hosted client whose document declares less than the app
 // asks for fails every sign-in, so both come from here.
-import { GROUPS } from '../core/ns.js';
+import { GROUPS, FORGE_SCOPES } from '../core/ns.js';
 
 const env = import.meta.env || {};
 
@@ -37,6 +37,21 @@ export const SCOPE = !GROUPS ? BASIC_SCOPE : [
   ...METHODS.map(rpc)
 ].join(' ');
 
+// Posting to a forge for you (an issue or a comment on knotless or Tangled) needs more than
+// sign-in asks for, so it's asked for separately, when you connect that forge, and added to
+// whatever the sign-in already had. FORGE_SCOPES in ../core/ns.js says what each needs.
+export const FORGES = Object.keys(FORGE_SCOPES);
+const known = forges => FORGES.filter(f => (forges || []).includes(f));
+export const withForges = (scope, forges) => [scope, ...known(forges).flatMap(f => FORGE_SCOPES[f])].join(' ');
+/** Which forges a granted scope lets Rainshare post to. A server may write a scope its own way, so this looks for what each names. */
+export function forgesIn(scope){
+  const has = s => String(scope || '').split(/\s+/).some(x => x.split('?')[0] === s.split('?')[0]);
+  return FORGES.filter(f => FORGE_SCOPES[f].every(has));
+}
+// Everything the app might ever ask for. A hosted client's document has to declare it all,
+// though a sign-in only asks for what it needs.
+export const DECLARED_SCOPE = withForges(SCOPE, FORGES);
+
 export const REDIRECT_PATH = '/signed-in';
 
 export function clientMetadata(origin){
@@ -46,7 +61,7 @@ export function clientMetadata(origin){
     client_uri: origin,
     logo_uri: origin + '/favicon.svg',
     redirect_uris: [origin + REDIRECT_PATH],
-    scope: SCOPE,
+    scope: DECLARED_SCOPE,
     grant_types: ['authorization_code', 'refresh_token'],
     response_types: ['code'],
     token_endpoint_auth_method: 'none',
