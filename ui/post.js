@@ -307,7 +307,6 @@ export function createPoster(ui){
     const plant = !!P.stage && P.stage !== 'seed';
     const stageTile = (v, pic, on, t, n) => `<button type="button" class="rs-tile rs-stage" data-rs-stage="${v}" role="radio" aria-checked="${on}">${plantPic(pic, 84)}<b>${esc(t)}</b><small>${esc(n)}</small></button>`;
     return `<h1 tabindex="-1">What would you like a hand with?</h1>
-      <p class="rs-lede">An idea that nothing’s been built for yet, or a project you already have, however far along.</p>
       <div class="rs-tiles rs-stages rs-stages-2" role="radiogroup" aria-label="An idea or a project">
         ${stageTile('seed', 'seed', P.stage === 'seed', 'An idea', 'Nothing’s been built yet.')}
         ${stageTile('plant', plant ? P.stage : 'young', plant, 'A project', 'Something you already have.')}
@@ -325,17 +324,17 @@ export function createPoster(ui){
       <summary>${summary} <small>optional</small></summary><div class="rs-more-body">${body}</div></details>`;
   function stepWhat(){
     if (P.kind === 'idea') return `<h1 tabindex="-1">What’s the idea?</h1>
-      <p class="rs-lede">Say it the way you would to a friend. Plain words are fine.</p>
+      <p class="rs-lede">Say it the way you would to a friend.</p>
       <label>A short title<input name="title" maxlength="120" required autocomplete="off" placeholder="A seating chart that shuffles itself" value="${esc(P.title)}"></label>
-      <label>What should it do? <small>Who it’s for, what it should do, and anything it shouldn’t.</small>
-        <textarea name="spec" rows="10" maxlength="10000" placeholder="I’d love a little tool that… It should… It doesn’t need to…">${esc(P.spec)}</textarea></label>
+      <label>What should it do? <small>Plain words are fine.</small>
+        <textarea name="spec" rows="8" maxlength="10000" placeholder="I’d love a little tool that… It’s for… It should… It doesn’t need to…">${esc(P.spec)}</textarea></label>
       <label>Written up somewhere already? <small>Optional: a link to notes or a sketch</small><input name="specUrl" type="url" inputmode="url" placeholder="https://…" value="${esc(P.specUrl)}"></label>
       ${howFields()}`;
     return `<h1 tabindex="-1">What would you like done?</h1>
       <p class="rs-lede">Say it the way you would to a friend.${P.prefilled ? ' We’ve started you off from the issue.' : ''}</p>
       <label>A short title<input name="title" maxlength="120" required autocomplete="off" placeholder="Keep drafts out of the RSS feed" value="${esc(P.title)}"></label>
-      <label>What does done look like? <small>What’s wrong, what done looks like, and anything to avoid. Markdown works.</small>
-        <textarea name="spec" rows="10" maxlength="10000" placeholder="Right now… It’d be great if… Please don’t…">${esc(P.spec)}</textarea></label>
+      <label>What does done look like? <small>Markdown works.</small>
+        <textarea name="spec" rows="8" maxlength="10000" placeholder="Right now… It’d be great if… Please don’t…">${esc(P.spec)}</textarea></label>
       <label>A longer spec somewhere? <small>Optional, like a SPEC.md in the repo</small><input name="specUrl" type="url" inputmode="url" placeholder="https://…/SPEC.md" value="${esc(P.specUrl)}"></label>
       ${howFields()}`;
   }
@@ -381,7 +380,7 @@ export function createPoster(ui){
       body = `${gs == null ? '<p class="rs-muted">Finding your groups…</p>' : !gs.length ? '<p class="rs-muted">You’re not in any groups yet.</p>' : ''}
         ${withBoard.length ? `<div class="rs-options" role="radiogroup" aria-label="Which group">${withBoard.map(g => row('data-rs-group', g.did, P.group === g.did, g.name, '', g.memberCount ? members(g.memberCount) : '')).join('')}</div>` : ''}
         ${without.map(g => `<div class="rs-addrow"><span>${esc(g.name)} doesn’t have Rainshare yet</span>${g.canAdd ? `<button class="rs-btn rs-quiet rs-sm" type="button" data-rs-add-group="${esc(g.did)}">Add it</button>` : '<small>An admin can add it</small>'}</div>`).join('')}
-        <p class="rs-muted">Only the group’s members can read it. It stays in your own account, inside the group’s private Rainshare space.</p>`;
+        <p class="rs-muted">Only the group’s members can read it.</p>`;
     } else {
       const lists = P.lists;
       body = `<div class="rs-options" role="radiogroup" aria-label="Who it’s for">${AUDIENCE_PICKS.map(([k, t, n]) => row('data-rs-aud', k, P.audience === k, t, k === 'list' && listNow() ? listNow().name : n, people(countFor(k)))).join('')}</div>
@@ -401,10 +400,9 @@ export function createPoster(ui){
       <label class="rs-check"><input type="checkbox" name="parallel"${P.parallel ? ' checked' : ''}> More than one helper can try at once</label>
       ${pub ? `<div class="rs-bsky-opt">
         <label class="rs-check"><input type="checkbox" name="bsky"${P.bsky ? ' checked' : ''}> Also post it on Bluesky, so ${P.audience === 'anyone' ? 'people' : FOR[P.audience]} notice</label>
-        ${P.bsky ? `<textarea name="bskyText" rows="3" maxlength="230" aria-label="Your Bluesky post">${esc(bskyText())}</textarea><small>The link to it goes on the end. Bluesky opens with this ready, and you post it there.</small>` : ''}
+        ${P.bsky ? `<textarea name="bskyText" rows="3" maxlength="230" aria-label="Your Bluesky post">${esc(bskyText())}</textarea><small>Bluesky opens with this ready, and the link on the end. You post it there.</small>` : ''}
       </div>` : ''}
-      <p class="rs-muted">${pub ? 'It’s saved as a record in your own account.' : `It’s saved in your own account, inside ${esc(groupNow()?.name || 'the group')}’s private Rainshare space.`} You can close it, reopen it or delete it whenever you like.</p>
-      <p class="rs-muted">Rainshare is in early ${STAGE}: if something here breaks, your ask is still safe in your own account.</p>`;
+      <p class="rs-muted">${pub ? 'It’s saved in your own account' : `It’s saved in your own account, inside ${esc(groupNow()?.name || 'the group')}’s private Rainshare space`}, and you can close, reopen or delete it any time. Rainshare is in early ${STAGE}, so expect rough edges.</p>`;
   }
 
   // The preview beside the steps: the card as the board will show it, then (on the last
@@ -425,7 +423,9 @@ export function createPoster(ui){
         <dl class="rs-facts rs-facts-sm"><dt>Where</dt><dd>${esc(whereText(sq))}</dd><dt>The job</dt><dd>${esc(jobText(sq))}</dd><dt>Would like</dt><dd>${esc(wantsText(sq))}</dd></dl>
       </div>
       <p class="rs-muted">${esc(reachText())}</p>`;
-    return `<span class="rs-side-label">How it will look on the board</span>${card}<p class="rs-muted">${esc(P.step === 1 && P.kind === 'idea' ? 'An idea doesn’t need a repo yet. Whoever picks it up starts one.' : HINTS[P.step])}</p>`;
+    // A hint for the step, once there's something for it to be about.
+    const hint = P.step > 1 ? HINTS[P.step] : !P.stage ? '' : P.kind === 'idea' ? 'An idea doesn’t need a repo yet. Whoever picks it up starts one.' : HINTS[1];
+    return `<span class="rs-side-label">How it will look on the board</span>${card}${hint ? `<p class="rs-muted">${esc(hint)}</p>` : ''}`;
   }
   // Typing only repaints the preview and the line under the link, so fields keep their focus.
   function paint(){

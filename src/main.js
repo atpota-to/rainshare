@@ -1,8 +1,8 @@
 // rainshare.dev. The screens are in ../ui and the data in ../core; this file is the site
 // around them:
 //
-//   /               your circle (signed out: the landing, and everything open to everyone)
-//   /example/…      the example circle, kept in this browser
+//   /               the board (signed out: the landing, and everything open to everyone)
+//   /example/…      the example circle, kept in this browser (linked from the landing)
 //   /seed/…, /new, /me, /u/…, /agents   Rainshare's own screens (see ../ui/rainshare.js)
 //   /signed-in      where your server sends you back after signing in
 import './fonts.css';
@@ -111,8 +111,9 @@ function route(){
   $('#circle').hidden = kind !== 'real';
   const landing = ready && kind === 'real' && !session && !sub;
   $('#landing').hidden = !landing;
-  // The example circle is for looking around before signing in; once you're in, your own circle is the thing.
-  $('[data-tab="example"]').hidden = !!session && kind !== 'example';
+  // The example circle is reached from the landing. Its tab shows only while you're in it,
+  // so every one of its pages says where you are.
+  $('[data-tab="example"]').hidden = kind !== 'example';
   landing ? showLanding() : hideLanding();
   document.querySelectorAll('[data-tab]').forEach(a => a.setAttribute('aria-current', String(a.dataset.tab === (kind === 'example' ? 'example' : sub === 'agents' ? 'agents' : 'circle'))));
   app(kind).show(sub);
