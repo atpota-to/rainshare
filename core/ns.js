@@ -60,7 +60,7 @@ export const BUDGETS = [
 // [value, what people read]
 // By provider, not by tier: whether it's Pro or Max, Plus or Pro, isn't asked.
 export const PLANS = [
-  ['claude', 'Claude'], ['chatgpt', 'ChatGPT'], ['copilot', 'GitHub Copilot'], ['cursor', 'Cursor'], ['gemini', 'Gemini'], ['zai', 'Z.ai GLM'],
+  ['claude', 'Claude'], ['chatgpt', 'ChatGPT'], ['copilot', 'Copilot'], ['cursor', 'Cursor'], ['gemini', 'Gemini'], ['zai', 'Z.ai GLM'],
   ['free', 'Free tiers only'], ['none', 'No AI plan']
 ];
 // Plans were by tier for a while: a record that says one counts as its provider's.

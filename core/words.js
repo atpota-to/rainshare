@@ -106,7 +106,7 @@ export function takenShort(item, viewer){
 }
 
 /**
- * Someone's AI plan as one line: "Claude and GitHub Copilot", "No AI plan". An older
+ * Someone's AI plan as one line: "Claude and Copilot", "No AI plan". An older
  * profile without plans says it with the plan typed into its setups, or with its budget when
  * that said none or free (a budget's spending brackets aren't subscriptions). '' when they
  * haven't said. (A plan nobody knows is shown as written, clipped.)

@@ -163,7 +163,7 @@ test('set aside, who you’d like to help first and their situation have no say 
 test('the models an ask would like, against your plans and what you run', () => {
   const opus = { wants: { models: ['claude-opus-5-5', 'claude-sonnet-5-5'] } };
   assert.equal(modelsText(opus, { plans: ['claude'] }), 'Opus or Sonnet. Your Claude plan has Claude models.');
-  assert.equal(modelsText(opus, { plans: ['copilot'] }), 'Opus or Sonnet. Your GitHub Copilot plan has Claude models.');
+  assert.equal(modelsText(opus, { plans: ['copilot'] }), 'Opus or Sonnet. Your Copilot plan has Claude models.');
   assert.equal(modelsText(opus, { plans: ['chatgpt'] }), 'Opus or Sonnet. Not in your plan or setup.');
   // Pay as you go and paid by work or school aren't plans here any more: a record that has them says nothing either way.
   assert.equal(modelsText(opus, { plans: ['api'] }), 'Opus or Sonnet.');
@@ -204,7 +204,7 @@ test('an ask says a model family and a level, not a model', () => {
   // On the board.
   const it = { closeness: 'mutual', author: { displayName: 'Tomás' }, value: ask(['claude'], 'frontier') };
   assert.equal(fit(it, { did: 'did:me', profile: sonnet }).why, 'Tomás is a mutual. It’d like a frontier Claude model, and you run Sonnet.');
-  assert.equal(fit(it, { did: 'did:me', profile: { plans: ['copilot'] } }).why, 'Tomás is a mutual. It’d like a frontier Claude model, and your GitHub Copilot plan has Claude models.');
+  assert.equal(fit(it, { did: 'did:me', profile: { plans: ['copilot'] } }).why, 'Tomás is a mutual. It’d like a frontier Claude model, and your Copilot plan has Claude models.');
   // What's written: known families and any others as tags, and a level only if it's one there is.
   const w = R.seed({ title: 't', wants: { families: ['Claude', 'claude', 'Llama 4'], level: 'frontier' } }).wants;
   assert.deepEqual(w, { families: ['claude', 'llama-4'], level: 'frontier' });
@@ -246,7 +246,7 @@ test('a name and a bio of your own on Rainshare, over your Bluesky profile’s',
 });
 
 test('AI plans: one line, from plans first and an older profile’s budget otherwise', () => {
-  assert.equal(planText({ plans: ['claude', 'copilot'] }), 'Claude and GitHub Copilot');
+  assert.equal(planText({ plans: ['claude', 'copilot'] }), 'Claude and Copilot');
   // By provider, not tier: a tier from an older record counts as its provider's.
   assert.equal(planText({ plans: ['claude-pro', 'claude-max', 'chatgpt-plus'] }), 'Claude and ChatGPT');
   assert.equal(modelsText({ wants: { families: ['gpt'] } }, { plans: ['chatgpt-pro'] }), 'GPT. Your ChatGPT plan has GPT models.');
