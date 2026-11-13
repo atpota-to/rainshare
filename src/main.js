@@ -1,7 +1,9 @@
 // rainshare.dev. The screens are in ../ui and the data in ../core; this file is the site
 // around them:
 //
-//   /               the board (signed out: the landing, and everything open to everyone)
+//   /               signed out, the landing, and everything open to everyone under it;
+//                   signed in, the board
+//   /board          the board on its own, signed in or out (the bar's "Board")
 //   /example/…      the example circle, kept in this browser (linked from the landing)
 //   /seed/…, /new, /me, /u/…, /agents   Rainshare's own screens (see ../ui/rainshare.js)
 //   /signed-in      where your server sends you back after signing in
@@ -54,6 +56,8 @@ const host = kind => ({
   brand: 'rainshare',
   // Nobody to restore and nobody coming back from signing in: the screens needn't wait to say hello.
   visitor: kind === 'real' && visitor,
+  // Signed out, / is the landing with the board under it, so the board has an address of its own (/board).
+  landing: kind === 'real',
   navigate,
   toast,
   // Only the circle on screen names the page: the other one goes on loading behind it.
@@ -158,7 +162,9 @@ function route(){
   // so every one of its pages says where you are.
   $('[data-tab="example"]').hidden = kind !== 'example';
   landing ? showLanding() : hideLanding();
-  document.querySelectorAll('[data-tab]').forEach(a => a.setAttribute('aria-current', String(a.dataset.tab === (kind === 'example' ? 'example' : sub === 'agents' ? 'agents' : 'circle'))));
+  // (The landing isn't the board: no tab is the page you're on there.)
+  const tab = kind === 'example' ? 'example' : sub === 'agents' ? 'agents' : landing ? null : 'circle';
+  document.querySelectorAll('[data-tab]').forEach(a => a.setAttribute('aria-current', String(a.dataset.tab === tab)));
   app(kind).show(sub);
 }
 function navigate(path, o = {}){

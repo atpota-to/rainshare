@@ -34,6 +34,7 @@ export const HOME = {
 };
 // Pages that say the same thing to everyone.
 const FIXED = {
+  board: { path: '/board', heading: 'The board', line: 'Ideas and projects people want help with. Pick one and send your agent to do the work, on your plan.', plant: 'young-2' },
   agents: { path: '/agents', heading: 'Send your agent', line: 'Paste a brief into any agent, or set up one small file and yours can find work, take it on and turn it in.', plant: 'established-7' },
   example: { path: '/example', heading: 'An example circle', line: 'Made-up people and their asks. Send an agent, ask for rain, mark something done. Nothing leaves your browser.', plant: 'young-4' }
 };
@@ -107,7 +108,7 @@ async function personPage(rawWho, signal){
 
 /**
  * What to say about the page a request is for. `q` is the query the rewrites in vercel.json
- * hand over: { kind: 'seed' | 'person' | 'agents' | 'example', who, rkey }. Anything that isn't
+ * hand over: { kind: 'seed' | 'person' | 'board' | 'agents' | 'example', who, rkey }. Anything that isn't
  * valid, can't be found or takes too long gets the home page's words: never an error.
  */
 export async function describe(q = {}, { budget = BUDGET } = {}){

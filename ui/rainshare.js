@@ -3,7 +3,7 @@
 // accounts, demo.js for the example circle) and a few hooks, and calls show(subpath)
 // whenever the address changes:
 //
-//   ''                 the board: what's open, best first for you, narrowed by who asked if you
+//   '' or board        the board: what's open, best first for you, narrowed by who asked if you
 //                      like. Short cards in a list, and the one you pick in full beside them (a
 //                      sheet from the bottom on phones), with how you know whoever asked. What
 //                      you've asked for is on your own page (u/<you>)
@@ -14,6 +14,10 @@
 //                      with what you've helped with beside it
 //   u/<did>            someone's profile and their seeds
 //   agents             the CLI and MCP server, for sending agents from a terminal
+//
+// A host with a landing of its own at its base address, for people signed out (rainshare.dev,
+// host.landing), shows the board under it there. The board's own address is then 'board', and
+// every way back to the board leads there, to the board on its own.
 import { SEED, STAGE, FEATURES, PLANS, UNPAID, plansIn, HARNESSES, MODELS, RUNS_ON, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, labelOf, modelName } from '../core/ns.js';
 import { describeSubject, cloneUrlOf, safeHttp, pullPageOf, FORGE_NAMES } from '../core/subjects.js';
 import { look, carry, standing } from '../core/status.js';
@@ -59,15 +63,19 @@ export function createRainshare({ root, base = '/', host }){
 
   /* ---------- small pieces ---------- */
   const a = (sub, inner, cls = '') => `<a href="${esc(href(sub))}" data-rs-go="${esc(sub)}" class="${cls}">${inner}</a>`;
-  const back = () => a('', `${ico('back')}Back to the board`, 'rs-back');
+  // Where the links to the board lead, and whether it's sitting under the host's landing now.
+  const BOARD_AT = host.landing ? 'board' : '';
+  const isBoard = sub => !sub || sub === 'board';
+  const underLanding = () => !!host.landing && !signedIn() && !S.sub;
+  const back = () => a(BOARD_AT, `${ico('back')}Back to the board`, 'rs-back');
   // Nothing's at an address, or what was there is gone: said plainly, with the ways on from it.
-  const nothingHere = (what, more = '') => `${back()}<div class="rs-empty rs-need"><p>${what}</p><div class="rs-row">${a('', 'Go to the board', 'rs-btn rs-primary')}${more}</div></div>`;
+  const nothingHere = (what, more = '') => `${back()}<div class="rs-empty rs-need"><p>${what}</p><div class="rs-row">${a(BOARD_AT, 'Go to the board', 'rs-btn rs-primary')}${more}</div></div>`;
   // Someone who followed a link here from somewhere else hasn't seen the landing. Signed out,
   // an ask's page and a person's page say in a line what this place is, with the way to the rest.
   // (Before the page knows who's looking, the host says whether there's a sign-in to wait for.)
   const newHere = (more = '') => (S.source ? signedIn() || S.source.demo : !host.visitor) ? '' : `<aside class="rs-note rs-newhere">${ico('drop')}<span><b>${lit('New to Rainshare?')}</b> People post ideas and projects they want help with, and others send their own AI agent to do the work, on their own plan.${more ? ' ' + esc(more) : ''}</span>${host.brand === 'rainshare' ? a('', 'How it works', 'rs-link') : ''}</aside>`;
   // A screen that's only for someone signed in says so once, with the way in beside it.
-  const needSignIn = what => `${a('', `${ico('back')}Back to the board`, 'rs-back')}<div class="rs-empty rs-need"><p>${what}</p>${host.signIn ? '<button class="rs-btn rs-primary" type="button" data-rs-act="signin">Sign in</button>' : ''}</div>`;
+  const needSignIn = what => `${back()}<div class="rs-empty rs-need"><p>${what}</p>${host.signIn ? '<button class="rs-btn rs-primary" type="button" data-rs-act="signin">Sign in</button>' : ''}</div>`;
   const seg = (name, opts, value) => `<div class="rs-seg" role="group" data-rs-seg="${name}">${opts.map(([v, l]) => `<button type="button" data-v="${esc(v)}" aria-pressed="${v === value}">${esc(l)}</button>`).join('')}</div>`;
   const toggles = (name, opts, values) => `<div class="rs-toggles" data-rs-toggles="${name}">${opts.map(([v, l]) => `<button type="button" data-v="${esc(v)}" aria-pressed="${(values || []).includes(v)}">${esc(l)}</button>`).join('')}</div>`;
   function plain(e){
@@ -288,15 +296,19 @@ export function createRainshare({ root, base = '/', host }){
     return `
       <header class="rs-head">
         <div class="rs-brand">${host.brand !== 'rainshare' ? `<span class="rs-logo">${ico('drop')}</span>` : ''}<div>${
-          // On rainshare.dev a signed-out board sits under the landing, which has the page's h1.
           host.brand !== 'rainshare' ? `<h1>Rainshare</h1><p>${lit('Got rain to spare? Pick an idea or a project and send your agent.')}</p>`
             : signedIn() ? `<h1>Your circle’s ideas and projects</h1><p>${lit('Got rain to spare? Pick one and send your agent.')}</p>`
-              : '<h2>Ideas and projects anyone can help with</h2><p>Sign in to see the ones from people you follow too, sorted by how well each suits you.</p>'
+              // Under the landing, which has the page's h1 and says what Rainshare is.
+              : underLanding() ? '<h2>Ideas and projects anyone can help with</h2><p>Sign in to see the ones from people you follow too, sorted by how well each suits you.</p>'
+                // On its own, for someone who may have come straight here: the way to what Rainshare is.
+                : `<h1>Ideas and projects anyone can help with</h1><p>Sign in to see the ones from people you follow too, sorted by how well each suits you. ${host.landing ? a('', 'How Rainshare works', 'rs-link') : ''}</p>`
         }</div></div>
         <div class="rs-head-actions">
           ${yours}
           ${signedIn() && FEATURES.forecast ? a('me', `${skyIco(fc?.[0])}${fc ? esc(fc[1]) : 'Your forecast'}`, 'rs-btn rs-quiet rs-fc' + (fc ? ' rs-fc-' + fc[0] : '')) : ''}
-          ${signedIn() ? a('new', `${ico('plus')}Ask for rain`, 'rs-btn rs-primary') : host.signIn ? `<button class="rs-btn rs-primary" type="button" data-rs-act="signin">Sign in</button>` : ''}
+          ${signedIn() ? a('new', `${ico('plus')}Ask for rain`, 'rs-btn rs-primary')
+            // (rainshare.dev's bar has its own "Sign in", and the landing its own form.)
+            : host.signIn && host.brand !== 'rainshare' ? `<button class="rs-btn rs-primary" type="button" data-rs-act="signin">Sign in</button>` : ''}
         </div>
       </header>
       ${signedIn() && !S.source?.demo && !stageSeen() ? `<p class="rs-note rs-stage-note">${ico('info')}<span>Rainshare is in early ${esc(STAGE)}, so things may change or break. What you post stays in your own account.</span><button class="rs-link" type="button" data-rs-act="stage-seen">Got it</button></p>` : ''}
@@ -833,7 +845,7 @@ export function createRainshare({ root, base = '/', host }){
     const plansNow = plansIn(p).length ? plansIn(p) : { none: ['none'], free: ['free'] }[p.budget] || [];
     const visSel = field => !priv ? '' : `<div class="rs-vis"><select data-rs-vis="${field}" aria-label="Who sees this"><option value="public"${!hidden.includes(field) ? ' selected' : ''}>Everyone sees this</option><option value="private"${hidden.includes(field) ? ' selected' : ''}>Only my groups</option></select></div>`;
     const withBoard = (groups || []).filter(g => g.space);
-    return `${a('', `${ico('back')}Back to the board`, 'rs-back')}
+    return `${back()}
       <div class="rs-me-wrap">
       <form class="rs-form rs-me" data-rs-form="me">
         <div class="rs-hrow"><h1>Your profile</h1>${tip('What people see about you. All of it is optional, and it’s saved in your own account.', 'About your profile')}</div>
@@ -969,7 +981,7 @@ export function createRainshare({ root, base = '/', host }){
     const json = JSON.stringify({ mcpServers: { rainshare: { command: 'node', args: [CLI_HOME.replace('~', '/Users/you'), 'mcp'], env: { RAINSHARE_HANDLE: 'you.bsky.social', RAINSHARE_APP_PASSWORD: 'xxxx-xxxx-xxxx-xxxx' } } } }, null, 2);
     title('Agents');
     // A host with its own tabs (rainshare.dev) doesn't need a way back to the board.
-    return `${host.brand === 'rainshare' ? '' : a('', `${ico('back')}Back to the board`, 'rs-back')}
+    return `${host.brand === 'rainshare' ? '' : back()}
       <div class="rs-agents">
         <header class="rs-agents-head">
           <h1>Send your agent</h1>
@@ -1032,7 +1044,7 @@ export function createRainshare({ root, base = '/', host }){
 
   /* ---------- asking for rain on a seed or a plant (./post.js draws the steps) ---------- */
   const poster = createPoster({
-    root, a, go, toast, title, plainText, self, viewer, live: () => livePlants(),
+    root, a, go, board: BOARD_AT, toast, title, plainText, self, viewer, live: () => livePlants(),
     forges: () => host.forges?.() || [], connectForge: host.connectForge ? forge => host.connectForge(forge, S.sub) : null,
     source: () => S.source,
     render: () => render(),
@@ -1079,7 +1091,7 @@ export function createRainshare({ root, base = '/', host }){
     for (const f of fading) { f.el.style.animationDelay = `${f.at - now}ms`; box.appendChild(f.el); }
   }
   // Before it's known who's looking, the address already says which screen is coming.
-  const viewOf = sub => !sub ? 'board' : /^seed\//.test(sub) ? 'seed' : /^u\//.test(sub) ? 'person' : sub;
+  const viewOf = sub => isBoard(sub) ? 'board' : /^seed\//.test(sub) ? 'seed' : /^u\//.test(sub) ? 'person' : sub;
   const ahead = sub => ({ board: () => headSk() + boardSk(), seed: () => newHere() + back() + seedSk(), person: () => newHere() + back() + personSk() })[viewOf(sub)]?.() || '';
   const renderLost = () => { title('Nothing here'); return nothingHere('There’s nothing at this address. The link may have been cut short, or what it led to has been deleted.'); };
   function render(){
@@ -1095,7 +1107,7 @@ export function createRainshare({ root, base = '/', host }){
       const el = root.querySelector(`[name="${keep.name}"]`);
       if (el) { el.focus({ preventScroll: true }); try { if (keep.pos != null) el.setSelectionRange(keep.pos, keep.pos); } catch (_) {} }
     }
-    if (S.view === 'board') title(null);
+    if (S.view === 'board') title(S.sub ? 'The board' : null);
     livePlants();
   }
 
@@ -1150,10 +1162,10 @@ export function createRainshare({ root, base = '/', host }){
       if (name === 'close' || name === 'reopen') { await S.source.update(it, { state: name === 'close' ? 'closed' : 'open' }); toast(name === 'close' ? 'Closed' : 'Reopened'); }
       if (name === 'delete') {
         if (!confirm(`Delete this ${nounOf(it.value)}? This removes the record from your account.`)) return;
-        await S.source.remove(it); toast('Deleted'); S.board = null; go(''); return;
+        await S.source.remove(it); toast('Deleted'); S.board = null; go(BOARD_AT); return;
       }
       if (name === 'add-setup') { stash(); S.form.profile.setups = [...(S.form.profile.setups?.length ? S.form.profile.setups : [{ harness: 'claude-code', models: [] }]), { harness: 'codex', models: [] }]; render(); return; }
-      if (name === 'reset-demo') { S.source.reset(); S.form = null; S.board = null; poster.reset(); await loadMine(true); toast('The example circle is back to how it started'); go(''); return; }
+      if (name === 'reset-demo') { S.source.reset(); S.form = null; S.board = null; poster.reset(); await loadMine(true); toast('The example circle is back to how it started'); go(BOARD_AT); return; }
       if (it && ['drop', 'close', 'reopen'].includes(name)) { S.seed = await reread(it); S.boardAt = 0; loadBoard(); render(); }
     } catch (e) { console.warn('rainshare', name, e); toast(plainText(e)); if (el) el.disabled = false; }
   }
@@ -1178,7 +1190,7 @@ export function createRainshare({ root, base = '/', host }){
     try {
       await S.source.saveProfile(S.form.profile, { hidden: S.form.hidden, share: S.form.share });
       await loadMine(true); S.form = null; S.boardAt = 0; loadBoard();
-      toast('Saved. Your board is re-sorted for you.'); go('');
+      toast('Saved. Your board is re-sorted for you.'); go(BOARD_AT);
     } catch (e) { err.hidden = false; err.innerHTML = plain(e); btn.disabled = false; btn.textContent = 'Save my profile'; }
   }
   async function submitTurnIn(form){
@@ -1293,7 +1305,7 @@ export function createRainshare({ root, base = '/', host }){
       if (meant != null && meant !== sub && known(meant)) return go(meant, { replace: true });
       S.view = 'lost'; render(); return;
     }
-    if (!sub) { S.view = 'board'; render(); loadBoard(); loadCircle(); }
+    if (isBoard(sub)) { S.view = 'board'; render(); loadBoard(); loadCircle(); }
     else if (sub === 'new') { S.view = 'new'; if (signedIn()) poster.enter(); else title('Ask for rain'); render(); }
     else if (sub === 'me') {
       S.view = 'me'; title('Your profile'); render();

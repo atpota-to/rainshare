@@ -85,7 +85,7 @@ test('a person’s page, and the pages that say the same to everyone', async () 
   assert.equal(p.card.person.avatar, profile.avatar);
   profile.avatar = 'https://evil.example/a.jpg';
   assert.equal((await describe({ kind: 'person', who: HANDLE })).card.person.avatar, null, 'a picture from anywhere but Bluesky’s image host is left out');
-  for (const kind of ['agents', 'example']) {
+  for (const kind of ['board', 'agents', 'example']) {
     const f = await describe({ kind });
     assert.equal(f.kind, kind); assert.match(f.title, / · Rainshare$/); assert.equal(f.image, `/api/og?kind=${kind}`); assert.equal(f.card.type, 'page');
   }
