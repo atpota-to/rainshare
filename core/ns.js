@@ -1,8 +1,8 @@
 // The record types, and the words people see for their values. Plain data, so the
 // browser apps and the CLI and MCP server read the same lists.
 export const NS = 'dev.rainshare';
-export const PROFILE = NS + '.profile', SEED = NS + '.seed', TAKE = NS + '.take', DELIVERY = NS + '.delivery';
-export const COLLECTIONS = [PROFILE, SEED, TAKE, DELIVERY];
+export const PROFILE = NS + '.profile', SEED = NS + '.seed', TAKE = NS + '.take', DELIVERY = NS + '.delivery', COMMENT = NS + '.comment';
+export const COLLECTIONS = [PROFILE, SEED, TAKE, DELIVERY, COMMENT];
 // The space type a group's Rainshare lives in (its private seeds, takes, deliveries and profiles).
 export const BOARD = NS + '.board';
 // Where Rainshare lives: every link it writes starts here (an ask's page in a brief, the link an

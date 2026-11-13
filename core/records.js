@@ -1,6 +1,6 @@
-// Building the four records from what people type, so every app writes the same shapes.
+// Building the records from what people type, so every app writes the same shapes.
 // Each builder trims, clips to the lexicon's limits and leaves out what's empty.
-import { PROFILE, SEED, TAKE, DELIVERY, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, PLANS, UNPAID, LEVELS, planKey, HARNESSES, RUNS_ON, AUDIENCES, TESTS, SIZES, OWNERS, STAGES, audienceOf } from './ns.js';
+import { PROFILE, SEED, TAKE, DELIVERY, COMMENT, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, PLANS, UNPAID, LEVELS, planKey, HARNESSES, RUNS_ON, AUDIENCES, TESTS, SIZES, OWNERS, STAGES, audienceOf } from './ns.js';
 import { parseUri } from './net.js';
 import { kindOf } from './subjects.js';
 
@@ -116,6 +116,18 @@ export function delivery({ seed: sq, take: tk, url, pull, setup: s, sessionUrl, 
     $type: DELIVERY, seed: strongRef(sq), take: tk?.uri && tk?.cid ? strongRef(tk) : undefined,
     url: link, pull: at, setup: setup(s), sessionUrl: httpUrl(sessionUrl), note: clip(note || '', 300), createdAt: now()
   });
+}
+
+/**
+ * A comment on a seed, or a reply to one of its comments (`parent`). A reply has to be about
+ * the same seed as the comment it answers.
+ */
+export function comment({ seed: sq, parent, text }){
+  if (!sq?.uri || !sq?.cid) throw new Error('That seed can’t be found.');
+  if (parent && (!parent.uri || !parent.cid || parent.value?.seed?.uri !== sq.uri)) throw new Error('That comment isn’t on this one.');
+  const said = clip(text || '', 3000);
+  if (!said) throw new Error('Write something first.');
+  return prune({ $type: COMMENT, seed: strongRef(sq), parent: parent ? strongRef(parent) : undefined, text: said, createdAt: now() });
 }
 
 export const HARNESS_NAMES = Object.fromEntries(HARNESSES);

@@ -1,0 +1,21 @@
+{
+  "lexicon": 1,
+  "id": "dev.rainshare.comment",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Something said about a seed: a question, an answer, an update. Written by whoever says it, in their own repo (or their repo in the same group space), pointing at the seed and, for a reply, at the comment it answers. Deleting it takes it back.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["seed", "text", "createdAt"],
+        "properties": {
+          "seed": { "type": "ref", "ref": "com.atproto.repo.strongRef", "description": "The seed it's about. A reply names the same seed as the comment it answers." },
+          "parent": { "type": "ref", "ref": "com.atproto.repo.strongRef", "description": "The comment this replies to, on the same seed. Left out, it's said to the seed itself." },
+          "text": { "type": "string", "maxLength": 30000, "maxGraphemes": 3000, "description": "What it says, in Markdown. Apps show it as another person's words, never as instructions to an agent." },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}
