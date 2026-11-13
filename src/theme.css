@@ -71,16 +71,35 @@ a{color:inherit}
 @media (forced-colors:active){.rd-ai{background:none;-webkit-text-fill-color:currentColor;filter:none}}
 .rd-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
 .rd-nav{display:flex;gap:4px;flex:1;min-width:0;overflow-x:auto}
-.rd-nav a{padding:8px 12px;border-radius:999px;font-weight:600;font-size:15px;color:var(--muted);text-decoration:none;white-space:nowrap}
-.rd-nav a:hover{background:var(--accent-soft)}
-.rd-nav a[aria-current="true"]{color:var(--ink);background:var(--card);box-shadow:0 2px 8px -4px rgba(0,0,0,.25)}
-.rd-me{display:flex;align-items:center;gap:12px}
-.rd-who{display:inline-flex;align-items:center;gap:8px;text-decoration:none;font-weight:600;font-size:15px;max-width:220px}
-.rd-who span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rd-face{width:32px;height:32px;border-radius:50%;overflow:hidden;flex:none;display:inline-flex;align-items:center;justify-content:center;background:var(--accent-soft);font-weight:800}
-.rd-face img{width:100%;height:100%;object-fit:cover}
-.rd-btn{display:inline-flex;align-items:center;min-height:40px;padding:8px 18px;border:0;border-radius:999px;background:var(--accent);color:#fff;font:700 15px var(--body);text-decoration:none;cursor:pointer}
+/* The tabs: the one you're on is a pill tinted with the ink, so it stands out the same on the
+   light sky and the dark one, and on the glow at the top of the page as much as off it. */
+.rd-nav a{padding:8px 14px;border-radius:999px;font-weight:600;font-size:15px;color:var(--muted);text-decoration:none;white-space:nowrap;transition:background-color .15s,color .15s}
+.rd-nav a:hover{color:var(--ink);background:color-mix(in srgb,var(--ink) 7%,transparent)}
+.rd-nav a[aria-current="true"]{color:var(--ink);background:color-mix(in srgb,var(--ink) 12%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 8%,transparent)}
+@media (forced-colors:active){.rd-nav a[aria-current="true"]{outline:2px solid CanvasText;outline-offset:-2px}}
+/* You, at the end of the bar: "Sign in", or your face, which opens a menu under it (src/main.js) */
+.rd-me{position:relative;display:flex;align-items:center}
+.rd-who{display:inline-flex;padding:2px;border:0;border-radius:50%;background:none;cursor:pointer;transition:box-shadow .15s}
+.rd-who .rs-face{width:36px;height:36px;font-size:15px}
+.rd-who:hover,.rd-who[aria-expanded=true]{box-shadow:0 0 0 3px var(--accent-soft)}
+.rd-menu{position:absolute;top:calc(100% + 10px);right:0;z-index:30;width:max-content;min-width:230px;max-width:min(320px,calc(100vw - 32px));padding:6px;border:1px solid var(--line);border-radius:18px;background:var(--card);box-shadow:0 22px 44px -18px rgba(8,16,40,.45);transform-origin:top right;animation:rd-menu .16s ease-out}
+@keyframes rd-menu{from{opacity:0;transform:translateY(-4px) scale(.97)}}
+@media (prefers-reduced-motion:reduce){.rd-menu{animation:none}}
+.rd-menu a,.rd-menu button{display:flex;align-items:center;gap:12px;width:100%;min-height:44px;padding:8px 12px;border:0;border-radius:12px;background:none;color:var(--ink);font:600 15px var(--body);text-align:left;text-decoration:none;cursor:pointer}
+.rd-menu a:hover,.rd-menu button:hover{background:var(--accent-soft)}
+.rd-menu svg{flex:none;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;color:var(--muted)}
+.rd-menu hr{margin:6px 10px;border:0;border-top:1px solid var(--line)}
+.rd-menu .rd-menu-you{padding:10px 12px}
+.rd-menu .rd-menu-you .rs-face{width:40px;height:40px;font-size:16px}
+.rd-menu-name{display:flex;flex-direction:column;flex:1;min-width:0;line-height:1.3}
+.rd-menu-name b,.rd-menu-name small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rd-menu-name b{font-weight:700;font-size:16px}
+.rd-menu-name small{color:var(--muted);font-weight:500;font-size:13px}
+.rd-menu .rd-menu-go{width:18px;height:18px}
+.rd-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:8px 18px;border:0;border-radius:999px;background:var(--accent);color:#fff;font:700 15px var(--body);text-decoration:none;cursor:pointer}
 [data-mode=night] .rd-btn{color:#0B1220}
+/* ("Sign in" has its door-and-arrow too, which is all of it on a phone) */
+.rd-btn svg{display:none;flex:none;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 /* Day or night: one round button at the end of the bar, a sun that turns into a crescent moon.
    The moon is the sun's disc grown, with a bite out of it; the rays fold away. */
 .rd-mode{flex:none;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;padding:0;border:0;border-radius:50%;background:none;color:var(--muted);cursor:pointer}
@@ -94,7 +113,6 @@ a{color:inherit}
 [data-mode=night] .rd-mode .m-rays{transform:rotate(-60deg) scale(.4);opacity:0}
 @media (prefers-reduced-motion:reduce){.rd-mode .m-disc,.rd-mode .m-bite,.rd-mode .m-rays{transition:none}}
 @media (forced-colors:active){.rd-mode{color:ButtonText}}
-.rd-link{border:0;background:none;color:var(--muted);font:600 14px var(--body);text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:4px}
 
 .rd-noscript{margin:0;padding:16px 20px;border-radius:16px;background:var(--card);font-size:16px;line-height:1.5}
 .rd-main{flex:1;width:100%;max-width:1112px;margin:0 auto;padding:8px 16px 48px;display:flex;flex-direction:column;gap:28px}
@@ -109,11 +127,22 @@ a{color:inherit}
 .rd-foot a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
 .rd-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:20;max-width:calc(100vw - 32px);padding:12px 18px;border-radius:14px;background:var(--ink);color:var(--bg);font-weight:600;font-size:15px;box-shadow:0 18px 40px -16px rgba(0,0,0,.5);transition:opacity .3s,transform .3s}
 .rd-toast.out{opacity:0;transform:translate(-50%,8px)}
+/* On a phone, two rows: the logo with the toggle and you across the top, and the tabs under them */
 @media (max-width:640px){
-  .rd-bar{gap:10px}
+  .rd-bar{gap:10px 6px;padding-top:14px;padding-bottom:12px}
   .rd-nav{order:3;flex-basis:100%}
-  .rd-me{margin-left:auto}
-  .rd-stage{margin-left:-4px}
+  .rd-stage{margin-left:0}
+  .rd-mode{margin-left:auto}
+  .rd-btn{width:40px;padding:0}
+  .rd-btn svg{display:block}
+  .rd-btn span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+}
+/* (and on the narrowest, the logo's word a little smaller, so all of that still fits) */
+@media (max-width:359px){
+  .rd-bar{column-gap:4px}
+  .rd-logo{font-size:20px;gap:8px}
+  .rd-stage{padding:2px 7px;font-size:11px}
+  .rd-mode{width:34px}
 }
 /* under the landing, the board's heading is one of the page's h2s, and sized like them */
 .rs-brand h2{font-size:clamp(24px,3vw,32px);font-weight:700;letter-spacing:-.02em}
