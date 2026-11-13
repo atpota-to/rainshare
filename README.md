@@ -94,11 +94,19 @@ garden itself is fitted into the part of the picture the page keeps clear for it
 beside the pitch on a wide window, and under it below 880 pixels, where the pitch is in the
 sky and most of the garden is below the first screenful. Beside the garden the pitch stands
 on its horizon: the heading and the line under it in the sky, and the sign-in on the line of
-the far woods, with nothing under it. (The horizon is worked out from the layout alone, so
+the far woods, with the way down to the board under it. (The horizon is worked out from the layout alone, so
 the pitch is there before the scene has been fetched.) Over the sky and the meadow the grey
 the rest of the site writes its asides in is too faint to read, so the bar and the pitch
 write theirs in most of the ink; and if a handle is mistyped, what's said about it under the
 sign-in is on a pane of frosted glass, like the scene's own labels.
+
+**The way down.** The garden fills the first screenful, and its people are made up, so under
+the sign-in a pane of frosted glass says what's really open on the board below: the faces of
+the first few people asking, how many asks there are and what they are ("3 ideas and projects
+to help with"), and an arrow (`peek.js`). Pressing it scrolls down to the board's heading. Its
+room is kept while the board loads, so nothing moves when it comes in, and the arrow nods
+down a few times as it does (not for anyone who has asked for less motion). If nothing's open,
+or the board couldn't be read, it isn't there.
 
 **Scrolling.** The backdrop scrolls with the page, and the garden doesn't quite keep up: the
 camera rises as the page goes by, so the garden sinks into a stretch of meadow left between

@@ -68,3 +68,26 @@ test('a canvas the garden has to itself is framed as the scene was in its box', 
     assert.ok(Math.abs(at.midX - w / 2) < 1e-9 && Math.abs(at.midY - h / 2) < 1e-9, 'what the camera looks at is in the middle');
   }
 });
+
+// Under the sign-in, the way down to the real board says how many asks are open, and whose.
+test('the way down to the board says what’s open in a few words', async () => {
+  const { peekWords } = await import('../src/landing/peek.js');
+  const { parseSubject } = await import('../core/subjects.js');
+  const idea = { title: 'An idea' }, project = { title: 'A project', subject: parseSubject('https://github.com/a/b') };
+  assert.equal(peekWords([]), '', 'nothing open: nothing to say, and the link stays out of sight');
+  assert.equal(peekWords(null), '');
+  assert.equal(peekWords([idea]), '1 idea to help with');
+  assert.equal(peekWords([idea, idea, idea]), '3 ideas to help with');
+  assert.equal(peekWords([project]), '1 project to help with');
+  assert.equal(peekWords([project, project]), '2 projects to help with');
+  assert.equal(peekWords([idea, project, idea]), '3 ideas and projects to help with');
+});
+
+test('the way down to the board shows each person asking once, the first few of them', async () => {
+  const { peekPeople } = await import('../src/landing/peek.js');
+  const ask = (repo, name) => ({ repo, author: name ? { did: repo, displayName: name } : undefined });
+  const people = peekPeople([ask('did:a', 'Ana'), ask('did:b', 'Ben'), ask('did:a', 'Ana'), ask('did:c'), ask('did:d', 'Dee')]);
+  assert.deepEqual(people.map(p => p.did), ['did:a', 'did:b', 'did:c']);
+  assert.equal(people[2].displayName, undefined, 'someone whose profile isn’t known yet still has a face (their initial)');
+  assert.deepEqual(peekPeople(undefined), []);
+});
