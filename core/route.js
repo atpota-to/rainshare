@@ -2,17 +2,19 @@
 // full stop that ended a sentence, or are typed from memory. Where it's clear what was meant,
 // the app goes there; where it isn't, it says nothing is there and offers the way back.
 //
-// A sub-path is the part after the app's base: '' (the board), 'new', 'me', 'agents',
+// A sub-path is the part after the app's base: '' (home: the board, or on rainshare.dev the
+// landing for someone signed out), 'board' (the board on its own), 'new', 'me', 'agents',
 // 'u/<who>', 'seed/<who>/<rkey>', 'seed/s/<code>' (see ../ui/rainshare.js).
 import { isDid, isHandle, isRkey } from './net.js';
 
-const PAGES = ['new', 'me', 'agents'];
+const PAGES = ['board', 'new', 'me', 'agents'];
 // Other words people reach for.
 const ALIAS = {
   ask: 'new', post: 'new', plant: 'new', create: 'new', add: 'new',
   profile: 'me', settings: 'me', account: 'me', you: 'me',
   agent: 'agents', cli: 'agents', mcp: 'agents', terminal: 'agents', install: 'agents', setup: 'agents', docs: 'agents', help: 'agents', faq: 'agents',
-  board: '', home: '', index: '', 'index.html': '', circle: '', feed: '', all: ''
+  circle: 'board', feed: 'board', all: 'board', browse: 'board', explore: 'board',
+  home: '', index: '', 'index.html': ''
 };
 const SEED_WORDS = ['seed', 'seeds', 's', 'idea', 'ideas', 'project', 'projects', 'plant', 'plants', 'ask', 'asks'];
 const PERSON_WORDS = ['u', 'user', 'users', 'profile', 'profiles', 'people', 'person', 'p', 'by'];
@@ -70,8 +72,7 @@ export function reroute(sub){
   if (p.length === 1) {
     if (head in ALIAS) return ALIAS[head];
     if (who(p[0])) return `u/${who(p[0])}`;                       // /@someone.example, /did:plc:…
-    const page = PAGES.find(w => closeTo(head, w));
-    return page ?? (closeTo(head, 'board') ? '' : null);
+    return PAGES.find(w => closeTo(head, w)) ?? null;
   }
   const first = who(p[0]), second = who(p[1]);
   if (p.length === 2) {

@@ -543,7 +543,7 @@ export function createPoster(ui){
       || pick('[data-rs-add-group]', el => addGroup(el.dataset.rsAddGroup, el))
       || pick('[data-rs-again]', () => { P = fresh(); loadBits(); ui.render(); arrive(); })
       || pick('[data-rs-connect-forge]', el => { ui.connectForge?.(el.dataset.rsConnectForge); })
-      || pick('[data-rs-post-cancel]', () => { P = fresh(); ui.go(''); });
+      || pick('[data-rs-post-cancel]', () => { P = fresh(); ui.go(ui.board || ''); });
   }
   const TEXT = ['title', 'spec', 'specUrl', 'otherFamily', 'maxDiffLines', 'tags', 'values', 'notes', 'bskyText'];
   function typed(el){

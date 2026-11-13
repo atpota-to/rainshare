@@ -2,7 +2,7 @@
 // address that was asked for, so a link shared anywhere shows what it leads to. The app is
 // drawn in the browser and crawlers don't run scripts, which is why this is done here. The
 // body isn't touched, so the app starts exactly as it does from the plain file. vercel.json
-// sends an ask's page, a person's page, /agents and the example circle through here; the
+// sends an ask's page, a person's page, /board, /agents and the example circle through here; the
 // words come from ./_og/describe.js, the same ones the picture is drawn from (api/og.js).
 import { readFile } from 'node:fs/promises';
 import { describe, canonical, HOME } from './_og/describe.js';
