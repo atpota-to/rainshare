@@ -19,23 +19,33 @@ export const METHODS = ['getActorGroups', 'getGroup', 'createSpace'];
 
 const A = encodeURIComponent(AUD);
 const rpc = m => `rpc:${NS}.${m}?aud=${A}`;
-const repo = RAINSHARE.map(c => `repo:${c}`);
+
+// Your own Rainshare records, asked for two ways. Rainshare publishes a permission set that
+// grants them (lexicons/dev/rainshare/authFull.json), and a server that can look it up shows
+// its title and a sentence on the page it signs you in on, in place of four record types by
+// name. A server that can't refuses it (invalid_scope), and is asked for the records by name:
+// the same permissions, worded by the server. See `ladder`.
+export const PERMISSION_SET = 'dev.rainshare.authFull';
+export const OWN = { set: `include:${PERMISSION_SET}`, named: RAINSHARE.map(c => `repo:${c}`).join(' ') };
 
 // With groups off (GROUPS in ../core/ns.js), sign-in asks for nothing but your own Rainshare
-// records: your public seeds, takes, deliveries and profile.
+// records: your public seeds, takes, deliveries and profile. `own` is one of OWN's two.
 //
 // Any atproto account: those, and finding your groups.
-export const BASIC_SCOPE = ['atproto', ...repo, ...(GROUPS ? METHODS.map(rpc) : [])].join(' ');
+const basic = own => ['atproto', own, ...(GROUPS ? METHODS.map(rpc) : [])].join(' ');
 // An account whose server does spaces: the same, plus reading your groups' spaces and writing
 // your own Rainshare records into them. `space:*` because nobody publishes the space type, and a
 // consent screen looks up every space type a scope names.
-export const SCOPE = !GROUPS ? BASIC_SCOPE : [
+const full = own => !GROUPS ? basic(own) : [
   'atproto',
   `include:${NS}.basePermissions?aud=${A}`,
   `space:*?authority=*&${RAINSHARE.map(c => 'collection=' + c).join('&')}&action=read&action=create&action=update&action=delete`,
-  ...repo,
+  own,
   ...METHODS.map(rpc)
 ].join(' ');
+// Both with your records by name: what's asked of a server that can't look the set up.
+export const BASIC_SCOPE = basic(OWN.named);
+export const SCOPE = full(OWN.named);
 
 // Posting to a forge for you (an issue, a comment or a pull request on knotless or Tangled,
 // and a vouch on Tangled) needs more than Rainshare's own records. Sign-in asks for it all up
@@ -55,12 +65,16 @@ export function forgesIn(scope){
 //   everything          private seeds (when groups are on), and posting to the forges
 //   any server's seeds  and posting to the forges
 //   Rainshare alone     your own records, with the forges left to connect later
-// With groups off the first two are the same, so there are two steps.
-export const ladder = (forges = FORGES) => [...new Set([withForges(SCOPE, forges), withForges(BASIC_SCOPE, forges), BASIC_SCOPE])];
+// With groups off the first two are the same. Each is asked first with Rainshare's permission
+// set, and then with your records by name, so a server that can't look the set up still gets
+// the forges. With groups off that's four steps:
+//   the set and the forges, the names and the forges, the set alone, the names alone
+export const ladder = (forges = FORGES) => [...new Set([[full, forges], [basic, forges], [basic, []]]
+  .flatMap(([scope, f]) => [OWN.set, OWN.named].map(own => withForges(scope(own), f))))];
 
-// Everything the app might ever ask for. A hosted client's document has to declare it all,
-// whatever a particular sign-in ends up asking for.
-export const DECLARED_SCOPE = withForges(SCOPE, FORGES);
+// Everything the app might ever ask for: every part of every step. A hosted client's document
+// has to declare it all, whatever a particular sign-in ends up asking for.
+export const DECLARED_SCOPE = [...new Set(ladder().flatMap(s => s.split(' ')))].join(' ');
 
 export const REDIRECT_PATH = '/signed-in';
 
