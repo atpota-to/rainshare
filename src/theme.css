@@ -79,5 +79,3 @@ a{color:inherit}
 }
 /* under the landing, the board's heading is one of the page's h2s, and sized like them */
 .rs-brand h2{font-size:clamp(24px,3vw,32px);font-weight:700;letter-spacing:-.02em}
-/* the landing has its own sign-in, so the board under it doesn't need another */
-body:has(#landing:not([hidden])) #circle .rs-head [data-rs-act="signin"]{display:none}

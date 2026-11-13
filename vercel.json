@@ -34,6 +34,10 @@
       "destination": "/api/page?kind=person&who=:who"
     },
     {
+      "source": "/board",
+      "destination": "/api/page?kind=board"
+    },
+    {
       "source": "/agents",
       "destination": "/api/page?kind=agents"
     },
