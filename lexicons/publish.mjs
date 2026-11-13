@@ -1,31 +1,31 @@
 // Publishes the dev.rainshare.* lexicons so anyone can look them up (atproto lexicon resolution):
 //
 //   1. each schema is a com.atproto.lexicon.schema record, keyed by its NSID, in the repo of the
-//      account that owns them: the brand account, rainshare.dev
-//   2. a DNS TXT record at _lexicon.rainshare.dev says  did=<that account's DID>
+//      account that owns them: the brand account, OWNER in compat.mjs, named by its DID
+//   2. a DNS TXT record at _lexicon.rainshare.dev says  did=<that DID>
 //
 // This does 1, and checks 2 and says what to add if it's missing. It writes only the schemas that
 // changed, and won't publish a change that would break records already written under the
-// published one (compat.mjs) unless told to.
+// published one (compat.mjs) unless told to. The account is found by its DID alone: its handle
+// is never looked up, and its server is whatever its DID document says today.
 //
 //   node lexicons/publish.mjs            publish (needs RAINSHARE_LEXICON_APP_PASSWORD)
 //   node lexicons/publish.mjs --check    compare with what's published, and write nothing
 //   node lexicons/publish.mjs --deploy   what Vercel's build runs: publish from a production build
 //                                        that has the password, and only check from any other
 //
-//   RAINSHARE_LEXICON_ACCOUNT            the owner's handle or DID (rainshare.dev unless set)
-//   RAINSHARE_LEXICON_APP_PASSWORD       an app password for it
+//   RAINSHARE_LEXICON_APP_PASSWORD       an app password for the brand account
 //   RAINSHARE_LEXICON_ALLOW_BREAKING=1   publish a breaking change anyway: only while nobody has
 //                                        written records under the published schema
 import { readFile, readdir } from 'node:fs/promises';
 import { resolveTxt } from 'node:dns/promises';
-import { resolveHandle, pdsOf, xrpc, NetError } from '../core/net.js';
-import { AUTHORITY, problems, breaking, same } from './compat.mjs';
+import { pdsOf, xrpc, NetError } from '../core/net.js';
+import { AUTHORITY, OWNER, problems, breaking, same } from './compat.mjs';
 
 const COLLECTION = 'com.atproto.lexicon.schema';
 const env = process.env;
 const mode = process.argv.includes('--deploy') ? 'deploy' : process.argv.includes('--check') ? 'check' : 'publish';
-const account = env.RAINSHARE_LEXICON_ACCOUNT || AUTHORITY, password = env.RAINSHARE_LEXICON_APP_PASSWORD;
+const did = OWNER, password = env.RAINSHARE_LEXICON_APP_PASSWORD;
 const production = env.VERCEL_ENV === 'production';
 const write = mode === 'publish' || (mode === 'deploy' && production && !!password);
 // A preview build only warns when the network lets it down; a build that publishes stops.
@@ -74,18 +74,14 @@ for (const name of (await readdir(dir)).filter(f => f.endsWith('.json')).sort())
 const wrong = problems(files);
 if (wrong.length) stop('the lexicons have problems:\n' + wrong.map(w => '  - ' + w).join('\n'));
 
-if (mode === 'publish' && !password) stop('set RAINSHARE_LEXICON_APP_PASSWORD (and RAINSHARE_LEXICON_ACCOUNT, if the owner isn\'t rainshare.dev). Use --check to compare without publishing.');
+if (mode === 'publish' && !password) stop(`set RAINSHARE_LEXICON_APP_PASSWORD to an app password for the brand account, ${did}. Use --check to compare without publishing.`);
 if (mode === 'deploy' && !write) say(production
   ? 'this production build has no RAINSHARE_LEXICON_APP_PASSWORD, so it checks and doesn\'t publish.'
   : `checking only: this is a ${env.VERCEL_ENV || 'local'} build, and only production builds publish.`);
 
-let did, pds;
-try { did = await resolveHandle(account); pds = await pdsOf(did); }
-catch (e) {
-  unsure(`couldn't find the account ${account} (${e.message}).` + (account === AUTHORITY
-    ? ` If the brand account doesn't have the handle ${AUTHORITY} yet, give it that handle (by DNS: the site answers every path itself, so the file method won't work), or set RAINSHARE_LEXICON_ACCOUNT to its handle or DID for now.`
-    : ''));
-}
+let pds;
+try { pds = await pdsOf(did); }
+catch (e) { unsure(`couldn't find the brand account's server in the DID document of ${did} (${e.message}).`); }
 
 // What has changed since the last publish, and whether any of it breaks the published schema.
 const plan = [];
@@ -96,7 +92,7 @@ try {
     const { $type, ...was } = prev;
     if (!same(was, doc)) plan.push({ doc, fresh: false, broken: breaking(was, doc) });
   }
-} catch (e) { unsure(`couldn't read what's published in ${account}'s repo at ${pds} (${e.message}).`); }
+} catch (e) { unsure(`couldn't read what's published in ${did}'s repo at ${pds} (${e.message}).`); }
 
 const broken = plan.flatMap(p => p.broken);
 if (broken.length) {
@@ -106,7 +102,7 @@ if (broken.length) {
   say(`publishing changes that break the published lexicons, as RAINSHARE_LEXICON_ALLOW_BREAKING says to:\n${list}`);
 }
 
-if (!plan.length) say(`all ${files.length} are up to date in ${account}'s repo.`);
+if (!plan.length) say(`all ${files.length} are up to date in ${did}'s repo.`);
 else if (!write) for (const { doc, fresh } of plan) say(`${doc.id} ${fresh ? 'isn\'t published yet' : 'has changed'}, and would be published.`);
 else {
   try {
@@ -115,7 +111,7 @@ else {
       await post(pds, 'com.atproto.repo.putRecord', { repo: did, collection: COLLECTION, rkey: doc.id, record: { $type: COLLECTION, ...doc } }, accessJwt);
       say(`published ${doc.id}${fresh ? ', for the first time' : ''}.`);
     }
-  } catch (e) { stop(`publishing as ${account} at ${pds} failed: ${e.message}`); }
+  } catch (e) { stop(`publishing as ${did} at ${pds} failed: ${e.message}`); }
 }
 
 await checkDns(did);

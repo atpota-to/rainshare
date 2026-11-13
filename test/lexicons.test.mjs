@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
-import { problems, breaking, same } from '../lexicons/compat.mjs';
+import { problems, breaking, same, OWNER } from '../lexicons/compat.mjs';
 
 const dir = new URL('../lexicons/dev/rainshare/', import.meta.url);
 const files = await Promise.all((await readdir(dir)).filter(f => f.endsWith('.json')).sort()
@@ -11,8 +11,9 @@ const copy = v => JSON.parse(JSON.stringify(v));
 const take = () => copy(files.find(f => f.name === 'take.json').doc);
 const seed = () => copy(files.find(f => f.name === 'seed.json').doc);
 
-test('the lexicons as they stand have no problems, and none breaks itself', () => {
+test('the lexicons as they stand have no problems, none breaks itself, and their owner is named by a DID', () => {
   assert.deepEqual(problems(files), []);
+  assert.match(OWNER, /^did:plc:[a-z2-7]{24}$/);
   for (const { doc } of files) assert.deepEqual(breaking(doc, copy(doc)), [], doc.id);
 });
 

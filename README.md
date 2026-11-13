@@ -767,15 +767,16 @@ It's a Vercel project on this repo (`vercel.json`):
    is matched by its path, not its host), and Vercel can redirect the old host to the new.
    `/oauth-client-metadata.json` serves the OAuth client for whichever host the request came
    in on, so preview URLs can sign in too.
-3. Let the build publish the lexicons. They belong to the brand account, rainshare.dev:
-   - Give that account the handle `rainshare.dev` by DNS (a TXT record at
-     `_atproto.rainshare.dev`). The file method won't work here, because the site answers every
-     path itself.
-   - Make it an app password, and set `RAINSHARE_LEXICON_APP_PASSWORD` to it in the project's
-     environment variables, for Production only, as a sensitive variable. Until the handle is
-     set up, `RAINSHARE_LEXICON_ACCOUNT` can name the account by its current handle or DID.
-   - Redeploy, and add the `_lexicon.rainshare.dev` TXT record the build log prints
-     (`did=` the account's DID), which is how anyone finds the schemas from their names.
+3. Let the build publish the lexicons. They belong to the brand account, @rainshare.dev, which
+   the build names by its DID alone, `did:plc:cmkittusvczhnei4gjt3asiv` (`OWNER` in
+   `lexicons/compat.mjs`). Its handle is never looked up, and its server is whatever its DID
+   document says, so a new handle or a move to another server changes nothing here.
+   - Make the account an app password, and set `RAINSHARE_LEXICON_APP_PASSWORD` to it in the
+     project's environment variables, for Production only, as a sensitive variable.
+   - Add a TXT record at `_lexicon.rainshare.dev` saying `did=did:plc:cmkittusvczhnei4gjt3asiv`,
+     which is how anyone finds the schemas from their names. Every build checks it, and says in
+     its log if it's missing or names another account.
+   - Redeploy.
 
    From then on, every production build runs `lexicons/publish.mjs --deploy` after the site is
    built (`buildCommand` in `vercel.json`). It writes only the schemas that changed, each as a
@@ -989,8 +990,10 @@ Not yet checked:
   changed writing nothing; a safe change written alone; a breaking change stopping a preview
   build and a production one, and going through with `RAINSHARE_LEXICON_ALLOW_BREAKING=1`; a
   wrong password stopping a production build; and a preview build, or one with no password,
-  only checking. Against the live network: a Bluesky PDS answering `createSession` itself, and
-  the DNS lookup for `_lexicon.rainshare.dev`. What counts as breaking is in
+  only checking, with the account found by its DID and no handle ever looked up. Against the
+  live network: `npm run lexicons:check` finding the brand account by its DID on
+  pds.atpota.to, with nothing published yet; a Bluesky PDS answering `createSession` itself;
+  and the DNS lookup for `_lexicon.rainshare.dev`. What counts as breaking is in
   `test/lexicons.test.mjs`. Not checked: a real publish, which waits for the brand account's
   app password on Vercel, and the schemas resolving by their names once the DNS record is in.
 - How smoothly the scene runs on real phones and older laptops. It has only been run on a

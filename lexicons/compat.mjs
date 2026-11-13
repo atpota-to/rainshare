@@ -8,6 +8,9 @@
 
 export const AUTHORITY = 'rainshare.dev';
 export const PREFIX = 'dev.rainshare.';
+// The account the schemas belong to: the brand account, @rainshare.dev. Named by its DID, never
+// its handle, so a new handle or a move to another server doesn't change who publishes them.
+export const OWNER = 'did:plc:cmkittusvczhnei4gjt3asiv';
 
 // What may not change on a field once it's published. Descriptions and knownValues may.
 const FIXED = ['format', 'minLength', 'maxLength', 'minGraphemes', 'maxGraphemes', 'minimum', 'maximum',
