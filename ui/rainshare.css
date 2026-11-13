@@ -486,6 +486,23 @@
 .rs-ties .rs-hat-mixed .rs-i{color:var(--rs-down)}
 .rs-faces{display:inline-flex;flex:none;padding-left:2px}
 .rs-faces .rs-face.sm{width:20px;height:20px;font-size:9px}
+/* over the board's list: how it's sorted, and the filter that folds out under it */
+.rs-tools{display:flex;align-items:center;justify-content:space-between;gap:10px 16px;flex-wrap:wrap;min-width:0}
+.rs-filter-bar{display:flex;align-items:center;gap:8px;margin-left:auto;min-width:0}
+.rs-filter-btn{border:0;border-radius:999px;min-height:32px;padding:0 13px 0 11px;font:600 13px var(--rs-font);background:none;color:var(--rs-ink);box-shadow:inset 0 0 0 1.5px var(--rs-line);cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;flex:none}
+.rs-filter-btn .rs-i{width:16px;height:16px}
+.rs-filter-btn[aria-expanded="true"]{background:var(--rs-ink);color:var(--rs-on-ink);box-shadow:none}
+/* what's narrowing it while the filter is folded away: pressing one undoes it */
+.rs-from.rs-filter-on button{color:var(--rs-ink);background:var(--rs-accent-soft);box-shadow:none;padding-right:8px}
+.rs-from.rs-filter-on .rs-i{width:14px;height:14px;opacity:.7}
+.rs-filters{display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-radius:18px;background:var(--rs-item);box-shadow:inset 0 0 0 1px var(--rs-card-edge);min-width:0}
+.rs-filter-row{display:flex;align-items:center;gap:8px 12px;min-width:0}
+.rs-filter-row>.rs-from-l{flex:none;min-width:80px}
+.rs-filter-row>.rs-from{min-width:0}
+@media (max-width:599px){
+  .rs-filter-row{flex-direction:column;align-items:stretch;gap:6px}
+  .rs-filter-bar{margin-left:0;flex:1 1 auto;justify-content:flex-end}
+}
 /* narrowing the board to who asked */
 .rs-from,.rs-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .rs-from-l{font-size:13px;font-weight:600;color:var(--rs-muted);margin-right:2px}

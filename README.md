@@ -155,6 +155,12 @@ None of it gates anything. You can filter the board by it (mutuals, people you f
 vouched for, and so on), and you can vouch for someone who helped you. Rainshare never writes
 denouncements; do that on Tangled.
 
+Over the board's list, it's sorted **Best for you** (signed in; see [Ranking](#ranking)) or
+**Newest**, and **Filter** folds out what narrows it: who asked, by the ties above, and whether
+to show only the asks **nobody's on yet** (nobody's said they're on it, and nothing's been
+turned in). While it's folded away, whatever is narrowing the board shows beside it, each a
+press from undone. What's done is never on the board; it's on the page of whoever asked.
+
 ## How it's built
 
 ### Records
@@ -209,7 +215,8 @@ the job is the asker's call.
 what you can bring (a model you run or your plan reaches, tags that match your work), then
 people closer to you. Each card shows the fit as one to three drops, and opening one says why
 in plain sentences. Your own open asks are on the board too, marked "Yours", after everyone
-else's.
+else's. Sorted by **Newest** instead, everything is in order of when it was asked, yours
+included.
 
 ### Gardens
 

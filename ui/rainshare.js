@@ -51,6 +51,8 @@ export function createRainshare({ root, base = '/', host }){
     circle: undefined,   // your Tangled vouch circle (../core/vouch.js): undefined until asked for, null if there's none to show
     vouching: null,      // who a vouch is being written for: { did, evidence }
     from: 'anyone',      // whose asks the board shows (FROM in ../core/ties.js): anyone, mutuals, people you follow, …
+    sort: null,          // how the board is sorted: 'fit' (best for you, signed in) or 'new' (newest first); null for the usual one
+    show: 'all',         // which open asks the board shows: 'all', or 'free' (nobody's on it yet)
     known: {},           // by DID: which of the people you follow on Bluesky follow them ('loading' while asked)
     open: {}   // which optional parts are showing (the turn-in's details, the comment form…), so a redraw leaves them be
   };
@@ -208,16 +210,19 @@ export function createRainshare({ root, base = '/', host }){
   }
 
   /* ---------- the board: a list of short cards, and the one you pick beside them ---------- */
-  // Everything still open: what someone else asked for, best first for you, then what you
-  // asked for yourself, newest first, marked as yours. (Yours come last so the one picked to
-  // begin with is one you could help with. What's done is on the page of whoever asked, and
-  // all of yours on your own page, which the board's quiet button leads to.)
+  // Everything still open. Signed in, it's sorted best first for you unless you'd rather have
+  // the newest first: best first, what someone else asked for comes first, ranked, then what
+  // you asked for yourself, newest first, marked as yours, so the one picked to begin with is
+  // one you could help with; newest first, it's all by date. Signed out, it's newest first.
+  // (What's done is on the page of whoever asked, and all of yours on your own page, which the
+  // board's quiet button leads to.)
   const newest = (a, b) => String(b.value?.createdAt).localeCompare(String(a.value?.createdAt));
+  const sortBy = () => signedIn() && S.sort !== 'new' ? 'fit' : 'new';
   function boardItems(){
     const open = (S.board?.items || []).filter(isOpen);
-    if (!signedIn()) return open;
-    const mine = open.filter(it => it.repo === viewer()).sort(newest);
-    return [...rank(open.filter(it => it.repo !== viewer()), me()), ...mine];
+    if (!signedIn()) return open.sort(newest);
+    const mine = open.filter(it => it.repo === viewer()).sort(newest), ranked = [...rank(open.filter(it => it.repo !== viewer()), me()), ...mine];
+    return sortBy() === 'new' ? ranked.sort(newest) : ranked;
   }
   // Narrowed to who asked, if you chose to. (Anything but "anyone" is about someone else, so
   // what you asked for is left out of it.)
@@ -233,7 +238,7 @@ export function createRainshare({ root, base = '/', host }){
   const circleWaiting = () => S.circle === undefined || S.circle === 'loading';
   function fromRow(all){
     const opts = FROM.filter(([k]) => k !== 'vouched' || S.source?.vouchCircle);
-    return `<div class="rs-from" role="group" aria-label="Who asked"><span class="rs-from-l">From</span>${opts.map(([k, l]) => {
+    return `<div class="rs-from" role="group" aria-label="Who asked">${opts.map(([k, l]) => {
       const n = k === 'anyone' ? all.length : k === 'vouched' && circleWaiting() ? null : all.filter(it => fromWho(k, it)).length;
       return `<button type="button" data-rs-from="${k}" aria-pressed="${S.from === k}"${FROM_HINT[k] ? ` title="${esc(FROM_HINT[k])}"` : ''}${n === 0 && S.from !== k ? ' class="rs-from-none"' : ''}>${esc(l)}${n == null ? '' : `<span class="rs-from-n">${n}</span>`}</button>`;
     }).join('')}</div>`;
@@ -246,6 +251,38 @@ export function createRainshare({ root, base = '/', host }){
       vouched: circleWaiting() ? 'Looking at your Tangled circle…' : S.circle ? 'Nobody your Tangled circle vouched for has asked for rain here yet.' : 'Your Tangled circle couldn’t be read just now.'
     }[S.from];
     return `<p class="rs-empty">${esc(said)} <button class="rs-link" type="button" data-rs-from="anyone">Show everyone’s</button></p>`;
+  }
+  // Narrowed to the ones nobody's on yet, if you chose to: nobody's said they're on it, and
+  // nothing's been turned in.
+  const nobodyOn = it => lifeOf(it) === 'seed';
+  const narrowShow = items => S.show === 'free' ? items.filter(nobodyOn) : items;
+  const SHOW = [['all', 'Everything open'], ['free', 'Nobody on it yet']];
+  const showRow = items => `<div class="rs-from" role="group" aria-label="Which ones">${SHOW.map(([k, l]) => {
+    const n = k === 'all' ? items.length : items.filter(nobodyOn).length;
+    return `<button type="button" data-rs-show="${k}" aria-pressed="${S.show === k}"${n === 0 && S.show !== k ? ' class="rs-from-none"' : ''}>${esc(l)}<span class="rs-from-n">${n}</span></button>`;
+  }).join('')}</div>`;
+  const showEmpty = () => `<p class="rs-empty">Someone’s on each of these already. <button class="rs-link" type="button" data-rs-show="all">Show them</button></p>`;
+  // Over the list: how it's sorted, and a button that folds out what narrows it (who asked,
+  // and whether anyone's on it). Whatever is narrowing it shows beside the button while it's
+  // folded away, each a press from undone.
+  function tools(all, byFrom){
+    const fromLabel = (FROM.find(([k]) => k === S.from) || [])[1];
+    const on = [
+      signedIn() && S.from !== 'anyone' && fromLabel ? `<button type="button" data-rs-from="anyone" aria-label="${esc(`Stop showing only ${fromLabel.toLowerCase()}`)}">${esc(fromLabel)}${ico('close')}</button>` : '',
+      S.show === 'free' ? `<button type="button" data-rs-show="all" aria-label="Show the ones someone’s on too">Nobody on it yet${ico('close')}</button>` : ''
+    ].filter(Boolean);
+    const open = !!S.open.filters;
+    return `<div class="rs-tools">
+        ${signedIn() ? `<div class="rs-from rs-sort" role="group" aria-label="Sort">${[['fit', 'Best for you'], ['new', 'Newest']].map(([k, l]) => `<button type="button" data-rs-sort="${k}" aria-pressed="${sortBy() === k}">${l}</button>`).join('')}</div>` : ''}
+        <div class="rs-filter-bar">
+          ${on.length && !open ? `<div class="rs-from rs-filter-on">${on.join('')}</div>` : ''}
+          <button type="button" class="rs-filter-btn" data-rs-act="filters" aria-expanded="${open}" aria-controls="rsFilters">${ico('filter')}Filter${on.length ? `<span class="rs-from-n">${on.length}</span>` : ''}</button>
+        </div>
+      </div>
+      ${open ? `<div class="rs-filters" id="rsFilters">
+        ${signedIn() ? `<div class="rs-filter-row"><span class="rs-from-l">Who asked</span>${fromRow(all)}</div>` : ''}
+        <div class="rs-filter-row"><span class="rs-from-l">Show</span>${showRow(byFrom)}</div>
+      </div>` : ''}`;
   }
   // One card: who, the title, and one quiet line (how well it suits you, or where and how big).
   function card(it, { nav = false } = {}){
@@ -305,7 +342,7 @@ export function createRainshare({ root, base = '/', host }){
     </article>`;
   }
   function renderBoard(){
-    const all = S.board ? boardItems() : [], items = narrowFrom(all);
+    const all = S.board ? boardItems() : [], byFrom = narrowFrom(all), items = narrowShow(byFrom);
     S.shown = items;
     if (items.length && !items.some(i => i.uri === S.pick)) { S.pick = items[0].uri; S.sheet = false; }
     const sel = items.find(i => i.uri === S.pick);
@@ -337,7 +374,7 @@ export function createRainshare({ root, base = '/', host }){
       </header>
       ${signedIn() && !S.source?.demo && !stageSeen() ? `<p class="rs-note rs-stage-note">${ico('info')}<span>Rainshare is in early ${esc(STAGE)}, so things may change or break. What you post stays in your own account.</span><button class="rs-link" type="button" data-rs-act="stage-seen">Got it</button></p>` : ''}
       ${signedIn() && S.mine && !S.mine.merged ? `<p class="rs-note">${ico('person')}<span>${FEATURES.priorities ? 'Say what you run and who you’d like to help, and your board is sorted to match.' : 'Say which AI plan you have and what you run. People see who they’d be helping, and your board is sorted by what suits you.'}</span>${a('me', 'Set up your profile', 'rs-link')}</p>` : ''}
-      ${signedIn() && S.board ? fromRow(all) : ''}
+      ${S.board && all.length ? tools(all, byFrom) : ''}
       ${S.error ? `<p class="rs-note rs-bad">${plain(S.error)}</p>` : ''}
       ${!S.board ? boardSk({ fit: signedIn() })
         : items.length ? `<div class="rs-split${S.sheet ? ' rs-open' : ''}">
@@ -345,7 +382,7 @@ export function createRainshare({ root, base = '/', host }){
             <div class="rs-scrim" data-rs-close-sheet aria-hidden="true"></div>
             <aside class="rs-side" aria-label="The one you picked">${sel ? detail(sel) : ''}</aside>
           </div>`
-        : all.length ? fromEmpty() : `<p class="rs-empty">${empty}</p>`}
+        : byFrom.length ? showEmpty() : all.length ? fromEmpty() : `<p class="rs-empty">${empty}</p>`}
       ${(S.board?.notes || []).map(n => `<p class="rs-note">${esc(n)}</p>`).join('')}
       ${
         // rainshare.dev has Agents in its own bar, and says where records live in its footer.
@@ -1156,6 +1193,7 @@ export function createRainshare({ root, base = '/', host }){
     try {
       // Signing in is the host's: it asks who you are and sends you to your server, over this screen.
       if (name === 'signin') { host.signIn?.(S.sub); return; }
+      if (name === 'filters') { S.open.filters = !S.open.filters; render(); root.querySelector('[data-rs-act="filters"]')?.focus(); return; }
       if (name === 'exit-demo') return host.onExitDemo?.();
       if (name === 'stage-seen') { stageDismissed = true; try { localStorage.setItem(STAGE_SEEN, '1'); } catch (_) {} root.querySelector('.rs-stage-note')?.remove(); return; }
       if (name === 'take') {
@@ -1245,7 +1283,12 @@ export function createRainshare({ root, base = '/', host }){
     if (t.closest('[data-rs-close-sheet]')) { closeSheet(); return; }
     const tk = t.closest('[data-rs-take]'); if (tk) { takeFromPanel(tk.dataset.rsTake, tk); return; }
     if (t.closest('.rs-post') && poster.click(t)) return;
-    const fr = t.closest('[data-rs-from]'); if (fr) { S.from = fr.dataset.rsFrom; S.sheet = false; render(); return; }
+    // Sorting and narrowing the board. (The control pressed keeps the focus, or the Filter
+    // button does when what was pressed has gone.)
+    const refocus = sel => (root.querySelector(sel) || root.querySelector('[data-rs-act="filters"]'))?.focus();
+    const fr = t.closest('[data-rs-from]'); if (fr) { S.from = fr.dataset.rsFrom; S.sheet = false; render(); refocus(`.rs-filters [data-rs-from="${S.from}"]`); return; }
+    const so = t.closest('[data-rs-sort]'); if (so) { S.sort = so.dataset.rsSort; S.sheet = false; render(); refocus(`[data-rs-sort="${S.sort}"]`); return; }
+    const sh = t.closest('[data-rs-show]'); if (sh) { S.show = sh.dataset.rsShow; S.sheet = false; render(); refocus(`.rs-filters [data-rs-show="${S.show}"]`); return; }
     const sg = t.closest('[data-rs-seg] button');
     // Turning it in by its link, or opening the pull request from here (which asks the forge about the repo the first time).
     if (sg && sg.closest('[data-rs-seg="mcp"]')) { S.open.mcp = sg.dataset.v === 'other'; render(); root.querySelector('[data-rs-seg="mcp"] [aria-pressed="true"]')?.focus(); return; }
@@ -1352,7 +1395,7 @@ export function createRainshare({ root, base = '/', host }){
     show,
     /** Hand in a (new) data source: on sign-in, sign-out, or switching to the example circle. */
     async setSource(source){
-      Object.assign(S, { source, board: null, mine: null, garden: null, unlinked: null, seed: null, form: null, drafts: {}, pick: null, sheet: false, pull: null, circle: undefined, vouching: null, from: 'anyone', known: {} });
+      Object.assign(S, { source, board: null, mine: null, garden: null, unlinked: null, seed: null, form: null, drafts: {}, pick: null, sheet: false, pull: null, circle: undefined, vouching: null, from: 'anyone', sort: null, show: 'all', known: {} });
       poster.reset();
       render();
       if (source?.signedIn) { await loadMine(); loadGarden(); welcome(); }
