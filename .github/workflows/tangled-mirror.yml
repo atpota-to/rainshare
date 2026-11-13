@@ -1,0 +1,126 @@
+# Keeps a copy of this repository on Tangled (https://tangled.org), in step with GitHub.
+#
+# Every push, every branch or tag deletion, and every manual run copies all the branches and
+# tags here to the Tangled repository. GitHub is the source of truth: the Tangled side is
+# overwritten to match, and a branch or tag that's gone from here is removed there too.
+#
+# Setting it up, once:
+#   1. Create an empty repository on Tangled: https://tangled.org/repo/new
+#   2. Make an SSH key just for this:
+#        ssh-keygen -t ed25519 -N "" -C "github mirror" -f tangled-mirror
+#   3. On Tangled, add tangled-mirror.pub under Settings → Keys.
+#   4. Here on GitHub, under Settings → Secrets and variables → Actions, add:
+#        secret    TANGLED_SSH_KEY   the contents of tangled-mirror (the private key)
+#        variable  TANGLED_REMOTE    the SSH URL from the Tangled repository's Clone menu,
+#                                    e.g. git@tangled.org:did:plc:abc123 (the DID form keeps
+#                                    working if the handle or the repository name changes)
+#   5. Run "Mirror to Tangled" from the Actions tab, or push anything.
+#
+# Until both are set, the workflow skips with a notice rather than failing, so forks are fine.
+
+name: Mirror to Tangled
+
+on:
+  push:
+  delete:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One mirror at a time. A run that's waiting is replaced by a newer one, which is fine:
+# every run copies everything.
+concurrency:
+  group: tangled-mirror
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check it's set up
+        id: setup
+        env:
+          TANGLED_SSH_KEY: ${{ secrets.TANGLED_SSH_KEY }}
+          TANGLED_REMOTE: ${{ vars.TANGLED_REMOTE }}
+        run: |
+          if [ -z "$TANGLED_SSH_KEY" ] || [ -z "$TANGLED_REMOTE" ]; then
+            echo "::notice title=Tangled mirror not set up::Add the TANGLED_SSH_KEY secret and the TANGLED_REMOTE variable to mirror this repository to Tangled. See .github/workflows/tangled-mirror.yml."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fetch every branch and tag from GitHub
+        if: steps.setup.outputs.ready == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git init --bare -q "$RUNNER_TEMP/mirror.git"
+          cd "$RUNNER_TEMP/mirror.git"
+          auth=$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)
+          echo "::add-mask::$auth"
+          git -c "http.extraheader=AUTHORIZATION: basic $auth" fetch --prune \
+            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" \
+            '+refs/heads/*:refs/heads/*' '+refs/tags/*:refs/tags/*'
+          echo "$(git for-each-ref refs/heads | wc -l) branches, $(git for-each-ref refs/tags | wc -l) tags"
+
+      - name: Push them to Tangled
+        if: steps.setup.outputs.ready == 'true'
+        env:
+          TANGLED_SSH_KEY: ${{ secrets.TANGLED_SSH_KEY }}
+          TANGLED_REMOTE: ${{ vars.TANGLED_REMOTE }}
+        run: |
+          set -euo pipefail
+          remote=$TANGLED_REMOTE
+
+          # Which host to trust, from either git@host:path or ssh://git@host[:port]/path.
+          case "$remote" in
+            ssh://*)
+              hostport=${remote#ssh://}; hostport=${hostport#*@}; hostport=${hostport%%/*}
+              host=${hostport%%:*}; port=22
+              if [[ $hostport == *:* ]]; then port=${hostport##*:}; fi ;;
+            *@*:*)
+              host=${remote#*@}; host=${host%%:*}; port=22 ;;
+            *)
+              echo "::error::TANGLED_REMOTE should be the SSH URL from Tangled's Clone menu, like git@tangled.org:did:plc:abc123, not \"$remote\"."
+              exit 1 ;;
+          esac
+
+          key="$RUNNER_TEMP/tangled_key"
+          known="$RUNNER_TEMP/tangled_known_hosts"
+          printf '%s\n' "$TANGLED_SSH_KEY" | tr -d '\r' > "$key"
+          chmod 600 "$key"
+          if ! ssh-keygen -y -P '' -f "$key" > /dev/null < /dev/null; then
+            echo "::error::TANGLED_SSH_KEY isn't a private key ssh can read. Paste the whole file, including the BEGIN and END lines, with no passphrase."
+            exit 1
+          fi
+
+          for attempt in 1 2 3; do
+            ssh-keyscan -p "$port" "$host" > "$known" 2> /dev/null || true
+            [ -s "$known" ] && break
+            sleep 5
+          done
+          if [ ! -s "$known" ]; then
+            echo "::error::Couldn't reach $host on port $port to read its host key."
+            exit 1
+          fi
+
+          export GIT_SSH_COMMAND="ssh -i '$key' -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile='$known'"
+          cd "$RUNNER_TEMP/mirror.git"
+
+          # Only branches and tags: the knot keeps other refs for itself and refuses pushes to them.
+          # A knot that's just started or can't reach an account server asks to retry shortly.
+          for attempt in 1 2 3; do
+            if git push --prune "$remote" '+refs/heads/*:refs/heads/*' '+refs/tags/*:refs/tags/*'; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "Push failed, trying again in $((attempt * 20)) seconds."
+              sleep $((attempt * 20))
+            fi
+          done
+          echo "::error::Couldn't push to Tangled. Check that the key's .pub is under Settings → Keys on Tangled (a new key can take up to an hour to be picked up) and that the account it's on can push to $remote."
+          exit 1
