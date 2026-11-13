@@ -31,7 +31,7 @@ make the account on that host's own sign-up page and come straight back signed i
    ask says "In progress" with your face and handle, which lead to your profile. You get a
    command for your setup (Claude Code, Codex, or a brief to paste into any agent).
 3. **Turn it in.** When the pull request is up, paste its link back. The asker reviews it and
-   marks the ask done.
+   presses Accept, which marks the ask done. They can vouch for you on Tangled in the same step.
 4. **Grow a garden.** Every ask you helped finish shows up on your profile as a plant.
 
 An idea doesn't need a repo, or even a developer. The asker picks whether whoever builds it

@@ -308,9 +308,11 @@ test('a seed reads as plain lines, not chips', () => {
   assert.equal(ti.key, 'turned-in'); assert.deepEqual(ti.helpers.map(h => h.did), ['did:kai', 'did:ash']);
   assert.equal(ti.helpers[0].turnedIn, '2026-11-12T00:00:00Z'); assert.equal(ti.helpers[0].setup.harness, 'codex');
   // What's turned in is a pull request with a page to open and its number, newest first, and the card names it.
-  assert.deepEqual(ti.pulls, [{ uri: 'at://did:kai/d/1', link: null, number: '', state: null, didIt: false, did: 'did:kai' }]);
-  const pulled = { ...turned, deliveries: [{ ...turned.deliveries[0], state: 'merged', value: { ...turned.deliveries[0].value, url: 'https://github.com/o/r/pull/15' } }] };
-  assert.deepEqual(progressOf(pulled).pulls[0], { uri: 'at://did:kai/d/1', link: 'https://github.com/o/r/pull/15', number: '15', state: 'merged', didIt: false, did: 'did:kai' });
+  assert.deepEqual(ti.pulls, [{ uri: 'at://did:kai/d/1', link: null, number: '', state: null, didIt: false, did: 'did:kai', note: '', session: null }]);
+  // ...with what the helper said and a link to the session, where they gave them (only a web address counts as a link).
+  const pulled = { ...turned, deliveries: [{ ...turned.deliveries[0], state: 'merged', value: { ...turned.deliveries[0].value, url: 'https://github.com/o/r/pull/15', note: 'Both themes.', sessionUrl: 'https://claude.ai/code/session_1' } }] };
+  assert.deepEqual(progressOf(pulled).pulls[0], { uri: 'at://did:kai/d/1', link: 'https://github.com/o/r/pull/15', number: '15', state: 'merged', didIt: false, did: 'did:kai', note: 'Both themes.', session: 'https://claude.ai/code/session_1' });
+  assert.equal(progressOf({ ...pulled, deliveries: [{ ...pulled.deliveries[0], value: { ...pulled.deliveries[0].value, sessionUrl: 'javascript:alert(1)' } }] }).pulls[0].session, null);
   assert.equal(progressOf(pulled).helpers[0].pulls[0].number, '15');
   assert.equal(progressShort(turned, 'did:me'), 'Kai’s pull request'); assert.equal(progressShort(turned, 'did:kai'), 'Your pull request');
   const two = { ...pulled, deliveries: [...pulled.deliveries, { uri: 'at://did:ash/d/2', repo: 'did:ash', author: ash, value: { createdAt: '2026-11-13T00:00:00Z', url: 'https://github.com/o/r/pull/16' } }] };

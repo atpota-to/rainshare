@@ -186,6 +186,26 @@
 .rs-helper-pull .rs-status.rs-dim{background:var(--rs-sunk)}
 .rs-helper-out{margin-left:auto;color:var(--rs-muted)}
 span.rs-helper-pull{color:var(--rs-muted)}
+/* under a pull request, on the ask's own page: what the helper said and their session, then, for
+   whoever asked, Accept, or the form it opens; once it's done, thanks and the rest of the follow-ups */
+.rs-helper-more{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:0 12px 10px 62px;margin-top:-4px;font-size:14px;min-width:0}
+.rs-helper-more p{color:var(--rs-muted);font-style:italic;overflow-wrap:anywhere}
+.rs-helper-more .rs-link .rs-i,.rs-follow .rs-i{width:15px;height:15px}
+.rs-helper-act{display:flex;gap:10px;padding:2px 12px 12px 62px}
+.rs-form.rs-accept{gap:12px;padding:14px 16px 16px;border-top:1px solid var(--rs-line);border-radius:0;background:none;box-shadow:none;outline:0;-webkit-backdrop-filter:none;backdrop-filter:none;max-width:none}
+.rs-accept p{font-size:15px;line-height:1.5}
+.rs-accept .rs-check{font-size:15px}
+.rs-follow{display:flex;flex-direction:column;gap:12px}
+/* whoever asked keeps sharing, closing and deleting under ⋯, at the top of their ask */
+.rs-more{position:relative;margin-left:auto;flex:none}
+.rs-more>summary{list-style:none;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;margin:-6px -6px -6px 0;border-radius:50%;color:var(--rs-muted);cursor:pointer;transition:background .2s,color .2s}
+.rs-more>summary::-webkit-details-marker{display:none}
+.rs-more>summary:hover,.rs-more[open]>summary{background:var(--rs-sunk);color:var(--rs-ink)}
+.rs-more>summary:focus-visible{outline:2px solid var(--rs-accent);outline-offset:2px}
+.rs-menu{position:absolute;right:-6px;top:calc(100% + 8px);z-index:20;display:flex;flex-direction:column;min-width:210px;padding:6px;border-radius:16px;background:var(--rs-solid);box-shadow:0 0 0 1px var(--rs-card-edge),0 18px 40px -16px rgba(0,0,0,.45)}
+.rs-menu>*{display:flex;align-items:center;min-height:44px;padding:8px 12px;border:0;border-radius:10px;background:none;font:600 15px var(--rs-font);color:var(--rs-ink);text-align:left;text-decoration:none;cursor:pointer;white-space:nowrap}
+.rs-menu>:hover,.rs-menu>:focus-visible{background:var(--rs-sunk);outline:0}
+.rs-menu>.rs-danger{color:var(--rs-bad)}
 .rs-ask{display:flex;flex-direction:column;gap:6px;padding-top:16px;border-top:1px solid var(--rs-line)}
 .rs-label{font-size:14px;font-weight:600;color:var(--rs-muted)}
 .rs-ask p{font-size:15px;line-height:1.6}
@@ -508,6 +528,8 @@ span.rs-helper-pull{color:var(--rs-muted)}
   .rs-me-side{position:static}
   .rs-seed-main,.rs-form,.rs-agents .rs-panel{padding:18px}
   .rs-seed-main .rs-facts{grid-template-columns:92px minmax(0,1fr);gap:8px 14px;font-size:14px}
+  /* on a phone, your own profile beside your own ask is only in the way */
+  .rs-own-panel{display:none}
   .rs-head-actions{width:100%}
   .rs-head-actions .rs-btn{flex:1}
   .rs-cmd{flex-direction:column;align-items:stretch}
