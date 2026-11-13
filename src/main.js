@@ -208,7 +208,7 @@ let menuOpen = false;
 function renderMe(){
   const box = meBox;
   if (!ready && !visitor) { box.innerHTML = ''; return; }
-  if (!session) { menuOpen = false; box.innerHTML = `<button class="rd-btn" type="button" data-signin>Sign in</button>`; return; }
+  if (!session) { menuOpen = false; box.innerHTML = `<button class="rd-btn" type="button" data-signin title="Sign in"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l4-4-4-4M14 12H4"/></svg><span>Sign in</span></button>`; return; }
   const p = me || { did: session.did };
   const name = p.displayName || (p.handle ? '@' + p.handle : 'You'), handle = p.displayName && p.handle ? '@' + p.handle : '';
   box.innerHTML = `<button class="rd-who" type="button" aria-expanded="false" aria-controls="rdMenu" aria-label="Signed in as ${esc(name)}" title="Signed in as ${esc(name)}">${face(p)}</button>`

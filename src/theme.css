@@ -71,9 +71,12 @@ a{color:inherit}
 @media (forced-colors:active){.rd-ai{background:none;-webkit-text-fill-color:currentColor;filter:none}}
 .rd-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
 .rd-nav{display:flex;gap:4px;flex:1;min-width:0;overflow-x:auto}
-.rd-nav a{padding:8px 12px;border-radius:999px;font-weight:600;font-size:15px;color:var(--muted);text-decoration:none;white-space:nowrap}
-.rd-nav a:hover{background:var(--accent-soft)}
-.rd-nav a[aria-current="true"]{color:var(--ink);background:var(--card);box-shadow:0 2px 8px -4px rgba(0,0,0,.25)}
+/* The tabs: the one you're on is a pill tinted with the ink, so it stands out the same on the
+   light sky and the dark one, and on the glow at the top of the page as much as off it. */
+.rd-nav a{padding:8px 14px;border-radius:999px;font-weight:600;font-size:15px;color:var(--muted);text-decoration:none;white-space:nowrap;transition:background-color .15s,color .15s}
+.rd-nav a:hover{color:var(--ink);background:color-mix(in srgb,var(--ink) 7%,transparent)}
+.rd-nav a[aria-current="true"]{color:var(--ink);background:color-mix(in srgb,var(--ink) 12%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 8%,transparent)}
+@media (forced-colors:active){.rd-nav a[aria-current="true"]{outline:2px solid CanvasText;outline-offset:-2px}}
 /* You, at the end of the bar: "Sign in", or your face, which opens a menu under it (src/main.js) */
 .rd-me{position:relative;display:flex;align-items:center}
 .rd-who{display:inline-flex;padding:2px;border:0;border-radius:50%;background:none;cursor:pointer;transition:box-shadow .15s}
@@ -93,8 +96,10 @@ a{color:inherit}
 .rd-menu-name b{font-weight:700;font-size:16px}
 .rd-menu-name small{color:var(--muted);font-weight:500;font-size:13px}
 .rd-menu .rd-menu-go{width:18px;height:18px}
-.rd-btn{display:inline-flex;align-items:center;min-height:40px;padding:8px 18px;border:0;border-radius:999px;background:var(--accent);color:#fff;font:700 15px var(--body);text-decoration:none;cursor:pointer}
+.rd-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:8px 18px;border:0;border-radius:999px;background:var(--accent);color:#fff;font:700 15px var(--body);text-decoration:none;cursor:pointer}
 [data-mode=night] .rd-btn{color:#0B1220}
+/* ("Sign in" has its door-and-arrow too, which is all of it on a phone) */
+.rd-btn svg{display:none;flex:none;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 /* Day or night: one round button at the end of the bar, a sun that turns into a crescent moon.
    The moon is the sun's disc grown, with a bite out of it; the rays fold away. */
 .rd-mode{flex:none;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;padding:0;border:0;border-radius:50%;background:none;color:var(--muted);cursor:pointer}
@@ -128,7 +133,9 @@ a{color:inherit}
   .rd-nav{order:3;flex-basis:100%}
   .rd-stage{margin-left:0}
   .rd-mode{margin-left:auto}
-  .rd-btn{min-height:38px;padding:7px 16px;font-size:14px}
+  .rd-btn{width:40px;padding:0}
+  .rd-btn svg{display:block}
+  .rd-btn span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 }
 /* (and on the narrowest, the logo's word a little smaller, so all of that still fits) */
 @media (max-width:359px){
@@ -136,7 +143,6 @@ a{color:inherit}
   .rd-logo{font-size:20px;gap:8px}
   .rd-stage{padding:2px 7px;font-size:11px}
   .rd-mode{width:34px}
-  .rd-btn{padding:7px 12px}
 }
 /* under the landing, the board's heading is one of the page's h2s, and sized like them */
 .rs-brand h2{font-size:clamp(24px,3vw,32px);font-weight:700;letter-spacing:-.02em}
