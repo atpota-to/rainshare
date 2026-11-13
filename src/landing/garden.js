@@ -10,7 +10,8 @@
 // the pitch, and the figure is the part of it kept clear for the garden. This file tells the
 // scene where that is. As the page is scrolled the garden doesn't keep up with it: it sinks
 // into the meadow left between it and the line of words under it, the hills behind it sink
-// less, and the sky not at all.
+// less, and the sky not at all. On a touchscreen the whole backdrop sinks together instead,
+// so it can keep up with a finger (see scroll(), below).
 //
 // The scene itself is three.js (./garden-scene.js), so it's fetched only when the landing is
 // on screen. If the browser can't draw it, a flat drawing takes its place, with the same
@@ -30,7 +31,7 @@ const SINK = .4;        // how far the garden sinks for each pixel scrolled, onc
 
 /** Put the garden's labels in the landing's figure. What comes back is what ./landing.js drives a scene with. */
 export function mount(figure){
-  const view = $('#sceneView', figure), layer = $('.rd-pins', view), hint = $('#sceneHint', figure), note = $('#sceneNote', figure);
+  const view = $('#sceneView', figure), canvas = $('canvas', view), layer = $('.rd-pins', view), hint = $('#sceneHint', figure), note = $('#sceneNote', figure);
   const title = $('h2', note), text = $('p', note), link = $('a', note), again = $('#sceneAgain', figure);
   layer.innerHTML = PLOTS.map((p, i) => `<button type="button" class="rd-pin rd-plot${p.theirs ? ' theirs' : ''}" data-plot="${i}"><i style="--c:${esc(p.color)}">${esc(p.name[0])}</i><span>${esc(p.name)}</span>${SPARK}</button>`).join('')
     + `<span class="rd-pin rd-friend"><i style="--c:${esc(FRIEND.color)}">${esc(FRIEND.name[0])}</i><span>${esc(FRIEND.name)}’s plan</span></span>`
@@ -41,7 +42,7 @@ export function mount(figure){
 
   /* where the garden goes in the backdrop, and how far it has sunk */
   // Under 880px the pitch is over the garden, not beside it, and the garden has the window's width (./landing.css).
-  const stacked = matchMedia('(max-width:880px)'), calm = matchMedia('(prefers-reduced-motion: reduce)');
+  const stacked = matchMedia('(max-width:880px)'), calm = matchMedia('(prefers-reduced-motion: reduce)'), touch = matchMedia('(pointer:coarse)');
   const land = figure.parentElement, base = $('.rd-base', figure), bar = $('.rd-bar'), pitch = $('.rd-pitch', land), signIn = $('.rd-signin', land);
   let frame = null, sunk = 0, deep = 0, stood = 0;
   function layout(){
@@ -62,6 +63,12 @@ export function mount(figure){
     // garden can sink as far as that.
     const room = parseFloat(getComputedStyle(figure).rowGap) || 0;
     deep = Math.max(0, room - 8);
+    // How far the page is scrolled when the garden starts and stops sinking, for the stylesheet
+    // to sink it by on a touchscreen (see scroll()).
+    const from = Math.max(0, base.getBoundingClientRect().top + scrollY - innerHeight + 52);
+    figure.style.setProperty('--sink', deep + 'px');
+    figure.style.setProperty('--sink-from', Math.round(from) + 'px');
+    figure.style.setProperty('--sink-to', Math.round(from + deep / SINK) + 'px');
     frame = { x: x0, y: f.top - at.top, w: x1 - x0, h: base.getBoundingClientRect().top - room - f.top, close };
     scene?.setFrame(frame);
     // Beside the garden, the pitch stands on its horizon: the heading and what's under it in
@@ -80,16 +87,24 @@ export function mount(figure){
   // garden starts below the first screenful, the whole of it is seen first. Its labels go
   // down with it, so it can be played with all the way. Anyone who's asked for less motion
   // gets a garden that scrolls away like the rest of the page.
+  //
+  // Here the camera rises to sink it, once each frame is drawn. That's only smooth where the
+  // page waits for the frame before it moves. A touchscreen doesn't: the page goes with the
+  // finger whether or not the frame is ready. A late frame leaves the garden carried up with
+  // the page, and it drops back when the frame comes, so it judders. So on a touchscreen the
+  // camera stays put, and ./landing.css sinks the whole picture with an animation that the
+  // browser runs in step with the scrolling. Where a browser can't do that, the garden
+  // doesn't sink there at all.
   function scroll(){
     if (!frame || land.hidden) return;      // (on another page there's no garden to sink)
-    const to = calm.matches ? 0 : clamp(SINK * clamp(innerHeight - 52 - base.getBoundingClientRect().top, 0, scrollY), 0, deep);
+    const to = calm.matches || touch.matches ? 0 : clamp(SINK * clamp(innerHeight - 52 - base.getBoundingClientRect().top, 0, scrollY), 0, deep);
     if (to === sunk) return;
     sunk = to;
     scene?.setLift(to);
   }
   const sized = new ResizeObserver(layout);
   for (const el of [land, figure, base, bar, pitch]) if (el) sized.observe(el);
-  stacked.addEventListener('change', layout); calm.addEventListener('change', scroll);
+  stacked.addEventListener('change', layout); calm.addEventListener('change', scroll); touch.addEventListener('change', scroll);
   addEventListener('scroll', scroll, { passive: true });
 
   const state = PLOTS.map(() => 'open');            // 'open', 'rain' (your cloud's on it) or 'done'
@@ -168,11 +183,12 @@ export function mount(figure){
     else say(i);
   }
   pins.forEach((b, i) => b.addEventListener('click', e => { e.stopPropagation(); pick(i); }));
-  const across = e => e.clientX - view.getBoundingClientRect().left;
+  // (Measured from the canvas, not the view it's in: on a touchscreen it's moved down in it as it sinks.)
+  const across = e => e.clientX - canvas.getBoundingClientRect().left;
   let dragged = false;
   view.addEventListener('click', e => {
     if (dragged) { dragged = false; return; }       // letting go of the cloud isn't a pick
-    const r = view.getBoundingClientRect();
+    const r = canvas.getBoundingClientRect();
     if (scene) pick(scene.plotAt(e.clientX - r.left, e.clientY - r.top));
   });
   /* taking hold of the cloud */
@@ -188,7 +204,7 @@ export function mount(figure){
   cloud.addEventListener('click', e => e.stopPropagation());
   view.addEventListener('pointermove', e => {
     if (e.pointerType !== 'mouse' || !scene) return;
-    const r = view.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
     // a plot your cloud could go to shows it can be picked
     const i = e.target === view || e.target.tagName === 'CANVAS' ? scene.plotAt(x, y) : -1;
     view.style.cursor = i >= 0 && state[i] === 'open' && !PLOTS[i].theirs ? 'pointer' : '';
@@ -203,7 +219,7 @@ export function mount(figure){
     async load({ dark }){
       const { createGarden } = await import('./garden-scene.js');
       layout();
-      scene = createGarden($('canvas', view), { dark, frame, plots: PLOTS, onFrame, onEvent });
+      scene = createGarden(canvas, { dark, frame, plots: PLOTS, onFrame, onEvent });
       scene.setLift(sunk);
     },
     setRunning(on){ scene?.setRunning(on); },
