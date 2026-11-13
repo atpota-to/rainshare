@@ -321,6 +321,8 @@ export function pullPageOf({ url, pull } = {}, subject){
   if (!at || !page) return null;
   return at.collection === K_PULL && forge === 'knotless' ? `${page}/pull/${at.repo}/${at.rkey}` : at.collection === TICKET && forge === 'tangled' ? `${page}/pulls/${at.rkey}` : null;
 }
+/** A pull request's number, from its page (GitHub, Tangled, Codeberg, GitLab), or '' where the address doesn't carry one. */
+export const pullNumber = link => (String(link || '').match(/^https?:\/\/[^?#]*\/(?:pull|pulls|merge_requests)\/(\d+)(?:[/?#]|$)/) || [])[1] || '';
 /** One name for a pull request however it was written down (a page address, a record, a trailing slash), for telling two mentions of it apart. */
 export function pullKey(link){
   const s = String(link || '').trim(), at = parseUri(s);

@@ -3,7 +3,7 @@
 // line of text. Where it stands (progressOf) is also a single word, which the screens colour,
 // so whether anyone's on it, or it's done, can be told at a glance.
 import { labelOf, SIZES, HARNESSES, PLANS, UNPAID, plansIn, audienceOf, modelName } from './ns.js';
-import { describeSubject, kindOf, FORGE_NAMES } from './subjects.js';
+import { describeSubject, kindOf, FORGE_NAMES, pullPageOf, pullNumber } from './subjects.js';
 import { join, modelReach, wantedOf, wantPhrase } from './rank.js';
 import { tieOf, TIE_SHORT } from './ties.js';
 
@@ -94,10 +94,14 @@ export const wantsShort = sq => { const p = wantPhrase(sq); return p ? 'wants ' 
  *
  *   key      'open' (nobody's on it), 'on-it', 'turned-in', 'done' or 'closed'
  *   label    "Open", "In progress", "Turned in", "Done", "Closed"
+ *   idea     whether it's an idea with no repo yet (what's turned in is where it lives, not a pull request)
  *   helpers  everyone who said they're on it or turned something in, once each:
- *            [{ did, author, mine, took, turnedIn, didIt, setup, note }]
+ *            [{ did, author, mine, took, turnedIn, didIt, setup, note, pulls }]
  *            (`took` and `turnedIn` are when, or null; `didIt`: the asker marked it done with their work)
  *            Whoever did it comes first, then whoever turned something in, then the rest, earliest first.
+ *   pulls    what's been turned in, newest first: [{ uri, link, number, state, didIt, did }]
+ *            (`link` is a page to open, or null; `state` is what the forge said, once it's been asked:
+ *            'open', 'merged', 'closed', or null)
  */
 export const PROGRESS = { open: 'Open', 'on-it': 'In progress', 'turned-in': 'Turned in', done: 'Done', closed: 'Closed' };
 export function progressOf(item, viewer){
@@ -105,26 +109,38 @@ export function progressOf(item, viewer){
   const key = sq.state === 'closed' ? 'closed' : sq.state === 'sprouted' ? 'done' : deliveries.length ? 'turned-in' : takes.length ? 'on-it' : 'open';
   const accepted = new Set((sq.sproutedWith || []).map(r => r.uri)), by = new Map();
   const of = r => {
-    if (!by.has(r.repo)) by.set(r.repo, { did: r.repo, author: r.author || { did: r.repo }, mine: !!viewer && r.repo === viewer, took: null, turnedIn: null, didIt: false, setup: null, note: '' });
+    if (!by.has(r.repo)) by.set(r.repo, { did: r.repo, author: r.author || { did: r.repo }, mine: !!viewer && r.repo === viewer, took: null, turnedIn: null, didIt: false, setup: null, note: '', pulls: [] });
     return by.get(r.repo);
   };
   const earliest = (a, b) => !a ? b : !b ? a : String(a) < String(b) ? a : b;
   const latest = (a, b) => !a ? b : !b ? a : String(a) > String(b) ? a : b;
   for (const t of takes) { const h = of(t); h.took = earliest(h.took, t.value?.createdAt || null); h.setup ||= t.value?.setup || null; h.note ||= t.value?.note || ''; }
-  for (const d of deliveries) { const h = of(d); h.turnedIn = latest(h.turnedIn, d.value?.createdAt || null); h.setup = d.value?.setup || h.setup; h.didIt ||= accepted.has(d.uri); }
+  const pulls = [];
+  // (Oldest first, so the setup said with the latest turn-in is the one shown: it's what did the work.)
+  for (const d of [...deliveries].sort((a, b) => String(a.value?.createdAt || '').localeCompare(String(b.value?.createdAt || '')))) {
+    const h = of(d), link = pullPageOf(d.value, sq.subject) || null;
+    const pull = { uri: d.uri, link, number: pullNumber(link), state: d.state || null, didIt: accepted.has(d.uri), did: d.repo };
+    h.turnedIn = latest(h.turnedIn, d.value?.createdAt || null); h.setup = d.value?.setup || h.setup; h.didIt ||= pull.didIt;
+    h.pulls.unshift(pull); pulls.unshift(pull);
+  }
   const rank = h => h.didIt ? 0 : h.turnedIn ? 1 : 2, when = h => String(h.took || h.turnedIn || '');
   const helpers = [...by.values()].sort((a, b) => rank(a) - rank(b) || when(a).localeCompare(when(b)));
-  return { key, label: PROGRESS[key], helpers };
+  return { key, label: PROGRESS[key], idea: !describeSubject(sq.subject), helpers, pulls };
 }
 /**
  * The same in a few words, for a card: "Kai’s on it", "You’re on it", "2 helpers on it",
- * "Kai turned it in", "Turned in by 2", "Kai did it", or "" when nobody's helped.
+ * "Kai’s pull request", "Your pull request", "2 pull requests" (for an idea, "Kai turned it
+ * in", "Turned in by 2"), "Kai did it", or "" when nobody's helped.
  */
 export function progressShort(item, viewer){
-  const { key, helpers } = progressOf(item, viewer);
+  const { key, idea, helpers, pulls } = progressOf(item, viewer);
   const one = h => h.mine ? 'You' : firstName(h.author);
   if (key === 'on-it') return helpers.length > 1 ? `${helpers.length} helpers on it` : helpers[0].mine ? 'You’re on it' : `${one(helpers[0])}’s on it`;
-  if (key === 'turned-in') { const t = helpers.filter(h => h.turnedIn); return t.length > 1 ? `Turned in by ${t.length}` : `${one(t[0])} turned it in`; }
+  if (key === 'turned-in') {
+    const t = helpers.filter(h => h.turnedIn);
+    if (idea) return t.length > 1 ? `Turned in by ${t.length}` : `${one(t[0])} turned it in`;
+    return pulls.length > 1 ? `${pulls.length} pull requests` : t[0].mine ? 'Your pull request' : `${firstName(t[0].author)}’s pull request`;
+  }
   if (key === 'done') { const d = helpers.filter(h => h.didIt); return d.length === 1 ? `${one(d[0])} did it` : d.length > 1 ? `${d.length} helpers did it` : ''; }
   return '';
 }

@@ -163,7 +163,10 @@ denouncements; do that on Tangled.
 Over the board's list, it's sorted **Best for you** (signed in; see [Ranking](#ranking)) or
 **Newest**, and **Filter** folds out what narrows it: who asked, by the ties above, and whether
 to show only the asks **nobody's on yet** (nobody's said they're on it, and nothing's been
-turned in). While it's folded away, whatever is narrowing the board shows beside it, each a
+turned in), the ones **in progress** (someone's on it), or the ones **turned in** (there's a
+pull request, or for an idea, something someone built). A card with a pull request carries it
+as a chip, and the ask's details link straight to it, saying whether it's open, merged or
+closed. While it's folded away, whatever is narrowing the board shows beside it, each a
 press from undone. What's done is never on the board; it's on the page of whoever asked.
 
 ## How it's built
