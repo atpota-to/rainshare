@@ -6,7 +6,8 @@
 //   '' or board        the board: what's open, best first for you, narrowed by who asked if you
 //                      like. Short cards in a list, and the one you pick in full beside them (a
 //                      sheet from the bottom on phones), with how you know whoever asked. What
-//                      you've asked for is on your own page (u/<you>)
+//                      you've asked for that's still open is there too, after the rest; all
+//                      of it, open or done, is on your own page (u/<you>)
 //   seed/<did>/<rkey>  a public seed (a handle works in place of the DID)
 //   seed/s/<code>      a private one, in a group's space (its record URI, base64url)
 //   new                plant a seed (./post.js)
@@ -207,14 +208,20 @@ export function createRainshare({ root, base = '/', host }){
   }
 
   /* ---------- the board: a list of short cards, and the one you pick beside them ---------- */
-  // Everything still open that someone else asked for, best first for you. (Yours, open or
-  // done, are on your own page, which the board's quiet button leads to.)
+  // Everything still open: what someone else asked for, best first for you, then what you
+  // asked for yourself, newest first, marked as yours. (Yours come last so the one picked to
+  // begin with is one you could help with. What's done is on the page of whoever asked, and
+  // all of yours on your own page, which the board's quiet button leads to.)
+  const newest = (a, b) => String(b.value?.createdAt).localeCompare(String(a.value?.createdAt));
   function boardItems(){
-    const others = (S.board?.items || []).filter(it => isOpen(it) && it.repo !== viewer());
-    return signedIn() ? rank(others, me()) : others;
+    const open = (S.board?.items || []).filter(isOpen);
+    if (!signedIn()) return open;
+    const mine = open.filter(it => it.repo === viewer()).sort(newest);
+    return [...rank(open.filter(it => it.repo !== viewer()), me()), ...mine];
   }
-  // Narrowed to who asked, if you chose to.
-  const fromWho = (k, it) => fromMatches(k, it.ties, word(it.repo));
+  // Narrowed to who asked, if you chose to. (Anything but "anyone" is about someone else, so
+  // what you asked for is left out of it.)
+  const fromWho = (k, it) => it.repo !== viewer() && fromMatches(k, it.ties, word(it.repo));
   const narrowFrom = items => !signedIn() || S.from === 'anyone' ? items : items.filter(it => fromWho(S.from, it));
   // What each choice means, said when you rest on it.
   const FROM_HINT = {

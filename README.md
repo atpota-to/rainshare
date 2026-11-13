@@ -208,7 +208,8 @@ the job is the asker's call.
 `core/rank.js` sorts your board. Askers with no paid AI plan come first, then asks that fit
 what you can bring (a model you run or your plan reaches, tags that match your work), then
 people closer to you. Each card shows the fit as one to three drops, and opening one says why
-in plain sentences.
+in plain sentences. Your own open asks are on the board too, marked "Yours", after everyone
+else's.
 
 ### Gardens
 
