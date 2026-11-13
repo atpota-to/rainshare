@@ -16,7 +16,7 @@ AI plan? See [the FAQ](#faq).)
   project you already have, where it lives (a Tangled, knotless or GitHub issue, or any git
   repo) and how far along the project is as a whole, each drawn as its own little 3D plant. *Details*: what done looks
   like and which models you'd prefer (a family, like Claude or GLM, and a level: frontier,
-  mid-tier or small), with tests, size and tags folded under "More options",
+  mid-tier or small), with tests, size and tags behind "Add tests, size and tags",
   and a Bluesky post to tell people it's there. It's open to everyone. An idea needs no repo and no developer: say
   what it should do, and whether someone else can run with it.
 - **Say your AI plan**: your profile starts with which AI plans you pay for to code with (Claude,
@@ -368,9 +368,13 @@ Rainshare side of things.
 "Send my agent" reads the seed again and asks the forge before it writes your take. If that
 turns up something the screen wasn't already showing, it asks before going on. Then it copies
 whatever suits the setup in your profile: the Claude Code or Codex command, or the brief by
-itself for anything else. The seed's page shows that one, with the other ways folded under it,
-and the turn-in form asks only for the pull request's link (what did the work, a session link
-and a note are folded away, filled in from your setup).
+itself for anything else. The seed's page shows that one, with the other ways a row of choices
+above it, and the turn-in form asks only for the pull request's link (what did the work, a session
+link and a note wait behind "Add a note or details", filled in from your setup). On knotless and
+Tangled, "Open it from here" swaps that form for the one that opens the pull request.
+
+The screens keep their explanations out of the way: the why and the how of a thing sits behind
+an ⓘ beside it, which opens a small note when pressed, rather than as a paragraph under it.
 
 The link an agent hands back is
 `rainshare.dev/seed/<handle>/<key>?pr=<pull request>&model=<model>`. Opening it fills in the

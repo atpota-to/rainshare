@@ -108,3 +108,43 @@ export function avatarFallback(root){
 }
 /** How well a seed suits you, as one to three filled drops. */
 export const drops = level => `<span class="rs-drops" aria-hidden="true">${[1, 2, 3].map(n => `<svg viewBox="0 0 24 24"${n <= level ? ' class="on"' : ''}>${ICON.drop}</svg>`).join('')}</span>`;
+
+/*
+ * A little ⓘ that says more when it's pressed: the why and the how, kept off the page until
+ * someone asks. `html` is already escaped, and holds only inline things (text, links, <b>,
+ * <code>, and <span class="rs-tip-p"> for a paragraph), since a tip can sit inside a line of text.
+ * tipLink is the same, opened by a few words rather than the icon.
+ */
+const tipBox = html => `<span class="rs-tipbox" hidden>${html}</span>`;
+const ICO_INFO = `<svg class="rs-i" viewBox="0 0 24 24" aria-hidden="true">${ICON.info}</svg>`;
+export const tip = (html, label = 'More about this') => `<span class="rs-tipwrap"><button type="button" class="rs-tip" data-rs-tip aria-expanded="false" aria-label="${esc(label)}">${ICO_INFO}</button>${tipBox(html)}</span>`;
+export const tipLink = (text, html) => `<span class="rs-tipwrap"><button type="button" class="rs-link rs-tip-link" data-rs-tip aria-expanded="false">${esc(text)}</button>${tipBox(html)}</span>`;
+let openTip = null;
+function closeTip(){
+  if (!openTip) return;
+  openTip.box.hidden = true; openTip.btn.setAttribute('aria-expanded', 'false'); openTip = null;
+}
+/** Open (or close) the tip whose button this is: under it, or over it if there's no room below, and always inside the window. */
+export function toggleTip(btn){
+  const box = btn.nextElementSibling;
+  if (openTip?.btn === btn) return closeTip();
+  closeTip();
+  if (!box?.classList.contains('rs-tipbox')) return;
+  // The window's width is read before the tip shows, and the tip starts at its left edge, so
+  // at no moment does it reach past the right one (a phone would widen the page to fit it).
+  const vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight, pad = 16;
+  const w = btn.parentElement.getBoundingClientRect(), b = btn.getBoundingClientRect();
+  Object.assign(box.style, { left: `${pad - w.left}px`, top: '', bottom: '' });
+  box.hidden = false; btn.setAttribute('aria-expanded', 'true');
+  openTip = { btn, box };
+  const r = box.getBoundingClientRect();
+  const left = Math.min(Math.max(b.left + b.width / 2 - r.width / 2, pad), Math.max(pad, vw - pad - r.width));
+  box.style.left = `${left - w.left}px`;
+  if (b.bottom + 8 + r.height > vh - pad && b.top - 8 - r.height > pad) Object.assign(box.style, { top: 'auto', bottom: 'calc(100% + 6px)' });
+}
+if (typeof document !== 'undefined') {
+  // Anywhere else closes it (a click on its own button is that button's to toggle), and so does Escape.
+  document.addEventListener('click', e => { if (openTip && !openTip.btn.parentElement.contains(e.target)) closeTip(); }, true);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && openTip) { const b = openTip.btn; closeTip(); e.stopPropagation(); b.focus(); } }, true);
+  addEventListener('resize', closeTip);
+}

@@ -55,7 +55,7 @@
 .rs-face.lg{width:64px;height:64px;font-size:26px}
 
 /* surfaces */
-.rs-panel,.rs-seed-main,.rs-form,.rs-launch,.rs-person>header,.rs-post-done{background:var(--rs-bg-card);border-radius:var(--rs-radius);box-shadow:var(--rs-shadow);outline:1px solid var(--rs-card-edge);outline-offset:-1px;-webkit-backdrop-filter:var(--rs-blur);backdrop-filter:var(--rs-blur)}
+.rs-panel,.rs-seed-main,.rs-form,.rs-person>header,.rs-post-done{background:var(--rs-bg-card);border-radius:var(--rs-radius);box-shadow:var(--rs-shadow);outline:1px solid var(--rs-card-edge);outline-offset:-1px;-webkit-backdrop-filter:var(--rs-blur);backdrop-filter:var(--rs-blur)}
 .rs-note{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;padding:12px 16px;border-radius:var(--rs-radius-sm);background:var(--rs-accent-soft);color:var(--rs-ink);font-size:14px}
 .rs-note>span{flex:1;min-width:180px}
 .rs-note .rs-i{color:var(--rs-accent-text);margin-top:2px}
@@ -80,16 +80,6 @@
 .rs-logo{width:52px;height:52px;border-radius:16px;flex:none;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#9CC4FF,#3F7BF0);color:#fff;box-shadow:inset 0 -4px 8px rgba(0,0,0,.12),0 10px 20px -12px #3F7BF0}
 .rs-logo .rs-i{width:28px;height:28px;fill:rgba(255,255,255,.5)}
 .rs-head-actions{display:flex;gap:10px;flex-wrap:wrap}
-.rs-board-head{display:flex;flex-direction:column;gap:8px}
-.rs-tabs{display:flex;gap:4px;align-items:center;padding:4px;border-radius:999px;background:var(--rs-sunk);align-self:flex-start;max-width:100%;overflow-x:auto}
-.rs-tabs button{border:0;background:none;border-radius:999px;min-height:38px;padding:0 16px;font:600 14px var(--rs-font);color:var(--rs-muted);cursor:pointer;white-space:nowrap}
-.rs-tabs button[aria-pressed="true"]{background:var(--rs-bg-card);color:var(--rs-ink);box-shadow:0 2px 8px -4px rgba(0,0,0,.3)}
-.rs-board-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}
-.rs-board-bar .rs-tabs{min-width:0}
-.rs-refresh{flex:none;text-decoration:none;color:var(--rs-muted);padding:8px 12px;border-radius:999px}
-.rs-refresh:hover{background:var(--rs-sunk)}
-.rs-refresh:disabled{cursor:progress;opacity:.7}
-.rs-refresh .rs-i{width:16px;height:16px}
 .rs-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:22px;align-items:start}
 .rs-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;min-width:0}
 .rs-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;align-items:center;padding:14px 16px;border-radius:18px;text-decoration:none;color:inherit;background:var(--rs-item);box-shadow:inset 0 0 0 1px var(--rs-card-edge);-webkit-backdrop-filter:var(--rs-blur);backdrop-filter:var(--rs-blur);transition:box-shadow .2s,background .2s}
@@ -263,9 +253,7 @@
 .rs-spec pre code{background:none;padding:0}
 .rs-spec blockquote{margin:0;padding:4px 14px;border-left:3px solid var(--rs-line);color:var(--rs-muted)}
 .rs-spec a{color:var(--rs-accent-text)}
-.rs-panel.rs-hood{display:block;padding-block:14px}
-.rs-hood[open] summary{margin-bottom:12px}
-.rs-hood dl{margin:0;display:flex;flex-direction:column;gap:10px}
+.rs-hood{font-size:14px;padding:0 4px}
 .rs-actions{display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--rs-line);padding-top:16px}
 .rs-people{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
 .rs-people li{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:var(--rs-radius-sm);background:var(--rs-sunk)}
@@ -276,24 +264,34 @@
 .rs-panel{padding:18px;display:flex;flex-direction:column;gap:12px;min-width:0}
 .rs-panel>.rs-link{align-self:flex-start}
 .rs-bio{font-size:15px}
-.rs-hood summary{cursor:pointer;font-weight:700}
-.rs-hood dt{font-size:13px;font-weight:700;color:var(--rs-muted)}
-.rs-hood dd{margin:0;font-size:13px}
 
-/* sending an agent */
-.rs-launch{padding:20px;display:flex;flex-direction:column;gap:12px;scroll-margin-top:16px;border:2px solid var(--rs-accent-soft)}
-.rs-launch h3{display:flex;gap:8px;align-items:center}
-.rs-launchers{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
-.rs-launchers li{padding:12px 14px;border-radius:var(--rs-radius-sm);background:var(--rs-sunk);display:flex;flex-direction:column;gap:6px;min-width:0;outline:2px solid transparent;transition:outline-color .2s}
-.rs-launchers li.on{outline-color:var(--rs-accent)}
-.rs-launchers li:not(.on){cursor:pointer}
-.rs-launchers li:not(.on) pre{display:none}
-.rs-launchers li:not(.on):hover{background:var(--rs-accent-soft)}
+/* sending an agent, and turning it in: sections of the ask's own card, not cards of their own */
+.rs-launch,.rs-turn{display:flex;flex-direction:column;gap:10px;scroll-margin-top:16px;min-width:0}
+.rs-launch+.rs-turn{margin-top:10px}
 .rs-l-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
-.rs-launchers pre,.rs-cmd pre{margin:0;padding:10px 12px;border-radius:10px;background:#0F1A2E;color:#E2E9F7;font:12.5px/1.5 var(--rs-mono);overflow:auto;max-height:180px;white-space:pre-wrap;word-break:break-all}
-.rs-launchers pre code,.rs-cmd pre code{background:none;padding:0;color:inherit}
+.rs-l-head small{color:var(--rs-muted)}
+.rs-code,.rs-cmd pre{margin:0;padding:10px 12px;border-radius:10px;background:#0F1A2E;color:#E2E9F7;font:12.5px/1.5 var(--rs-mono);overflow:auto;max-height:180px;white-space:pre-wrap;word-break:break-all}
+.rs-code code,.rs-cmd pre code{background:none;padding:0;color:inherit}
 /* the brief is prose, so it wraps like prose */
-.rs-launchers .rs-l-brief pre{max-height:260px;word-break:normal;overflow-wrap:anywhere}
+.rs-code.rs-l-brief{max-height:260px;word-break:normal;overflow-wrap:anywhere}
+
+/* a heading with its ⓘ beside it */
+.rs-hrow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}
+.rs-hrow>.rs-seg{flex:1 1 auto}
+/* ⓘ, and what it says when pressed */
+.rs-tipwrap{position:relative;display:inline-flex;vertical-align:middle}
+.rs-tip{border:0;background:none;padding:0;width:28px;height:28px;flex:none;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;color:var(--rs-muted);cursor:pointer}
+.rs-tip:hover,.rs-tip[aria-expanded="true"]{color:var(--rs-accent-text);background:var(--rs-sunk)}
+.rs-tip .rs-i{width:18px;height:18px;margin:0}
+/* beside a heading or a label it takes no more room in the line than the words do */
+:is(h1,h2,h3,legend,p,label) .rs-tip{margin-block:-6px}
+.rs-tip-link{font-size:inherit}
+.rs-tipbox{position:absolute;top:calc(100% + 6px);left:0;z-index:40;display:block;width:max-content;max-width:min(320px,calc(100vw - 32px));padding:12px 14px;border-radius:14px;background:var(--rs-solid,var(--rs-bg-card));color:var(--rs-ink);box-shadow:0 14px 34px -14px rgba(12,18,32,.5);outline:1px solid var(--rs-card-edge);font:400 14px/1.45 var(--rs-font);letter-spacing:0;text-align:left;text-transform:none;white-space:normal;overflow-wrap:anywhere}
+.rs-tip-p{display:block}
+.rs-tip-p+.rs-tip-p{margin-top:8px}
+.rs-tipbox code{font-size:12.5px}
+.rs-tipbox a{color:var(--rs-accent-text)}
+.rs [hidden]{display:none!important}
 
 /* forms */
 .rs-form{padding:24px;display:flex;flex-direction:column;gap:16px;max-width:760px;width:100%}
@@ -353,11 +351,9 @@
 /* what needs rain: a seed or a plant, each with its picture */
 .rs-tiles.rs-stages{grid-template-columns:repeat(auto-fit,minmax(min(100%,124px),1fr))}
 .rs-tiles.rs-stages-2{grid-template-columns:repeat(2,minmax(0,1fr))}
-/* "More options": everything optional, folded under the description */
-.rs-options-more{padding:14px 16px;border-radius:16px;box-shadow:inset 0 0 0 1.5px var(--rs-line)}
-.rs-options-more summary small{font-weight:500;color:var(--rs-muted);margin-left:4px}
-.rs-options-more[open] summary{margin-bottom:12px}
+/* what's optional, behind an "Add …" until it's asked for */
 .rs-more-body{display:flex;flex-direction:column;gap:14px}
+.rs-form>.rs-link,.rs-form .rs-row>.rs-link{align-self:flex-start}
 /* what's coming, shown but not yet offered */
 .rs-option.rs-soon{background:none;box-shadow:none;border:1.5px dashed var(--rs-line);cursor:default;opacity:.7}
 .rs-soon b{display:inline-flex;align-items:center;gap:6px}
@@ -444,9 +440,6 @@
 .rs-cmd{display:flex;gap:8px;align-items:flex-start}
 .rs-cmd pre{flex:1;min-width:0;max-height:none;word-break:normal;overflow-wrap:anywhere}
 .rs-say p{flex:1;min-width:0;padding:9px 12px;border-radius:10px;background:var(--rs-sunk);font-size:15px}
-.rs-more summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--rs-accent-text);width:fit-content}
-.rs-more[open] summary{margin-bottom:8px}
-.rs-agents .rs-more .rs-more-body{gap:8px}
 /* the question people ask before they start: set to be read, not skimmed past */
 .rs-faq p{font-size:15px;line-height:1.6;max-width:78ch}
 .rs-faq a{color:var(--rs-accent-text)}
@@ -464,8 +457,8 @@
 /* on a phone, a row of choices that won't fit sits two to a row instead of leaving one over */
 @media (max-width:480px){.rs-seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}}
 
-/* the turn-in form sits inside the seed's own card */
-.rs-form.rs-turnin,.rs-more .rs-form{padding:0;background:none;box-shadow:none;outline:0;-webkit-backdrop-filter:none;backdrop-filter:none;max-width:none}
+/* the forms on an ask's page sit inside its own card */
+.rs-form.rs-turnin,.rs-pull .rs-form,.rs-form.rs-sayform{padding:0;background:none;box-shadow:none;outline:0;-webkit-backdrop-filter:none;backdrop-filter:none;max-width:none}
 /* Tangled's vouches: a hat beside a name, and what your circle has said */
 .rs-hat{display:inline-flex;vertical-align:-3px;margin-left:5px;color:var(--rs-ok)}
 .rs-hat .rs-i{width:16px;height:16px}
@@ -492,16 +485,21 @@
 .rs-faces{display:inline-flex;flex:none;padding-left:2px}
 .rs-faces .rs-face.sm{width:20px;height:20px;font-size:9px}
 /* narrowing the board to who asked */
-.rs-from{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.rs-from,.rs-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .rs-from-l{font-size:13px;font-weight:600;color:var(--rs-muted);margin-right:2px}
-.rs-from button{border:0;border-radius:999px;min-height:32px;padding:0 12px;font:600 13px var(--rs-font);background:none;color:var(--rs-muted);box-shadow:inset 0 0 0 1.5px var(--rs-line);cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
-.rs-from button:hover{color:var(--rs-ink)}
-.rs-from button[aria-pressed="true"]{background:var(--rs-ink);color:var(--rs-on-ink);box-shadow:none}
+.rs-from button,.rs-chips button{border:0;border-radius:999px;min-height:32px;padding:0 12px;font:600 13px var(--rs-font);background:none;color:var(--rs-muted);box-shadow:inset 0 0 0 1.5px var(--rs-line);cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.rs-from button:hover,.rs-chips button:hover{color:var(--rs-ink)}
+.rs-from button[aria-pressed="true"],.rs-chips button[aria-pressed="true"]{background:var(--rs-ink);color:var(--rs-on-ink);box-shadow:none}
 .rs-from button.rs-from-none{opacity:.6}
 .rs-from-n{font-weight:500;opacity:.75;font-variant-numeric:tabular-nums}
+/* on a phone the choices keep to one line, which slides sideways, fading out where there's more */
+@media (max-width:599px){
+  .rs-from,.rs-chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-right:28px;-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent)}
+  .rs-from::-webkit-scrollbar,.rs-chips::-webkit-scrollbar{display:none}
+  .rs-from>*,.rs-chips>*{flex:none}
+}
 .rs-empty .rs-link{font:inherit;font-weight:600}
 /* opening the pull request from the ask's page */
-.rs-pull summary .rs-i{width:16px;height:16px;margin-right:6px;vertical-align:-3px}
 .rs-pull textarea{font-family:var(--rs-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:13px;line-height:1.5}
 @media (prefers-reduced-motion:reduce){.rs *{transition:none!important}}
 /* your AI plan, in the board's header */

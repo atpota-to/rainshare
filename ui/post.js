@@ -12,7 +12,7 @@ import { writableForge, FORGE_SAID } from '../core/forgewrite.js';
 import { whereText, shortWhere, jobAndNotes, jobShort, modelsText, wantsShort, askExcerpt, stageOf, aNoun } from '../core/words.js';
 import { join, wantPhrase } from '../core/rank.js';
 import { pageOf } from '../core/brief.js';
-import { esc, ago, ico, forgeIco, face, people, pathOf, plantPic } from './bits.js';
+import { esc, ago, ico, forgeIco, face, people, pathOf, plantPic, tip } from './bits.js';
 
 // "Who's it for?" is set aside for now: without it every ask is open to everyone, and its last
 // few choices (more than one helper, a Bluesky post) close the Details step instead.
@@ -277,7 +277,7 @@ export function createPoster(ui){
     const forge = offerOn(); if (!forge) return '';
     const name = FORGE_SAID[forge];
     if ((ui.forges?.() || []).includes(forge)) return `<label class="rs-check"><input type="checkbox" name="openIssue"${P.openIssue ? ' checked' : ''}> Open an issue for it on ${esc(name)} too, from what you write next</label>`;
-    return ui.connectForge ? `<p class="rs-muted">Rainshare can open an issue for it on ${esc(name)}, but your sign-in doesn’t let it post there for you yet. <button class="rs-link" type="button" data-rs-connect-forge="${forge}">Connect ${esc(name)}</button> (you’ll start this step again).</p>` : '';
+    return ui.connectForge ? `<p class="rs-muted"><button class="rs-link" type="button" data-rs-connect-forge="${forge}">Connect ${esc(name)}</button> to open an issue for it there too. ${tip(`Your sign-in doesn’t let Rainshare post on ${esc(name)} for you yet. Connecting it brings you back to start this step again.`)}</p>` : '';
   }
   const found = () => {
     if (P.kind === 'idea' || !P.link.trim()) return '';
@@ -311,8 +311,7 @@ export function createPoster(ui){
       more = `<div class="rs-field" role="radiogroup" aria-label="Whose will it be?"><span>Whose will it be?</span><div class="rs-options">
           ${row('data-rs-owner', 'helper', P.owner === 'helper', 'Someone else can run with it', 'Whoever builds it keeps it, in their own repo. You’d just like it to exist.')}
           ${row('data-rs-owner', 'requester', P.owner === 'requester', 'Start it for me', 'A helper sets up the repo and hands it over, or builds it where you say.')}</div></div>
-        <p class="rs-muted">${P.owner === 'helper' ? 'You don’t need to be a developer for this one. Say what it should do in the next step, in your own words.'
-          : `Or make the empty repo yourself first and point at it: ${newRepoPlaces({ title: P.title }).map(p => `<a href="${esc(p.href)}" target="_blank" rel="noopener">${esc(p.name)}</a>`).join(', ')}.`}</p>`;
+        ${P.owner === 'helper' ? '' : `<p class="rs-muted">Or make the empty repo yourself first and point at it: ${newRepoPlaces({ title: P.title }).map(p => `<a href="${esc(p.href)}" target="_blank" rel="noopener">${esc(p.name)}</a>`).join(', ')}.</p>`}`;
     }
     // First what it is: an idea, or a project someone already has. Then, for a project, where
     // it lives and how far along it is. The pictures are the seed and the plant it'd be.
@@ -331,9 +330,10 @@ export function createPoster(ui){
       ${plant ? `<div class="rs-field" role="radiogroup" aria-label="How far along is the project as a whole?"><span>How far along is the project as a whole?</span><div class="rs-options">
         ${PLANT_STAGES.map(([k, t, n]) => row('data-rs-stage', k, P.stage === k, t, n)).join('')}</div></div>` : ''}`;
   }
-  // How it should be done: all optional, so it's folded away under the description.
-  const moreOptions = (summary, body) => `<details class="rs-more rs-options-more" data-rs-more${P.more ? ' open' : ''}>
-      <summary>${summary} <small>optional</small></summary><div class="rs-more-body">${body}</div></details>`;
+  // How it should be done: all optional, so it waits behind a button under the description.
+  // (The fields are there all along, hidden, so what's in them is kept either way.)
+  const moreOptions = (label, body) => `${P.more ? '' : `<button class="rs-link" type="button" data-rs-more-open>${ico('plus')}${label}</button>`}
+      <div class="rs-more-body rs-options-more" data-rs-more${P.more ? '' : ' hidden'}>${body}</div>`;
   function stepWhat(){
     if (P.kind === 'idea') return `<h1 tabindex="-1">What’s the idea?</h1>
       <label>A short title<input name="title" maxlength="120" required autocomplete="off" placeholder="A seating chart that shuffles itself" value="${esc(P.title)}"></label>
@@ -351,8 +351,7 @@ export function createPoster(ui){
   }
   function howFields(){
     // An idea given away is the builder's to build their way: only what helps someone find it and size it up is asked.
-    if (P.kind === 'idea' && P.owner === 'helper') return moreOptions('More: how big it feels, tags', `
-      <p class="rs-muted">It’s theirs to build, so how they build it is up to them. These help the right person find it.</p>
+    if (P.kind === 'idea' && P.owner === 'helper') return moreOptions('Add how big it feels, and tags', `
       <fieldset><legend>How big does it feel?</legend><div class="rs-options" role="radiogroup" aria-label="How big does it feel?">${SIZE_PICKS.map(([k, l, n]) => row('data-rs-size', k, P.size === k, l, '', n)).join('')}</div></fieldset>
       <div class="rs-two">
         <label>Tags <small>so the right person finds it</small><input name="tags" autocomplete="off" placeholder="teaching, printing" value="${esc(P.tags)}"></label>
@@ -362,7 +361,8 @@ export function createPoster(ui){
     // Which models: a family (or any), and how capable (or any level). Not model names: those
     // change every few months, and a helper knows which of theirs fit.
     const custom = P.families.filter(f => !FAMILIES.some(([k]) => k === f));
-    return `<fieldset><legend>Which models would you prefer?</legend>
+    const lv = LEVELS.find(l => l[0] === P.level);
+    return `<fieldset><legend>Which models would you prefer? ${tip('Frontier is the most capable model a family has, mid-tier a step below, and small is quick and light. Helpers whose plan or setup reaches one of these families see it as a better fit, and their agents get it in the brief.')}</legend>
         <div class="rs-toggles" data-rs-families aria-label="Model family">
           <button type="button" data-rs-family="" aria-pressed="${!P.families.length}">Any model</button>
           ${[...FAMILIES, ...custom.map(f => [f, f])].map(([k, l]) => `<button type="button" data-rs-family="${esc(k)}" aria-pressed="${P.families.includes(k)}">${esc(l)}</button>`).join('')}
@@ -372,10 +372,9 @@ export function createPoster(ui){
           <button type="button" data-rs-level="" aria-pressed="${!P.level}">Any level</button>
           ${LEVELS.map(([k, l]) => `<button type="button" data-rs-level="${k}" aria-pressed="${P.level === k}">${esc(l)}</button>`).join('')}
         </div>
-        <small>${(l => l ? `${l[1]}: ${l[2]}.` : 'Frontier is the most capable model a family has, mid-tier a step below, and small is quick and light.')(LEVELS.find(l => l[0] === P.level))} Helpers whose plan or setup reaches one of these families see it as a better fit, and their agents get it in the brief.</small>
+        ${lv ? `<small>${esc(lv[1])}: ${esc(lv[2])}.</small>` : ''}
       </fieldset>
-      ${moreOptions('More options: tests, size, tags', `
-      <p class="rs-muted">These help the right helpers find it, and their agents get them in the brief.</p>
+      ${moreOptions('Add tests, size and tags', `
       <div class="rs-two">
         <fieldset><legend>Tests</legend><div class="rs-options" role="radiogroup" aria-label="Tests">${TEST_PICKS.map(([k, l]) => row('data-rs-tests', k, P.tests === k, l)).join('')}</div></fieldset>
         <fieldset><legend>How big is it?</legend><div class="rs-options" role="radiogroup" aria-label="How big is it?">${SIZE_PICKS.map(([k, l, n]) => row('data-rs-size', k, P.size === k, l, '', n)).join('')}</div></fieldset>
@@ -424,7 +423,7 @@ export function createPoster(ui){
         <label class="rs-check"><input type="checkbox" name="bsky"${P.bsky ? ' checked' : ''}> Also post it on Bluesky, so ${P.audience === 'anyone' ? 'people' : FOR[P.audience]} notice</label>
         ${P.bsky ? `<textarea name="bskyText" rows="3" maxlength="230" aria-label="Your Bluesky post">${esc(bskyText())}</textarea><small>Bluesky opens with this ready, and the link on the end. You post it there.</small>` : ''}
       </div>` : ''}
-      <p class="rs-muted">${pub ? `It’s saved in your own account${FEATURES.audience ? '' : ', open to everyone on Rainshare'}` : `It’s saved in your own account, inside ${esc(groupNow()?.name || 'the group')}’s private Rainshare space`}, and you can close, reopen or delete it any time. Rainshare is in early ${STAGE}, so things may change or break.</p>`;
+      <p class="rs-muted">You can close or delete it any time. ${tip(`${pub ? `It’s saved in your own account${FEATURES.audience ? '' : ', open to everyone on Rainshare'}` : `It’s saved in your own account, inside ${esc(groupNow()?.name || 'the group')}’s private Rainshare space`}. Rainshare is in early ${STAGE}, so things may change or break.`)}</p>`;
   }
 
   // The preview beside the steps: the card as the board will show it, then (on the last
@@ -510,9 +509,9 @@ export function createPoster(ui){
   /* ---------- events (rainshare.js passes on the ones inside the wizard) ---------- */
   function click(t){
     const pick = (sel, fn) => { const el = t.closest(sel); if (el && !el.disabled) { fn(el); return true; } return false; };
-    // Opening or closing "More options": the browser does it; this remembers it for the next redraw.
-    const sum = t.closest('[data-rs-more] > summary');
-    if (sum) { P.more = !sum.parentElement.open; return true; }
+    // "Add tests, size and tags": the fields come out, and stay out on the next redraw.
+    const mo = t.closest('[data-rs-more-open]');
+    if (mo) { P.more = true; const box = ui.root.querySelector('[data-rs-more]'); if (box) { box.hidden = false; mo.remove(); box.querySelector('button, input')?.focus(); } return true; }
     return pick('[data-rs-step]', el => goStep(+el.dataset.rsStep))
       || pick('[data-rs-back]', () => { P.err = ''; P.step = Math.max(1, P.step - 1); ui.render(); arrive(); })
       || pick('[data-rs-kind]', el => {

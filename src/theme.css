@@ -31,7 +31,7 @@ a{color:inherit}
     --rs-sunk:rgba(255,255,255,.05); --rs-sk:rgba(255,255,255,.07); --rs-sk-hi:rgba(255,255,255,.09); --rs-field:#0F1727; --rs-item:rgba(255,255,255,.035); --rs-drop-off:rgba(255,255,255,.18); --rs-accent-ink:#0B1220; --rs-accent-text:#A9C1FF; --rs-on-ink:#0B1220;
     --rs-ok:#5ED6BF; --rs-ok-soft:rgba(94,214,191,.14); --rs-up:#FFB27A; --rs-up-soft:rgba(255,178,122,.14); --rs-down:#E6C65A; --rs-down-soft:rgba(230,198,90,.14); --rs-bad:#FF8A80
   }
-  .rs-launchers pre,.rs-brief pre,.rs-cmd pre{background:#060B15}
+  .rs-code,.rs-brief pre,.rs-cmd pre{background:#060B15}
 }
 
 /* the bar */
