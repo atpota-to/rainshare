@@ -312,6 +312,7 @@ which spells it out by hand.
 | `src/landing/` | the signed-out landing page and its 3D garden (three.js, only loaded on the landing). `src/landing/cycle/` is an older scene, viewable with `?scene=cycle`. |
 | `src/plants/`, `src/logo/` | the 3D plant models, and the animated logo (plain JavaScript, no three.js) |
 | `src/signin.js`, `src/oauth.js`, `src/scope.js`, `src/lookup.js` | the sign-in dialog, OAuth, and the scopes it asks for |
+| `src/mode.js`, `public/mode.js` | day and night: the toggle in the bar, and the small script that picks one before the page is first drawn |
 | `src/hosts.js` | the hosts offered for making an account, for someone who hasn't got one |
 | `src/spaces.js` | group spaces for private asks (switched off) |
 | `ui/` | the app's screens: the board, an ask, profiles, posting an ask, the first-time welcome, loading placeholders |
@@ -335,6 +336,7 @@ In `core/`:
 | `ties.js`, `vouch.js`, `circle.js` | follows, vouches and audiences |
 | `garden.js` | works out gardens from records |
 | `route.js` | URLs, including fixing mistyped ones |
+| `mode.js` | day or night (the system's setting, or the toggle's choice), and the fade between them |
 | `markdown.js` | a small, safe Markdown renderer for specs |
 | `demo.js` | the example board at `/example`, served from fixtures and browser storage |
 
