@@ -24,6 +24,8 @@ import * as atp from './spaces.js';
 import * as oauth from './oauth.js';
 import { openSignIn, landingSignIn } from './signin.js';
 import { showLanding, hideLanding } from './landing/landing.js';
+import { peekWords, peekPeople } from './landing/peek.js';
+import { face, avatarFallback } from '../ui/bits.js';
 import { mountLogo } from './logo/live.js';
 
 const $ = s => document.querySelector(s);
@@ -76,6 +78,8 @@ const host = kind => ({
   // where you're being sent to approve it, and you come back to where you were.
   // The example circle only pretends to post, so there both count as connected.
   forges: () => kind === 'example' ? ['knotless', 'tangled'] : forges,
+  // What's open on your board: the landing's way down to it says who's asking, and how many.
+  onBoard: kind === 'real' ? peek : null,
   connectForge: kind === 'real' ? (forge, sub) => { if (session) openSignIn({ person: me || { did: session.did }, to: '/' + (sub || '') + location.search, forges: [...new Set([...forges, forge])], adding: forge }); } : null,
   ...(kind === 'example' ? { exitDemo: session ? 'Back to your circle' : 'Sign in for your real circle', onExitDemo: () => navigate('/') } : {})
 });
@@ -121,6 +125,29 @@ function sourceNow(){
   });
 }
 
+/* ---------- the way down from the landing to the board ---------- */
+// Under the sign-in: the faces of whoever's asking, how many asks are open, and an arrow down
+// to them. The garden's people are made up; these are real. It comes in once the board has
+// loaded (its room is kept for it until then, so nothing moves), and goes if nothing's open.
+const peekLink = $('#rdPeek');
+avatarFallback(peekLink);
+function peek(items){
+  const words = peekWords((items || []).map(it => it.value));
+  peekLink.hidden = !words;
+  if (!words) return;
+  peekLink.querySelector('.rd-peek-faces').innerHTML = peekPeople(items).map(p => face(p)).join('');
+  peekLink.querySelector('.rd-peek-words').textContent = words;
+  peekLink.classList.add('in');
+}
+function toBoard(){
+  const head = $('#circle .rs-head');
+  if (!head) return;
+  head.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  // (and on from there, for whoever's using the keyboard)
+  const h = head.querySelector('h1,h2');
+  if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); }
+}
+
 /* ---------- moving around ---------- */
 function route(){
   const path = location.pathname, kind = isExample(path) ? 'example' : 'real', sub = subOf(path);
@@ -150,6 +177,7 @@ document.addEventListener('click', e => {
   const a = e.target.closest('a[data-nav]');
   if (a && !e.metaKey && !e.ctrlKey && !e.shiftKey && e.button === 0) { e.preventDefault(); navigate(a.getAttribute('href')); }
   if (e.target.closest('[data-signout]')) signOut();
+  if (e.target.closest('#rdPeek') && !e.metaKey && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); toBoard(); }
   // The bar's "Sign in": on the landing its handle field is right there; anywhere else, the
   // dialog, and you come back to the page you were on (the example circle isn't yours to come back to).
   if (e.target.closest('[data-signin]')) {

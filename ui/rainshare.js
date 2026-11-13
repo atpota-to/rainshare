@@ -154,7 +154,13 @@ export function createRainshare({ root, base = '/', host }){
     const was = S.board ? boardSig(S.board) : null, erred = !!S.error;
     S.error = null;
     S.loading = S.source.board({ force }).then(b => { S.board = b; S.boardAt = Date.now(); }, e => { S.error = e; console.warn('rainshare board', e); })
-      .finally(() => { S.loading = null; if ((S.view === 'board' || S.view === 'person') && (S.error || erred || boardSig(S.board) !== was)) render(); });
+      .finally(() => {
+        S.loading = null;
+        if ((S.view === 'board' || S.view === 'person') && (S.error || erred || boardSig(S.board) !== was)) render();
+        // The host hears what's open on the board (null if it couldn't be read): rainshare.dev's
+        // landing points down to it with the faces of whoever's asking.
+        host.onBoard?.(S.board ? boardItems() : null);
+      });
     if (S.view === 'board' && (!S.board || erred)) render();
     return S.loading;
   }

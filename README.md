@@ -96,11 +96,19 @@ garden itself is fitted into the part of the picture the page keeps clear for it
 beside the pitch on a wide window, and under it below 880 pixels, where the pitch is in the
 sky and most of the garden is below the first screenful. Beside the garden the pitch stands
 on its horizon: the heading and the line under it in the sky, and the sign-in on the line of
-the far woods, with nothing under it. (The horizon is worked out from the layout alone, so
+the far woods, with the way down to the board under it. (The horizon is worked out from the layout alone, so
 the pitch is there before the scene has been fetched.) Over the sky and the meadow the grey
 the rest of the site writes its asides in is too faint to read, so the bar and the pitch
 write theirs in most of the ink; and if a handle is mistyped, what's said about it under the
 sign-in is on a pane of frosted glass, like the scene's own labels.
+
+**The way down.** The garden fills the first screenful, and its people are made up, so under
+the sign-in a pane of frosted glass says what's really open on the board below: the faces of
+the first few people asking, how many asks there are and what they are ("3 ideas and projects
+to help with"), and an arrow (`peek.js`). Pressing it scrolls down to the board's heading. Its
+room is kept while the board loads, so nothing moves when it comes in, and the arrow nods
+down a few times as it does (not for anyone who has asked for less motion). If nothing's open,
+or the board couldn't be read, it isn't there.
 
 **Scrolling.** The backdrop scrolls with the page, and the garden doesn't quite keep up: the
 camera rises as the page goes by, so the garden sinks into a stretch of meadow left between
@@ -669,6 +677,7 @@ take on only what you'd be comfortable asking it to do for yourself.
 | `api/page.js`, `api/og.js`, `api/_og/` | Link previews: the page with its tags set for the address asked for, and its picture. `describe.js` is what each says, `card.js` how the picture is laid out; with the fonts and the plants' JPEG copies they're drawn with |
 | `scripts/og-plants.mjs` | `npm run plants:og`: the plant pictures again as JPEGs, for the preview cards |
 | `scripts/og-home.mjs`, `src/landing/og.html` | `npm run og`: the home page's own preview picture (`public/og.jpg`), its headline beside the landing's garden |
+| `scripts/bluesky.mjs`, `src/landing/bluesky.html`, `brand/` | `npm run bluesky`: the pictures for [@rainshare.dev](https://bsky.app/profile/rainshare.dev) on Bluesky, by day and by night. The profile picture is the logo on a square of sky, inside the circle it's cut to; the banner is the headline beside the landing's garden, with your cloud raining on a plot and your plan's meter beside it, all inside what's left after Bluesky cuts a banner to fit a computer or a phone, and clear of the profile picture and the back button it puts over it (add `?safe` to the page to see those) |
 | `lexicons/dev/rainshare/`, `lexicons/*.mjs` | The four record types and their shared defs. `publish.mjs` publishes them under rainshare.dev from every production build, and `compat.mjs` says whether a change to one would break what's published |
 | `core/ns.js` | Collection names, and the words people see for every known value |
 | `core/records.js` | Building each record from what people type, within the lexicons' limits |
