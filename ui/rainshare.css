@@ -106,8 +106,12 @@
 .rs-item-who .rs-i{width:13px;height:13px;vertical-align:-2px;margin-right:2px}
 .rs-item-top time{margin-left:auto;color:var(--rs-muted);font-size:13px;white-space:nowrap}
 .rs-item-title{font-size:17px;font-weight:650;letter-spacing:-.01em;line-height:1.3;overflow-wrap:anywhere}
-.rs-item-line{display:flex;align-items:center;gap:8px;min-height:18px;font-size:13px;font-weight:500;color:var(--rs-muted)}
-.rs-item-taken{margin-left:auto;white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
+.rs-item-line{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;min-height:18px;font-size:13px;font-weight:500;color:var(--rs-muted)}
+.rs-item-taken{margin-left:auto;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;font-weight:650}
+/* where it stands, beside the faces of whoever's helping: blue while someone's on it, green once something's turned in */
+.rs-item-taken.rs-on-it{color:var(--rs-accent-text)}
+.rs-item-taken.rs-turned-in,.rs-item-taken.rs-done{color:var(--rs-ok)}
+.rs-item-taken .rs-face.sm{width:20px;height:20px;font-size:9px;box-shadow:0 0 0 2px var(--rs-bg-card)}
 /* the glyphs the app shares with the landing's scene: a forecast's sky, and where a seed is in its life */
 .rs-sky,.rs-life{width:20px;height:20px}
 .rs-life-rain{color:var(--rs-showers)}
@@ -137,6 +141,28 @@
 .rs-facts-sm dt{font-size:13px}
 .rs-facts dd .rs-i{width:15px;height:15px;margin-right:4px;fill:currentColor;fill-opacity:.25}
 .rs-where-links{gap:4px 14px;margin-top:2px}
+/* where an ask stands, in a word, and a row for each person helping with it, leading to their profile */
+.rs-progress{display:flex;flex-direction:column;gap:10px;min-width:0}
+.rs-progress-head{display:flex;align-items:center;gap:6px 10px;flex-wrap:wrap}
+.rs-pill{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:4px 13px 4px 9px;border-radius:999px;font-weight:700;font-size:14px;line-height:1.2;white-space:nowrap;background:var(--rs-sunk);color:var(--rs-ink)}
+.rs-pill .rs-life{width:18px;height:18px;vertical-align:0}
+.rs-pill-on-it{background:var(--rs-accent-soft);color:var(--rs-accent-text)}
+.rs-pill-turned-in,.rs-pill-done{background:var(--rs-ok-soft);color:var(--rs-ok)}
+.rs-pill-closed{color:var(--rs-muted)}
+.rs-helpers{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.rs-helper{display:flex;align-items:center;gap:12px;min-height:56px;padding:9px 12px;border-radius:var(--rs-radius-sm);background:var(--rs-sunk);text-decoration:none;color:inherit;min-width:0;transition:background .2s}
+.rs-helper:hover{background:var(--rs-accent-soft)}
+.rs-helper .rs-face{width:38px;height:38px;font-size:16px}
+.rs-helper-text{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0;line-height:1.35}
+.rs-helper-name{display:flex;align-items:baseline;gap:0 6px;min-width:0;font-size:15px}
+.rs-helper-name b{font-weight:650;flex:none;max-width:65%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rs-helper-name .rs-hat{margin-left:0;align-self:center}
+.rs-helper-handle{flex:0 1 auto;min-width:0;color:var(--rs-muted);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rs-helper small{overflow-wrap:anywhere}
+.rs-helper small.rs-ok{color:var(--rs-ok);font-weight:650}
+.rs-helper-note{font-style:italic}
+.rs-helper-go{width:18px;height:18px;flex:none;color:var(--rs-muted);transition:transform .2s}
+.rs-helper:hover .rs-helper-go{transform:translateX(2px);color:var(--rs-accent-text)}
 .rs-ask{display:flex;flex-direction:column;gap:6px;padding-top:16px;border-top:1px solid var(--rs-line)}
 .rs-label{font-size:14px;font-weight:600;color:var(--rs-muted)}
 .rs-ask p{font-size:15px;line-height:1.6}
@@ -267,6 +293,9 @@
 .rs-people li>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
 .rs-people p{font-size:14px}
 .rs-people .rs-link .rs-i{width:15px;height:15px}
+.rs-face-link{display:inline-flex;flex:none;border-radius:50%}
+.rs-name{text-decoration:none}
+.rs-name:hover{text-decoration:underline}
 .rs-seed-side{display:flex;flex-direction:column;gap:14px;min-width:0}
 .rs-panel{padding:18px;display:flex;flex-direction:column;gap:12px;min-width:0}
 .rs-panel>.rs-link{align-self:flex-start}

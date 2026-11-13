@@ -6,7 +6,7 @@ import { parseSubject, describeSubject, cloneUrlOf } from '../core/subjects.js';
 import * as R from '../core/records.js';
 import { meantFor, closeness } from '../core/circle.js';
 import { rank, score, fit } from '../core/rank.js';
-import { whereText, shortWhere, jobText, jobShort, modelsText, wantsShort, notesText, jobAndNotes, onItText, takenShort, askExcerpt, stageOf, nounOf, aNoun, pictureOf, whatItIs, stateText, planText } from '../core/words.js';
+import { whereText, shortWhere, jobText, jobShort, modelsText, wantsShort, notesText, jobAndNotes, progressOf, progressShort, askExcerpt, stageOf, nounOf, aNoun, pictureOf, whatItIs, stateText, planText } from '../core/words.js';
 import { wateredBy, wateredText } from '../core/garden.js';
 import { renderMarkdown } from '../core/markdown.js';
 import { brief, launchers, handBack, readHandBack, readBranchBack, handBackBranch } from '../core/brief.js';
@@ -291,9 +291,27 @@ test('a seed reads as plain lines, not chips', () => {
   assert.equal(jobAndNotes(sq), 'Small. Tests required. Under about 200 lines. More than one helper can try. Made with Claude Code. No new dependencies.');
   assert.equal(jobAndNotes({ wants: { notes: 'Plain JS, please' } }), 'Plain JS, please.');
   assert.equal(jobAndNotes({}), 'Not said.');
-  const item = { takes: [{ repo: 'did:kai', author: { displayName: 'Kai Nakamura' }, value: { setup: { harness: 'claude-code' } } }], deliveries: [{ repo: 'did:kai', author: { displayName: 'Kai Nakamura' } }] };
-  assert.equal(onItText(item, 'did:me'), 'Kai, with Claude Code. Kai turned it in'); assert.equal(onItText({}, 'did:me'), 'Nobody yet');
-  assert.equal(takenShort(item, 'did:me'), 'Kai’s on it'); assert.equal(takenShort(item, 'did:kai'), 'You’re on it');
+  // Where an ask stands, in a word, and who's helping: each person once, whoever did it first.
+  const kai = { did: 'did:kai', handle: 'kai.example', displayName: 'Kai Nakamura' }, ash = { did: 'did:ash', handle: 'ash.example' };
+  const taking = { value: {}, takes: [{ repo: 'did:kai', author: kai, value: { createdAt: '2026-11-10T00:00:00Z', setup: { harness: 'claude-code' }, note: 'This weekend' } }] };
+  assert.deepEqual(progressOf({ value: {} }), { key: 'open', label: 'Open', helpers: [] });
+  assert.equal(progressShort({ value: {} }), '');
+  const on = progressOf(taking, 'did:me');
+  assert.equal(on.key, 'on-it'); assert.equal(on.label, 'In progress');
+  assert.deepEqual(on.helpers, [{ did: 'did:kai', author: kai, mine: false, took: '2026-11-10T00:00:00Z', turnedIn: null, didIt: false, setup: { harness: 'claude-code' }, note: 'This weekend' }]);
+  assert.equal(progressShort(taking, 'did:me'), 'Kai’s on it'); assert.equal(progressShort(taking, 'did:kai'), 'You’re on it');
+  assert.equal(progressShort({ ...taking, takes: [...taking.takes, { repo: 'did:ash', author: ash, value: {} }] }, 'did:me'), '2 helpers on it');
+  // Turning it in is one more thing the same person did, not another person.
+  const turned = { ...taking, takes: [...taking.takes, { repo: 'did:ash', author: ash, value: { createdAt: '2026-11-09T00:00:00Z' } }], deliveries: [{ uri: 'at://did:kai/d/1', repo: 'did:kai', author: kai, value: { createdAt: '2026-11-12T00:00:00Z', setup: { harness: 'codex' } } }] };
+  const ti = progressOf(turned, 'did:me');
+  assert.equal(ti.key, 'turned-in'); assert.deepEqual(ti.helpers.map(h => h.did), ['did:kai', 'did:ash']);
+  assert.equal(ti.helpers[0].turnedIn, '2026-11-12T00:00:00Z'); assert.equal(ti.helpers[0].setup.harness, 'codex');
+  assert.equal(progressShort(turned, 'did:me'), 'Kai turned it in');
+  // Once it's done, whoever's work the asker named did it; closed, it's just closed.
+  const done = { ...turned, value: { state: 'sprouted', sproutedWith: [{ uri: 'at://did:kai/d/1' }] } };
+  assert.equal(progressOf(done).key, 'done'); assert.equal(progressOf(done).helpers[0].didIt, true);
+  assert.equal(progressShort(done, 'did:kai'), 'You did it');
+  assert.equal(progressOf({ ...turned, value: { state: 'closed' } }).label, 'Closed'); assert.equal(progressShort({ ...turned, value: { state: 'closed' } }), '');
   assert.equal(askExcerpt('# Hi\n\n- one **two**\n- [three](https://x.example)', 100), 'Hi: one two. three');
   assert.equal(askExcerpt('It’s broken.\n\n**Done looks like**\n- a\n- b'), 'It’s broken. Done looks like: a. b');
   assert.equal(askExcerpt('Done looks like:\n- a\n- b.\n\nThanks!'), 'Done looks like: a. b. Thanks!');

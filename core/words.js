@@ -1,6 +1,7 @@
 // An ask in plain words, for the board's details and its own page: where the
 // work is, how big the job is, what the asker would like, and who's on it. Each is a short
-// line of text, so nothing needs a coloured chip.
+// line of text. Where it stands (progressOf) is also a single word, which the screens colour,
+// so whether anyone's on it, or it's done, can be told at a glance.
 import { labelOf, SIZES, HARNESSES, PLANS, UNPAID, plansIn, audienceOf, modelName } from './ns.js';
 import { describeSubject, kindOf, FORGE_NAMES } from './subjects.js';
 import { join, modelReach, wantedOf, wantPhrase } from './rank.js';
@@ -88,21 +89,44 @@ export const jobAndNotes = sq => { const j = jobText(sq), n = notesText(sq); ret
 /** "wants a frontier Claude model", for a one-line summary. */
 export const wantsShort = sq => { const p = wantPhrase(sq); return p ? 'wants ' + p : ''; };
 
-/** "Nobody yet", "Kai, with Claude Code", "You". Deliveries are added: "Kai turned it in". */
-export function onItText(item, viewer){
-  const takes = (item?.takes || []).map(t => (t.repo === viewer ? 'You' : firstName(t.author)) + (t.value?.setup?.harness ? `, with ${harnessName(t.value.setup.harness)}` : ''));
-  const turned = (item?.deliveries || []).map(d => d.repo === viewer ? 'you' : firstName(d.author));
-  const parts = [];
-  if (takes.length) parts.push(takes.join('; '));
-  if (turned.length) parts.push(`${join([...new Set(turned)])} turned it in`);
-  return parts.join('. ') || 'Nobody yet';
+/**
+ * Where an ask is, in a word, and who's helping with it, so it can be told at a glance:
+ *
+ *   key      'open' (nobody's on it), 'on-it', 'turned-in', 'done' or 'closed'
+ *   label    "Open", "In progress", "Turned in", "Done", "Closed"
+ *   helpers  everyone who said they're on it or turned something in, once each:
+ *            [{ did, author, mine, took, turnedIn, didIt, setup, note }]
+ *            (`took` and `turnedIn` are when, or null; `didIt`: the asker marked it done with their work)
+ *            Whoever did it comes first, then whoever turned something in, then the rest, earliest first.
+ */
+export const PROGRESS = { open: 'Open', 'on-it': 'In progress', 'turned-in': 'Turned in', done: 'Done', closed: 'Closed' };
+export function progressOf(item, viewer){
+  const sq = item?.value || {}, takes = item?.takes || [], deliveries = item?.deliveries || [];
+  const key = sq.state === 'closed' ? 'closed' : sq.state === 'sprouted' ? 'done' : deliveries.length ? 'turned-in' : takes.length ? 'on-it' : 'open';
+  const accepted = new Set((sq.sproutedWith || []).map(r => r.uri)), by = new Map();
+  const of = r => {
+    if (!by.has(r.repo)) by.set(r.repo, { did: r.repo, author: r.author || { did: r.repo }, mine: !!viewer && r.repo === viewer, took: null, turnedIn: null, didIt: false, setup: null, note: '' });
+    return by.get(r.repo);
+  };
+  const earliest = (a, b) => !a ? b : !b ? a : String(a) < String(b) ? a : b;
+  const latest = (a, b) => !a ? b : !b ? a : String(a) > String(b) ? a : b;
+  for (const t of takes) { const h = of(t); h.took = earliest(h.took, t.value?.createdAt || null); h.setup ||= t.value?.setup || null; h.note ||= t.value?.note || ''; }
+  for (const d of deliveries) { const h = of(d); h.turnedIn = latest(h.turnedIn, d.value?.createdAt || null); h.setup = d.value?.setup || h.setup; h.didIt ||= accepted.has(d.uri); }
+  const rank = h => h.didIt ? 0 : h.turnedIn ? 1 : 2, when = h => String(h.took || h.turnedIn || '');
+  const helpers = [...by.values()].sort((a, b) => rank(a) - rank(b) || when(a).localeCompare(when(b)));
+  return { key, label: PROGRESS[key], helpers };
 }
-/** "Kai’s on it", "You’re on it", "2 helpers on it", or "". */
-export function takenShort(item, viewer){
-  const t = item?.takes || [];
-  if (!t.length) return '';
-  if (t.length > 1) return `${t.length} helpers on it`;
-  return t[0].repo === viewer ? 'You’re on it' : `${firstName(t[0].author)}’s on it`;
+/**
+ * The same in a few words, for a card: "Kai’s on it", "You’re on it", "2 helpers on it",
+ * "Kai turned it in", "Turned in by 2", "Kai did it", or "" when nobody's helped.
+ */
+export function progressShort(item, viewer){
+  const { key, helpers } = progressOf(item, viewer);
+  const one = h => h.mine ? 'You' : firstName(h.author);
+  if (key === 'on-it') return helpers.length > 1 ? `${helpers.length} helpers on it` : helpers[0].mine ? 'You’re on it' : `${one(helpers[0])}’s on it`;
+  if (key === 'turned-in') { const t = helpers.filter(h => h.turnedIn); return t.length > 1 ? `Turned in by ${t.length}` : `${one(t[0])} turned it in`; }
+  if (key === 'done') { const d = helpers.filter(h => h.didIt); return d.length === 1 ? `${one(d[0])} did it` : d.length > 1 ? `${d.length} helpers did it` : ''; }
+  return '';
 }
 
 /**
