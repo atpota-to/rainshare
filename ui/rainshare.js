@@ -3,9 +3,10 @@
 // accounts, demo.js for the example circle) and a few hooks, and calls show(subpath)
 // whenever the address changes:
 //
-//   ''                 the board: For you, Everyone, Yours, narrowed by who asked if you like.
-//                      Short cards in a list, and the one you pick in full beside them (a
-//                      sheet from the bottom on phones), with how you know whoever asked
+//   ''                 the board: what's open, best first for you, narrowed by who asked if you
+//                      like. Short cards in a list, and the one you pick in full beside them (a
+//                      sheet from the bottom on phones), with how you know whoever asked. What
+//                      you've asked for is on your own page (u/<you>)
 //   seed/<did>/<rkey>  a public seed (a handle works in place of the DID)
 //   seed/s/<code>      a private one, in a group's space (its record URI, base64url)
 //   new                plant a seed (./post.js)
@@ -13,7 +14,7 @@
 //                      with what you've helped with beside it
 //   u/<did>            someone's profile and their seeds
 //   agents             the CLI and MCP server, for sending agents from a terminal
-import { SEED, STAGE, FEATURES, PLANS, UNPAID, plansIn, HARNESSES, MODELS, RUNS_ON, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, labelOf, audienceOf, modelName } from '../core/ns.js';
+import { SEED, STAGE, FEATURES, PLANS, UNPAID, plansIn, HARNESSES, MODELS, RUNS_ON, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, labelOf, modelName } from '../core/ns.js';
 import { describeSubject, cloneUrlOf, safeHttp, pullPageOf, FORGE_NAMES } from '../core/subjects.js';
 import { look, carry, standing } from '../core/status.js';
 import { newRepoPlaces, placesFor } from '../core/forges.js';
@@ -37,7 +38,7 @@ export { pathOf };
 
 export function createRainshare({ root, base = '/', host }){
   const S = {
-    source: null, view: null, sub: '', tab: 'foryou',
+    source: null, view: null, sub: '',
     board: null, boardAt: 0, loading: false, error: null, shown: [], pick: null, sheet: false,
     mine: null, garden: null, seed: null, seedErr: null, unlinked: null, launch: null, pendingLaunch: null, handBack: null, handKind: null, again: null, other: null, form: null, drafts: {},
     pull: null,          // the pull request form for the ask on screen: { uri, loading, choices, error }
@@ -133,16 +134,25 @@ export function createRainshare({ root, base = '/', host }){
   };
 
   /* ---------- loading ---------- */
+  // A board on screen is redrawn only if what came back differs from what's showing, so a
+  // look across the network in the background moves nothing on the page.
+  const boardSig = b => JSON.stringify([b?.notes, (b?.items || []).map(it => [it.uri, it.cid, it.value, it.author, it.profile, it.rel, it.ties, (it.takes || []).map(t => t.uri), (it.deliveries || []).map(d => d.uri)])]);
   async function loadBoard(force){
     if (!S.source) return;
     if (S.loading && !force) return S.loading;
     if (!force && S.board && Date.now() - S.boardAt < 60e3) return;
+    const was = S.board ? boardSig(S.board) : null, erred = !!S.error;
     S.error = null;
     S.loading = S.source.board({ force }).then(b => { S.board = b; S.boardAt = Date.now(); }, e => { S.error = e; console.warn('rainshare board', e); })
-      .finally(() => { S.loading = null; if (S.view === 'board' || S.view === 'person') render(); });
-    if (S.view === 'board') render();
+      .finally(() => { S.loading = null; if ((S.view === 'board' || S.view === 'person') && (S.error || erred || boardSig(S.board) !== was)) render(); });
+    if (S.view === 'board' && (!S.board || erred)) render();
     return S.loading;
   }
+  // There's no button to check again: coming back to the board, or to its browser tab, does it
+  // (at most once a minute).
+  globalThis.document?.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && S.view === 'board' && !root.closest('[hidden]')) loadBoard();
+  });
   // What you've watered: worked out once you're known, and again after you turn something in.
   function loadGarden(){
     if (!signedIn() || !S.source.gardenOf) { S.garden = null; return; }
@@ -165,20 +175,16 @@ export function createRainshare({ root, base = '/', host }){
   }
 
   /* ---------- the board: a list of short cards, and the one you pick beside them ---------- */
-  function tabItems(){
-    const all = S.board?.items || [], mineD = viewer();
-    let items;
-    if (S.tab === 'yours') items = all.filter(it => it.repo === mineD || (it.takes || []).some(t => t.repo === mineD) || (it.deliveries || []).some(d => d.repo === mineD));
-    else if (S.tab === 'everyone') items = all.filter(it => isOpen(it) && !it.space && audienceOf(it.value) === 'anyone');
-    else {
-      const others = all.filter(it => isOpen(it) && it.repo !== mineD);
-      return signedIn() ? rank(others, me()) : others;
-    }
-    return signedIn() ? items.map(it => ({ ...it, fit: it.repo === mineD || !isOpen(it) ? null : fit(it, me()) })) : items;
+  // Everything still open that someone else asked for, best first for you. (Yours, open or
+  // done, are on your own page, which the board's quiet button leads to.)
+  function boardItems(){
+    const others = (S.board?.items || []).filter(it => isOpen(it) && it.repo !== viewer());
+    return signedIn() ? rank(others, me()) : others;
   }
-  // Narrowed to who asked, if you chose to (not on Yours, which is all you).
+  // Narrowed to who asked, if you chose to.
   const fromWho = (k, it) => fromMatches(k, it.ties, word(it.repo));
-  const narrowFrom = items => !signedIn() || S.tab === 'yours' || S.from === 'anyone' ? items : items.filter(it => fromWho(S.from, it));
+  const narrowFrom = items => !signedIn() || S.from === 'anyone' ? items : items.filter(it => fromWho(S.from, it));
+  // What each choice means, said when you rest on it.
   const FROM_HINT = {
     mutuals: 'Only people you follow who follow you back, on Bluesky or Tangled.',
     following: 'Only people you follow, on Bluesky or Tangled.',
@@ -190,7 +196,7 @@ export function createRainshare({ root, base = '/', host }){
     const opts = FROM.filter(([k]) => k !== 'vouched' || S.source?.vouchCircle);
     return `<div class="rs-from" role="group" aria-label="Who asked"><span class="rs-from-l">From</span>${opts.map(([k, l]) => {
       const n = k === 'anyone' ? all.length : k === 'vouched' && circleWaiting() ? null : all.filter(it => fromWho(k, it)).length;
-      return `<button type="button" data-rs-from="${k}" aria-pressed="${S.from === k}"${n === 0 && S.from !== k ? ' class="rs-from-none"' : ''}>${esc(l)}${n == null ? '' : `<span class="rs-from-n">${n}</span>`}</button>`;
+      return `<button type="button" data-rs-from="${k}" aria-pressed="${S.from === k}"${FROM_HINT[k] ? ` title="${esc(FROM_HINT[k])}"` : ''}${n === 0 && S.from !== k ? ' class="rs-from-none"' : ''}>${esc(l)}${n == null ? '' : `<span class="rs-from-n">${n}</span>`}</button>`;
     }).join('')}</div>`;
   }
   function fromEmpty(){
@@ -260,24 +266,18 @@ export function createRainshare({ root, base = '/', host }){
     </article>`;
   }
   function renderBoard(){
-    const all = S.board ? tabItems() : [], items = narrowFrom(all);
+    const all = S.board ? boardItems() : [], items = narrowFrom(all);
     S.shown = items;
     if (items.length && !items.some(i => i.uri === S.pick)) { S.pick = items[0].uri; S.sheet = false; }
     const sel = items.find(i => i.uri === S.pick);
     const fc = forecastOf(S.mine?.merged);
-    const empty = {
-      foryou: signedIn() ? 'Nothing here yet. When someone in your circle asks for rain, it shows up here.' : 'Nothing’s open to everyone yet. Sign in and ask for rain to post the first one.',
-      everyone: 'Nothing’s open to everyone yet.',
-      yours: 'What you ask for, and what you take on, shows up here.'
-    }[S.tab];
-    // Signed out, the heading already says what's here.
-    const hint = !signedIn() ? '' : {
-      foryou: 'Sorted by how well each one suits you.',
-      everyone: 'Open to anyone, newest first.',
-      yours: 'What you’ve asked for, and what you’ve taken on.'
-    }[S.tab];
-    // Signed out, everything showing is open to everyone, so there's nothing to switch between.
-    const tabs = signedIn() ? [['foryou', 'For you'], ['everyone', 'Everyone'], ['yours', 'Yours']] : [];
+    const empty = signedIn() ? 'Nothing here yet. When someone in your circle asks for rain, it shows up here.' : 'Nothing’s open to everyone yet. Sign in and ask for rain to post the first one.';
+    // Beside "Ask for rain", the way to your own page: led by your garden once there's one,
+    // else by what you've asked for.
+    const asked = signedIn() && S.board ? S.board.items.filter(it => it.repo === viewer()).length : 0;
+    const yours = !signedIn() || !S.garden ? ''
+      : S.garden.length ? a('u/' + viewer(), `${plantPic(S.garden[0].picture || S.garden[0].stage, 26, { key: S.garden[0].uri })}Helped with ${S.garden.length}`, 'rs-btn rs-quiet rs-watered-btn')
+        : asked ? a('u/' + viewer(), `${ico('person')}Your asks <span class="rs-from-n">${asked}</span>`, 'rs-btn rs-quiet') : '';
     return `
       <header class="rs-head">
         <div class="rs-brand">${host.brand !== 'rainshare' ? `<span class="rs-logo">${ico('drop')}</span>` : ''}<div>${
@@ -287,19 +287,14 @@ export function createRainshare({ root, base = '/', host }){
               : '<h2>Ideas and projects anyone can help with</h2><p>Sign in to see the ones from people you follow too, sorted by how well each suits you.</p>'
         }</div></div>
         <div class="rs-head-actions">
-          ${signedIn() && S.garden?.length ? a('u/' + viewer(), `${plantPic(S.garden[0].picture || S.garden[0].stage, 26, { key: S.garden[0].uri })}Helped with ${S.garden.length}`, 'rs-btn rs-quiet rs-watered-btn') : ''}
+          ${yours}
           ${signedIn() && FEATURES.forecast ? a('me', `${skyIco(fc?.[0])}${fc ? esc(fc[1]) : 'Your forecast'}`, 'rs-btn rs-quiet rs-fc' + (fc ? ' rs-fc-' + fc[0] : '')) : ''}
           ${signedIn() ? a('new', `${ico('plus')}Ask for rain`, 'rs-btn rs-primary') : host.signIn ? `<button class="rs-btn rs-primary" type="button" data-rs-act="signin">Sign in</button>` : ''}
         </div>
       </header>
       ${signedIn() && !S.source?.demo && !stageSeen() ? `<p class="rs-note rs-stage-note">${ico('info')}<span>Rainshare is in early ${esc(STAGE)}, so things may change or break. What you post stays in your own account.</span><button class="rs-link" type="button" data-rs-act="stage-seen">Got it</button></p>` : ''}
       ${signedIn() && S.mine && !S.mine.merged ? `<p class="rs-note">${ico('person')}<span>${FEATURES.priorities ? 'Say what you run and who you’d like to help, and your board is sorted to match.' : 'Say which AI plan you have and what you run. People see who they’d be helping, and your board is sorted by what suits you.'}</span>${a('me', 'Set up your profile', 'rs-link')}</p>` : ''}
-      ${tabs.length ? `<div class="rs-board-head">
-        <div class="rs-board-bar"><nav class="rs-tabs" aria-label="Ideas and projects">${tabs.map(([k, l]) => `<button type="button" data-rs-tab="${k}" aria-pressed="${S.tab === k}">${l}</button>`).join('')}</nav>
-          <button type="button" class="rs-link rs-refresh" data-rs-act="refresh"${S.loading ? ' disabled' : ''}>${ico('refresh')}${S.loading ? 'Checking…' : 'Refresh'}</button></div>
-        ${signedIn() && S.tab !== 'yours' && S.board ? fromRow(all) : ''}
-        ${items.length && hint ? `<p class="rs-muted">${esc([hint, S.tab !== 'yours' && FROM_HINT[S.from]].filter(Boolean).join(' '))}</p>` : ''}
-      </div>` : ''}
+      ${signedIn() && S.board ? fromRow(all) : ''}
       ${S.error ? `<p class="rs-note rs-bad">${plain(S.error)}</p>` : ''}
       ${!S.board ? boardSk({ fit: signedIn() })
         : items.length ? `<div class="rs-split${S.sheet ? ' rs-open' : ''}">
@@ -1140,7 +1135,6 @@ export function createRainshare({ root, base = '/', host }){
       if (name === 'signin') { host.signIn?.(S.sub); return; }
       if (name === 'exit-demo') return host.onExitDemo?.();
       if (name === 'stage-seen') { stageDismissed = true; try { localStorage.setItem(STAGE_SEEN, '1'); } catch (_) {} root.querySelector('.rs-stage-note')?.remove(); return; }
-      if (name === 'refresh') { S.known = {}; await loadBoard(true); return; }
       if (name === 'take') {
         const r = await takeIt(it, el); if (!r) return;
         S.seed = r.fresh; S.launch = r.launch;
@@ -1225,7 +1219,6 @@ export function createRainshare({ root, base = '/', host }){
     const tk = t.closest('[data-rs-take]'); if (tk) { takeFromPanel(tk.dataset.rsTake, tk); return; }
     if (t.closest('.rs-post') && poster.click(t)) return;
     const fr = t.closest('[data-rs-from]'); if (fr) { S.from = fr.dataset.rsFrom; S.sheet = false; render(); return; }
-    const tab = t.closest('[data-rs-tab]'); if (tab) { S.tab = tab.dataset.rsTab; S.sheet = false; render(); return; }
     const sg = t.closest('[data-rs-seg] button');
     if (sg && S.view === 'me') {
       const name = sg.closest('[data-rs-seg]').dataset.rsSeg, v = sg.dataset.v;
@@ -1336,7 +1329,7 @@ export function createRainshare({ root, base = '/', host }){
     show,
     /** Hand in a (new) data source: on sign-in, sign-out, or switching to the example circle. */
     async setSource(source){
-      Object.assign(S, { source, board: null, mine: null, garden: null, unlinked: null, seed: null, form: null, drafts: {}, tab: 'foryou', pick: null, sheet: false, pull: null, circle: undefined, vouching: null, from: 'anyone', known: {} });
+      Object.assign(S, { source, board: null, mine: null, garden: null, unlinked: null, seed: null, form: null, drafts: {}, pick: null, sheet: false, pull: null, circle: undefined, vouching: null, from: 'anyone', known: {} });
       poster.reset();
       render();
       if (source?.signedIn) { await loadMine(); loadGarden(); }
