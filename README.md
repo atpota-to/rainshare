@@ -669,7 +669,7 @@ take on only what you'd be comfortable asking it to do for yourself.
 | `api/page.js`, `api/og.js`, `api/_og/` | Link previews: the page with its tags set for the address asked for, and its picture. `describe.js` is what each says, `card.js` how the picture is laid out; with the fonts and the plants' JPEG copies they're drawn with |
 | `scripts/og-plants.mjs` | `npm run plants:og`: the plant pictures again as JPEGs, for the preview cards |
 | `scripts/og-home.mjs`, `src/landing/og.html` | `npm run og`: the home page's own preview picture (`public/og.jpg`), its headline beside the landing's garden |
-| `lexicons/dev/rainshare/` | The four record types and their shared defs. `publish.mjs` publishes them under rainshare.dev. |
+| `lexicons/dev/rainshare/`, `lexicons/*.mjs` | The four record types and their shared defs. `publish.mjs` publishes them under rainshare.dev from every production build, and `compat.mjs` says whether a change to one would break what's published |
 | `core/ns.js` | Collection names, and the words people see for every known value |
 | `core/records.js` | Building each record from what people type, within the lexicons' limits |
 | `core/net.js` | Public reads: identity, records from each PDS, the relay, the Bluesky graph, and accounts to offer as a handle is typed |
@@ -693,7 +693,7 @@ take on only what you'd be comfortable asking it to do for yourself.
 | `ui/skeleton.js` | What shows while something loads: placeholders laid out like the board, an ask's page, a person's page, your profile and a garden |
 | `ui/bits.js` | Small shared pieces: escaping, times, icons, faces, and the glyphs for a forecast's sky and a seed's life |
 | `cli/rainshare.mjs` | The CLI and MCP server |
-| `test/` | `npm test`: the core, the data source against a fake network, the MCP server, posting to the forges, vouching and follows against made-up ones, what other people's records can't do (`security.test.mjs`), and the plants: which kind each grows, that every picture is there, and that every kind fits its frame (`plants.test.mjs`, the models only once three.js is installed); the logo: that it stays inside its square as it moves, that its loop closes, and that every picture of it is the one the drawing makes now (`logo.test.mjs`); wrong addresses (`route.test.mjs`); and link previews against made-up hosts (`og.test.mjs`) |
+| `test/` | `npm test`: the core, the data source against a fake network, the MCP server, posting to the forges, vouching and follows against made-up ones, what other people's records can't do (`security.test.mjs`), and the plants: which kind each grows, that every picture is there, and that every kind fits its frame (`plants.test.mjs`, the models only once three.js is installed); the logo: that it stays inside its square as it moves, that its loop closes, and that every picture of it is the one the drawing makes now (`logo.test.mjs`); wrong addresses (`route.test.mjs`); link previews against made-up hosts (`og.test.mjs`); and the lexicons: well formed, and what counts as breaking a published one (`lexicons.test.mjs`) |
 
 ## Security
 
@@ -737,6 +737,7 @@ npm run dev         # the site, at http://127.0.0.1:5173
 npm test            # node --test, no extra dependencies
 npm run build       # the site in dist/, with the CLI bundled at dist/rainshare.mjs
 npm run build:cli   # just the CLI, at dist-cli/rainshare.mjs
+npm run lexicons:check   # the lexicons against what's published, writing nothing
 ```
 
 The app says it's an early alpha in a badge beside the logo, once on the signed-in board,
@@ -769,8 +770,32 @@ It's a Vercel project on this repo (`vercel.json`):
    is matched by its path, not its host), and Vercel can redirect the old host to the new.
    `/oauth-client-metadata.json` serves the OAuth client for whichever host the request came
    in on, so preview URLs can sign in too.
-3. Publish the lexicons: `node lexicons/publish.mjs` as the account that should own them, then
-   add the `_lexicon.rainshare.dev` TXT record it prints.
+3. Let the build publish the lexicons. They belong to the brand account, @rainshare.dev, which
+   the build names by its DID alone, `did:plc:cmkittusvczhnei4gjt3asiv` (`OWNER` in
+   `lexicons/compat.mjs`). Its handle is never looked up, and its server is whatever its DID
+   document says, so a new handle or a move to another server changes nothing here.
+   - Make the account an app password, and set `RAINSHARE_LEXICON_APP_PASSWORD` to it in the
+     project's environment variables, for Production only, as a sensitive variable.
+   - Add a TXT record at `_lexicon.rainshare.dev` saying `did=did:plc:cmkittusvczhnei4gjt3asiv`,
+     which is how anyone finds the schemas from their names. Every build checks it, and says in
+     its log if it's missing or names another account.
+   - Redeploy.
+
+   From then on, every production build runs `lexicons/publish.mjs --deploy` after the site is
+   built (`buildCommand` in `vercel.json`). It writes only the schemas that changed, each as a
+   `com.atproto.lexicon.schema` record keyed by its NSID, and never deletes one. Preview builds
+   only compare with what's published, and need no password.
+
+   A change that would break records already written under a published schema stops the build,
+   preview or production, and says what it was (`lexicons/compat.mjs`, following atproto's
+   rules for changing a lexicon): a field removed or renamed, a type or a limit changed, a field
+   made required or no longer required, an option taken out of a union. New optional fields,
+   new defs, new options in an open union, descriptions and knownValues may change freely.
+   Anything bigger needs a new NSID, or, while nobody has written records under the published
+   schema, a single deploy with `RAINSHARE_LEXICON_ALLOW_BREAKING=1`. A production build that
+   can't sign in or write stops too, so the site never runs ahead of its published schemas;
+   redeploying tries again. `npm run lexicons:check` does a preview build's check from here,
+   and `npm run lexicons` publishes by hand, with the same variables.
 
 **Link previews.** The app is drawn in the browser and crawlers don't run scripts, so a
 link to an ask would show the home page's card. Two functions fix that. `api/page.js` serves
@@ -920,7 +945,8 @@ Not yet checked:
   plan" in the picked card, and (then) your plan in the board's header; nothing set aside showing;
   "Models" as a family and a level (picked when asking, shown on asks, matched against plans
   and setups, and in the brief), and every switch turned back on (the tests pass both ways).
-  Not done: publishing the profile lexicon with `plans` in it (`lexicons/publish.mjs`).
+  Not done yet: publishing the profile lexicon with `plans` in it, which the first production
+  build with the lexicon password does (see "Deploying rainshare.dev").
 - Ideas: asking for rain on one, running with one and turning it in were checked in the example circle.
   The pages Rainshare links to on Tangled exist (they ask you to sign in). GitHub's new-repo
   page taking a name and description from the link is from memory, not checked from here; if
@@ -971,5 +997,16 @@ Not yet checked:
   dialog's, and coming back signed in with a forge left out); servers other than Bluesky's
   and pds.atpota.to; how a screen reader reads the list of accounts; and a real phone's
   keyboard over the dialog.
+- Publishing the lexicons from the build (13 November 2026). Checked against a made-up network
+  (the AppView, PLC and one PDS): the first publish writing all five; a build with nothing
+  changed writing nothing; a safe change written alone; a breaking change stopping a preview
+  build and a production one, and going through with `RAINSHARE_LEXICON_ALLOW_BREAKING=1`; a
+  wrong password stopping a production build; and a preview build, or one with no password,
+  only checking, with the account found by its DID and no handle ever looked up. Against the
+  live network: `npm run lexicons:check` finding the brand account by its DID on
+  pds.atpota.to, with nothing published yet; a Bluesky PDS answering `createSession` itself;
+  and the DNS lookup for `_lexicon.rainshare.dev`. What counts as breaking is in
+  `test/lexicons.test.mjs`. Not checked: a real publish, which waits for the brand account's
+  app password on Vercel, and the schemas resolving by their names once the DNS record is in.
 - How smoothly the scene runs on real phones and older laptops. It has only been run on a
   software renderer so far, which says it draws correctly and nothing about frame rate.
