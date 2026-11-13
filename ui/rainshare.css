@@ -94,6 +94,11 @@
 .rs-item.on{background:var(--rs-bg-card);box-shadow:inset 0 0 0 2px var(--rs-accent),0 12px 26px -18px rgba(18,32,58,.45)}
 .rs-item>span:not(.rs-plant){grid-column:1}
 .rs-item>.rs-plant{grid-column:2;grid-row:1/span 3;align-self:center}
+/* a card's words in one column beside its plant: who, the title, the start of the ask, then how it suits you and where it stands */
+.rs-item-main{display:flex;flex-direction:column;gap:8px;min-width:0}
+.rs-item>.rs-item-main~:is(.rs-plant,.rs-sk-plant){grid-row:1}
+.rs-item-ask{margin-top:-3px;font-size:14px;line-height:1.45;color:var(--rs-muted);overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden}
+.rs-sk-item .rs-item-ask{display:flex;flex-direction:column;gap:2px;margin-top:0}
 /* a plant's picture; where the host can draw the model itself, it turns on the canvas over it */
 .rs-plant{position:relative;display:inline-block;flex:none;width:var(--rs-plant);height:var(--rs-plant)}
 .rs-plant img,.rs-plant canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
