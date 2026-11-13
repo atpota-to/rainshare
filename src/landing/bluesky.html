@@ -17,8 +17,8 @@
 <title>Rainshare's Bluesky banner</title>
 <link rel="stylesheet" href="../fonts.css">
 <style>
-  :root{--ink:#12203A;--muted:#46526A;--lit:#2F63F0;--glow:none;--pin:rgba(255,255,255,.86);--edge:rgba(18,32,58,.1);--accent:#2F63F0;--soft:rgba(47,99,240,.16)}
-  .night{--ink:#E7EDF8;--muted:#B4C0D6;--lit:#86A8FF;--glow:0 0 16px rgba(110,149,255,.55);--pin:rgba(19,28,46,.8);--edge:rgba(255,255,255,.14);--accent:#6E95FF;--soft:rgba(110,149,255,.22)}
+  :root{--ink:#12203A;--muted:#46526A;--lit:linear-gradient(180deg,#8DBBFF 6%,#4A82FF 40%,#2558EE 64%,#1A3CC8 96%);--glow:drop-shadow(0 .05em .18em rgba(47,99,240,.38));--pin:rgba(255,255,255,.86);--edge:rgba(18,32,58,.1);--accent:#2F63F0;--soft:rgba(47,99,240,.16)}
+  .night{--ink:#E7EDF8;--muted:#B4C0D6;--lit:linear-gradient(180deg,#C4D6FF 6%,#95B3FF 40%,#7596FF 64%,#5A7FF5 96%);--glow:drop-shadow(0 0 .24em rgba(110,149,255,.8));--pin:rgba(19,28,46,.8);--edge:rgba(255,255,255,.14);--accent:#6E95FF;--soft:rgba(110,149,255,.22)}
   html,body{margin:0}
   body{width:750px;height:250px;overflow:hidden;position:relative;background:#D3E2FF;color:var(--ink);font-family:'Zen Maru Gothic',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
   body.night{background:#0B1220}
@@ -31,7 +31,8 @@
   .safe{position:absolute;left:50px;right:50px;top:31px;bottom:31px;outline:1px dashed red;pointer-events:none}
   .avi{position:absolute;left:12px;top:161px;width:212px;height:89px;background:rgba(255,0,0,.18)}
   .back{position:absolute;left:22px;top:43px;width:99px;height:92px;background:rgba(255,0,0,.18)}
-  .ai{color:var(--lit);text-shadow:var(--glow)}
+  /* lit as the site has it (../theme.css): as the logo's drop is, with a soft glow */
+  .ai{background:var(--lit);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;filter:var(--glow)}
 
   /* the scene's labels, as the landing has them (./landing.css), a little larger */
   .pin{position:absolute;left:0;top:0;display:inline-flex;align-items:center;gap:6px;border-radius:999px;background:var(--pin);box-shadow:0 0 0 1px var(--edge);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);font:700 13px 'Zen Maru Gothic';white-space:nowrap}
