@@ -160,6 +160,15 @@ finds it (`whereTo` in `src/oauth.js`): the handle's account, its server, and th
 that server signs people in on. For most accounts that's their own server; accounts on
 Bluesky's servers all sign in at bsky.social. Nobody is sent anywhere until they press it.
 
+Finding it asks three or four servers in turn, and any of them can be out or slow for a
+moment. That isn't taken for an account that isn't there (`src/lookup.js`): a handle nobody
+has, or a DID the directory doesn't know, is said to be missing, with the handle back in the
+field to fix; anything else is asked again once, after a second, and a wait is given up after
+six. If the site still isn't known, the button is a plain **Continue**, with the same line
+under it without the name: the sign-in finds the way itself, and only if that fails too is
+anything said. (bsky.social says a handle of its own is nobody's in a way the sign-in
+library doesn't know, so Rainshare looks handles up there itself, knowing both ways.)
+
 On the landing the handle field is on the page, and the dialog opens at "Is this you?".
 Everywhere else ("Sign in" in the bar, on an ask's page, on the board) the dialog starts with
 the handle, and signing in comes back to the page you were on. "Connect Tangled" or "Connect
