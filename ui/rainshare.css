@@ -177,7 +177,7 @@
 .rs-helper-note{font-style:italic}
 .rs-helper-go{width:18px;height:18px;flex:none;color:var(--rs-muted);transition:transform .2s}
 .rs-helper-who:hover .rs-helper-go{transform:translateX(2px);color:var(--rs-accent-text)}
-.rs-helper-pull{display:flex;align-items:center;gap:8px;min-height:46px;padding:8px 12px 8px 62px;border-top:1px solid var(--rs-line);font-size:14px;font-weight:650;color:var(--rs-accent-text);text-decoration:none;min-width:0;transition:background .2s}
+.rs-helper-pull{display:flex;align-items:center;gap:8px;min-height:46px;padding:8px 12px;border-top:1px solid var(--rs-line);font-size:14px;font-weight:650;color:var(--rs-accent-text);text-decoration:none;min-width:0;transition:background .2s}
 .rs-helper-pull>.rs-i{width:17px;height:17px;flex:none}
 .rs-helper-pull-l{min-width:0;overflow-wrap:anywhere}
 .rs-helper-pull:is(a) .rs-helper-pull-l{text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px}
@@ -188,10 +188,10 @@
 span.rs-helper-pull{color:var(--rs-muted)}
 /* under a pull request, on the ask's own page: what the helper said and their session, then, for
    whoever asked, Accept, or the form it opens; once it's done, thanks and the rest of the follow-ups */
-.rs-helper-more{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:0 12px 10px 62px;margin-top:-4px;font-size:14px;min-width:0}
+.rs-helper-more{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:0 12px 10px;margin-top:-4px;font-size:14px;min-width:0}
 .rs-helper-more p{color:var(--rs-muted);font-style:italic;overflow-wrap:anywhere}
 .rs-helper-more .rs-link .rs-i,.rs-follow .rs-i{width:15px;height:15px}
-.rs-helper-act{display:flex;gap:10px;padding:2px 12px 12px 62px}
+.rs-helper-act{display:flex;gap:10px;padding:2px 12px 12px}
 .rs-form.rs-accept{gap:12px;padding:14px 16px 16px;border-top:1px solid var(--rs-line);border-radius:0;background:none;box-shadow:none;outline:0;-webkit-backdrop-filter:none;backdrop-filter:none;max-width:none}
 .rs-accept p{font-size:15px;line-height:1.5}
 .rs-accept .rs-check{font-size:15px}
