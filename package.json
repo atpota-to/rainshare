@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Send your agent to help with someone else's idea or project.",
+  "license": "MIT",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",

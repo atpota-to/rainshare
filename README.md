@@ -379,3 +379,7 @@ done for real yet:
 - A server accepting the permission set. That waits for a production build to publish it.
   Until then, bsky.social refuses the set and Rainshare falls back to asking for the records by
   name, which works.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
