@@ -1,0 +1,94 @@
+<!doctype html>
+<!-- Not part of the site: scripts/bluesky.mjs opens this through the dev server to take the
+     banner for Rainshare's Bluesky profile (brand/), 1500 by 500. Add ?dark for the night one.
+     It's laid out at half that, 750 by 250, and taken at twice the pixels.
+
+     The landing's garden, with your cloud out over a plot and its plan's meter beside it, and
+     Kai's raining on Sam's further back, with the headline to the left of it.
+
+     Bluesky shows a banner 150 pixels tall, as wide as the profile, cut to fill it: on a
+     computer (600 wide) a little off its top and bottom, on a phone (about 390) a little off
+     each side. It puts the profile picture over its lower left corner, and a back button in
+     its top left one. So everything here is inside what's left after either cut (the box
+     .safe marks, shown with ?safe), and the headline starts clear of the back button and
+     ends over the profile picture.
+     Open it yourself to see it before taking the picture. -->
+<meta charset="utf-8">
+<title>Rainshare's Bluesky banner</title>
+<link rel="stylesheet" href="../fonts.css">
+<style>
+  :root{--ink:#12203A;--muted:#46526A;--lit:#2F63F0;--glow:none;--pin:rgba(255,255,255,.86);--edge:rgba(18,32,58,.1);--accent:#2F63F0;--soft:rgba(47,99,240,.16)}
+  .night{--ink:#E7EDF8;--muted:#B4C0D6;--lit:#86A8FF;--glow:0 0 16px rgba(110,149,255,.55);--pin:rgba(19,28,46,.8);--edge:rgba(255,255,255,.14);--accent:#6E95FF;--soft:rgba(110,149,255,.22)}
+  html,body{margin:0}
+  body{width:750px;height:250px;overflow:hidden;position:relative;background:#D3E2FF;color:var(--ink);font-family:'Zen Maru Gothic',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  body.night{background:#0B1220}
+  canvas{position:absolute;inset:0;width:750px;height:250px;display:block}
+
+  .words{position:absolute;left:128px;top:70px;display:flex;flex-direction:column;gap:7px}
+  h1{margin:0;font:900 36px/1.05 'Zen Maru Gothic';letter-spacing:-.025em;white-space:nowrap}
+  p{margin:0;font:700 15.5px/1.35 'Zen Maru Gothic';color:var(--muted);white-space:nowrap}
+  /* What survives Bluesky's cut, either way (see above), and where the profile picture and the back button go: only with ?safe */
+  .safe{position:absolute;left:50px;right:50px;top:31px;bottom:31px;outline:1px dashed red;pointer-events:none}
+  .avi{position:absolute;left:12px;top:161px;width:212px;height:89px;background:rgba(255,0,0,.18)}
+  .back{position:absolute;left:22px;top:43px;width:99px;height:92px;background:rgba(255,0,0,.18)}
+  .ai{color:var(--lit);text-shadow:var(--glow)}
+
+  /* the scene's labels, as the landing has them (./landing.css), a little larger */
+  .pin{position:absolute;left:0;top:0;display:inline-flex;align-items:center;gap:6px;border-radius:999px;background:var(--pin);box-shadow:0 0 0 1px var(--edge);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);font:700 13px 'Zen Maru Gothic';white-space:nowrap}
+  .pin i{flex:none;width:20px;height:20px;border-radius:50%;background:var(--c);color:#12203A;font:800 11px/20px 'Zen Maru Gothic';font-style:normal;text-align:center}
+  .plot{padding:3px;translate:-50% -50%}
+  .plan{padding:5px 13px 5px 7px;gap:8px;line-height:1.2;translate:-100% -50%}
+  .plan b,.plan small{display:block}
+  .plan b{font-size:14px}
+  .plan small{font:500 12px/1.3 'Zen Maru Gothic';color:var(--muted)}
+  .ring{flex:none;width:24px;height:24px;rotate:-90deg}
+  .ring circle{fill:none;stroke:var(--soft);stroke-width:3}
+  .ring .left{stroke:var(--accent);stroke-linecap:round;stroke-dasharray:100}
+</style>
+<body>
+<canvas></canvas>
+<div class="words">
+  <h1>Got r<span class="ai">ai</span>n to spare?</h1>
+  <p>Send your agent to help someone else.</p>
+</div>
+<div id="pins"></div>
+<div class="safe" hidden></div><div class="avi" hidden></div><div class="back" hidden></div>
+<script type="module">
+  import { createGarden } from './garden-scene.js';
+  import { PLOTS } from './plots.js';
+
+  const q = new URLSearchParams(location.search), dark = q.has('dark');
+  document.body.classList.toggle('night', dark);
+  if (q.has('safe')) document.querySelectorAll('.safe,.avi,.back').forEach(el => { el.hidden = false; });
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  const pins = document.getElementById('pins');
+  // Under each plot, whose it is (just their initial: at a banner's size a name is too small
+  // to read); beside your cloud, your plan and when it resets. (Kai's cloud goes unnamed: two
+  // labels up there would crowd each other.)
+  pins.innerHTML = PLOTS.map(p => `<span class="pin plot"><i style="--c:${esc(p.color)}">${esc(p.name[0])}</i></span>`).join('')
+    + `<span class="pin plan"><svg class="ring" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5"/><circle class="left" cx="10" cy="10" r="7.5" pathLength="100"/></svg><span><b>Your AI plan</b><small></small></span></span>`;
+  const plots = [...pins.querySelectorAll('.plot')], plan = pins.querySelector('.plan');
+
+  // The garden, on the right, as big as the banner's height lets it be. The meter is beside
+  // your cloud rather than over it, so the room the landing keeps over the cloud for it is
+  // above the banner's top edge.
+  const frame = { x: 316, y: -9, w: 400, h: 241 };
+  function onFrame(at){
+    plots.forEach((b, i) => { b.style.transform = `translate(${at.plots[i * 2]}px,${at.plots[i * 2 + 1]}px)`; });
+    plan.style.transform = `translate(${at.cloud[0] - at.cloud[2] * .36}px,${at.cloud[1] - at.cloud[3] * .2}px)`;
+    plan.querySelector('.left').style.strokeDashoffset = 100 - Math.round(at.left * 100);
+    const days = Math.ceil(at.left * 3);
+    plan.querySelector('small').textContent = days > 1 ? `Resets in ${days} days` : 'Resets tomorrow';
+  }
+
+  // Your cloud goes out over the last plot, clear of Kai's, and the picture is taken a moment
+  // into its rain there: counted in frames drawn, as the link preview's is (./og.html).
+  let raining = -1, frames = 0;
+  const scene = createGarden(document.querySelector('canvas'), {
+    dark, frame, plots: PLOTS,
+    onEvent: what => { if (what === 'rain') raining = frames; },
+    onFrame: at => { onFrame(at); frames++; if (raining >= 0 && frames - raining === 30) document.fonts.ready.then(() => { scene.setRunning(false); window.bannerReady = true; }); }
+  });
+  scene.setRunning(true);
+  scene.sendTo(3);
+</script>

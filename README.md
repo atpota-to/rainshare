@@ -674,6 +674,7 @@ take on only what you'd be comfortable asking it to do for yourself.
 | `api/page.js`, `api/og.js`, `api/_og/` | Link previews: the page with its tags set for the address asked for, and its picture. `describe.js` is what each says, `card.js` how the picture is laid out; with the fonts and the plants' JPEG copies they're drawn with |
 | `scripts/og-plants.mjs` | `npm run plants:og`: the plant pictures again as JPEGs, for the preview cards |
 | `scripts/og-home.mjs`, `src/landing/og.html` | `npm run og`: the home page's own preview picture (`public/og.jpg`), its headline beside the landing's garden |
+| `scripts/bluesky.mjs`, `src/landing/bluesky.html`, `brand/` | `npm run bluesky`: the pictures for [@rainshare.dev](https://bsky.app/profile/rainshare.dev) on Bluesky, by day and by night. The profile picture is the logo on a square of sky, inside the circle it's cut to; the banner is the headline beside the landing's garden, with your cloud raining on a plot and your plan's meter beside it, all inside what's left after Bluesky cuts a banner to fit a computer or a phone, and clear of the profile picture and the back button it puts over it (add `?safe` to the page to see those) |
 | `lexicons/dev/rainshare/` | The four record types and their shared defs. `publish.mjs` publishes them under rainshare.dev. |
 | `core/ns.js` | Collection names, and the words people see for every known value |
 | `core/records.js` | Building each record from what people type, within the lexicons' limits |

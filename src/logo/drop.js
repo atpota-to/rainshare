@@ -82,7 +82,8 @@ export const LOOKS = {
 export const FRAMES = {
   mark: { x: .46, y: .572, scale: .262, ground: true },      // the header: room to bob, and a shadow to bob over
   icon: { x: .47, y: .628, scale: .338, ground: false },     // an icon: as big as the square allows
-  tile: { x: .47, y: .575, scale: .235, ground: true }       // on a tile of sky, with room round it
+  tile: { x: .47, y: .575, scale: .235, ground: true },      // on a tile of sky, with room round it
+  avatar: { x: .47, y: .59, scale: .245, ground: true }      // a profile picture: on sky, inside the circle it's cut to
 };
 
 /* ---------- how it moves ---------- */

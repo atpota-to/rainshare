@@ -13,6 +13,7 @@
     "plants": "node scripts/render-plants.mjs && node scripts/og-plants.mjs",
     "plants:og": "node scripts/og-plants.mjs",
     "og": "node scripts/og-home.mjs",
+    "bluesky": "node scripts/bluesky.mjs",
     "logo": "node scripts/render-logo.mjs && node -e \"require('fs').copyFileSync('public/logo.png', 'api/_og/logo.png')\""
   },
   "dependencies": {
