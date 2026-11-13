@@ -38,7 +38,7 @@ test('the garden has one plot a friend is on, and three in a row for your cloud'
     assert.notEqual(mine.value.state, 'sprouted');
     assert.equal(p.next, pictureOf({ ...mine.value, state: 'sprouted' }));
   }
-  assert.equal(GARDEN_PATH, '/example/u/' + createDemoSource().viewer);
+  assert.equal(GARDEN_PATH, '/example/profile/' + createDemoSource().viewer);
 });
 
 // The garden is the page's backdrop, and is fitted into the part of it the page keeps clear.

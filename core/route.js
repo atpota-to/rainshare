@@ -4,8 +4,9 @@
 //
 // A sub-path is the part after the app's base: '' (home: the board, or on rainshare.dev the
 // landing for someone signed out), 'board' (the board on its own), 'new', 'me', 'agents',
-// 'u/<who>', 'seed/<who>/<rkey>', 'seed/s/<code>' (see ../ui/rainshare.js).
-import { isDid, isHandle, isRkey } from './net.js';
+// 'profile/<who>', 'seed/<who>/<rkey>', 'seed/s/<code>' (see ../ui/rainshare.js). A profile's
+// address is by DID; a handle works in its place, and the old 'u/<who>' leads there too.
+import { isHandle, isRkey } from './net.js';
 
 const PAGES = ['board', 'new', 'me', 'agents'];
 // Other words people reach for.
@@ -19,13 +20,16 @@ const ALIAS = {
 const SEED_WORDS = ['seed', 'seeds', 's', 'idea', 'ideas', 'project', 'projects', 'plant', 'plants', 'ask', 'asks'];
 const PERSON_WORDS = ['u', 'user', 'users', 'profile', 'profiles', 'people', 'person', 'p', 'by'];
 
+// Any DID by its shape, not only the kinds Rainshare looks up (the example circle's are did:example:…),
+// so an old /u/ link there still arrives.
+const isDid = s => /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$/.test(s);
 const who = s => { const x = String(s || '').replace(/^@/, ''); return isDid(x) ? x : isHandle(x) ? x.toLowerCase() : null; };
 
 /** Whether `sub` is an address the app has a screen for (whether or not anything is there). */
 export function known(sub){
   const p = String(sub || '').split('/');
   if (p.length === 1) return p[0] === '' || PAGES.includes(p[0]);
-  if (p[0] === 'u') return p.length === 2 && !!p[1];
+  if (p[0] === 'profile') return p.length === 2 && !!p[1];
   if (p[0] === 'seed') return p.length === 3 && (p[1] === 's' ? /^[A-Za-z0-9_-]+$/.test(p[2]) : !!p[1] && !!p[2]);
   return false;
 }
@@ -65,19 +69,19 @@ export function reroute(sub){
   const head = p[0].toLowerCase(), tidy = [head, ...p.slice(1)].join('/');
   // Right all along, once tidied (a capital letter, a trailing full stop).
   if (known(tidy) && tidy !== sub) {
-    if (head === 'u' && who(p[1])) return `u/${who(p[1])}`;
+    if (head === 'profile' && who(p[1])) return `profile/${who(p[1])}`;
     if (head === 'seed' && p[1] !== 's' && who(p[1])) return `seed/${who(p[1])}/${p[2]}`;
     return tidy;
   }
   if (p.length === 1) {
     if (head in ALIAS) return ALIAS[head];
-    if (who(p[0])) return `u/${who(p[0])}`;                       // /@someone.example, /did:plc:…
+    if (who(p[0])) return `profile/${who(p[0])}`;                 // /@someone.example, /did:plc:…
     return PAGES.find(w => closeTo(head, w)) ?? null;
   }
   const first = who(p[0]), second = who(p[1]);
   if (p.length === 2) {
     if (first && isRkey(p[1])) return `seed/${first}/${p[1]}`;      // someone.example/<key>, as the CLI takes it
-    if ((PERSON_WORDS.includes(head) || SEED_WORDS.includes(head) || closeTo(head, 'seed')) && second) return `u/${second}`;   // an ask's link cut short leads to whoever asked
+    if ((PERSON_WORDS.includes(head) || SEED_WORDS.includes(head) || closeTo(head, 'seed')) && second) return `profile/${second}`;   // /u/<who> from before, and an ask's link cut short leads to whoever asked
     return null;
   }
   if (p.length === 3 && second && isRkey(p[2]) && (SEED_WORDS.includes(head) || PERSON_WORDS.includes(head) || closeTo(head, 'seed'))) return `seed/${second}/${p[2]}`;

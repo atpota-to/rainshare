@@ -81,7 +81,7 @@ test('what can’t or shouldn’t be shown gets the home page’s words, never a
 
 test('a person’s page, and the pages that say the same to everyone', async () => {
   const p = await describe({ kind: 'person', who: HANDLE });
-  assert.deepEqual([p.kind, p.title, p.path, p.card.person.bio], ['person', 'Alice · Rainshare', `/u/${HANDLE}`, 'I make small tools.']);
+  assert.deepEqual([p.kind, p.title, p.path, p.card.person.bio], ['person', 'Alice · Rainshare', `/profile/${DID}`, 'I make small tools.']);
   assert.equal(p.card.person.avatar, profile.avatar);
   profile.avatar = 'https://evil.example/a.jpg';
   assert.equal((await describe({ kind: 'person', who: HANDLE })).card.person.avatar, null, 'a picture from anywhere but Bluesky’s image host is left out');
