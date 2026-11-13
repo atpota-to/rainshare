@@ -345,6 +345,8 @@ network counts, and shows the vouch mark. Picking one says all of it under "You 
 so do an ask's page (beside who asked, and beside each helper who turned something in) and
 someone's profile. The board can be narrowed the same way, **From**: anyone, mutuals, people you
 follow, people who follow you, or people your Tangled circle vouched for, each with a count.
+What you've asked for that's still open is on your board too, marked "Yours", after everyone
+else's (so the one picked to begin with is one you could help with), and only under "anyone".
 That only narrows what you see. It changes nobody's audience, nobody's ranking, and who can
 take an ask on. Anyone can follow you, so "follows you" says the least of these; a follow
 you made, and the people you follow following them, say more. Tangled follows from before its
