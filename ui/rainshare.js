@@ -291,9 +291,10 @@ export function createRainshare({ root, base = '/', host }){
         <div class="rs-filter-row"><span class="rs-from-l">Show</span>${showRow(byFrom)}</div>
       </div>` : ''}`;
   }
-  // One card: who, the title, the start of the ask in their own words, then a quiet line (how
-  // well it suits you, or that it's yours or done) and where it stands. Where the work is and how
-  // big a job it is are in its details, and so is who it's open to unless you know them.
+  // One card: who and when across the top, then beside its plant the title, the start of the ask
+  // in their own words, a quiet line (how well it suits you, or that it's yours or done) and where
+  // it stands. Where the work is and how big a job it is are in its details, and so is who it's
+  // open to unless you know them.
   function card(it, { nav = false } = {}){
     const sq = it.value || {}, p = it.author || {}, mine = it.repo === viewer(), on = !nav && it.uri === S.pick;
     const rel = mine ? '' : relationText(it, viewer(), { audience: false }), ask = askExcerpt(sq.spec, 180);
@@ -308,8 +309,8 @@ export function createRainshare({ root, base = '/', host }){
     const taken = !short ? '' : pr.key === 'turned-in' ? `<span class="rs-item-taken rs-turned-in">${faces}<span class="rs-chip">${ico(pr.idea ? 'link' : 'pull')}${esc(short)}</span></span>`
       : `<span class="rs-item-taken rs-${pr.key}">${faces}${esc(short)}</span>`;
     return `<li><a class="rs-item${on ? ' on' : ''}" href="${esc(href(pathOf(it)))}" ${nav ? `data-rs-go="${esc(pathOf(it))}"` : `data-rs-pick="${esc(it.uri)}"`}${on ? ' aria-current="true"' : ''}>
+      <span class="rs-item-top">${face(p, 'xs')}<span class="rs-item-who"><b>${esc(mine ? 'You' : nameOf(p))}</b>${mine ? '' : hat(it.repo)}${rel ? `<span> · ${it.space ? ico('lock') : ''}${esc(rel)}</span>` : ''}</span><time>${esc(ago(sq.createdAt))}</time></span>
       <span class="rs-item-main">
-        <span class="rs-item-top">${face(p, 'xs')}<span class="rs-item-who"><b>${esc(mine ? 'You' : nameOf(p))}</b>${mine ? '' : hat(it.repo)}${rel ? `<span> · ${it.space ? ico('lock') : ''}${esc(rel)}</span>` : ''}</span><time>${esc(ago(sq.createdAt))}</time></span>
         <span class="rs-item-title">${esc(sq.title)}</span>
         ${ask ? `<span class="rs-item-ask">${esc(ask)}</span>` : ''}
         ${line || taken ? `<span class="rs-item-line">${line}${taken}</span>` : ''}
