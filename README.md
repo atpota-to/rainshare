@@ -160,6 +160,15 @@ finds it (`whereTo` in `src/oauth.js`): the handle's account, its server, and th
 that server signs people in on. For most accounts that's their own server; accounts on
 Bluesky's servers all sign in at bsky.social. Nobody is sent anywhere until they press it.
 
+Finding it asks three or four servers in turn, and any of them can be out or slow for a
+moment. That isn't taken for an account that isn't there (`src/lookup.js`): a handle nobody
+has, or a DID the directory doesn't know, is said to be missing, with the handle back in the
+field to fix; anything else is asked again once, after a second, and a wait is given up after
+six. If the site still isn't known, the button is a plain **Continue**, with the same line
+under it without the name: the sign-in finds the way itself, and only if that fails too is
+anything said. (bsky.social says a handle of its own is nobody's in a way the sign-in
+library doesn't know, so Rainshare looks handles up there itself, knowing both ways.)
+
 **What your server's page says.** Your Rainshare records are asked for by Rainshare's
 permission set, `dev.rainshare.authFull` (`lexicons/dev/rainshare/authFull.json`), published
 with the other lexicons. A server that can look it up shows its title, "Your Rainshare
@@ -176,6 +185,25 @@ Everywhere else ("Sign in" in the bar, on an ask's page, on the board) the dialo
 the handle, and signing in comes back to the page you were on. "Connect Tangled" or "Connect
 knotless", for a sign-in that left one out, is the second step on its own: your account, the
 list with that forge ticked, and the same button.
+
+**The first time in.** Someone who signs in with no Rainshare profile yet is welcomed over
+whatever page they came back to (`ui/welcome.js`), in two short steps:
+
+1. **Rainshare in three lines.** Your AI plan resets whether you use it or not. People post
+   ideas and projects they'd like help with (that's asking for rain, and you can too). Pick
+   one and send your agent to do the work, on your own plan; when it's done, it grows in your
+   garden.
+2. **What do you code with?** The two things the board sorts by and "Send my agent" reads:
+   your AI plan, and what you run (Claude Code, Codex and the rest). Your name and picture are
+   shown as they come from Bluesky, with a line saying so.
+
+Saving writes a profile with just those two things. The rest (models, the work you take on, a
+name or bio for Rainshare only) is on your profile's own page. "Skip for now", the ✕, Escape
+or a click outside closes it, and it isn't shown to that account on that browser again; until
+there's a profile, the board goes on offering "Set up your profile". It's shown only when your
+server has said there's no profile: one that didn't answer isn't taken to mean there isn't one
+(`unread` from `profileOf`), since saving from the welcome would write over it. It isn't shown
+in the example circle, or on your profile's page, where you're setting it up already.
 
 **The same pictures in the app.** A forecast (set aside for now) is drawn as its sky: clear, then a cloud with
 more and more rain (`skyIco` in `ui/bits.js`). A seed is drawn where it is in its life: in the
@@ -711,10 +739,11 @@ take on only what you'd be comfortable asking it to do for yourself.
 | `core/demo.js` | The example circle, answering the same calls from fixtures and your browser's storage |
 | `ui/rainshare.js`, `ui/rainshare.css` | The screens: the board (a list with the details beside it), a seed, your profile, someone's profile, agents |
 | `ui/post.js` | Asking for rain on an idea or a project: two steps (three with "Who's it for?"), a live preview and a confirmation |
+| `ui/welcome.js` | The welcome, the first time someone signs in with no profile: Rainshare in three lines, then their AI plan and what they run |
 | `ui/skeleton.js` | What shows while something loads: placeholders laid out like the board, an ask's page, a person's page, your profile and a garden |
 | `ui/bits.js` | Small shared pieces: escaping, times, icons, faces, and the glyphs for a forecast's sky and a seed's life |
 | `cli/rainshare.mjs` | The CLI and MCP server |
-| `test/` | `npm test`: the core, the data source against a fake network, the MCP server, posting to the forges, vouching and follows against made-up ones, what other people's records can't do (`security.test.mjs`), and the plants: which kind each grows, that every picture is there, and that every kind fits its frame (`plants.test.mjs`, the models only once three.js is installed); the logo: that it stays inside its square as it moves, that its loop closes, and that every picture of it is the one the drawing makes now (`logo.test.mjs`); wrong addresses (`route.test.mjs`); link previews against made-up hosts (`og.test.mjs`); and the lexicons: well formed, and what counts as breaking a published one (`lexicons.test.mjs`) |
+| `test/` | `npm test`: the core, the data source against a fake network, the MCP server, posting to the forges, vouching and follows against made-up ones, what other people's records can't do (`security.test.mjs`), and the plants: which kind each grows, that every picture is there, and that every kind fits its frame (`plants.test.mjs`, the models only once three.js is installed); the logo: that it stays inside its square as it moves, that its loop closes, and that every picture of it is the one the drawing makes now (`logo.test.mjs`); wrong addresses (`route.test.mjs`); the welcome: who it's for, what it saves, and telling a profile that isn't there from one that couldn't be read (`welcome.test.mjs`); link previews against made-up hosts (`og.test.mjs`); and the lexicons: well formed, and what counts as breaking a published one (`lexicons.test.mjs`) |
 
 ## Security
 
@@ -904,6 +933,15 @@ Not yet checked:
   `/` signed out is the landing with the board under it, as before; the example circle's
   links to its board still go to `/example`. Not checked: signed in, and `/board`'s link
   preview on a deployment.
+- The welcome (13 November 2026). Checked in a headless browser from the dev server, through
+  `createRainshare` with a signed-in source that had no profile: it opens, with the focus on
+  its button, and Enter goes on; saving with nothing picked says so and writes nothing; a paid
+  plan clears "No AI plan" and "Free tiers only" clears the paid ones; Back keeps what was
+  picked; a click outside while it saves leaves it open; once saved it closes, says so, and
+  the board stops asking for a profile; Escape skips it, writes nothing, and the board still
+  asks. It stayed away for a profile that couldn't be read, for someone who had skipped it on
+  that browser, and in the example circle. Both steps at 1280 pixels in light and dark, and at
+  390 in light, with no sideways scrolling. Not checked: a real account's first sign-in.
 - GitHub's side of `look` (`core/status.js`) has only been run against made-up answers. Two
   things to watch when it meets GitHub: a browser that isn't signed in may ask 60 things an
   hour, after which the forge's side is left unknown rather than guessed; and matching by

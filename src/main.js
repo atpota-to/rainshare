@@ -27,6 +27,12 @@ import { showLanding, hideLanding } from './landing/landing.js';
 import { peekWords, peekPeople } from './landing/peek.js';
 import { face, avatarFallback } from '../ui/bits.js';
 import { mountLogo } from './logo/live.js';
+// Vercel Web Analytics: page views, including the in-page navigations between screens.
+// In production its script is served from this site (/_vercel/insights/), so the
+// Content-Security-Policy in vercel.json already allows it; nothing is sent in development.
+import { inject } from '@vercel/analytics';
+
+inject();
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
