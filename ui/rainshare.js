@@ -35,6 +35,7 @@ import { strongRef, HARNESS_NAMES } from '../core/records.js';
 import { resolveHandle, knownPerson, parseUri, profiles } from '../core/net.js';
 import { esc, lit, unb64url, ago, until, nameOf, firstName, ico, skyIco, lifeIco, lifeOf, face, drops, pathOf, plantPic, avatarFallback, tip, tipLink, toggleTip } from './bits.js';
 import { createPoster } from './post.js';
+import { openWelcome, shouldWelcome } from './welcome.js';
 import { headSk, boardSk, seedSk, personSk, gardenSk, meSk, listSk } from './skeleton.js';
 import { known, reroute } from '../core/route.js';
 
@@ -186,7 +187,23 @@ export function createRainshare({ root, base = '/', host }){
   }
   async function loadMine(force){
     if (!signedIn()) { S.mine = null; return; }
-    try { S.mine = await S.source.profileOf(viewer(), { force }); } catch (e) { console.warn('rainshare profile', e); S.mine = { merged: null, hidden: [], groups: [] }; }
+    try { S.mine = await S.source.profileOf(viewer(), { force }); } catch (e) { console.warn('rainshare profile', e); S.mine = { merged: null, hidden: [], groups: [], unread: true }; }
+  }
+  // The first time someone signs in, and has no profile yet: what Rainshare is, and the two
+  // things to say about yourself (./welcome.js). It's over whatever page they came back to.
+  function welcome(){
+    if (!shouldWelcome({ source: S.source, mine: S.mine, sub: S.sub })) return;
+    const source = S.source;
+    openWelcome({
+      person: S.mine.bluesky?.did ? S.mine.bluesky : self(),
+      save: p => source.saveProfile(p),
+      async saved(){
+        toast('Saved. Your board is sorted to suit you.');
+        if (S.source !== source) return;
+        await loadMine(true); rerender();
+      },
+      error: plainText
+    });
   }
 
   /* ---------- the board: a list of short cards, and the one you pick beside them ---------- */
@@ -1331,7 +1348,7 @@ export function createRainshare({ root, base = '/', host }){
       Object.assign(S, { source, board: null, mine: null, garden: null, unlinked: null, seed: null, form: null, drafts: {}, pick: null, sheet: false, pull: null, circle: undefined, vouching: null, from: 'anyone', known: {} });
       poster.reset();
       render();
-      if (source?.signedIn) { await loadMine(); loadGarden(); }
+      if (source?.signedIn) { await loadMine(); loadGarden(); welcome(); }
       show(S.sub);
     },
     refresh: () => loadBoard(true),

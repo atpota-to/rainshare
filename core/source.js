@@ -268,7 +268,10 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
   });
   async function profileOf(did, { force } = {}){
     if (force) forget('profile:' + did);
-    const [pub, who, ties] = await Promise.all([publicProfile(did).catch(() => null), people([did]), tiesOf([did]).catch(() => new Map())]);
+    // `unread`: their server didn't answer, so whether they have a profile isn't known (which
+    // isn't the same as not having one: see the welcome, ../ui/welcome.js).
+    let unread = false;
+    const [pub, who, ties] = await Promise.all([publicProfile(did).catch(() => { unread = true; return null; }), people([did]), tiesOf([did]).catch(() => new Map())]);
     let full = null, inGroups = [];
     for (const g of (await myGroups().catch(() => [])).filter(g => g.space)) {
       const rec = (await groupRecords(g).catch(() => [])).find(r => r.collection === PROFILE && r.repo === did && r.rkey === 'self');
@@ -278,7 +281,7 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     const hidden = full ? R.PRIVATE_FIELDS.filter(k => full[k] !== undefined && pub?.value?.[k] === undefined) : [];
     // `bluesky` is them as their Bluesky profile has them; `person` is how Rainshare shows them.
     const bluesky = who.get(did) || { did };
-    return { person: shown(bluesky, merged), bluesky, public: pub?.value || null, merged, hidden, groups: inGroups, ties: ties.get(did) || null };
+    return { person: shown(bluesky, merged), bluesky, public: pub?.value || null, merged, hidden, groups: inGroups, ties: ties.get(did) || null, unread };
   }
 
   /* ---------- writes ---------- */
