@@ -24,7 +24,12 @@
 .rs-forge path[d^="M6 7c"],.rs-forge path[d^="M6 17c"],.rs-forge path[d^="M4 13c"],.rs-forge circle,.rs-forge path[d^="M6 8.2"]{fill:none;stroke:currentColor;stroke-width:2}
 .rs-muted{color:var(--rs-muted);font-size:14px}
 /* the "ai" lit inside "rain", and text that's for screen readers only */
-.rs-ai{color:var(--rs-lit,var(--rs-accent));text-shadow:var(--rs-lit-glow,none)}
+.rs-ai{color:var(--rs-lit,var(--rs-accent))}
+/* lit as the logo's drop is, where the page gives it a fill (--rs-lit-fill, --rs-lit-halo); in its one colour otherwise */
+@supports ((-webkit-background-clip:text) or (background-clip:text)){
+  .rs-ai{background:var(--rs-lit-fill,linear-gradient(var(--rs-lit,var(--rs-accent)),var(--rs-lit,var(--rs-accent))));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;filter:var(--rs-lit-halo,none)}
+}
+@media (forced-colors:active){.rs-ai{background:none;-webkit-text-fill-color:currentColor;filter:none}}
 .rs-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
 .rs small{color:var(--rs-muted);font-size:13px;font-weight:500}
 .rs-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}

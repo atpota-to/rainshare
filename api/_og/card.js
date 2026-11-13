@@ -19,9 +19,12 @@ const drop = size => ({ type: 'svg', props: { viewBox: '0 0 32 32', width: size,
   { type: 'path', props: { d: 'M16 3.5c4.6 5.9 8.6 10.6 8.6 15.2a8.6 8.6 0 0 1-17.2 0c0-4.6 4-9.3 8.6-15.2z', fill: C.accent } },
   { type: 'path', props: { d: 'M24.5 4l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z', fill: '#F2A63B' } }
 ] } });
+// The "ai" is lit as the site has it (src/theme.css): as the logo's drop is, pale at the top and
+// deep at the foot.
+const LIT = { backgroundImage: 'linear-gradient(180deg, #8DBBFF 6%, #4A82FF 40%, #2558EE 64%, #1A3CC8 96%)', backgroundClip: 'text', color: 'transparent', textShadow: '0 2px 10px rgba(47,99,240,.38)' };
 const lit = (s, style) => {
   const parts = String(s).split(/(?<=\b[Rr])(ai)(?=n)/);
-  return row({ ...style, alignItems: 'baseline' }, parts.map((p, i) => h('span', i % 2 ? { color: C.accent } : {}, p.replace(/ /g, ' '))));
+  return row({ ...style, alignItems: 'baseline' }, parts.map((p, i) => h('span', i % 2 ? LIT : {}, p.replace(/ /g, ' '))));
 };
 const wordmark = logo => row({ gap: 10 }, logo ? img(logo, 64) : drop(52), lit('Rainshare', { fontSize: 42, fontWeight: 900, color: C.ink, letterSpacing: '-0.01em' }));
 const pill = (label, { bg = C.accentSoft, color = C.accentText } = {}) => text({ padding: '10px 22px', borderRadius: 999, backgroundColor: bg, color, fontSize: 26, fontWeight: 700 }, label);
