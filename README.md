@@ -18,6 +18,10 @@ The site is [rainshare.dev](https://rainshare.dev). To look around without signi
 example board at [rainshare.dev/example](https://rainshare.dev/example). Anything you do there
 stays in your browser.
 
+You sign in with a Bluesky or other Atmosphere handle. If you haven't got one, "Make an account"
+on the sign-in lets you pick a host (Bluesky, Blacksky, Eurosky, selfhosted.social or npmx). You
+make the account on that host's own sign-up page and come straight back signed in.
+
 ## How it works
 
 1. **Ask for rain.** Post an idea or a project. A project is an existing repo or issue on
@@ -299,6 +303,7 @@ which spells it out by hand.
 | `src/landing/` | the signed-out landing page and its 3D garden (three.js, only loaded on the landing). `src/landing/cycle/` is an older scene, viewable with `?scene=cycle`. |
 | `src/plants/`, `src/logo/` | the 3D plant models, and the animated logo (plain JavaScript, no three.js) |
 | `src/signin.js`, `src/oauth.js`, `src/scope.js`, `src/lookup.js` | the sign-in dialog, OAuth, and the scopes it asks for |
+| `src/hosts.js` | the hosts offered for making an account, for someone who hasn't got one |
 | `src/spaces.js` | group spaces for private asks (switched off) |
 | `ui/` | the app's screens: the board, an ask, profiles, posting an ask, the first-time welcome, loading placeholders |
 | `core/` | everything the site and the CLI share (below) |
@@ -365,6 +370,8 @@ done for real yet:
 
 - Signing in all the way through and writing to a real PDS. So far bsky.social has accepted the
   full permission list and shown its sign-in page, and that's as far as it's gone.
+- Making an account all the way through. bsky.social and eurosky.social open on their sign-up
+  form, and that's as far as it's gone.
 - Posting an issue, comment or pull request to Tangled or knotless as a real user.
 - `rainshare.mjs run` end to end with a real agent.
 - GitHub status lookups against real GitHub (only mocked so far). A signed-out browser gets 60

@@ -190,6 +190,8 @@ document.addEventListener('click', e => {
     if (!$('#landing').hidden) focusSignIn();
     else openSignIn({ to: isExample(location.pathname) ? '/' : location.pathname + location.search });
   }
+  // "Make one", for someone with no account yet: the dialog, at the hosts to make one with.
+  if (e.target.closest('[data-signup]')) openSignIn({ making: true, to: isExample(location.pathname) ? '/' : location.pathname + location.search });
 });
 
 /* ---------- you ---------- */

@@ -12,6 +12,7 @@ import { XrpcHandleResolver } from '@atproto-labs/handle-resolver';
 import { DidResolverCommon } from '@atproto-labs/did-resolver';
 import { OAuthResolverError } from '@atproto/oauth-client';
 import { noSuchAccount, within, handleLookup } from '../src/lookup.js';
+import { HOSTS, hostById, domainOf, signsUp } from '../src/hosts.js';
 
 const DID = 'did:plc:abcdefghijklmnopqrstuvwx', HANDLE = 'someone.example.com';
 const doc = (handle = HANDLE) => ({
@@ -69,4 +70,35 @@ test('a wait for where an account signs in has an end', async () => {
   assert.equal(await within(Promise.resolve('here'), 50), 'here');
   await assert.rejects(within(Promise.reject(new Error('refused')), 50), /refused/);
   await assert.rejects(within(new Promise(() => {}), 20), e => e.name === 'TimeoutError');
+});
+
+// Making an account (src/hosts.js): the hosts offered, and whether a host's sign-in is asked
+// to open on its sign-up form.
+
+test('the hosts offered for making an account are plain https sites, each its own', () => {
+  assert.ok(HOSTS.length >= 2);
+  for (const h of HOSTS) {
+    const u = new URL(h.url);
+    assert.equal(u.protocol, 'https:', h.id);
+    assert.equal(h.url, u.origin, `${h.id}'s address is a site, with no path`);
+    assert.equal(domainOf(h), u.host);
+    assert.ok(h.name && h.region, h.id);
+    assert.ok(Number.isInteger(h.hue) && h.hue >= 0 && h.hue < 360, h.id);
+    assert.equal(hostById(h.id), h);
+  }
+  assert.equal(new Set(HOSTS.map(h => h.id)).size, HOSTS.length, 'ids');
+  assert.equal(new Set(HOSTS.map(h => h.url)).size, HOSTS.length, 'sites');
+  assert.equal(new Set(HOSTS.map(h => h.hue)).size, HOSTS.length, 'colours');
+  assert.equal(HOSTS.filter(h => h.usual).length, 1, 'one is where most people start');
+  assert.equal(HOSTS[0].usual, true, 'and it comes first');
+  assert.equal(hostById('nowhere'), null);
+  assert.equal(hostById(undefined), null);
+});
+
+test('a host is asked for its sign-up form only when its server says it has one', () => {
+  assert.equal(signsUp({ prompt_values_supported: ['none', 'login', 'consent', 'select_account', 'create'] }), true);
+  assert.equal(signsUp({ prompt_values_supported: ['none', 'login', 'consent'] }), false, 'a server without one opens on its sign-in page');
+  assert.equal(signsUp({}), false, 'a server that doesn’t say');
+  assert.equal(signsUp({ prompt_values_supported: 'create' }), false, 'nor one that says it wrong');
+  assert.equal(signsUp(null), false);
 });
