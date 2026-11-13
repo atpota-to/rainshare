@@ -5,7 +5,7 @@
 //                   signed in, the board
 //   /board          the board on its own, signed in or out (the bar's "Board")
 //   /example/…      the example circle, kept in this browser (linked from the landing)
-//   /seed/…, /new, /me, /u/…, /agents   Rainshare's own screens (see ../ui/rainshare.js)
+//   /seed/…, /new, /me, /profile/…, /agents   Rainshare's own screens (see ../ui/rainshare.js)
 //   /signed-in      where your server sends you back after signing in
 //
 // Signing in is a dialog of its own (./signin.js), opened from here.

@@ -23,4 +23,4 @@ export const PLOTS = [
   return { ...p, uri, noun: p.stage === 'seed' ? 'idea' : 'project', next: NEXT[p.stage], kind: plantKind(uri), path: `/example/seed/${p.did}/${p.rkey}` };
 });
 /** Where what you've helped with shows, in the example circle. */
-export const GARDEN_PATH = '/example/u/did:example:you';
+export const GARDEN_PATH = '/example/profile/did:example:you';

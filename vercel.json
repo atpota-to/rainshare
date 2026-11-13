@@ -14,7 +14,8 @@
     }
   },
   "redirects": [
-    { "source": "/favicon.svg", "destination": "/favicon.png", "permanent": true }
+    { "source": "/favicon.svg", "destination": "/favicon.png", "permanent": true },
+    { "source": "/u/:who", "destination": "/profile/:who", "permanent": true }
   ],
   "rewrites": [
     {
@@ -30,7 +31,7 @@
       "destination": "/api/page?kind=seed&who=:who&rkey=:rkey"
     },
     {
-      "source": "/u/:who",
+      "source": "/profile/:who",
       "destination": "/api/page?kind=person&who=:who"
     },
     {

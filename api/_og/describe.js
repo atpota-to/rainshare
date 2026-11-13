@@ -98,7 +98,7 @@ async function personPage(rawWho, signal){
   const p = person(did, asked, bsky, valueAt(own, PROFILE, 'self', did));
   const line = p.bio || `${p.name}’s ideas and projects on Rainshare, and what they’ve helped with.`;
   return {
-    kind: 'person', path: `/u/${p.handle || did}`, title: `${p.name} · Rainshare`, heading: p.name,
+    kind: 'person', path: `/profile/${did}`, title: `${p.name} · Rainshare`, heading: p.name,
     description: clean(`${p.name} on Rainshare. ${line}`, 280), social: line,
     alt: clean(`${p.name}${p.handle ? ` (@${p.handle})` : ''} on Rainshare. ${p.bio}${p.plan ? ` AI plan: ${p.plan}.` : ''}`, 400),
     image: `/api/og?kind=person&who=${encodeURIComponent(did)}`,

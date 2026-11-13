@@ -40,7 +40,7 @@ const MARKUP = `
     <article class="rd-note" id="note0" hidden>
       <h2>Evaporation</h2>
       <p>Some of your plan goes unused before it resets. That’s time your agent could spend on a friend’s project.</p>
-      <a href="/example/u/did:example:kai" data-nav>See someone’s AI plan</a>
+      <a href="/example/profile/did:example:kai" data-nav>See someone’s AI plan</a>
     </article>
     <article class="rd-note" id="note1" hidden>
       <h2>Condensation</h2>

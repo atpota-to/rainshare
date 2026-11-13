@@ -7,13 +7,13 @@
 //                      like. Short cards in a list, and the one you pick in full beside them (a
 //                      sheet from the bottom on phones), with how you know whoever asked. What
 //                      you've asked for that's still open is there too, after the rest; all
-//                      of it, open or done, is on your own page (u/<you>)
+//                      of it, open or done, is on your own page (profile/<you>)
 //   seed/<did>/<rkey>  a public seed (a handle works in place of the DID)
 //   seed/s/<code>      a private one, in a group's space (its record URI, base64url)
 //   new                plant a seed (./post.js)
 //   me                 your profile: your AI plan, what you run, and who you are to helpers,
 //                      with what you've helped with beside it
-//   u/<did>            someone's profile and their seeds
+//   profile/<did>      someone's profile and their seeds (a handle works in place of the DID)
 //   agents             the CLI and MCP server, for sending agents from a terminal
 //
 // A host with a landing of its own at its base address, for people signed out (rainshare.dev,
@@ -326,7 +326,7 @@ export function createRainshare({ root, base = '/', host }){
     else buttons = `<button class="rs-btn rs-primary" type="button" data-rs-take="${esc(it.uri)}">${ico('drop')}Send my agent</button>${mdBtn(it)}${shareBtn(it)}`;
     const st = open && !mine && !myTake(it) ? stand(it) : null;
     return `<article class="rs-detail">
-      <div class="rs-detail-top">${a('u/' + it.repo, face(p) + `<b>${esc(mine ? 'You' : nameOf(p))}</b>`, 'rs-who')}${hat(it.repo)}<span class="rs-muted">${rel ? ' · ' + (it.space ? ico('lock') : '') + esc(rel) : ''} · ${esc(ago(sq.createdAt))}</span>
+      <div class="rs-detail-top">${a('profile/' + it.repo, face(p) + `<b>${esc(mine ? 'You' : nameOf(p))}</b>`, 'rs-who')}${hat(it.repo)}<span class="rs-muted">${rel ? ' · ' + (it.space ? ico('lock') : '') + esc(rel) : ''} · ${esc(ago(sq.createdAt))}</span>
         <button class="rs-sheet-close" type="button" data-rs-close-sheet aria-label="Close">${ico('close')}</button></div>
       <div class="rs-seed-head"><div class="rs-seed-title"><h2 tabindex="-1">${esc(sq.title)}</h2><p class="rs-muted"><span class="rs-stage-name">${esc(whatItIs(sq).name)}</span> · ${esc(whatItIs(sq).note)}</p></div>${plantPic(pictureOf(sq), 88, { key: it.uri })}</div>
       ${f ? fitBox(f) : !open ? `<p class="rs-state${sq.state === 'sprouted' ? ' rs-ok' : ''}">${sq.state === 'sprouted' ? `${lifeIco('sprouted')}Done.` : 'Closed.'}</p>`
@@ -352,8 +352,8 @@ export function createRainshare({ root, base = '/', host }){
     // else by what you've asked for.
     const asked = signedIn() && S.board ? S.board.items.filter(it => it.repo === viewer()).length : 0;
     const yours = !signedIn() || !S.garden ? ''
-      : S.garden.length ? a('u/' + viewer(), `${plantPic(S.garden[0].picture || S.garden[0].stage, 26, { key: S.garden[0].uri })}Helped with ${S.garden.length}`, 'rs-btn rs-quiet rs-watered-btn')
-        : asked ? a('u/' + viewer(), `${ico('person')}Your asks <span class="rs-from-n">${asked}</span>`, 'rs-btn rs-quiet') : '';
+      : S.garden.length ? a('profile/' + viewer(), `${plantPic(S.garden[0].picture || S.garden[0].stage, 26, { key: S.garden[0].uri })}Helped with ${S.garden.length}`, 'rs-btn rs-quiet rs-watered-btn')
+        : asked ? a('profile/' + viewer(), `${ico('person')}Your asks <span class="rs-from-n">${asked}</span>`, 'rs-btn rs-quiet') : '';
     return `
       <header class="rs-head">
         <div class="rs-brand">${host.brand !== 'rainshare' ? `<span class="rs-logo">${ico('drop')}</span>` : ''}<div>${
@@ -771,7 +771,7 @@ export function createRainshare({ root, base = '/', host }){
   }
 
   function renderSeed(){
-    if (S.seedErr) { title('Nothing here'); return nothingHere(plain(S.seedErr), S.seedErr.who ? a('u/' + S.seedErr.who, 'See who asked', 'rs-btn rs-quiet') : ''); }
+    if (S.seedErr) { title('Nothing here'); return nothingHere(plain(S.seedErr), S.seedErr.who ? a('profile/' + S.seedErr.who, 'See who asked', 'rs-btn rs-quiet') : ''); }
     const it = S.seed;
     if (!it) return newHere() + back() + seedSk();
     const sq = it.value || {}, p = it.author || {}, mine = it.repo === viewer(), taken = myTake(it), d = describeSubject(sq.subject), clone = cloneUrlOf(sq.subject);
@@ -865,7 +865,7 @@ export function createRainshare({ root, base = '/', host }){
       <article class="rs-seed">
         <div class="rs-seed-main">
           <div class="rs-seed-head">
-            <div class="rs-detail-top">${a('u/' + it.repo, face(p) + `<b>${esc(mine ? 'You' : nameOf(p))}</b>`, 'rs-who')}${hat(it.repo)}<span class="rs-muted">${mine ? '' : ' · ' + (it.space ? ico('lock') : '') + esc(relationText(it, viewer()) || 'open to everyone')} · ${esc(ago(sq.createdAt))}</span></div>
+            <div class="rs-detail-top">${a('profile/' + it.repo, face(p) + `<b>${esc(mine ? 'You' : nameOf(p))}</b>`, 'rs-who')}${hat(it.repo)}<span class="rs-muted">${mine ? '' : ' · ' + (it.space ? ico('lock') : '') + esc(relationText(it, viewer()) || 'open to everyone')} · ${esc(ago(sq.createdAt))}</span></div>
             <div class="rs-seed-title"><h1>${esc(sq.title)}</h1>
               <p class="rs-muted"><span class="rs-stage-name">${esc(whatItIs(sq).name)}</span> · ${esc(whatItIs(sq).note)}</p></div>
             ${plantPic(pictureOf(sq), 128, { live: true, key: it.uri })}
@@ -881,7 +881,7 @@ export function createRainshare({ root, base = '/', host }){
           ${linked ? `<h2>Also on ${esc(forge)}</h2><ul class="rs-people rs-deliveries rs-linked">${linked}</ul>` : ''}
         </div>
         <aside class="rs-seed-side">
-          <div class="rs-panel"><h2>${esc(mine ? 'Your profile' : 'About ' + firstName(p))}</h2>${mine ? '' : tiesList(it.repo, it.ties, p)}${profileCard(it.profile, p, { compact: true })}${a('u/' + it.repo, mine ? 'See your profile' : 'See their profile', 'rs-link')}</div>
+          <div class="rs-panel"><h2>${esc(mine ? 'Your profile' : 'About ' + firstName(p))}</h2>${mine ? '' : tiesList(it.repo, it.ties, p)}${profileCard(it.profile, p, { compact: true })}${a('profile/' + it.repo, mine ? 'See your profile' : 'See their profile', 'rs-link')}</div>
           <p class="rs-hood">${tipLink('The records behind this', `<span class="rs-tip-p">${it.space ? `It’s a record in ${esc(nameOf(p))}’s repo, inside ${esc(it.group?.name || 'the group')}’s Rainshare space, readable only by members.` : `It’s a record in ${esc(nameOf(p))}’s own repo, on their own server. Anyone can read it; apps show it to the people it’s meant for.`}</span><span class="rs-tip-p"><code>${esc(it.uri)}</code></span><span class="rs-tip-p">Each helper’s take and delivery records live in their own repo, pointing here.</span>`)}</p>
         </aside>
       </article>`;
@@ -961,7 +961,7 @@ export function createRainshare({ root, base = '/', host }){
       </form>
       <aside class="rs-me-side">
         ${S.source.gardenOf ? `<section class="rs-mygarden"><h2>What you’ve helped with</h2>${gardenBlock(S.garden, 'You')}</section>` : ''}
-        ${a('u/' + viewer(), 'See your profile as others do', 'rs-link')}
+        ${a('profile/' + viewer(), 'See your profile as others do', 'rs-link')}
       </aside>
       </div>`;
   }
@@ -997,7 +997,7 @@ export function createRainshare({ root, base = '/', host }){
   /* ---------- someone's profile ---------- */
   async function loadPerson(sub){
     S.other = null;
-    const who = decode(sub.slice(2));
+    const who = decode(sub.slice('profile/'.length));
     try {
       const did = who.startsWith('did:') ? who : await resolveHandle(who);
       S.other = await S.source.profileOf(did);
@@ -1152,7 +1152,7 @@ export function createRainshare({ root, base = '/', host }){
     for (const f of fading) { f.el.style.animationDelay = `${f.at - now}ms`; box.appendChild(f.el); }
   }
   // Before it's known who's looking, the address already says which screen is coming.
-  const viewOf = sub => isBoard(sub) ? 'board' : /^seed\//.test(sub) ? 'seed' : /^u\//.test(sub) ? 'person' : sub;
+  const viewOf = sub => isBoard(sub) ? 'board' : /^seed\//.test(sub) ? 'seed' : /^profile\//.test(sub) ? 'person' : sub;
   const ahead = sub => ({ board: () => headSk() + boardSk(), seed: () => newHere() + back() + seedSk(), person: () => newHere() + back() + personSk() })[viewOf(sub)]?.() || '';
   const renderLost = () => { title('Nothing here'); return nothingHere('There’s nothing at this address. The link may have been cut short, or what it led to has been deleted.'); };
   function render(){
@@ -1380,7 +1380,7 @@ export function createRainshare({ root, base = '/', host }){
       if (signedIn() && S.form && S.form.groups === null) { const g = await S.source.groups().catch(() => []); if (S.form) { S.form.groups = g; rerender(); } }
     }
     else if (sub === 'agents') { S.view = 'agents'; render(); }
-    else if (/^u\//.test(sub)) { S.view = 'person'; render(); loadCircle(); loadPerson(sub); }
+    else if (/^profile\//.test(sub)) { S.view = 'person'; render(); loadCircle(); loadPerson(sub); }
     else if (/^seed\//.test(sub)) {
       S.view = 'seed'; render(); loadCircle(); await loadSeed(sub);
       if (S.sub !== sub) return;
