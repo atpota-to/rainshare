@@ -29,7 +29,7 @@ import { renderMarkdown } from '../core/markdown.js';
 import { brief, launchers, pageOf, readHandBack, readBranchBack, sh, INSTALL, MCP_ADD, CLI_HOME } from '../core/brief.js';
 import { strongRef, HARNESS_NAMES } from '../core/records.js';
 import { resolveHandle, knownPerson, parseUri, profiles } from '../core/net.js';
-import { esc, lit, unb64url, ago, until, nameOf, firstName, ico, skyIco, lifeIco, lifeOf, face, drops, pathOf, plantPic, avatarFallback } from './bits.js';
+import { esc, lit, unb64url, ago, until, nameOf, firstName, ico, skyIco, lifeIco, lifeOf, face, drops, pathOf, plantPic, avatarFallback, tip, tipLink, toggleTip } from './bits.js';
 import { createPoster } from './post.js';
 import { headSk, boardSk, seedSk, personSk, gardenSk, meSk, listSk } from './skeleton.js';
 import { known, reroute } from '../core/route.js';
@@ -46,7 +46,7 @@ export function createRainshare({ root, base = '/', host }){
     vouching: null,      // who a vouch is being written for: { did, evidence }
     from: 'anyone',      // whose asks the board shows (FROM in ../core/ties.js): anyone, mutuals, people you follow, …
     known: {},           // by DID: which of the people you follow on Bluesky follow them ('loading' while asked)
-    open: {}   // which folded sections are open (<details data-rs-keep>), so a redraw leaves them be
+    open: {}   // which optional parts are showing (the turn-in's details, the comment form…), so a redraw leaves them be
   };
   const signedIn = () => !!S.source?.signedIn;
   const viewer = () => S.source?.viewer || null;
@@ -137,6 +137,8 @@ export function createRainshare({ root, base = '/', host }){
   // A board on screen is redrawn only if what came back differs from what's showing, so a
   // look across the network in the background moves nothing on the page.
   const boardSig = b => JSON.stringify([b?.notes, (b?.items || []).map(it => [it.uri, it.cid, it.value, it.author, it.profile, it.rel, it.ties, (it.takes || []).map(t => t.uri), (it.deliveries || []).map(d => d.uri)])]);
+  // (After you write something, the board is marked out of date rather than thrown away, so the
+  // names on the page you're on stay known until the new one arrives.)
   async function loadBoard(force){
     if (!S.source) return;
     if (S.loading && !force) return S.loading;
@@ -163,10 +165,9 @@ export function createRainshare({ root, base = '/', host }){
     if (!garden) return gardenSk();
     const yours = whose === 'You';
     return `<div class="rs-panel">
-      <p>${garden.length ? `${esc(whose)}${yours ? '’ve' : ' has'} helped with ${esc(wateredText(garden))}.` : yours ? 'Nothing here yet.' : `${esc(whose)} hasn’t helped with anything yet.`}</p>
-      ${garden.length ? `<ul class="rs-garden">${garden.map(g => `<li><a href="${esc(href(pathOf(g)))}" data-rs-go="${esc(pathOf(g))}" title="${esc(g.title)}" aria-label="${esc(`${g.title}: ${nameOf(g.author)}’s ${g.stage === 'seed' ? 'idea' : 'project'}`)}">${plantPic(g.picture || g.stage, 76, { key: g.uri })}</a></li>`).join('')}</ul>` : ''}
-      <p class="rs-muted">${garden.length ? `One plant for each idea or project finished with ${yours ? 'your' : 'their'} help, drawn as what it grew into.`
-        : `${yours ? 'The first idea or project that gets done with your help shows up here.' : 'What gets done with their help shows up here.'}`}</p>
+      ${garden.length ? `<p>${esc(whose)}${yours ? '’ve' : ' has'} helped with ${esc(wateredText(garden))}.</p>
+      <ul class="rs-garden">${garden.map(g => `<li><a href="${esc(href(pathOf(g)))}" data-rs-go="${esc(pathOf(g))}" title="${esc(g.title)}" aria-label="${esc(`${g.title}: ${nameOf(g.author)}’s ${g.stage === 'seed' ? 'idea' : 'project'}`)}">${plantPic(g.picture || g.stage, 76, { key: g.uri })}</a></li>`).join('')}</ul>`
+        : `<p class="rs-muted">${yours ? 'Nothing yet. What gets done with your help grows here.' : `${esc(whose)} hasn’t helped with anything yet.`}</p>`}
     </div>`;
   }
   async function loadMine(force){
@@ -344,7 +345,7 @@ export function createRainshare({ root, base = '/', host }){
       await S.source.take(now, { setup: mySetup() || undefined });
       const fresh = carry(now, await S.source.seed(it.uri, { force: true }) || now);
       const l = pickLauncher(launchers(fresh, { viewer: viewer() }));
-      S.board = null; loadBoard();
+      S.boardAt = 0; loadBoard();
       if (l) copy(l.command, `You’re on it. Copied the ${l.label} command: paste it in a terminal.`, 'You’re on it. Press Copy beside the command to copy it.');
       else copy(briefFor(fresh), 'You’re on it. Copied the brief: paste it into your agent.', 'You’re on it. Press Copy beside the brief to copy it.');
       return { fresh, launch: l?.id || 'brief' };
@@ -444,21 +445,16 @@ export function createRainshare({ root, base = '/', host }){
     { id: 'brief', label: 'Any agent, by pasting', note: 'Nothing to install. Paste the brief into Claude Code, Codex or a chat window that can reach the repo.', command: briefFor(it), copied: 'Copied the brief. Paste it into your agent.' },
     ...launchers(it, { viewer: viewer() }).map(l => ({ ...l, copied: `Copied the ${l.label} command. Paste it in a terminal.` }))
   ];
-  // The way that suits them (the one just copied) up front, and the rest folded away.
+  // Each way by a word or two, to pick between.
+  const WAY_NAME = { brief: 'Paste a brief', claude: 'Claude Code', cloud: 'Claude Code, cloud', codex: 'Codex', cli: 'Rainshare CLI', mcp: 'MCP' };
+  // The way that suits them (the one just copied) showing, and the others a press away.
   function renderLaunch(it){
-    const ls = ways(it), on = Math.max(0, ls.findIndex(l => l.id === S.launch)), first = ls[on];
-    const way = (l, i) => `<li data-rs-launch="${i}" class="${l.id === 'brief' ? 'rs-l-brief' : ''}${i === on ? ' on' : ''}">
-        <div class="rs-l-head"><b>${esc(l.label)}</b><button class="rs-btn rs-quiet rs-sm" type="button" data-rs-copy="${i}">${ico('copy')}Copy</button></div>
-        <small>${esc(l.note)}</small><pre><code>${esc(l.id !== 'brief' && l.command.length > 600 ? l.command.slice(0, 600) + '\n…' : l.command)}</code></pre></li>`;
-    return `<section class="rs-launch" id="rsLaunch" aria-label="Send your agent">
-      <h3>${ico('term')}Send your agent</h3>
-      <p class="rs-muted">${first.id === 'brief' ? 'Paste the brief into your agent.' : 'Paste this in a terminal.'} When it’s done, your agent hands you a link back here that turns it in.</p>
-      ${it.example ? '<p class="rs-note">This is an example, so these point at pretend repos. For a real one they’re ready to paste.</p>' : ''}
-      <ol class="rs-launchers">${way(first, on)}</ol>
-      <details class="rs-more" data-rs-keep="ways"${S.open.ways ? ' open' : ''}><summary>Other ways to send it</summary>
-        <ol class="rs-launchers">${ls.map((l, i) => i === on ? '' : way(l, i)).join('')}</ol>
-        <p>${a('agents', 'Set up the CLI and MCP server once', 'rs-link')}</p>
-      </details>
+    const ls = ways(it), on = Math.max(0, ls.findIndex(l => l.id === S.launch)), l = ls[on];
+    return `<section class="rs-launch" id="rsLaunch" aria-labelledby="rsLaunchH">
+      <div class="rs-hrow"><h3 id="rsLaunchH">Send your agent</h3>${tip(`When the work’s done, your agent hands you a link back to this page, and that turns it in. ${a('agents', 'Set up the CLI or MCP server', 'rs-link')} and it can do that part itself.`)}</div>
+      <div class="rs-chips" role="group" aria-label="How to send it">${ls.map((x, i) => `<button type="button" data-rs-launch="${i}" aria-pressed="${i === on}">${esc(WAY_NAME[x.id] || x.label)}</button>`).join('')}</div>
+      <div class="rs-l-head"><small>${esc(l.note)}</small><button class="rs-btn rs-quiet rs-sm" type="button" data-rs-copy="${on}">${ico('copy')}Copy</button></div>
+      <pre class="rs-code${l.id === 'brief' ? ' rs-l-brief' : ''}"><code>${esc(l.id !== 'brief' && l.command.length > 600 ? l.command.slice(0, 600) + '\n…' : l.command)}</code></pre>
     </section>`;
   }
   // Posting to knotless or Tangled as you is asked for at sign-in. A sign-in from before that,
@@ -467,7 +463,7 @@ export function createRainshare({ root, base = '/', host }){
   const takeKept = () => { try { const k = JSON.parse(sessionStorage.getItem(KEPT) || 'null'); sessionStorage.removeItem(KEPT); return k; } catch (_) { return null; } };
   const connected = forge => (host.forges?.() || []).includes(forge) && S.unlinked !== forge;
   const connectNote = (forge, what) => host.connectForge
-    ? `<p class="rs-note">${ico('lock')}<span>Your sign-in doesn’t let Rainshare ${what} on ${esc(FORGE_SAID[forge])} for you yet. Your server shows exactly what’s being added, and brings you back here with this still written.</span><button class="rs-btn rs-primary rs-sm" type="button" data-rs-act="connect-forge" data-rs-forge="${forge}">Connect ${esc(FORGE_SAID[forge])}</button></p>`
+    ? `<p class="rs-note">${ico('lock')}<span>Connect ${esc(FORGE_SAID[forge])} to ${what} there from here.${tip(`Your sign-in doesn’t let Rainshare ${what} on ${esc(FORGE_SAID[forge])} for you yet. Your server shows exactly what’s being added, and brings you back here with this still written.`)}</span><button class="rs-btn rs-primary rs-sm" type="button" data-rs-act="connect-forge" data-rs-forge="${forge}">Connect ${esc(FORGE_SAID[forge])}</button></p>`
     : `<p class="rs-muted">Posting to ${esc(FORGE_SAID[forge])} isn’t set up here.</p>`;
   // Where the issue is on knotless or Tangled, a comment can go straight onto it from here, as you.
   function sayBox(it, { mine, taken, page, d }){
@@ -478,12 +474,11 @@ export function createRainshare({ root, base = '/', host }){
       : mine && page && isOpen(it) ? `I’ve posted this on Rainshare, for anyone who’d like to send their agent to work on it: ${page}`
         : taken && page ? `I’m working on this, through Rainshare: ${page}` : '';
     const where = safeHttp(d.href) && !it.example ? `<a class="rs-link" href="${esc(safeHttp(d.href))}" target="_blank" rel="noopener">See the issue</a>` : '';
-    return `<details class="rs-more rs-say" data-rs-keep="say"${S.open.say ? ' open' : ''}><summary>Comment on the issue on ${esc(name)}</summary><div class="rs-more-body">
-      <form class="rs-form" data-rs-form="say">
-        <label>Your comment <small>(posted on ${esc(name)} as you, where anyone can read it)</small><textarea name="text" rows="3" maxlength="4000" required>${esc(draft)}</textarea></label>
-        ${it.example ? '<p class="rs-muted">This is an example, so nothing is really posted.</p>' : ''}
-        ${on ? `<div class="rs-row"><button class="rs-btn rs-primary" type="submit">Post on ${esc(name)}</button>${where}</div>` : connectNote(forge, 'post')}
-      </form></div></details>`;
+    if (!S.open.say) return `<div class="rs-row"><button class="rs-btn rs-quiet rs-sm" type="button" data-rs-act="say-open">Comment on the issue</button>${where}</div>`;
+    return `<form class="rs-form rs-sayform" data-rs-form="say">
+        <label>Your comment on ${esc(name)} <small>(public, as you)</small><textarea name="text" rows="3" maxlength="4000" required>${esc(draft)}</textarea></label>
+        ${on ? `<div class="rs-row"><button class="rs-btn rs-primary rs-sm" type="submit">Post on ${esc(name)}</button><button class="rs-link" type="button" data-rs-act="say-close">Cancel</button></div>` : connectNote(forge, 'post')}
+      </form>`;
   }
   async function submitSay(form){
     const it = S.seed, forge = writableForge(it?.value?.subject), text = String(new FormData(form).get('text') || '').trim(), btn = form.querySelector('[type=submit]');
@@ -559,8 +554,7 @@ export function createRainshare({ root, base = '/', host }){
   function vouchForm(did, p, { evidence, reason = '' } = {}){
     return `<form class="rs-form rs-vouchform" data-rs-form="vouch">
       <input type="hidden" name="did" value="${esc(did)}">${evidence ? `<input type="hidden" name="evidence" value="${esc(evidence)}">` : ''}
-      <label>Why you vouch for ${esc(firstName(p))} <small>(optional. It’s public, in your own account, and anyone can read it.)</small><input name="reason" maxlength="256" value="${esc(S.vouching?.reason ?? reason)}"></label>
-      ${S.source.demo ? '<p class="rs-muted">This is an example, so nothing is really written.</p>' : ''}
+      <label>Why you vouch for ${esc(firstName(p))} <small>(optional, public)</small><input name="reason" maxlength="256" value="${esc(S.vouching?.reason ?? reason)}"></label>
       ${connected('tangled') ? '<div class="rs-row"><button class="rs-btn rs-primary rs-sm" type="submit">Vouch on Tangled</button><button class="rs-link" type="button" data-rs-act="vouch-cancel">Not now</button></div>' : connectNote('tangled', 'vouch')}
     </form>`;
   }
@@ -570,7 +564,7 @@ export function createRainshare({ root, base = '/', host }){
     const w = word(did), first = firstName(p), writing = S.vouching?.did === did && !S.vouching.evidence;
     const why = w ? [w.mine?.reason ? ['You', w.mine] : null, ...w.by.filter(b => b.reason).map(b => [nameOf(whoIs(b.did)), b])].filter(Boolean) : [];
     const page = p?.handle || /^did:(plc|web):/.test(did) ? `https://tangled.org/${p?.handle || did}` : null;
-    return `<h2>On Tangled</h2><div class="rs-panel rs-vouch">
+    return `<div class="rs-hrow"><h2>On Tangled</h2>${tip(`Vouches come from Tangled: you see your own, and those of the people you vouch for there. They’re something to weigh, and don’t unlock or hide anything. <a class="rs-link" href="https://tangled.org/docs/guides/vouching/" target="_blank" rel="noopener">How vouching works</a>`, 'About vouches')}</div><div class="rs-panel rs-vouch">
       ${S.circle === 'loading' || S.circle === undefined ? '<p class="rs-muted">Looking at your Tangled circle…</p>'
         : w ? `${wordLine(did)}${why.length ? `<ul class="rs-vouch-why">${why.map(([n, b]) => `<li><b>${esc(n)}</b>${b.kind === 'denounce' ? ' (denounced)' : ''}: “${esc(b.reason)}”</li>`).join('')}</ul>` : ''}`
           : `<p>${S.circle ? `Nobody in your Tangled circle has vouched for ${esc(first)} or denounced them.` : 'Your Tangled circle couldn’t be read just now.'}</p>`}
@@ -579,7 +573,6 @@ export function createRainshare({ root, base = '/', host }){
         : w?.mine?.kind === 'denounce' ? (page && !S.source.demo ? `<div class="rs-row"><a class="rs-link" href="${esc(page)}" target="_blank" rel="noopener">Change it on Tangled</a></div>` : '')
           : writing ? vouchForm(did, p)
             : S.source.vouchFor ? `<div class="rs-row"><button class="rs-btn rs-quiet rs-sm" type="button" data-rs-vouch="${esc(did)}">${ico('hat')}Vouch for ${esc(first)}</button></div>` : ''}
-      <p class="rs-muted">Vouches come from Tangled: you see your own, and those of the people you vouch for there. They’re something to weigh, and don’t unlock or hide anything. <a class="rs-link" href="https://tangled.org/docs/guides/vouching/" target="_blank" rel="noopener">How vouching works</a></p>
     </div>`;
   }
   async function submitVouch(form){
@@ -632,7 +625,6 @@ export function createRainshare({ root, base = '/', host }){
       const opt = (v, label, on) => `<option value="${esc(v)}"${on ? ' selected' : ''}>${esc(label)}</option>`;
       const body = kept.body ?? pullText({ template: ch.template, issue: d?.issue ? safeHttp(d.href) : null, page, asker: it.author?.handle ? '@' + it.author.handle : firstName(it.author), model: workModel(it) ? modelName(workModel(it)) : '' });
       inner = `<form class="rs-form" data-rs-form="pull">
-        <p class="rs-muted">For a branch that’s already pushed. Rainshare opens the pull request on ${esc(name)} as you, where anyone can read it, and turns it in here.</p>
         ${missing ? `<p class="rs-note">${ico('info')}<span>${esc(name)} doesn’t show a branch called “${esc(kept.asked)}” yet. If it was only just pushed, give it a moment.</span><button class="rs-btn rs-quiet rs-sm" type="button" data-rs-act="pull-retry">Look again</button></p>` : ''}
         <div class="rs-two">
           ${ch.sources.length > 1 ? `<label>Pushed to<select name="from">${ch.sources.map(x => opt(x.id, x.fork ? `${x.label} (your fork)` : x.label, x.id === src.id)).join('')}</select></label>` : `<input type="hidden" name="from" value="${esc(src.id)}">`}
@@ -641,11 +633,10 @@ export function createRainshare({ root, base = '/', host }){
         </div>
         <label>Title<input name="title" maxlength="256" required value="${esc(kept.title ?? sq.title ?? '')}"></label>
         <label>Description <small>(Markdown${ch.template ? ', starting from the repo’s template' : ''})</small><textarea name="body" rows="6" maxlength="18000">${esc(body)}</textarea></label>
-        ${it.example ? '<p class="rs-muted">This is an example, so nothing is really opened.</p>' : ''}
         ${connected(forge) ? '<div class="rs-row"><button class="rs-btn rs-primary" type="submit">Open the pull request and turn it in</button></div>' : connectNote(forge, 'open pull requests')}
       </form>`;
     }
-    return `<details class="rs-more rs-pull" data-rs-keep="pull"${S.open.pull ? ' open' : ''}><summary>${ico('pull')}Open the pull request on ${esc(name)} from here</summary><div class="rs-more-body">${inner}</div></details>`;
+    return `<div class="rs-pull">${inner}</div>`;
   }
   async function submitPull(form){
     const it = S.seed, forge = writableForge(it?.value?.subject), v = Object.fromEntries(new FormData(form)), btn = form.querySelector('[type=submit]');
@@ -669,7 +660,7 @@ export function createRainshare({ root, base = '/', host }){
       S.drafts.turnIn = null; S.launch = null; S.again = null;
       if (S.handBack) { S.handBack = S.handKind = null; try { history.replaceState(history.state, '', location.pathname); } catch (_) {} }
       const who = firstName(S.seed.author);
-      S.seed = await reread(S.seed); S.board = null; loadBoard();
+      S.seed = await reread(S.seed); S.boardAt = 0; loadBoard();
       toast(pr.attested === false ? `Opened on ${FORGE_SAID[forge]} and turned in. It may show as unverified there for a while.` : `Opened on ${FORGE_SAID[forge]} and turned in. It’s with ${who} now.`);
     } catch (e) {
       console.warn('rainshare turn-in', e);
@@ -677,6 +668,27 @@ export function createRainshare({ root, base = '/', host }){
       toast(`The pull request is open on ${FORGE_SAID[forge]}. Turning it in didn’t work: press “Turn it in” to try again.`);
     }
     render();
+  }
+
+  // Turning it in: the pull request's link (or, for an idea, where it lives). On knotless and
+  // Tangled the pull request can instead be opened from here, from a branch that's pushed.
+  function turnInBox(it, { v, d, page, st, taken, setup }){
+    const sq = it.value || {}, forge = !st.idea && writableForge(sq.subject) && signedIn() && S.source?.forgePull ? writableForge(sq.subject) : null;
+    const opening = !!forge && !!S.open.pull, more = !!(S.open['turnin-more'] || v.sessionUrl || v.note);
+    const modes = forge ? `<div class="rs-hrow">${seg('turn', [['link', 'Paste its link'], ['open', 'Open it from here']], opening ? 'open' : 'link')}${tip(`From a branch that’s already pushed: Rainshare opens the pull request on ${esc(FORGE_SAID[forge])} as you, where anyone can read it, and turns it in here.`, 'About opening it from here')}</div>` : '';
+    const showWays = S.launch ? '' : '<button class="rs-link" type="button" data-rs-act="show-launch">Show the commands</button>';
+    return `<section class="rs-turn" aria-labelledby="rsTurnH"><h3 id="rsTurnH">Turn it in</h3>${modes}
+      ${opening ? pullBox(it, { d, page }) + (showWays ? `<div class="rs-row">${showWays}</div>` : '') : `<form class="rs-form rs-turnin" data-rs-form="turnin">
+        <label>${st.idea ? 'Where it lives <small>(a link)</small>' : 'Pull request link'}<input name="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" pattern="\\s*(https?://|at://)\\S+\\s*" title="${st.idea ? 'A link to where it lives' : 'A link to the pull request, or its at:// address'}" placeholder="${st.idea ? 'https://…' : { tangled: 'https://tangled.org/…/pulls/…', knotless: 'at://…/dev.knotless.pull/… or its page' }[d?.forge] || 'https://github.com/…/pull/…'}" value="${esc(v.url || '')}" required></label>
+        <div class="rs-more-body"${more ? '' : ' hidden'} data-rs-turnin-more>
+          <div class="rs-two"><label>What did the work<select name="harness">${HARNESSES.map(([k, l]) => `<option value="${k}"${(v.harness || taken?.value?.setup?.harness || setup?.harness) === k ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
+          <label>Model<input name="model" list="rsModels" value="${esc(v.model || taken?.value?.setup?.models?.[0] || setup?.models?.[0] || '')}" placeholder="claude-opus-5-5"></label></div>
+          <label>Session link <small>(optional)</small><input name="sessionUrl" type="url" value="${esc(v.sessionUrl || '')}"></label>
+          <label>A note <small>(optional)</small><input name="note" maxlength="300" value="${esc(v.note || '')}"></label>
+        </div>
+        <div class="rs-row"><button class="rs-btn rs-primary" type="submit">Turn it in</button>${more ? '' : `<button class="rs-link" type="button" data-rs-act="turnin-more">${ico('plus')}Add a note or details</button>`}${showWays}</div>
+      </form>`}
+    </section>`;
   }
 
   function renderSeed(){
@@ -750,17 +762,14 @@ export function createRainshare({ root, base = '/', host }){
       const tell = open && page && d?.issue && !it.example && !writableForge(sq.subject) ? `<button class="rs-link" type="button" data-rs-copy-text="${esc(`I’ve posted this on Rainshare, for anyone who’d like to send their agent to work on it: ${page}`)}" data-rs-copied="Copied. Paste it as a comment on the issue.">Copy a note for the issue</button>` : '';
       actions = `${next}<div class="rs-row">${open ? `<button class="rs-btn rs-quiet" type="button" data-rs-act="close">Close it</button>` : `<button class="rs-btn rs-quiet" type="button" data-rs-act="reopen">Reopen it</button>`}
         ${shareBtn(it, 'Share on Bluesky')}${tell}
-        <button class="rs-link rs-danger" type="button" data-rs-act="delete">Delete</button></div>
-        ${open && !pl && !(it.deliveries || []).length ? '<p class="rs-muted">When a helper turns it in, you can mark it done here.</p>' : ''}`;
+        <button class="rs-link rs-danger" type="button" data-rs-act="delete">Delete</button></div>`;
     } else if (!signedIn()) {
       actions = `${handed ? `<p class="rs-note">${lifeIco('up')}<span>${branchBack ? 'A branch is ready. Sign in and the pull request will be waiting, written out for you to look over.' : `${st.idea ? 'It’s' : 'A pull request is'} ready to turn in. Sign in and it’ll be waiting in the form.`}</span></p>` : open ? heedNote(it, st) : ''}
         <div class="rs-row">${host.signIn ? `<button class="rs-btn rs-primary" type="button" data-rs-act="signin">${handed ? (branchBack ? 'Sign in to open the pull request' : 'Sign in to turn it in') : 'Sign in to take it on'}</button>` : ''}${shareBtn(it)}</div>`;
     } else if (!open) {
       actions = `<p class="rs-muted">${sq.state === 'sprouted' ? 'It’s done, so there’s nothing left to take on.' : 'It’s closed, so there’s nothing to take on.'}</p>`;
     } else if (!taken && !handed) {
-      const l = pickLauncher(launchers(it, { viewer: viewer() }));
-      actions = `${heedNote(it, st)}<div class="rs-row"><button class="rs-btn ${st.clear ? 'rs-primary rs-big' : 'rs-quiet'}" type="button" data-rs-act="take">${ico('drop')}${st.clear ? 'Send my agent' : 'Send my agent anyway'}</button>${shareBtn(it)}</div>
-        <p class="rs-muted">This tells ${esc(firstName(p))} you’re on it${setup ? ` with ${esc(setupText(setup))}` : ''}, and copies ${l ? `the ${esc(l.label)} command to paste in a terminal` : 'the brief to paste into your agent'}.</p>`;
+      actions = `${heedNote(it, st)}<div class="rs-row"><button class="rs-btn ${st.clear ? 'rs-primary rs-big' : 'rs-quiet'}" type="button" data-rs-act="take">${ico('drop')}${st.clear ? 'Send my agent' : 'Send my agent anyway'}</button>${shareBtn(it)}</div>`;
     } else {
       const v = S.drafts.turnIn || {};
       // Once it's turned in, the form steps aside: what's left is the planter's to do.
@@ -771,17 +780,7 @@ export function createRainshare({ root, base = '/', host }){
           : branchBack ? `<p class="rs-note rs-on">${lifeIco('up')}<span>A branch is ready. Look over the pull request below and send it: that opens it on ${esc(forge)}, turns it in, and tells ${esc(firstName(p))} you took this on.</span></p>`
             : `<p class="rs-note rs-on">${lifeIco('up')}<span>${st.idea ? 'It’s' : 'A pull request is'} ready to turn in. Look it over and send it. That also tells ${esc(firstName(p))} you took this on.</span></p>`}
         ${S.launch ? renderLaunch(it) : ''}
-        ${form ? pullBox(it, { d, page }) : ''}
-        ${!form ? '<div class="rs-row"><button class="rs-link" type="button" data-rs-act="again">Turn in another pull request</button></div>' : `<form class="rs-form rs-turnin" data-rs-form="turnin">
-          <label>${st.idea ? 'Where it lives <small>(the repo’s address, or a page that shows it)</small>' : `Pull request link${writableForge(sq.subject) ? ' <small>(if it’s already open. If it isn’t, open it from here, above.)</small>' : ''}`}<input name="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" pattern="\\s*(https?://|at://)\\S+\\s*" title="${st.idea ? 'A link to where it lives' : 'A link to the pull request, or its at:// address'}" placeholder="${st.idea ? 'https://…' : { tangled: 'https://tangled.org/…/pulls/…', knotless: 'at://…/dev.knotless.pull/… or its page' }[d?.forge] || 'https://github.com/…/pull/…'}" value="${esc(v.url || '')}" required></label>
-          <details class="rs-more" data-rs-keep="turnin-more"${S.open['turnin-more'] || v.sessionUrl || v.note ? ' open' : ''}><summary>Add details: what did the work, a session link, a note</summary><div class="rs-more-body">
-            <div class="rs-two"><label>What did the work<select name="harness">${HARNESSES.map(([k, l]) => `<option value="${k}"${(v.harness || taken?.value?.setup?.harness || setup?.harness) === k ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
-            <label>Model<input name="model" list="rsModels" value="${esc(v.model || taken?.value?.setup?.models?.[0] || setup?.models?.[0] || '')}" placeholder="claude-opus-5-5"></label></div>
-            <label>Session link <small>(optional, to show your working)</small><input name="sessionUrl" type="url" value="${esc(v.sessionUrl || '')}"></label>
-            <label>A note <small>(optional)</small><input name="note" maxlength="300" value="${esc(v.note || '')}"></label>
-          </div></details>
-          <div class="rs-row"><button class="rs-btn rs-primary" type="submit">Turn it in</button>${S.launch ? '' : '<button class="rs-link" type="button" data-rs-act="show-launch">Show the ways to send an agent</button>'}</div>
-        </form>`}`;
+        ${!form ? '<div class="rs-row"><button class="rs-link" type="button" data-rs-act="again">Turn in another pull request</button></div>' : turnInBox(it, { v, d, page, st, taken, setup })}`;
     }
     return `${newHere(open && !mine ? `This one is ${firstName(p)}’s.` : '')}${back()}
       <article class="rs-seed">
@@ -804,11 +803,7 @@ export function createRainshare({ root, base = '/', host }){
         </div>
         <aside class="rs-seed-side">
           <div class="rs-panel"><h2>${esc(mine ? 'Your profile' : 'About ' + firstName(p))}</h2>${mine ? '' : tiesList(it.repo, it.ties, p)}${profileCard(it.profile, p, { compact: true })}${a('u/' + it.repo, mine ? 'See your profile' : 'See their profile', 'rs-link')}</div>
-          <details class="rs-panel rs-hood"><summary>The records behind this</summary><dl>
-            <dt>Record</dt><dd><code>${esc(it.uri)}</code></dd>
-            <dt>Where it lives</dt><dd>${it.space ? `In ${esc(nameOf(p))}’s repo inside ${esc(it.group?.name || 'the group')}’s Rainshare space, readable only by members.` : `In ${esc(nameOf(p))}’s own repo, on their own server. Anyone can read it; apps show it to the people it’s meant for.`}</dd>
-            <dt>Takes and deliveries</dt><dd>Each helper’s <code>dev.rainshare.take</code> and <code>dev.rainshare.delivery</code> records live in their own repo, pointing here.</dd>
-          </dl></details>
+          <p class="rs-hood">${tipLink('The records behind this', `<span class="rs-tip-p">${it.space ? `It’s a record in ${esc(nameOf(p))}’s repo, inside ${esc(it.group?.name || 'the group')}’s Rainshare space, readable only by members.` : `It’s a record in ${esc(nameOf(p))}’s own repo, on their own server. Anyone can read it; apps show it to the people it’s meant for.`}</span><span class="rs-tip-p"><code>${esc(it.uri)}</code></span><span class="rs-tip-p">Each helper’s take and delivery records live in their own repo, pointing here.</span>`)}</p>
         </aside>
       </article>`;
   }
@@ -835,17 +830,16 @@ export function createRainshare({ root, base = '/', host }){
     return `${a('', `${ico('back')}Back to the board`, 'rs-back')}
       <div class="rs-me-wrap">
       <form class="rs-form rs-me" data-rs-form="me">
-        <h1>Your profile</h1>
-        <p class="rs-muted">What people see about you. All of it is optional, and it’s saved in your own account.</p>
-        <fieldset><legend>You</legend><p class="rs-muted">Your name, picture and bio come from your Bluesky profile. Fill these in only if you’d like Rainshare to show something different.</p>
+        <div class="rs-hrow"><h1>Your profile</h1>${tip('What people see about you. All of it is optional, and it’s saved in your own account.', 'About your profile')}</div>
+        <fieldset><legend>You ${tip('Your name, picture and bio come from your Bluesky profile. Fill these in only if you’d like Rainshare to show something different.')}</legend>
           <label>Name <small>(optional)</small><input name="displayName" maxlength="64" autocomplete="off" placeholder="${esc(bsky.displayName || (bsky.handle ? '@' + bsky.handle : 'Your name'))}" value="${esc(p.displayName || '')}"></label>
           <label>About you <small>(optional)</small><textarea name="bio" rows="2" maxlength="300" placeholder="${esc(bsky.description || 'What you’re building, what you’re into')}">${esc(p.bio || '')}</textarea></label>
         </fieldset>
-        <fieldset><legend>Your AI plan</legend><p class="rs-muted">What you pay for to code with AI, if anything. It’s the first thing people see about you, on your profile and beside your asks. Pick as many as you have.</p>
+        <fieldset><legend>Your AI plan ${tip('What you pay for to code with AI, if anything. It’s the first thing people see about you, on your profile and beside your asks. Pick as many as you have.')}</legend>
           ${toggles('plans', PLANS, plansNow)}
           ${!p.plans?.length && typedPlans.length ? `<p class="rs-muted">You’d written “${esc(typedPlans.join('”, “'))}”. Pick the closest.</p>` : ''}
         </fieldset>
-        <fieldset><legend>What you run</legend><p class="rs-muted">So people know what your agent can do, and “Send my agent” copies the right command.</p>
+        <fieldset><legend>What you run ${tip('So people know what your agent can do, and “Send my agent” copies the right command.')}</legend>
           <ol class="rs-setups">${setups.map((s, i) => `<li data-setup="${i}">
             <label>Harness<select name="harness">${HARNESSES.map(([k, l]) => `<option value="${k}"${s.harness === k ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
             <label>Models<input name="models" list="rsModels" value="${esc((s.models || []).join(', '))}" placeholder="claude-opus-5-5"></label>
@@ -853,7 +847,7 @@ export function createRainshare({ root, base = '/', host }){
             ${setups.length > 1 ? `<button class="rs-link" type="button" data-rs-remove-setup="${i}">Remove</button>` : ''}</li>`).join('')}</ol>
           ${setups.length < 6 ? `<button class="rs-link" type="button" data-rs-act="add-setup">${ico('plus')}Add another setup</button>` : ''}
         </fieldset>
-        ${!FEATURES.forecast ? '' : `<fieldset><legend>Your forecast</legend><p class="rs-muted">How much your agent has to spare right now, so people know when to ask.</p>
+        ${!FEATURES.forecast ? '' : `<fieldset><legend>Your forecast ${tip('How much your agent has to spare right now, so people know when to ask.')}</legend>
           ${seg('forecast', FORECAST.map(f => [f[0], f[1]]), fc.level || '')}
           <p class="rs-muted">${esc(FORECAST.find(f => f[0] === fc.level)?.[2] || 'Pick one when you have rain to spare.')}</p>
           ${raining ? `<div class="rs-two"><label>Until <small>(often when your plan resets)</small><input name="until" type="date" value="${esc(fc.until ? fc.until.slice(0, 10) : '')}"></label>
@@ -861,11 +855,10 @@ export function createRainshare({ root, base = '/', host }){
           <label>A note <small>(optional)</small><input name="fcNote" maxlength="300" value="${esc(fc.note || '')}" placeholder="Send me your gnarly ones"></label>` : ''}
         </fieldset>`}
         ${folded ? `
-        <details class="rs-more rs-options-more" data-rs-keep="me-more"${S.open['me-more'] ? ' open' : ''}>
-          <summary>Help the right people find you <small>optional</small></summary>
-          <div class="rs-more-body">
-            <p class="rs-muted">${FEATURES.priorities ? 'Some helpers look first for students, people without big AI plans, or projects they care about.' : 'So whoever looks at your asks knows who they’d be helping.'} ${priv ? 'Anything marked “only my groups” goes only into your groups’ private spaces.' : 'Everyone can see what you share here.'}</p>
-            ${FEATURES.circumstances ? `<fieldset><legend>About your situation</legend><p class="rs-muted">Only if you’d like to share.</p>
+        ${S.open['me-more'] ? '' : `<button class="rs-link" type="button" data-rs-act="me-more">${ico('plus')}Help the right people find you</button>`}
+          <div class="rs-more-body"${S.open['me-more'] ? '' : ' hidden'} data-rs-me-more>
+            <div class="rs-hrow"><h2>Help the right people find you</h2>${tip(`${FEATURES.priorities ? 'Some helpers look first for students, people without big AI plans, or projects they care about.' : 'So whoever looks at your asks knows who they’d be helping.'} ${priv ? 'Anything marked “only my groups” goes only into your groups’ private spaces.' : 'Everyone can see what you share here.'}`)}</div>
+            ${FEATURES.circumstances ? `<fieldset><legend>About your situation <small>(optional)</small></legend>
               ${toggles('circumstances', CIRCUMSTANCES, p.circumstances)}
               ${visSel('circumstances')}
             </fieldset>` : ''}
@@ -873,12 +866,11 @@ export function createRainshare({ root, base = '/', host }){
               ${toggles('values', [...new Set([...VALUES, ...(p.values || [])])].map(v => [v, v]), p.values)}
               <label>Add your own <small>(comma separated)</small><input name="moreValues" placeholder="birding, zines"></label>
             </fieldset>` : ''}
-            ${FEATURES.priorities ? `<fieldset><legend>Who you’d like to help first</legend><p class="rs-muted">When you have rain to spare, these rise to the top of your board.</p>
+            ${FEATURES.priorities ? `<fieldset><legend>Who you’d like to help first ${tip('When you have rain to spare, these rise to the top of your board.')}</legend>
               ${toggles('priorities', PRIORITIES, p.priorities)}
             </fieldset>` : ''}
             <label>Work you’re happy to take on <small>(comma separated)</small><input name="offering" value="${esc((p.offering || []).join(', '))}" placeholder="rust, css, docs, testing"></label>
           </div>
-        </details>
         ` : `<label>Work you’re happy to take on <small>(comma separated)</small><input name="offering" value="${esc((p.offering || []).join(', '))}" placeholder="rust, css, docs, testing"></label>`}
         ${priv ? `<fieldset><legend>Your groups</legend>
           ${groups === null ? '<p class="rs-muted">Finding your groups…</p>' : withBoard.length ? `<p class="rs-muted">Your full profile, including anything marked “only my groups”, goes into these groups’ private Rainshare spaces.</p>
@@ -980,24 +972,18 @@ export function createRainshare({ root, base = '/', host }){
         <section class="rs-panel" aria-labelledby="rsQuick">
           <h2 id="rsQuick">${ico('copy')}With nothing set up</h2>
           <ol class="rs-steps">
-            <li><h3>Press Send my agent</h3><p class="rs-muted">It tells whoever asked that you’re on it, and copies a brief. If your profile says you run Claude Code or Codex, it copies a ready-to-run command instead.</p></li>
-            <li><h3>Paste it</h3><p class="rs-muted">The command goes in a terminal; the brief goes into any agent that can reach the repo. The agent checks that nobody got there first, then does the work.</p></li>
-            <li><h3>Open the link it hands back</h3><p class="rs-muted">The turn-in form is filled in, ready for you to send. Whoever asked marks it done once the pull request is merged.</p></li>
+            <li><h3>Press Send my agent ${tip('If your profile says you run Claude Code or Codex, it copies a ready-to-run command instead of the brief. “Copy as Markdown” copies the brief alone, without saying you’re on it.')}</h3><p class="rs-muted">It tells whoever asked that you’re on it, and copies a brief.</p></li>
+            <li><h3>Paste it</h3><p class="rs-muted">In a terminal, or into any agent that can reach the repo.</p></li>
+            <li><h3>Open the link it hands back ${tip(`<span class="rs-tip-p">On GitHub the agent opens the pull request itself. On knotless it can too, if the knotless CLI or its MCP server is set up.</span><span class="rs-tip-p">On Tangled the agent pushes a branch, and Rainshare opens the pull request as you: the agent does that itself if Rainshare’s CLI or MCP server is signed in beside it. Otherwise the link it hands back carries the branch, with the pull request written out for you to look over.</span>`, 'How the pull request gets opened')}</h3><p class="rs-muted">It turns the work in. Whoever asked marks it done once it’s merged.</p></li>
           </ol>
-          <details class="rs-more"><summary>How the pull request gets opened on each forge</summary><div class="rs-more-body">
-            <p class="rs-muted">On GitHub the agent opens the pull request itself. On knotless it can too, if the knotless CLI or its MCP server is set up.</p>
-            <p class="rs-muted">On Tangled the agent pushes a branch, and Rainshare opens the pull request as you: the agent does that itself if Rainshare’s CLI or MCP server is signed in beside it. Otherwise the link it hands back carries the branch, with the pull request written out for you to look over. Sending it opens it there and turns it in. (knotless links can carry a branch the same way.)</p>
-            <p class="rs-muted">Copy as Markdown copies the brief alone, without saying you’re on it.</p>
-          </div></details>
         </section>
         <h2 class="rs-agents-or">Or let your agent do the Rainshare side too</h2>
         <section class="rs-panel" aria-labelledby="rsSetup">
           <h2 id="rsSetup">Set up, once</h2>
-          <p class="rs-muted">One file is both a command-line tool and an MCP server. It needs Node 18 or later.</p>
+          <p class="rs-muted">One file, both a CLI and an MCP server. It needs Node 18 or later.</p>
           <ol class="rs-steps">
             <li><h3>Get the file</h3>${block(INSTALL)}</li>
-            <li><h3>Sign in with an app password</h3>${block(`node ${CLI_HOME} login you.bsky.social`)}
-              <p class="rs-muted">Make one in Bluesky under Settings, Privacy and security, App passwords (or wherever your server offers them). It’s kept in <code>~/.config/rainshare</code>, and you can revoke it any time.</p></li>
+            <li><h3>Sign in with an app password ${tip('Make one in Bluesky under Settings, Privacy and security, App passwords (or wherever your server offers them). It’s kept in <code>~/.config/rainshare</code>, and you can revoke it any time.', 'About app passwords')}</h3>${block(`node ${CLI_HOME} login you.bsky.social`)}</li>
           </ol>
         </section>
         <div class="rs-agents-ways">
@@ -1005,24 +991,19 @@ export function createRainshare({ root, base = '/', host }){
             <h2 id="rsWayCli">${ico('term')}From a terminal</h2>
             <ol class="rs-steps">
               <li><h3>See what needs rain</h3>${block(`node ${CLI_HOME} board`)}</li>
-              <li><h3>See where one stands</h3>${block(`node ${CLI_HOME} check <link>`)}
-                <p class="rs-muted">Who’s on it, what’s been turned in, and what the forge says about its issue and pull requests. No sign-in needed. <code>&lt;link&gt;</code> is its link on Rainshare.</p></li>
-              <li><h3>Take one on</h3>${block(`node ${CLI_HOME} run <link>`)}
-                <p class="rs-muted">Checks first, and stops if someone got there before you. Otherwise it tells whoever asked that you’re on it, clones the repo, starts your agent with the brief, and offers to turn in the pull request when it’s up.</p></li>
+              <li><h3>See where one stands ${tip('Who’s on it, what’s been turned in, and what the forge says about its issue and pull requests. No sign-in needed. <code>&lt;link&gt;</code> is its link on Rainshare.')}</h3>${block(`node ${CLI_HOME} check <link>`)}</li>
+              <li><h3>Take one on ${tip('Checks first, and stops if someone got there before you. Otherwise it tells whoever asked that you’re on it, clones the repo, starts your agent with the brief, and offers to turn in the pull request when it’s up.')}</h3>${block(`node ${CLI_HOME} run <link>`)}</li>
               <li><h3>Or turn one in yourself</h3>${block(`node ${CLI_HOME} turn-in <link> --url <pull request>`)}</li>
-              <li><h3>On Tangled and knotless, open the pull request too</h3>${block(`node ${CLI_HOME} open-pr <link> --branch <pushed branch>`)}
-                <p class="rs-muted">From a branch already pushed to the repo or your fork. It opens the pull request as you, and turns it in.</p></li>
+              <li><h3>On Tangled and knotless, open the pull request too ${tip('From a branch already pushed to the repo or your fork. It opens the pull request as you, and turns it in.')}</h3>${block(`node ${CLI_HOME} open-pr <link> --branch <pushed branch>`)}</li>
             </ol>
             <p class="rs-muted"><code>node ${CLI_HOME} doctor</code> says what’s set up and what’s missing. <code>node ${CLI_HOME} help</code> lists the rest: asking for rain yourself${FEATURES.forecast ? ', closing one out, setting your forecast' : ' and closing one out'}.</p>
           </section>
           <section class="rs-panel" aria-labelledby="rsWayMcp">
             <h2 id="rsWayMcp">${ico('sky')}From inside your agent</h2>
             <ol class="rs-steps">
-              <li><h3>Add Rainshare to it</h3><p class="rs-muted">In Claude Code:</p>${block(MCP_ADD)}
-                <details class="rs-more"><summary>In another MCP client</summary>${block(json)}</details></li>
+              <li><h3>Add Rainshare to it</h3>${seg('mcp', [['claude', 'Claude Code'], ['other', 'Another MCP client']], S.open.mcp ? 'other' : 'claude')}${block(S.open.mcp ? json : MCP_ADD)}</li>
               <li><h3>Ask it</h3>${say('What in my circle needs rain that suits my setup?')}${say('Take this one on from Rainshare and turn it in when the PR is up.')}${say('Has anything of mine had a pull request merged? Close out what’s done.')}</li>
             </ol>
-            <p class="rs-muted">It checks where one stands before taking it on, and tells you when it’s turned in.</p>
           </section>
         </div>
         ${S.source?.canPrivate ? `<p class="rs-note">${ico('lock')}<span>For now the CLI and MCP server reach public ones only. Private, group-only ones are taken on from here, in the app.</span></p>` : ''}
@@ -1150,9 +1131,12 @@ export function createRainshare({ root, base = '/', host }){
         return;
       }
       if (name === 'pull-retry') { stash(); await loadPull(it, true); return; }
+      if (name === 'say-open' || name === 'say-close') { stash(); S.open.say = name === 'say-open'; render(); if (S.open.say) root.querySelector('[data-rs-form="say"] textarea')?.focus(); return; }
+      if (name === 'me-more') { S.open['me-more'] = true; const more = root.querySelector('[data-rs-me-more]'); if (more) { more.hidden = false; el.remove(); } return; }
+      if (name === 'turnin-more') { S.open['turnin-more'] = true; const more = root.querySelector('[data-rs-turnin-more]'); if (more) { more.hidden = false; el.remove(); more.querySelector('select')?.focus(); } return; }
       if (name === 'vouch-cancel') { S.vouching = null; rerender(); return; }
       if (name === 'again') { S.again = it.uri; render(); root.querySelector('[data-rs-form="turnin"] input')?.focus(); return; }
-      if (name === 'sprout') { await S.source.update(it, { state: 'sprouted' }); S.seed = await reread(it); S.board = null; loadBoard(); toast('Marked done'); render(); return; }
+      if (name === 'sprout') { await S.source.update(it, { state: 'sprouted' }); S.seed = await reread(it); S.boardAt = 0; loadBoard(); toast('Marked done'); render(); return; }
       if (name === 'drop') {
         if (!confirm(`Drop this ${nounOf(it.value)}? Your take is deleted, so others can see it’s free.`)) return;
         await S.source.drop(it); S.launch = null; toast('Dropped');
@@ -1164,7 +1148,7 @@ export function createRainshare({ root, base = '/', host }){
       }
       if (name === 'add-setup') { stash(); S.form.profile.setups = [...(S.form.profile.setups?.length ? S.form.profile.setups : [{ harness: 'claude-code', models: [] }]), { harness: 'codex', models: [] }]; render(); return; }
       if (name === 'reset-demo') { S.source.reset(); S.form = null; S.board = null; poster.reset(); await loadMine(true); toast('The example circle is back to how it started'); go(''); return; }
-      if (it && ['drop', 'close', 'reopen'].includes(name)) { S.seed = await reread(it); S.board = null; loadBoard(); render(); }
+      if (it && ['drop', 'close', 'reopen'].includes(name)) { S.seed = await reread(it); S.boardAt = 0; loadBoard(); render(); }
     } catch (e) { console.warn('rainshare', name, e); toast(plainText(e)); if (el) el.disabled = false; }
   }
   // The command that suits what they run. For anything else, and for a seed with no repo to
@@ -1177,7 +1161,7 @@ export function createRainshare({ root, base = '/', host }){
     const it = S.seed, dl = (it.deliveries || []).find(d => d.uri === uri); if (!dl) return;
     try {
       await S.source.update(it, { state: 'sprouted', sproutedWith: [strongRef(dl)] });
-      S.seed = await reread(it); S.board = null; loadBoard();
+      S.seed = await reread(it); S.boardAt = 0; loadBoard();
       toast('Marked done. Thank them, if you like.'); render();
     } catch (e) { toast(plainText(e)); }
   }
@@ -1187,7 +1171,7 @@ export function createRainshare({ root, base = '/', host }){
     btn.disabled = true; btn.textContent = 'Saving…'; err.hidden = true;
     try {
       await S.source.saveProfile(S.form.profile, { hidden: S.form.hidden, share: S.form.share });
-      await loadMine(true); S.form = null; S.board = null; loadBoard();
+      await loadMine(true); S.form = null; S.boardAt = 0; loadBoard();
       toast('Saved. Your board is re-sorted for you.'); go('');
     } catch (e) { err.hidden = false; err.innerHTML = plain(e); btn.disabled = false; btn.textContent = 'Save my profile'; }
   }
@@ -1204,7 +1188,7 @@ export function createRainshare({ root, base = '/', host }){
       S.drafts.turnIn = null; S.launch = null; S.again = null;
       if (S.handBack) { S.handBack = null; try { history.replaceState(history.state, '', location.pathname); } catch (_) {} }
       const who = firstName(S.seed.author);
-      S.seed = await reread(S.seed); S.board = null; loadBoard();
+      S.seed = await reread(S.seed); S.boardAt = 0; loadBoard();
       toast(`Turned in. It’s with ${who} now.`); render();
     } catch (e) { toast(plainText(e)); btn.disabled = false; }
   }
@@ -1212,6 +1196,7 @@ export function createRainshare({ root, base = '/', host }){
   avatarFallback(root);
   root.addEventListener('click', e => {
     const t = e.target, plainClick = !e.metaKey && !e.ctrlKey && !e.shiftKey && e.button === 0;
+    const tb = t.closest('[data-rs-tip]'); if (tb) { toggleTip(tb); return; }
     const goEl = t.closest('[data-rs-go]');
     if (goEl && plainClick) { e.preventDefault(); stash(); go(goEl.dataset.rsGo); return; }
     const pk = t.closest('[data-rs-pick]'); if (pk) { if (plainClick) { e.preventDefault(); pick(pk.dataset.rsPick); } return; }
@@ -1220,20 +1205,15 @@ export function createRainshare({ root, base = '/', host }){
     if (t.closest('.rs-post') && poster.click(t)) return;
     const fr = t.closest('[data-rs-from]'); if (fr) { S.from = fr.dataset.rsFrom; S.sheet = false; render(); return; }
     const sg = t.closest('[data-rs-seg] button');
+    // Turning it in by its link, or opening the pull request from here (which asks the forge about the repo the first time).
+    if (sg && sg.closest('[data-rs-seg="mcp"]')) { S.open.mcp = sg.dataset.v === 'other'; render(); root.querySelector('[data-rs-seg="mcp"] [aria-pressed="true"]')?.focus(); return; }
+    if (sg && sg.closest('[data-rs-seg="turn"]')) { stash(); S.open.pull = sg.dataset.v === 'open'; if (S.open.pull && S.seed) loadPull(S.seed); render(); root.querySelector('[data-rs-seg="turn"] [aria-pressed="true"]')?.focus(); return; }
     if (sg && S.view === 'me') {
       const name = sg.closest('[data-rs-seg]').dataset.rsSeg, v = sg.dataset.v;
       stash();
       if (name === 'forecast') { const next = S.form.profile.forecast?.level === v ? undefined : v; S.form.profile.forecast = next ? { ...(S.form.profile.forecast || {}), level: next } : undefined; }
       if (name === 'budget') S.form.profile.budget = S.form.profile.budget === v ? undefined : v;
       render(); return;
-    }
-    // A folded section opening or closing: the browser does it; this remembers it for the next redraw.
-    const keep = t.closest('details[data-rs-keep] > summary');
-    if (keep) {
-      const key = keep.parentElement.dataset.rsKeep; S.open[key] = !keep.parentElement.open;
-      // The pull request form asks the forge about the repo the first time it's opened.
-      if (key === 'pull' && S.open.pull && S.seed) loadPull(S.seed);
-      return;
     }
     const tgl = t.closest('[data-rs-toggles] button');
     if (tgl) {
@@ -1246,9 +1226,10 @@ export function createRainshare({ root, base = '/', host }){
       }
       return;
     }
+    // Another way to send it: only its part of the page is redrawn.
     const pl = t.closest('[data-rs-launch]');
-    if (pl && !t.closest('button')) { const l = ways(S.seed)[+pl.dataset.rsLaunch]; if (l) { S.launch = l.id; root.querySelectorAll('.rs-launchers li').forEach(li => li.classList.toggle('on', li === pl)); } return; }
-    const cp = t.closest('[data-rs-copy]'); if (cp) { const l = ways(S.seed)[+cp.dataset.rsCopy]; if (l) { S.launch = l.id; copy(l.command, l.copied); root.querySelectorAll('.rs-launchers li').forEach(li => li.classList.toggle('on', li.dataset.rsLaunch === cp.dataset.rsCopy)); } return; }
+    if (pl) { const l = ways(S.seed)[+pl.dataset.rsLaunch], box = root.querySelector('#rsLaunch'); if (l && box) { S.launch = l.id; box.outerHTML = renderLaunch(S.seed); root.querySelector(`#rsLaunch [data-rs-launch="${pl.dataset.rsLaunch}"]`)?.focus(); } return; }
+    const cp = t.closest('[data-rs-copy]'); if (cp) { const l = ways(S.seed)[+cp.dataset.rsCopy]; if (l) { S.launch = l.id; copy(l.command, l.copied); } return; }
     const md = t.closest('[data-rs-md]');
     if (md) {
       const it = S.seed?.uri === md.dataset.rsMd ? S.seed : S.shown.find(i => i.uri === md.dataset.rsMd) || S.board?.items.find(i => i.uri === md.dataset.rsMd);
