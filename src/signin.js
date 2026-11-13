@@ -13,6 +13,7 @@
 import './signin.css';
 import * as oauth from './oauth.js';
 import { FORGES } from './scope.js';
+import { within } from './lookup.js';
 import { GROUPS } from '../core/ns.js';
 import { suggestPeople, profiles, isHandle, isDid, normalizeHandle } from '../core/net.js';
 import { esc, face, ico, avatarFallback } from '../ui/bits.js';
@@ -161,7 +162,7 @@ function card(p){
 export function openSignIn({ handle = '', person = null, to = '/', forges = null, adding = null } = {}){
   ensure();
   const out = skipped();
-  st = { to, adding, want: new Set(forges || FORGES.filter(f => !out.includes(f))), turn: 0, who: null, person: null, did: null, host: null, busy: false, failed: false, offer: null };
+  st = { to, adding, want: new Set(forges || FORGES.filter(f => !out.includes(f))), turn: 0, who: null, person: null, did: null, host: null, blind: false, busy: false, offer: null };
   const who = person?.did || normalizeHandle(handle);
   if (who) confirm(who, person); else ask();
   if (!dlg.open) dlg.showModal();
@@ -171,7 +172,7 @@ const focusStep = () => (box.querySelector('input[name="handle"]') || box.queryS
 
 // The first step: who's signing in.
 function ask(msg = '', typed = ''){
-  Object.assign(st, { turn: st.turn + 1, did: null, host: null, busy: false, failed: false });
+  Object.assign(st, { turn: st.turn + 1, did: null, host: null, blind: false, busy: false });
   box.innerHTML = `<form class="si-step" novalidate>
       ${head('Sign in to Rainshare')}
       <p class="si-lede">Use your handle from Bluesky, Tangled or any Atmosphere app.</p>
@@ -189,7 +190,7 @@ function ask(msg = '', typed = ''){
 
 // The second step: the account, what's asked for, and where it's about to send you.
 function confirm(who, person = null){
-  Object.assign(st, { turn: st.turn + 1, who, person, did: null, host: null, busy: false, failed: false, offer: null });
+  Object.assign(st, { turn: st.turn + 1, who, person, did: null, host: null, blind: false, busy: false, offer: null });
   const adding = st.adding;
   box.innerHTML = `<div class="si-step">
       ${head(adding ? `Connect ${ASKS[adding]?.[0] || adding}` : 'Is this you?')}
@@ -208,53 +209,60 @@ function confirm(who, person = null){
   focusStep();
   find(st.turn);
 }
-// The button says where it leads once that's known, and the line under it says what happens there.
+// The button says where it leads once that's known, and the line under it says what happens
+// there. If it couldn't be found (`blind`), the button still goes on, without the name: the
+// sign-in finds the way itself, and it's only if that fails too that anything is said.
 function paintGo(){
   const b = box.querySelector('[data-si-go]'), next = box.querySelector('.si-next');
   if (!b || !st) return;
-  const host = st.host, wait = st.busy || (!host && !st.failed);
-  b.setAttribute('aria-disabled', String(wait));
-  b.innerHTML = st.failed ? 'Try again' : !host ? 'Finding where you sign in…' : st.busy ? `Opening ${esc(host)}…` : `<span>Continue at ${esc(host)}</span>${OUT}`;
-  next.innerHTML = !host ? '' : st.adding ? `You’ll approve this at <b>${esc(host)}</b>, where your account lives, then come back to what you wrote.`
-    : `You’ll sign in at <b>${esc(host)}</b>, where your account lives, then come straight back.`;
+  const host = st.host, known = host || st.blind, at = host ? ` at <b>${esc(host)}</b>,` : '';
+  b.setAttribute('aria-disabled', String(st.busy || !known));
+  b.innerHTML = !known ? 'Finding where you sign in…' : st.busy ? `Opening ${host ? esc(host) : 'where you sign in'}…` : `<span>Continue${host ? ' at ' + esc(host) : ''}</span>${OUT}`;
+  next.innerHTML = !known ? '' : st.adding ? `You’ll approve this${at} where your account lives, then come back to what you wrote.`
+    : `You’ll sign in${at} where your account lives, then come straight back.`;
 }
+// How long to wait to find where an account signs in, and how long before asking once more
+// after a quick failure. (A slow one isn't asked again: the sign-in goes on without the name.)
+const LOOK = 6000, AGAIN = 1200;
+const pause = ms => new Promise(r => setTimeout(r, ms));
 async function find(turn){
   const mine = st, live = () => st === mine && st.turn === turn;
-  try {
-    const at = await oauth.whereTo(mine.who);
+  let at = null;
+  for (let tries = 0; !at && tries < 2; tries++) {
+    try { at = await within(oauth.whereTo(mine.who), LOOK); }
+    catch (e) {
+      if (!live()) return;
+      if (e?.name === 'NoSuchAccount' && !mine.adding) return ask(`We couldn’t find ${isDid(mine.who) ? 'that account' : '@' + mine.who}. Check the spelling.`, mine.who);
+      console.warn('sign-in: where this account signs in', e);
+      if (e?.name === 'TimeoutError' || tries) break;
+      await pause(AGAIN);
+    }
     if (!live()) return;
-    mine.did = at.did; mine.host = at.host;
-    paintGo();
-    // The account is the one the network has for what was typed, whatever was offered for it.
-    let p = mine.person?.did === at.did ? mine.person : null;
-    if (!p) { p = (await profiles([at.did]).catch(() => new Map())).get(at.did) || { did: at.did }; if (!live()) return; }
-    const shown = { ...p, handle: at.handle || p.handle };
-    if (p !== mine.person || shown.handle !== p.handle) box.querySelector('.si-card').innerHTML = card(shown);
-  } catch (e) {
-    if (!live()) return;
-    console.warn('sign-in', e);
-    if (e?.name === 'NoSuchAccount' && !mine.adding) return ask(`We couldn’t find ${isDid(mine.who) ? 'that account' : '@' + mine.who}. Check the spelling.`, mine.who);
-    mine.failed = true;
-    say('We couldn’t reach the server that signs this account in. Try again in a moment.');
-    paintGo();
   }
+  // One of the servers asked along the way is out or slow for now: go on without the name.
+  if (!at) { mine.blind = true; paintGo(); return; }
+  mine.did = at.did; mine.host = at.host;
+  paintGo();
+  // The account is the one the network has for what was typed, whatever was offered for it.
+  let p = mine.person?.did === at.did ? mine.person : null;
+  if (!p) { p = (await profiles([at.did]).catch(() => new Map())).get(at.did) || { did: at.did }; if (!live()) return; }
+  const shown = { ...p, handle: at.handle || p.handle };
+  if (p !== mine.person || shown.handle !== p.handle) box.querySelector('.si-card').innerHTML = card(shown);
 }
 async function go(){
   const mine = st;
-  if (!mine || mine.busy) return;
-  if (mine.failed) { mine.failed = false; say(''); paintGo(); return find(++mine.turn); }
-  if (!mine.host) return;
+  if (!mine || mine.busy || !(mine.host || mine.blind)) return;
   const forges = [...box.querySelectorAll('input[name="forge"]:checked')].map(i => i.value);
   setSkipped(FORGES.filter(f => !forges.includes(f)));
   mine.busy = true; say(''); paintGo();
-  try { await oauth.signIn(mine.did, mine.to, { forges }); }
+  try { await oauth.signIn(mine.did || mine.who, mine.to, { forges }); }
   catch (e) {
     if (st !== mine) return;
     mine.busy = false; paintGo();
     // Coming back with the browser's Back button ends the wait, and nothing went wrong.
     if (/navigated back/i.test(String(e?.message))) return;
     console.warn('sign-in', e);
-    say(`${mine.host} didn’t let us start signing in. Try again in a moment.`);
+    say(mine.host ? `${mine.host} didn’t let us start signing in. Try again in a moment.` : 'We couldn’t reach the server that signs this account in. Try again in a moment.');
   }
 }
 

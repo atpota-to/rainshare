@@ -10,6 +10,7 @@
 // is asked again for less, a step at a time, down to what any server grants: see `ladder`.
 import { DECLARED_SCOPE, REDIRECT_PATH, PLC, FORGES, ladder, forgesIn } from './scope.js';
 import { isHandle } from '../core/net.js';
+import { noSuchAccount, handleLookup } from './lookup.js';
 
 const LOOPBACK = /^http:\/\/(127\.0\.0\.1|\[::1\]|localhost)(:\d+)?$/.test(location.origin);
 const SIGNED_IN = '@@atproto/oauth-client-browser(sub)';
@@ -24,7 +25,7 @@ function clientId(){
 let clientP;
 function client(){
   clientP ??= import('@atproto/oauth-client-browser').then(({ BrowserOAuthClient }) =>
-    BrowserOAuthClient.load({ clientId: clientId(), responseMode: 'fragment', plcDirectoryUrl: PLC, handleResolver: 'https://bsky.social' }));
+    BrowserOAuthClient.load({ clientId: clientId(), responseMode: 'fragment', plcDirectoryUrl: PLC, handleResolver: handleLookup('https://bsky.social') }));
   clientP.catch(() => { clientP = null; });
   return clientP;
 }
@@ -76,7 +77,11 @@ export async function whereTo(who){
   const c = await client();
   let id;
   try { id = await c.oauthResolver.resolveIdentity(who); }
-  catch (e) { throw Object.assign(new Error('No account found for ' + who), { name: 'NoSuchAccount', cause: e }); }
+  catch (e) {
+    // (Only when there's no such account: a server that didn't answer is said differently.)
+    if (noSuchAccount(e)) throw Object.assign(new Error('No account found for ' + who), { name: 'NoSuchAccount', cause: e });
+    throw e;
+  }
   const { metadata } = await c.oauthResolver.resolve(id.did);
   // A handle the account itself doesn't answer to comes back as "handle.invalid".
   return { did: id.did, handle: isHandle(id.handle) && !/\.invalid$/.test(id.handle) ? id.handle.toLowerCase() : null, host: new URL(metadata.authorization_endpoint).host };
