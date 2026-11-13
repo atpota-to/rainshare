@@ -159,6 +159,7 @@ function toBoard(){
 
 /* ---------- moving around ---------- */
 function route(){
+  showMenu(false);
   const path = location.pathname, kind = isExample(path) ? 'example' : 'real', sub = subOf(path);
   // A slip of the keys on the way to the example circle still gets there.
   const [head, ...rest] = sub.split('/'), h = head.toLowerCase();
@@ -198,14 +199,42 @@ document.addEventListener('click', e => {
 });
 
 /* ---------- you ---------- */
+// Signed in, the bar has only your face, so it keeps to one row on a phone. It opens a little
+// menu under it: who you're signed in as, which is the way to your profile, and "Sign out".
+// It closes when you pick something, tap anywhere else, press Escape or tab away.
+const meBox = $('#rdMe');
+avatarFallback(meBox);
+let menuOpen = false;
 function renderMe(){
-  const box = $('#rdMe');
+  const box = meBox;
   if (!ready && !visitor) { box.innerHTML = ''; return; }
-  if (!session) { box.innerHTML = `<button class="rd-btn" type="button" data-signin>Sign in</button>`; return; }
+  if (!session) { menuOpen = false; box.innerHTML = `<button class="rd-btn" type="button" data-signin>Sign in</button>`; return; }
   const p = me || { did: session.did };
-  const img = p.avatar ? `<img src="${esc(p.avatar)}" alt="" referrerpolicy="no-referrer">` : esc((p.displayName || p.handle || '?')[0].toUpperCase());
-  box.innerHTML = `<a class="rd-who" href="/me" data-nav title="Your Rainshare profile"><span class="rd-face">${img}</span><span>${esc(p.displayName || (p.handle ? '@' + p.handle : 'You'))}</span></a><button class="rd-link" type="button" data-signout>Sign out</button>`;
+  const name = p.displayName || (p.handle ? '@' + p.handle : 'You'), handle = p.displayName && p.handle ? '@' + p.handle : '';
+  box.innerHTML = `<button class="rd-who" type="button" aria-expanded="false" aria-controls="rdMenu" aria-label="Signed in as ${esc(name)}" title="Signed in as ${esc(name)}">${face(p)}</button>`
+    + `<div class="rd-menu" id="rdMenu" hidden>`
+    + `<a class="rd-menu-you" href="/me" data-nav>${face(p)}<span class="rd-menu-name"><span class="rd-sr">Your profile: </span><b>${esc(name)}</b>${handle ? `<small>${esc(handle)}</small>` : ''}</span><svg class="rd-menu-go" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>`
+    + `<hr>`
+    + `<button type="button" data-signout><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 20H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3M15 16l4-4-4-4M19 12H9"/></svg>Sign out</button>`
+    + `</div>`;
+  showMenu(menuOpen);
 }
+function showMenu(open){
+  menuOpen = open;
+  const who = meBox.querySelector('.rd-who'), menu = meBox.querySelector('.rd-menu');
+  if (!who || !menu) return;
+  who.setAttribute('aria-expanded', String(open));
+  menu.hidden = !open;
+}
+document.addEventListener('click', e => {
+  if (e.target.closest('.rd-who')) showMenu(!menuOpen);
+  // (anything picked in it, or anywhere off it)
+  else if (menuOpen && (!e.target.closest('.rd-menu') || e.target.closest('a,button'))) showMenu(false);
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && menuOpen) { showMenu(false); meBox.querySelector('.rd-who')?.focus(); }
+});
+meBox.addEventListener('focusout', e => { if (menuOpen && e.relatedTarget && !meBox.contains(e.relatedTarget)) showMenu(false); });
 async function signOut(){
   const s = session; session = null; me = null; forges = [];
   atp.forgetCredentials();
