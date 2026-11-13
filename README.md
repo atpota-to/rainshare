@@ -308,9 +308,9 @@ which spells it out by hand.
 | `ui/` | the app's screens: the board, an ask, profiles, posting an ask, the first-time welcome, loading placeholders |
 | `core/` | everything the site and the CLI share (below) |
 | `cli/rainshare.mjs` | the CLI and MCP server |
-| `api/` | Vercel functions: the OAuth client metadata, and link previews (`page.js` sets the meta tags, `og.js` draws the image) |
+| `api/` | Vercel functions: the OAuth client metadata, link previews (`page.js` sets the meta tags, `og.js` draws the image), and the daily Bluesky post of new asks (`announce.js`) |
 | `lexicons/` | the record schemas and the sign-in permission set, plus the scripts that publish them and check changes for breakage |
-| `scripts/` | the image scripts above |
+| `scripts/` | the image scripts above, and `announce.mjs`, which runs the Bluesky post by hand (see [Deploying](#deploying)) |
 | `test/` | `npm test` |
 
 In `core/`:
@@ -362,6 +362,43 @@ with the same variables.
 
 `@vercel/og` is pinned to 0.11.1, because 1.0.3 doesn't load as an ES module in Node.
 
+### Posting new asks to Bluesky
+
+Once a day, Vercel calls `/api/announce` (`crons` in `vercel.json`, at 16:00 UTC), and
+@rainshare.dev posts each new ask on the board. A post names who's asking, with a mention so
+they hear about it, and gives the ask's title, with a card that links to its page. To turn it on:
+
+1. Make another app password for @rainshare.dev and set it as `RAINSHARE_BLUESKY_APP_PASSWORD`,
+   for Production only, marked sensitive. It's separate from the lexicons' password, so either
+   can be revoked on its own.
+2. Set `CRON_SECRET` to a long random string (`openssl rand -hex 32`), for Production. Vercel
+   sends it with each call, and the function turns away any request without it.
+3. Redeploy.
+
+Until both are set, the daily call posts nothing. To see what it would post right now, without
+posting anything, run `npm run announce` (no password needed), or ask the deployed function:
+
+```sh
+curl -H "Authorization: Bearer $CRON_SECRET" "https://rainshare.dev/api/announce?dry=1"
+```
+
+`npm run announce -- --post` posts for real, with the password set.
+
+`api/_announce.js` decides what counts as new and posts it. A new ask is open, meant for
+everyone, and was asked in the last three days, at least 15 minutes ago (in case its title is
+fixed straight after posting). Each run posts at most five asks, the earliest first, and leaves
+the rest for the next day.
+
+There's no database, so the account's own posts say what's been posted. An ask that one of its
+last 300 posts links to isn't posted again, even if that post was written by hand. Each post
+also takes the ask's own record key, so two runs at once can't post the same ask twice.
+
+Asks from anyone @rainshare.dev blocks aren't posted, and neither are asks from anyone who
+blocks it. To keep someone's asks off the account, block them from it.
+
+On Vercel's Hobby plan, a daily cron can run at any point in its hour. To change the time, edit
+the schedule in `vercel.json`. On Pro it can also run more often.
+
 ## Not tried for real yet
 
 Most of Rainshare has been tested against fake networks, in the example board and in headless
@@ -382,6 +419,8 @@ done for real yet:
   Chromium's software renderer the full-window landing ran at about 4 frames a second.
 - Private asks in a real group space.
 - Link previews as Bluesky and other sites render them in production.
+- Posting new asks to @rainshare.dev. The dry run has read the real board and worked out what
+  it would post, but nothing has been posted yet.
 - A real account's first sign-in, and the welcome that follows it.
 - A server accepting the permission set. That waits for a production build to publish it.
   Until then, bsky.social refuses the set and Rainshare falls back to asking for the records by
