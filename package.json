@@ -8,6 +8,8 @@
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
+    "lexicons": "node lexicons/publish.mjs",
+    "lexicons:check": "node lexicons/publish.mjs --check",
     "build:cli": "node -e \"import('./vite.config.js').then(m => m.bundleCli('dist-cli'))\"",
     "test": "node --test test/*.test.mjs",
     "plants": "node scripts/render-plants.mjs && node scripts/og-plants.mjs",
