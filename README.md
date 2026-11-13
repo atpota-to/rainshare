@@ -34,6 +34,13 @@ make the account on that host's own sign-up page and come straight back signed i
    presses Accept, which marks the ask done. They can vouch for you on Tangled in the same step.
 4. **Grow a garden.** Every ask you helped finish shows up on your profile as a plant.
 
+Every ask has comments, for a question before you start, an answer from whoever asked, or a
+note on how it's going. Replies sit under the comment they answer. When an ask is on an issue
+on Tangled or knotless, its comments are the issue's own: Rainshare shows what's been said
+there, and what you write is posted on the issue as you, so the conversation stays in one
+place and the forge tells people about replies. Tangled has replies; knotless keeps an issue's
+comments as one list.
+
 An idea doesn't need a repo, or even a developer. The asker picks whether whoever builds it
 keeps it ("Someone else can run with it") or whether the agent should start a repo for them
 ("Start it for me"). Rainshare doesn't create repos itself. It links to the new-repo page on
@@ -140,9 +147,11 @@ turn-in form for you.
 - **Anything else.** Any git repo URL works as a project. Codeberg and GitLab get links to the
   right pages too.
 
-On Tangled and knotless, Rainshare can also post as you: open an issue, leave a comment, or
-open a pull request from a branch you've pushed. It only does that when you press a button
-that says so. Sign-in asks for these permissions up front, with a checkbox for each forge, and
+On Tangled and knotless, Rainshare can also post as you: open an issue, comment on one (an
+ask's comments, when it's on an issue there), or open a pull request from a branch you've
+pushed. It only does that when you press a button that says so. A sign-in that leaves a forge
+out gets a "Connect" button where it's needed, and keeps what you'd written while your server
+asks. Sign-in asks for these permissions up front, with a checkbox for each forge, and
 if your server refuses some of them it asks again for less. Tangled's permissions are broader
 than knotless's because a Tangled knot checks each repo's own identity, so the token can't be
 narrowed to Tangled alone. They're the same ones Tangled's own web app asks for. The exact
@@ -187,6 +196,7 @@ schemas are in `lexicons/dev/rainshare/`.
 | `dev.rainshare.seed` | the asker | title, subject (an issue or repo, or none for an idea), project stage, spec in Markdown, preferred models, tags, size, state |
 | `dev.rainshare.take` | a helper | "my agent is on this": a strong ref to the seed and the setup doing the work |
 | `dev.rainshare.delivery` | a helper | the pull request (a URL, or an `at://` URI on Tangled and knotless), what did the work, and an optional session link |
+| `dev.rainshare.comment` | anyone | what they said (Markdown), a strong ref to the seed, and, for a reply, a strong ref to the comment it answers. An ask on a Tangled or knotless issue uses the issue's comments instead (`org.tangled.feed.comment`, `dev.knotless.comment`) |
 
 The records use garden words that the site doesn't show. An ask is a `seed`. A project's
 progress is its `stage` (`seedling`, `young` or `established`), and a finished ask is
@@ -196,9 +206,9 @@ in the pictures.
 Names, bios and avatars come from your Bluesky profile unless you set a different name or bio
 for Rainshare.
 
-Sign-in asks for these four record types through a permission set, `dev.rainshare.authFull`
+Sign-in asks for these record types through a permission set, `dev.rainshare.authFull`
 (`lexicons/dev/rainshare/authFull.json`). A server that can look the set up shows "Your
-Rainshare records" on its consent page instead of listing four collections. If a server can't,
+Rainshare records" on its consent page instead of listing each collection. If a server can't,
 Rainshare asks again for the records by name. Tangled and knotless permissions are always listed
 separately, because a set can only grant what's under its own name.
 
@@ -208,8 +218,10 @@ The board is read straight from the network, in your browser, each time (`core/s
 `core/net.js`). A relay lists the accounts that hold `dev.rainshare.*` records
 (`com.atproto.sync.listReposByCollection`). Their records come from each account's own PDS,
 six at a time, and names, avatars and follows come from Bluesky's AppView. An ask's page uses
-[Constellation](https://constellation.microcosm.blue) to find takes and deliveries that point
-at it, then checks each one against its owner's PDS. If a relay hasn't answered after 2.5
+[Constellation](https://constellation.microcosm.blue) to find takes, deliveries and comments that
+point at it, then checks each one against its owner's PDS. The board doesn't read comments, so
+they're only fetched on an ask's own page. For an ask on a Tangled or knotless issue, the
+issue's comments come from the forge's API too (`issueComments` in `core/subjects.js`). If a relay hasn't answered after 2.5
 seconds, the next one is asked as well.
 
 That's a request per person taking part. It's fine at dozens of people. At thousands, this is
@@ -268,8 +280,15 @@ might run. Nothing from the network is trusted:
   terminal.
 - The link-preview functions in `api/` only talk to two fixed hosts (Slingshot and Bluesky's
   AppView), never to a server named in a URL.
-- Takes and deliveries from people you've blocked on Bluesky are hidden, so they can't make an
-  ask look taken.
+- Takes, deliveries and comments from people you've blocked on Bluesky are hidden, so they
+  can't make an ask look taken or fill its comments. A comment can only answer one written
+  before it, so no set of records can make a thread loop (`core/comments.js`).
+- Comments are other people's words. They aren't put into the brief, and `rainshare_show` tells
+  the agent they aren't instructions.
+- An issue's comments on Tangled or knotless are taken as the forge's API reports them: who
+  wrote each one isn't checked against their own server. Tangled keeps comments with the repo,
+  not in the writer's account. Each one is still checked to be on the issue asked about, in
+  the right place, and written by a DID.
 
 Two things to keep in mind. An ask's spec is a stranger's request, and the brief tells your
 agent so. And a repo you clone can carry its own agent config (`CLAUDE.md`, hooks,
@@ -335,6 +354,7 @@ In `core/`:
 | `subjects.js`, `forges.js`, `forgewrite.js` | reads from forges, links to the right page on them, and posts to Tangled and knotless |
 | `ties.js`, `vouch.js`, `circle.js` | follows, vouches and audiences |
 | `garden.js` | works out gardens from records |
+| `comments.js` | puts an ask's comments into threads, whether they're Rainshare's or an issue's |
 | `route.js` | URLs, including fixing mistyped ones |
 | `mode.js` | day or night (the system's setting, or the toggle's choice), and the fade between them |
 | `markdown.js` | a small, safe Markdown renderer for specs |
@@ -384,6 +404,9 @@ done for real yet:
 - Making an account all the way through. bsky.social and eurosky.social open on their sign-up
   form, and that's as far as it's gone.
 - Posting an issue, comment or pull request to Tangled or knotless as a real user.
+- Reading a Tangled issue's comments has been tried against the live API, read-only. It uses
+  `org.tangled.feed.listComments`, which Tangled hasn't published a definition for, so it could
+  change without notice.
 - `rainshare.mjs run` end to end with a real agent.
 - GitHub status lookups against real GitHub (only mocked so far). A signed-out browser gets 60
   requests an hour, and after that the forge's side shows as unknown.

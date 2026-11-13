@@ -2,7 +2,7 @@
 // Parsing what someone pasted, describing it, the URL to clone, and (where the forge has a
 // public API) the issue's title and whether a pull request has landed.
 import { SEED } from './ns.js';
-import { getJSON, xrpc, parseUri, handleOf, resolveHandle } from './net.js';
+import { getJSON, xrpc, parseUri, handleOf, resolveHandle, isDid } from './net.js';
 
 export const BOBBIN = 'https://api.tangled.org'; // Tangled's public, read-only API
 export const TANGLED = 'https://tangled.org';
@@ -177,10 +177,11 @@ export function knotlessRef(link){
 export const knotlessPage = (page, uri) => { const at = parseUri(uri); return at && page ? `${page}/${at.collection === K_PULL ? 'pull' : 'issue'}/${at.repo}/${at.rkey}` : null; };
 // One issue's thread answers two questions (is it open, and which pulls mention it), so the
 // answer is kept for a moment rather than asked for twice.
+// (`fresh` asks again regardless: what was said on it a moment ago may have changed.)
 const threads = new Map();
-function knotlessThread(repo, uri){
+function knotlessThread(repo, uri, { fresh = false } = {}){
   const key = repo + ' ' + uri, had = threads.get(key);
-  if (had && Date.now() - had.at < 20e3) return had.p;
+  if (had && !fresh && Date.now() - had.at < 20e3) return had.p;
   const p = xrpc(KNOTLESS, 'dev.knotless.getThread', { repo, uri, filesOnly: true });
   threads.set(key, { at: Date.now(), p }); p.catch(() => threads.delete(key));
   return p;
@@ -198,6 +199,54 @@ export async function knotlessIssues(repo){
 }
 /** The subject for an issue picked from one of those repos. */
 export const knotlessIssueSubject = (repoUrl, uri) => ({ $type: T('knotlessIssue'), url: knotlessPage(repoUrl, uri), repoUrl, uri });
+
+/* ---------- what's said on an issue, on knotless or Tangled ---------- */
+// An ask on one of their issues talks there: its comments are the issue's (../core/comments.js).
+//   knotless  Each comment is a record in its writer's own account, and the issue's thread
+//             (the same answer that says whether it's open) lists them. An issue's comments
+//             are one list: `reply` on knotless is for threads on a pull's lines.
+//   Tangled   Comments are kept with the repo, in its account on its knot, and Tangled's API
+//             lists an issue's. That list has no published definition, so each is taken
+//             only as far as it's well formed. A comment can answer another (`replyTo`).
+// Either way, a comment has to be on the issue that was asked about, and who wrote it is
+// what the forge says: it isn't checked against the writer's own server.
+/**
+ * The comments on the issue a subject points at: { forge, items, more }, each item
+ * { uri, cid, by, text, createdAt, replyTo }, oldest first, and `more` when the forge said
+ * there were more than it listed. Null for a subject that isn't an issue on either forge.
+ */
+export async function issueComments(subject, { fresh = false, timeout = 6000 } = {}){
+  const kind = kindOf(subject), when = v => typeof v === 'string' ? v : '';
+  if (kind === 'knotlessIssue') {
+    const ref = knotlessRef(subject.url) || (subject.uri && subject.repoUrl ? { repo: knotlessRepo(subject.repoUrl), uri: subject.uri } : null);
+    if (!ref?.repo || parseUri(ref.uri)?.collection !== K_ISSUE) return null;
+    const r = await knotlessThread(ref.repo, ref.uri, { fresh });
+    const items = (Array.isArray(r?.comments) ? r.comments : []).flatMap(c => {
+      const at = parseUri(c?.uri), by = isDid(c?.author?.did) ? c.author.did : null;
+      // In the writer's own account, and nothing to do with a pull's lines or reviews.
+      if (at?.collection !== 'dev.knotless.comment' || !by || at.repo !== by || typeof c.body !== 'string' || !c.body.trim() || c.line || c.verdict || c.reply) return [];
+      return [{ uri: String(c.uri), cid: null, by, text: c.body, createdAt: when(c.createdAt), replyTo: null }];
+    });
+    return { forge: 'knotless', items, more: false };
+  }
+  if (kind === 'tangledIssue') {
+    // The issue the page links to, as a comment written from here would be (./forgewrite.js).
+    const uri = await tangledTicket(subject.url || subject.uri);
+    if (!uri) return null;
+    const home = parseUri(uri).repo;
+    const r = await xrpc(BOBBIN, 'org.tangled.feed.listComments', { subject: uri }, { timeout });
+    const list = Array.isArray(r?.items) ? r.items : [];
+    const items = list.flatMap(c => {
+      const at = parseUri(c?.uri), by = isDid(c?.editor) ? c.editor : null, text = typeof c?.body === 'string' ? c.body : c?.body?.text;
+      // Kept with the repo, on this issue, by someone, saying something.
+      if (at?.collection !== 'org.tangled.feed.comment' || at.repo !== home || c.subject?.uri !== uri || !by || typeof text !== 'string' || !text.trim()) return [];
+      const to = parseUri(c.replyTo?.uri)?.collection === 'org.tangled.feed.comment' && typeof c.replyTo.cid === 'string' ? { uri: String(c.replyTo.uri), cid: c.replyTo.cid } : null;
+      return [{ uri: String(c.uri), cid: typeof c.cid === 'string' ? c.cid : null, by, text, createdAt: when(c.createdAt), replyTo: to }];
+    });
+    return { forge: 'tangled', items, more: Number(r?.total) > list.length };
+  }
+  return null;
+}
 
 /* ---------- the issue itself: title, body and state, where a public API has them ---------- */
 export async function subjectInfo(subject){

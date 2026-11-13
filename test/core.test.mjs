@@ -415,7 +415,7 @@ test('without groups, the example has nothing private and sign-in asks only for 
   const { SCOPE, BASIC_SCOPE } = await import('../src/scope.js');
   const { GROUPS } = await import('../core/ns.js');
   if (!GROUPS) {
-    assert.equal(SCOPE, 'atproto repo:dev.rainshare.profile repo:dev.rainshare.seed repo:dev.rainshare.take repo:dev.rainshare.delivery');
+    assert.equal(SCOPE, 'atproto repo:dev.rainshare.profile repo:dev.rainshare.seed repo:dev.rainshare.take repo:dev.rainshare.delivery repo:dev.rainshare.comment');
     assert.equal(BASIC_SCOPE, SCOPE);
   }
 });

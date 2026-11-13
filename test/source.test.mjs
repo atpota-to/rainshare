@@ -2,10 +2,11 @@
 // for everyone, and Bluesky's AppView, all answered by a stubbed fetch.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { SEED, TAKE, DELIVERY, PROFILE } from '../core/ns.js';
+import { SEED, TAKE, DELIVERY, PROFILE, COMMENT } from '../core/ns.js';
 import { createSource } from '../core/source.js';
 import { firstOf } from '../core/net.js';
 import { FOLLOW, tieOf } from '../core/ties.js';
+import { threads } from '../core/comments.js';
 
 const PDS = 'https://pds.test';
 const people = { me: 'did:plc:me', alice: 'did:plc:alice', bob: 'did:plc:bob', carol: 'did:plc:carol', dave: 'did:plc:dave', eve: 'did:plc:eve' };
@@ -15,11 +16,13 @@ let repos, n, lagging;
 // Constellation, the index of who links to what: off (it throws, like a server that's down)
 // unless a test turns it on. `asked` is every address the code under test fetched.
 let index, asked;
+// knotless's API: off when a test says so.
+let knotlessDown = false;
 
 const sq = (title, audience, extra = {}) => ({ $type: SEED, title, audience: { $type: `${SEED}#${audience}` }, createdAt: new Date(Date.now() - (n++) * 1000).toISOString(), ...extra });
 function put(did, collection, rkey, value){ (repos[did] ||= {})[collection] ||= new Map(); repos[did][collection].set(rkey, { value, cid: 'bafy' + (n++) }); }
 beforeEach(() => {
-  repos = {}; n = 1; lagging = new Set(); index = null; asked = [];
+  repos = {}; n = 1; lagging = new Set(); index = null; asked = []; knotlessDown = false;
   put(people.alice, SEED, 'a1', sq('Alice, for mutuals', 'mutuals'));
   put(people.alice, PROFILE, 'self', { $type: PROFILE, budget: 'none', circumstances: ['student'], createdAt: new Date().toISOString() });
   put(people.bob, SEED, 'b1', sq('Bob, for people he follows', 'following'));
@@ -43,6 +46,16 @@ globalThis.fetch = async (input, init = {}) => {
     if (m !== 'blue.microcosm.links.getBacklinks' || path !== 'seed.uri') return json({ error: 'InvalidRequest' }, 400);
     const records = Object.keys(repos).flatMap(did => [...(repos[did][collection] || new Map())].filter(([, r]) => r.value?.seed?.uri === subject).map(([rkey]) => ({ did, collection, rkey })));
     return json({ total: records.length + index.extra.length, records: [...records, ...index.extra], cursor: null });
+  }
+  // knotless: a repo, and an issue's thread, listing the comments everyone's written on it.
+  if (u.host === 'knotless.dev') {
+    if (knotlessDown) return json({ error: 'InternalServerError' }, 500);
+    if (m === 'dev.knotless.getRepo') return json({ uri: `at://${people.dave}/dev.knotless.repo/proj`, key: '3mzkeykeykey2', name: 'proj', owner: { did: people.dave, handle: 'dave.test' } });
+    if (m === 'dev.knotless.getThread') {
+      const comments = Object.keys(repos).flatMap(did => [...(repos[did]['dev.knotless.comment'] || new Map())].filter(([, r]) => r.value.subject === q.get('uri'))
+        .map(([rkey, r]) => ({ uri: `at://${did}/dev.knotless.comment/${rkey}`, author: { did, handle: nameOf(did) + '.test' }, body: r.value.body, html: '', createdAt: r.value.createdAt })));
+      return json({ item: { uri: q.get('uri'), title: 'Flaky', state: 'open' }, comments, closes: [], checks: [], card: '' });
+    }
   }
   if (u.host === 'plc.directory') {
     const did = decodeURIComponent(u.pathname.slice(1));
@@ -267,14 +280,83 @@ test('one seed’s helpers come from Constellation, read from their own servers,
   assert.deepEqual(it.deliveries.map(d => d.repo), [people.carol]);
   assert.ok(scans() >= 2, 'the relay was asked instead');
 
-  // After the board has read everyone's, a seed's page uses that and asks the index nothing.
+  // After the board has read everyone's, a seed's page uses that, and asks the index only
+  // about comments (which the board doesn't read).
   index = { extra: [] }; asked = [];
   const src = createSource();
   await src.board();
   asked = [];
   it = await src.seed(uri);
   assert.deepEqual(it.takes.map(t => t.repo).sort(), [people.alice, people.me].sort());
-  assert.equal(asked.filter(a => a.includes('constellation')).length, 0);
+  assert.deepEqual(asked.filter(a => a.includes('constellation')).map(a => new URL(a).searchParams.get('source')), [COMMENT + ':seed.uri']);
+});
+
+test('comments: said on a seed and replied to, found through Constellation, and taken back only by whoever wrote them', async () => {
+  index = { extra: [] };
+  const uri = `at://${people.dave}/${SEED}/d1`;
+  const me = createSource({ agent: agent(people.me) });
+  let it = await me.seed(uri);
+  assert.deepEqual(it.comments, []);
+  const mine = await me.comment(it, { text: '  Does it need to work offline?  ' });
+  assert.equal(mine.value.text, 'Does it need to work offline?');
+  it = await me.seed(uri, { force: true });
+  assert.deepEqual(it.comments.map(c => c.uri), [mine.uri]);
+  assert.equal(it.comments[0].author.handle, 'me.test', 'and they’re named');
+  // Dave, who asked, answers it. A reply has to be on the same seed, and say something.
+  const dave = createSource({ agent: agent(people.dave) });
+  const his = await dave.seed(uri);
+  const answer = await dave.comment(his, { text: 'No, online is fine.', parent: his.comments[0] });
+  assert.deepEqual(answer.value.parent, { uri: mine.uri, cid: mine.cid });
+  await assert.rejects(dave.comment(await dave.seed(`at://${people.eve}/${SEED}/e1`), { text: 'Hm', parent: his.comments[0] }), /isn’t on this one/);
+  await assert.rejects(dave.comment(his, { text: '   ' }), /Write something/);
+  // Eve, whom I block, says something too: everyone else sees it, and I don't.
+  const eve = createSource({ agent: agent(people.eve) });
+  await eve.comment(await eve.seed(uri), { text: 'Look at my thing instead' });
+  it = await me.seed(uri, { force: true });
+  const t = threads(it.comments, uri);
+  assert.deepEqual(t.map(x => x.repo), [people.me]);
+  assert.deepEqual(t[0].replies.map(r => [r.repo, r.value.text]), [[people.dave, 'No, online is fine.']]);
+  assert.equal((await createSource().seed(uri)).comments.length, 3);
+  // Only whoever wrote one can delete it. Deleting mine leaves Dave's reply, as one to a comment that's gone.
+  await assert.rejects(me.uncomment(it, it.comments.find(c => c.repo === people.dave)), /Only the person who wrote/);
+  await me.uncomment(it, it.comments.find(c => c.repo === people.me));
+  it = await me.seed(uri, { force: true });
+  assert.deepEqual(threads(it.comments, uri).map(x => [x.repo, x.lost]), [[people.dave, true]]);
+  // With the index down, they're found the long way, like takes and deliveries.
+  index = null;
+  assert.deepEqual((await createSource().seed(uri)).comments.map(c => c.repo).sort(), [people.dave, people.eve].sort());
+});
+
+test('an ask on a knotless issue talks on the issue: its comments are read from knotless, and yours are posted there', async () => {
+  index = { extra: [] };
+  const issue = `at://${people.dave}/dev.knotless.issue/3kiss`, at = new Date().toISOString();
+  const subject = { $type: `${SEED}#knotlessIssue`, url: `https://knotless.dev/dave.test/proj/issue/${people.dave}/3kiss`, repoUrl: 'https://knotless.dev/dave.test/proj', uri: issue };
+  put(people.dave, SEED, 'k1', sq('Dave, on knotless', 'anyone', { subject }));
+  const uri = `at://${people.dave}/${SEED}/k1`;
+  // Alice has already said something on the issue, and so has Eve, whom I block.
+  put(people.alice, 'dev.knotless.comment', 'kc1', { $type: 'dev.knotless.comment', subject: issue, body: 'Is it the clock?', createdAt: at });
+  put(people.eve, 'dev.knotless.comment', 'kc2', { $type: 'dev.knotless.comment', subject: issue, body: 'Look at my thing instead', createdAt: at });
+  const me = createSource({ agent: agent(people.me) });
+  let it = await me.seed(uri);
+  assert.deepEqual(it.talk, { forge: 'knotless', read: true, more: false });
+  assert.deepEqual(it.comments.map(c => [c.repo, c.forge, c.author.handle]), [[people.alice, 'knotless', 'alice.test']]);
+  // Mine goes on the issue, as a knotless comment in my own account. Nothing of Rainshare's is written.
+  const mine = await me.comment(it, { text: '  Looks like it.  ' });
+  assert.equal(mine.forge, 'knotless');
+  const [[, written]] = [...repos[people.me]['dev.knotless.comment']];
+  assert.deepEqual([written.value.subject, written.value.body, written.value.repo.key], [issue, 'Looks like it.', '3mzkeykeykey2']);
+  assert.equal(repos[people.me][COMMENT], undefined);
+  it = await me.seed(uri, { force: true });
+  assert.deepEqual(it.comments.map(c => c.repo), [people.alice, people.me]);
+  // Replies and deleting are the forge's business.
+  await assert.rejects(me.comment(it, { text: 'Hm', parent: it.comments[0] }), /can’t be replies/);
+  await assert.rejects(me.uncomment(it, it.comments[1]), /Change or delete it there/);
+  // When knotless doesn't answer it says so, and a comment written on Rainshare is still there.
+  put(people.bob, COMMENT, 'r1', { $type: COMMENT, seed: { uri, cid: 'x' }, text: 'From before', createdAt: at });
+  knotlessDown = true;
+  it = await createSource().seed(uri, { force: true });
+  assert.deepEqual(it.talk, { forge: 'knotless', read: false, more: false });
+  assert.deepEqual(it.comments.map(c => [c.repo, c.forge]), [[people.bob, undefined]]);
 });
 
 test('a slow or failing relay gets company: the next is asked, and the first answer wins', async () => {
