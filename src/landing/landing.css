@@ -1,7 +1,7 @@
 /* The signed-out landing: the pitch, in the garden to rain on. Colours and the typeface come
    from ../theme.css. What's only the water cycle's is in ./cycle/cycle.css. */
 :root{--pin:rgba(255,255,255,.84);--pin-edge:rgba(18,32,58,.1)}
-@media (prefers-color-scheme:dark){:root{--pin:rgba(19,28,46,.8);--pin-edge:rgba(255,255,255,.14)}}
+:root[data-mode=night]{--pin:rgba(19,28,46,.8);--pin-edge:rgba(255,255,255,.14)}
 
 .rd-landing{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:8px 12px;align-items:center;padding:8px 0 20px}
 
@@ -13,11 +13,11 @@
 .rd-signin input{flex:1 1 220px;min-width:0;min-height:52px;border:0;border-radius:16px;padding:12px 16px;font:500 17px var(--body);color:var(--ink);background:var(--card);box-shadow:inset 0 0 0 1.5px var(--line)}
 .rd-signin input:focus{outline:none;box-shadow:inset 0 0 0 2px var(--accent)}
 .rd-signin button{min-height:52px;padding:12px 22px;border:0;border-radius:16px;background:var(--accent);color:#fff;font:700 16px var(--body);cursor:pointer}
-@media (prefers-color-scheme:dark){.rd-signin button{color:#0B1220}}
+[data-mode=night] .rd-signin button{color:#0B1220}
 .rd-signin button:disabled{opacity:.6;cursor:progress}
 /* under the sign-in: anything that went wrong with the handle */
 .rd-pitch>.rd-err{font-size:15px;color:#B3261E;font-weight:700;max-width:46ch}
-@media (prefers-color-scheme:dark){.rd-pitch>.rd-err{color:#FF8A80}}
+[data-mode=night] .rd-pitch>.rd-err{color:#FF8A80}
 .rd-note a,.rd-how a{color:var(--accent);font-weight:700;text-underline-offset:3px}
 /* and for someone with no account to sign in with, the way to make one, tucked under the field */
 .rd-pitch>.rd-new{margin-top:-8px;font-size:16px;line-height:1.5}
@@ -34,7 +34,7 @@
 .rd-peek-faces .rs-face:first-child{margin-left:0}
 .rd-peek-words{min-width:0}
 .rd-peek-arrow{flex:none;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:var(--accent);color:#fff;transition:translate .2s ease}
-@media (prefers-color-scheme:dark){.rd-peek-arrow{color:#0B1220}}
+[data-mode=night] .rd-peek-arrow{color:#0B1220}
 .rd-peek-arrow svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
 .rd-peek:hover .rd-peek-arrow{translate:0 2px}
 /* when it comes in, the arrow nods down a few times, then holds still */
@@ -67,10 +67,8 @@
 .rd-still .s-stem{stroke:#6FB06A;stroke-width:4}
 .rd-still .s-leaf{fill:#7CC873}
 .rd-still .s-bloom{fill:#F5B3D6}
-@media (prefers-color-scheme:dark){
-  .rd-still .s-sun{fill:#D5DEFF}.rd-still .s-cloud{fill:#8C97CC}
-  .rd-still .s-ground{fill:#2F4F5E}.rd-still .s-soil{fill:#3B3550}.rd-still .s-stem{stroke:#4F8A7C}.rd-still .s-leaf{fill:#5E9C8A}.rd-still .s-tag{fill:#8E86C8}.rd-still .s-bloom{fill:#B987A6}
-}
+[data-mode=night] .rd-still .s-sun{fill:#D5DEFF}[data-mode=night] .rd-still .s-cloud{fill:#8C97CC}
+[data-mode=night] .rd-still .s-ground{fill:#2F4F5E}[data-mode=night] .rd-still .s-soil{fill:#3B3550}[data-mode=night] .rd-still .s-stem{stroke:#4F8A7C}[data-mode=night] .rd-still .s-leaf{fill:#5E9C8A}[data-mode=night] .rd-still .s-tag{fill:#8E86C8}[data-mode=night] .rd-still .s-bloom{fill:#B987A6}
 
 /* labels, sitting where what they name is in the scene */
 .rd-pins{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .6s ease .5s}
@@ -98,7 +96,7 @@
 .rd-plot.on{background:var(--accent);color:#fff}
 .rd-spark{display:none;flex:none;width:14px;height:14px;margin:0 -3px 0 -2px;fill:#E5A220}
 .rd-plot.done .rd-spark{display:block}
-@media (prefers-color-scheme:dark){.rd-plot.on{color:#0B1220}.rd-spark{fill:#FFC857}}
+[data-mode=night] .rd-plot.on{color:#0B1220}[data-mode=night] .rd-spark{fill:#FFC857}
 /* over the friend's cloud: whose plan that one is */
 .rd-friend{margin:0;height:24px;padding:0 9px 0 3px;gap:5px;font-size:12px;cursor:default;pointer-events:none;transition:opacity .3s}
 .rd-friend i{width:18px;height:18px;line-height:18px;font-size:10px}
@@ -184,7 +182,7 @@ body:has(#landing:not([hidden])>.rd-garden:not(.flat)) #circle .rs-head{--rs-mut
 .rd-garden .rd-note a{flex:none;font-size:14px;white-space:nowrap}
 .rd-garden .rd-note button{flex:none;min-height:34px;padding:6px 12px;border:0;border-radius:10px;background:var(--accent-soft);color:var(--ink);font:700 13px var(--body);cursor:pointer;white-space:nowrap}
 .rd-garden .rd-note button:hover{background:var(--accent);color:#fff}
-@media (prefers-color-scheme:dark){.rd-garden .rd-note button:hover{color:#0B1220}}
+[data-mode=night] .rd-garden .rd-note button:hover{color:#0B1220}
 /* beside a pitch on a narrower window there isn't the width for all of that on one line */
 @media (max-width:1180px){
   .rd-garden .rd-base{min-height:128px}

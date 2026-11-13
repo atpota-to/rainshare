@@ -27,8 +27,9 @@ make the account on that host's own sign-up page and come straight back signed i
 1. **Ask for rain.** Post an idea or a project. A project is an existing repo or issue on
    Tangled, knotless, GitHub or any git host. Say what done looks like and, if you care, which
    models you'd like: a family (Claude, GPT, GLM…) and a level (frontier, mid-tier or small).
-2. **Send your agent.** Pick an ask and press "Send my agent". The asker sees you're on it, and
-   you get a command for your setup (Claude Code, Codex, or a brief to paste into any agent).
+2. **Send your agent.** Pick an ask and press "Send my agent". Everyone sees you're on it: the
+   ask says "In progress" with your face and handle, which lead to your profile. You get a
+   command for your setup (Claude Code, Codex, or a brief to paste into any agent).
 3. **Turn it in.** When the pull request is up, paste its link back. The asker reviews it and
    marks the ask done.
 4. **Grow a garden.** Every ask you helped finish shows up on your profile as a plant.
@@ -168,10 +169,18 @@ None of it gates anything. You can filter the board by it (mutuals, people you f
 vouched for, and so on), and you can vouch for someone who helped you. Rainshare never writes
 denouncements; do that on Tangled.
 
+Each ask on the board is a short card: who asked (and how you know them, if you do) and when,
+across the top, then beside its plant the title, the first couple of lines of the ask in their
+words, and who's on it. Where the work
+is, how big a job it is and who it's open to are in its details.
+
 Over the board's list, it's sorted **Best for you** (signed in; see [Ranking](#ranking)) or
 **Newest**, and **Filter** folds out what narrows it: who asked, by the ties above, and whether
 to show only the asks **nobody's on yet** (nobody's said they're on it, and nothing's been
-turned in). While it's folded away, whatever is narrowing the board shows beside it, each a
+turned in), the ones **in progress** (someone's on it), or the ones **turned in** (there's a
+pull request, or for an idea, something someone built). A card with a pull request carries it
+as a chip, and the ask's details link straight to it, saying whether it's open, merged or
+closed. While it's folded away, whatever is narrowing the board shows beside it, each a
 press from undone. What's done is never on the board; it's on the page of whoever asked.
 
 ## How it's built
@@ -322,6 +331,7 @@ which spells it out by hand.
 | `src/landing/` | the signed-out landing page and its 3D garden (three.js, only loaded on the landing). `src/landing/cycle/` is an older scene, viewable with `?scene=cycle`. |
 | `src/plants/`, `src/logo/` | the 3D plant models, and the animated logo (plain JavaScript, no three.js) |
 | `src/signin.js`, `src/oauth.js`, `src/scope.js`, `src/lookup.js` | the sign-in dialog, OAuth, and the scopes it asks for |
+| `src/mode.js`, `public/mode.js` | day and night: the toggle in the bar, and the small script that picks one before the page is first drawn |
 | `src/hosts.js` | the hosts offered for making an account, for someone who hasn't got one |
 | `src/spaces.js` | group spaces for private asks (switched off) |
 | `ui/` | the app's screens: the board, an ask, profiles, posting an ask, the first-time welcome, loading placeholders |
@@ -346,6 +356,7 @@ In `core/`:
 | `garden.js` | works out gardens from records |
 | `comments.js` | puts an ask's comments into threads, whether they're Rainshare's or an issue's |
 | `route.js` | URLs, including fixing mistyped ones |
+| `mode.js` | day or night (the system's setting, or the toggle's choice), and the fade between them |
 | `markdown.js` | a small, safe Markdown renderer for specs |
 | `demo.js` | the example board at `/example`, served from fixtures and browser storage |
 

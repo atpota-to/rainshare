@@ -4,9 +4,12 @@
 //
 // It's drawn at the size it's shown, about thirty times a second, and holds still when it's
 // off screen, when the tab is hidden, and for anyone who has asked their system for less
-// motion (they get the still pose). It follows light and dark as day and night. Pointing at
+// motion (they get the still pose). It follows the site's day and night (../mode.js), turning
+// from one to the other as the page does. Pointing at
 // `touch` (the link the logo is in) gives the drop a wobble and sets the spark turning.
 import { drawLogo, LOOKS, FRAMES } from './drop.js';
+import { isNight, onMode } from '../mode.js';
+import { dusk, blend } from '../../core/mode.js';
 
 const GAP = 1000 / 31;             // between frames, in milliseconds
 const MOST = 144;                  // the most pixels across it's ever drawn at
@@ -14,7 +17,8 @@ const MOST = 144;                  // the most pixels across it's ever drawn at
 export function mountLogo(canvas, { touch = canvas, frame = FRAMES.mark } = {}){
   const ctx = canvas.getContext('2d');
   if (!ctx) return () => {};
-  const calm = matchMedia('(prefers-reduced-motion: reduce)'), night = matchMedia('(prefers-color-scheme: dark)');
+  const calm = matchMedia('(prefers-reduced-motion: reduce)'), turn = dusk(isNight());
+  let look = LOOKS[isNight() ? 'night' : 'day'];
   let picture = null, ratio = 0, raf = 0, last = -1, time = 0, nudged = -Infinity, seen = true, gone = false;
 
   function fit(){
@@ -23,14 +27,17 @@ export function mountLogo(canvas, { touch = canvas, frame = FRAMES.mark } = {}){
     if (!picture || n !== canvas.width) { canvas.width = canvas.height = n; picture = ctx.createImageData(n, n); }
   }
   function paint(){
-    drawLogo(picture.data, canvas.width, { t: time, look: night.matches ? LOOKS.night : LOOKS.day, frame, nudge: time - nudged });
+    drawLogo(picture.data, canvas.width, { t: time, look, frame, nudge: time - nudged });
     ctx.putImageData(picture, 0, 0);
   }
+  const shade = () => { look = blend(LOOKS.day, LOOKS.night, turn.mix); };
   function step(now){
     raf = requestAnimationFrame(step);
     if (last < 0) last = now - GAP;
     if (now - last < GAP - 2) return;
-    time += Math.min(.1, (now - last) / 1000); last = now;
+    const dt = Math.min(.1, (now - last) / 1000);
+    time += dt; last = now;
+    if (turn.step(dt)) shade();
     if ((window.devicePixelRatio || 1) !== ratio) fit();
     paint();
   }
@@ -38,9 +45,11 @@ export function mountLogo(canvas, { touch = canvas, frame = FRAMES.mark } = {}){
   function sync(){
     const run = !gone && seen && !document.hidden && !calm.matches;
     if (run && !raf) { last = -1; raf = requestAnimationFrame(step); }
-    if (!run && raf) { cancelAnimationFrame(raf); raf = 0; }
+    if (!run && raf) { cancelAnimationFrame(raf); raf = 0; if (turn.step(Infinity)) { shade(); paint(); } }      // stopped mid-turn: finish it
   }
   const still = () => { if (calm.matches) { time = 0; nudged = -Infinity; } fit(); paint(); sync(); };
+  // Day to night, or back: over a moment if it's moving, at once if it's holding still.
+  const turned = night => { turn.set(night, !raf); if (!raf) { shade(); paint(); } };
   const nudge = () => { if (!calm.matches && time - nudged > .9) nudged = time; };
 
   fit(); paint();                   // straight away, in the pose the still picture is in
@@ -49,7 +58,8 @@ export function mountLogo(canvas, { touch = canvas, frame = FRAMES.mark } = {}){
   const size = typeof ResizeObserver === 'function' ? new ResizeObserver(() => { fit(); paint(); }) : null;
   watch?.observe(canvas); size?.observe(canvas);
   document.addEventListener('visibilitychange', sync);
-  calm.addEventListener('change', still); night.addEventListener('change', still);
+  calm.addEventListener('change', still);
+  const unheard = onMode(turned);
   touch.addEventListener('pointerenter', nudge);
   sync();
 
@@ -57,7 +67,7 @@ export function mountLogo(canvas, { touch = canvas, frame = FRAMES.mark } = {}){
     gone = true; sync();
     watch?.disconnect(); size?.disconnect();
     document.removeEventListener('visibilitychange', sync);
-    calm.removeEventListener('change', still); night.removeEventListener('change', still);
+    calm.removeEventListener('change', still); unheard();
     touch.removeEventListener('pointerenter', nudge);
     delete canvas.dataset.live;
   };

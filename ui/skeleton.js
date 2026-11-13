@@ -14,14 +14,16 @@ const pill = w => `<i class="rs-sk rs-sk-pill" style="--w:${w}px"></i>`;
 const said = text => `<span class="rs-sr" role="status">${text}</span>`;
 const pick = (list, i) => list[i % list.length];
 
-// One card on the board: who, the title, one quiet line, and its plant.
-const CARDS = [['34%', '78%', '30%'], ['28%', '58%', '24%'], ['40%', '86%', '36%'], ['30%', '66%', '22%'], ['36%', '50%', '28%']];
+// One card on the board: who across the top, then the title and the start of the ask beside its plant.
+const CARDS = [['34%', '78%', '62%'], ['28%', '58%', '44%'], ['40%', '86%', '70%'], ['30%', '66%', '38%'], ['36%', '50%', '56%']];
 export const cardSk = (i = 0) => {
-  const [who, title, meta] = pick(CARDS, i);
+  const [who, title, ask] = pick(CARDS, i);
   return `<li aria-hidden="true"><div class="rs-item rs-sk-item">
     <span class="rs-item-top">${face('xs')}${line(who)}</span>
-    ${line(title, 'rs-sk-title')}
-    ${line(meta, 'rs-sk-meta')}
+    <span class="rs-item-main">
+      ${line(title, 'rs-sk-title')}
+      <span class="rs-item-ask">${line('96%', 'rs-sk-meta')}${line(ask, 'rs-sk-meta')}</span>
+    </span>
     ${plant(52)}
   </div></li>`;
 };

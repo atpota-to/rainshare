@@ -26,6 +26,7 @@ import {
   DynamicDrawUsage, LinearSRGBColorSpace
 } from 'three';
 import { makeNoise, mulberry, puffBatch, newCloud, shapeCloud, settleCloud, stageCloud } from './puffs.js';
+import { dusk, blend } from '../../core/mode.js';
 import { SKY, SKY_RAW, SUN_LIGHT, skyDome } from './sky.js';
 import { EYE, fit, alone } from './fit.js';
 import { buildPlant, disposePlant } from '../plants/models.js';
@@ -150,6 +151,8 @@ export function createGarden(canvas, { dark = false, frame: into = null, plots: 
   let unit = 60, aim = 2.55, sunk = 0;
   const rand = mulberry(20261112);
   const wide = mulberry(20261113);        // for what's out to the sides, so the garden itself is seeded as it always was
+  // Day or night, and the turn between them: `look` is whichever it is, or part of the way across.
+  const turn = dusk(dark);
   let look = LOOKS[dark ? 'night' : 'day'];
 
   const noiseTex = makeNoise(256, rand);
@@ -400,6 +403,12 @@ export function createGarden(canvas, { dark = false, frame: into = null, plots: 
   }
 
   /* day or night */
+  // The turn from one to the other, `seconds` further on: every colour and light part of the
+  // way across, and the stars coming out, or going in.
+  function dim(seconds){
+    if (!turn.step(seconds)) return;
+    look = blend(LOOKS.day, LOOKS.night, turn.mix); paint();
+  }
   function paint(){
     for (const k of RAW) C[k].setStyle(look[k], LinearSRGBColorSpace);
     sky.material.uniforms.uStars.value = look.stars; uFogMax.value = look.fogMax;
@@ -409,7 +418,7 @@ export function createGarden(canvas, { dark = false, frame: into = null, plots: 
     key.color.set(look.light); key.intensity = look.key;
     fill.color.set(look.hemiSky); fill.intensity = look.fill;
     shadeCol.set(look.shade);
-    gemMat.color.set(look.spark); gemMat.emissive.set(look.spark); gemMat.emissiveIntensity = look === LOOKS.night ? .9 : .5;
+    gemMat.color.set(look.spark); gemMat.emissive.set(look.spark); gemMat.emissiveIntensity = .5 + .4 * turn.mix;
     const r = new Color(look.rain), g = new Color(look.spark);
     for (let i = 0; i < DN; i++) { const c = drops[i].gold ? g : r; rainCol.setXYZ(i * 2, c.r, c.g, c.b); rainCol.setXYZ(i * 2 + 1, c.r, c.g, c.b); }
     rainCol.needsUpdate = true;
@@ -440,6 +449,7 @@ export function createGarden(canvas, { dark = false, frame: into = null, plots: 
   const at = { plots: new Float32Array(PLOTS.length * 2), cloud: new Float32Array(4), friend: new Float32Array(3), width: 1, left: 1, charge: 1, fresh: false };
   function draw(dt, snap, real = dt){
     if (lost) return;
+    dim(snap ? Infinity : dt);
     pose(time, dt, snap);
     uTime.value = time;
     advance(dt, snap);
@@ -528,7 +538,8 @@ export function createGarden(canvas, { dark = false, frame: into = null, plots: 
     },
     /** Put everything back as it was on arriving. */
     again(){ begin(); still(); },
-    setDark(on){ look = LOOKS[on ? 'night' : 'day']; paint(); still(); },
+    /** Night, or day. Running, it turns over a moment (TURN in core/mode.js); held still, it's there at once. */
+    setDark(on){ turn.set(on); still(); },
     /** Where in the canvas the garden goes: a frame, as ./fit.js takes it. */
     setFrame(to){ into = to; resize(); },
     /** Sink the garden `px` CSS pixels from where its frame puts it, as the page scrolls away. */
@@ -538,6 +549,7 @@ export function createGarden(canvas, { dark = false, frame: into = null, plots: 
       if (on === running) return;
       running = on; cancelAnimationFrame(raf);
       if (on) { last = -1; raf = requestAnimationFrame(frame); }
+      else if (turn.moving) { dim(Infinity); redraw(); }      // stopped mid-turn: finish it, so it isn't left at dusk
     },
     /** The pointer, from -1 to 1 across the scene, for a little parallax. */
     setPointer(x, y){ pointer.x = clamp(x, -1, 1); pointer.y = clamp(y, -1, 1); },

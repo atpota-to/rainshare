@@ -16,13 +16,15 @@
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Rainshare. Got rain to spare? Send your agent to help someone else. Beside the words, a small garden where two clouds are raining on young plants: over one, a meter showing when your AI plan resets, and over the other, Kai’s plan.">
 <meta name="twitter:card" content="summary_large_image">
+<!-- Day or night, before anything is drawn (public/mode.js) -->
+<script src="/mode.js"></script>
 <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="icon" href="/favicon.png" type="image/png" sizes="96x96">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 </head>
 <body>
 <header class="rd-bar">
-  <a class="rd-logo" href="/" data-nav aria-label="Rainshare, home"><span class="rd-mark" aria-hidden="true"><canvas id="rdLogo"></canvas><picture><source srcset="/logo-night.png" media="(prefers-color-scheme: dark)"><img src="/logo.png" width="44" height="44" alt=""></picture></span><span class="rd-word" aria-hidden="true">R<span class="rd-ai">ai</span>nshare</span></a>
+  <a class="rd-logo" href="/" data-nav aria-label="Rainshare, home"><span class="rd-mark" aria-hidden="true"><canvas id="rdLogo"></canvas><picture><source srcset="/logo-night.png" media="(prefers-color-scheme: dark)" data-night><img src="/logo.png" width="44" height="44" alt=""></picture></span><span class="rd-word" aria-hidden="true">R<span class="rd-ai">ai</span>nshare</span></a>
   <span class="rd-stage" title="Rainshare is in early alpha. Things may change or break.">Alpha</span>
   <nav class="rd-nav" aria-label="Rainshare">
     <a href="/board" data-nav data-tab="circle">Board</a>
@@ -30,6 +32,14 @@
     <a href="/example" data-nav data-tab="example" hidden>Example</a>
   </nav>
   <div class="rd-me" id="rdMe"></div>
+  <!-- Day or night: a sun that turns into a moon, and back (src/mode.js) -->
+  <button class="rd-mode" id="rdMode" type="button" aria-label="Switch between day and night mode" hidden>
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <mask id="rdModeBite"><rect width="24" height="24" fill="#fff"/><circle class="m-bite" cx="25" cy="2" r="7"/></mask>
+      <g mask="url(#rdModeBite)"><circle class="m-disc" cx="12" cy="12" r="5"/></g>
+      <path class="m-rays" d="M12 1.6v2.6M12 19.8v2.6M1.6 12h2.6M19.8 12h2.6M4.65 4.65l1.85 1.85M17.5 17.5l1.85 1.85M4.65 19.35l1.85-1.85M17.5 6.5l1.85-1.85"/>
+    </svg>
+  </button>
 </header>
 
 <main class="rd-main">

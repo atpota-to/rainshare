@@ -23,6 +23,7 @@ import {
 } from 'three';
 import { makeNoise, mulberry, puffBatch, newCloud, shapeCloud, settleCloud, stageCloud } from '../puffs.js';
 import { SKY, SKY_RAW, SUN_SEEN, SUN_LIGHT, skyDome } from '../sky.js';
+import { dusk, blend } from '../../../core/mode.js';
 
 /* ---------- small maths ---------- */
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
@@ -205,6 +206,8 @@ export function createWaterCycle(canvas, { dark = false, onFrame } = {}){
   const scene = new Scene();
   const camera = new PerspectiveCamera(44, 1, .5, 700);
   const rand = mulberry(20261110);
+  // Day or night, and the turn between them: `look` is whichever it is, or part of the way across.
+  const turn = dusk(dark);
   let look = LOOKS[dark ? 'night' : 'day'];
 
   const noise = makeNoise(256, rand);
@@ -534,6 +537,11 @@ export function createWaterCycle(canvas, { dark = false, onFrame } = {}){
   }
 
   /* day or night */
+  // The turn from one to the other, `seconds` further on.
+  function dim(seconds){
+    if (!turn.step(seconds)) return;
+    look = blend(LOOKS.day, LOOKS.night, turn.mix); paint();
+  }
   function paint(){
     for (const k of RAW) C[k].setStyle(look[k], LinearSRGBColorSpace);
     sky.material.uniforms.uStars.value = look.stars; uFogMax.value = look.fogMax;
@@ -574,8 +582,9 @@ export function createWaterCycle(canvas, { dark = false, onFrame } = {}){
   const pins = new Float32Array(8);
   function draw(dt, snap, real = dt){
     if (lost) return;
+    dim(snap ? Infinity : dt);
     ease(dt, snap); pose(time);
-    uTime.value = time; riverMat.uniforms.uGlow.value = weight[3]; rainMat.opacity = (look === LOOKS.night ? .62 : .5) + .2 * weight[2];
+    uTime.value = time; riverMat.uniforms.uGlow.value = weight[3]; rainMat.opacity = .5 + .12 * turn.mix + .2 * weight[2];
     puffs.begin(camera);
     moveClouds(time, dt, snap, weight[1]); moveMist(time, weight[0]); moveVeil(weight[2]); puffs.flush();
     moveSparks(time, weight[0]); moveRain(dt); moveSprouts(dt);
@@ -629,12 +638,14 @@ export function createWaterCycle(canvas, { dark = false, onFrame } = {}){
       for (let i = 0; i < 4; i++) { const q = (pins[i * 2] - x) ** 2 + (pins[i * 2 + 1] - y) ** 2; if (q < d) { d = q; best = i; } }
       return best;
     },
-    setDark(on){ look = LOOKS[on ? 'night' : 'day']; paint(); if (!running) draw(0, true); },
+    /** Night, or day. Running, it turns over a moment (TURN in core/mode.js); held still, it's there at once. */
+    setDark(on){ turn.set(on); if (!running) draw(0, true); },
     /** Animate, or hold still on the current frame. */
     setRunning(on){
       if (on === running) return;
       running = on; cancelAnimationFrame(raf);
       if (on) { last = -1; raf = requestAnimationFrame(frame); }
+      else if (turn.moving) draw(0, true);      // stopped mid-turn: finish it, so it isn't left at dusk
     },
     /** The pointer, from -1 to 1 across the scene, for a little parallax. */
     setPointer(x, y){ pointer.x = clamp(x, -1, 1); pointer.y = clamp(y, -1, 1); },
