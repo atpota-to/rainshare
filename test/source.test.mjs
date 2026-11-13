@@ -2,10 +2,11 @@
 // for everyone, and Bluesky's AppView, all answered by a stubbed fetch.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { SEED, TAKE, DELIVERY, PROFILE } from '../core/ns.js';
+import { SEED, TAKE, DELIVERY, PROFILE, COMMENT } from '../core/ns.js';
 import { createSource } from '../core/source.js';
 import { firstOf } from '../core/net.js';
 import { FOLLOW, tieOf } from '../core/ties.js';
+import { threads } from '../core/comments.js';
 
 const PDS = 'https://pds.test';
 const people = { me: 'did:plc:me', alice: 'did:plc:alice', bob: 'did:plc:bob', carol: 'did:plc:carol', dave: 'did:plc:dave', eve: 'did:plc:eve' };
@@ -267,14 +268,51 @@ test('one seed’s helpers come from Constellation, read from their own servers,
   assert.deepEqual(it.deliveries.map(d => d.repo), [people.carol]);
   assert.ok(scans() >= 2, 'the relay was asked instead');
 
-  // After the board has read everyone's, a seed's page uses that and asks the index nothing.
+  // After the board has read everyone's, a seed's page uses that, and asks the index only
+  // about comments (which the board doesn't read).
   index = { extra: [] }; asked = [];
   const src = createSource();
   await src.board();
   asked = [];
   it = await src.seed(uri);
   assert.deepEqual(it.takes.map(t => t.repo).sort(), [people.alice, people.me].sort());
-  assert.equal(asked.filter(a => a.includes('constellation')).length, 0);
+  assert.deepEqual(asked.filter(a => a.includes('constellation')).map(a => new URL(a).searchParams.get('source')), [COMMENT + ':seed.uri']);
+});
+
+test('comments: said on a seed and replied to, found through Constellation, and taken back only by whoever wrote them', async () => {
+  index = { extra: [] };
+  const uri = `at://${people.dave}/${SEED}/d1`;
+  const me = createSource({ agent: agent(people.me) });
+  let it = await me.seed(uri);
+  assert.deepEqual(it.comments, []);
+  const mine = await me.comment(it, { text: '  Does it need to work offline?  ' });
+  assert.equal(mine.value.text, 'Does it need to work offline?');
+  it = await me.seed(uri, { force: true });
+  assert.deepEqual(it.comments.map(c => c.uri), [mine.uri]);
+  assert.equal(it.comments[0].author.handle, 'me.test', 'and they’re named');
+  // Dave, who asked, answers it. A reply has to be on the same seed, and say something.
+  const dave = createSource({ agent: agent(people.dave) });
+  const his = await dave.seed(uri);
+  const answer = await dave.comment(his, { text: 'No, online is fine.', parent: his.comments[0] });
+  assert.deepEqual(answer.value.parent, { uri: mine.uri, cid: mine.cid });
+  await assert.rejects(dave.comment(await dave.seed(`at://${people.eve}/${SEED}/e1`), { text: 'Hm', parent: his.comments[0] }), /isn’t on this one/);
+  await assert.rejects(dave.comment(his, { text: '   ' }), /Write something/);
+  // Eve, whom I block, says something too: everyone else sees it, and I don't.
+  const eve = createSource({ agent: agent(people.eve) });
+  await eve.comment(await eve.seed(uri), { text: 'Look at my thing instead' });
+  it = await me.seed(uri, { force: true });
+  const t = threads(it.comments, uri);
+  assert.deepEqual(t.map(x => x.repo), [people.me]);
+  assert.deepEqual(t[0].replies.map(r => [r.repo, r.value.text]), [[people.dave, 'No, online is fine.']]);
+  assert.equal((await createSource().seed(uri)).comments.length, 3);
+  // Only whoever wrote one can delete it. Deleting mine leaves Dave's reply, as one to a comment that's gone.
+  await assert.rejects(me.uncomment(it, it.comments.find(c => c.repo === people.dave)), /Only the person who wrote/);
+  await me.uncomment(it, it.comments.find(c => c.repo === people.me));
+  it = await me.seed(uri, { force: true });
+  assert.deepEqual(threads(it.comments, uri).map(x => [x.repo, x.lost]), [[people.dave, true]]);
+  // With the index down, they're found the long way, like takes and deliveries.
+  index = null;
+  assert.deepEqual((await createSource().seed(uri)).comments.map(c => c.repo).sort(), [people.dave, people.eve].sort());
 });
 
 test('a slow or failing relay gets company: the next is asked, and the first answer wins', async () => {

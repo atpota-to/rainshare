@@ -8,7 +8,7 @@
 //             they're for is checked against the Bluesky graph (getRelationships, lists).
 //   private   records in a group's Rainshare space, through `spaces` and `groups`, which
 //             the site supplies (src/spaces.js and the group host). Members only.
-import { PROFILE, SEED, TAKE, DELIVERY } from './ns.js';
+import { PROFILE, SEED, TAKE, DELIVERY, COMMENT } from './ns.js';
 import * as net from './net.js';
 import * as R from './records.js';
 import { closeness, meantFor } from './circle.js';
@@ -92,8 +92,8 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     const lists = await net.pool(dids, 6, d => net.listRecords(d, collection, { pages: 2 }).catch(() => []));
     return lists.flat();
   }).then(list => layered(collection, list));
-  // The takes or deliveries that point at one seed. Reading everyone's to find them, as the
-  // board does, asks every server that holds any. For one seed's page, Constellation (an index
+  // The takes, deliveries or comments that point at one seed. Reading everyone's to find them,
+  // as the board does for takes and deliveries, asks every server that holds any. For one seed's page, Constellation (an index
   // of who links to what) names just the records that point at it, and each of those is read
   // from its owner's own server. What the board read a moment ago is used if it's there, and if
   // Constellation doesn't answer it's the long way round.
@@ -140,19 +140,25 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     return Promise.all(gs.map(async g => ({ ...g, ...(await groups.board(g.did).catch(e => ({ space: null, error: e }))) })));
   });
   const groupRecords = g => memo('space:' + g.space, async () => {
-    const { records } = await spaces.read(g.space, [SEED, TAKE, DELIVERY, PROFILE]);
+    const { records } = await spaces.read(g.space, [SEED, TAKE, DELIVERY, COMMENT, PROFILE]);
     return records;
   }, 20e3);
 
-  function attach(items, takes, deliveries, blocked = new Set()){
+  // What points at each seed, leaving out anyone you block. Comments are only read for one
+  // seed's page, so an item from the board has none attached (rather than an empty list).
+  function attach(items, takes, deliveries, blocked = new Set(), comments = null){
     const by = (list, uri) => list.filter(r => r.value?.seed?.uri === uri && !blocked.has(r.repo));
-    for (const it of items) { it.takes = by(takes, it.uri); it.deliveries = by(deliveries, it.uri); }
+    for (const it of items) {
+      it.takes = by(takes, it.uri); it.deliveries = by(deliveries, it.uri);
+      if (comments) it.comments = by(comments, it.uri);
+    }
     return items;
   }
   // Everyone is named as their Bluesky profile names them, unless their Rainshare profile gives
   // a name of its own (`displayName`), for Rainshare only.
   async function named(items){
-    const dids = [...new Set(items.flatMap(it => [it.repo, ...(it.takes || []).map(t => t.repo), ...(it.deliveries || []).map(d => d.repo)]))];
+    const others = it => [...(it.takes || []), ...(it.deliveries || []), ...(it.comments || [])];
+    const dids = [...new Set(items.flatMap(it => [it.repo, ...others(it).map(r => r.repo)]))];
     const [who, profs] = await Promise.all([people(dids), Promise.all(dids.map(d => publicProfile(d).then(r => r?.value || null, () => null)))]);
     const own = new Map(dids.map((d, i) => [d, profs[i]]));
     // A group copy of someone's profile is fuller than the public one, so its name wins.
@@ -160,7 +166,7 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     const as = d => shown(who.get(d) || { did: d }, own.get(d));
     for (const it of items) {
       it.author = as(it.repo);
-      for (const r of [...(it.takes || []), ...(it.deliveries || [])]) r.author = as(r.repo);
+      for (const r of others(it)) r.author = as(r.repo);
     }
     return items;
   }
@@ -207,7 +213,7 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
         const of = c => recs.filter(r => r.collection === c);
         const profs = new Map(of(PROFILE).filter(r => r.rkey === 'self').map(r => [r.repo, r.value]));
         const items = of(SEED).map(r => ({ uri: r.uri, cid: r.cid, repo: r.repo, rkey: r.rkey, value: r.value, space: g.space, group: g, closeness: closeness({ viewer, author: r.repo, group: true }) }));
-        attach(items, of(TAKE), of(DELIVERY));
+        attach(items, of(TAKE), of(DELIVERY), undefined, of(COMMENT));
         for (const it of items) it.profile = profs.get(it.repo) || null;
         // A group copy of someone's profile is fuller than their public one, so it wins everywhere.
         for (const v of visible) if (profs.has(v.repo)) v.profile = { ...(v.profile || {}), ...profs.get(v.repo) };
@@ -226,9 +232,9 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     return { items: visible, notes };
   }
 
-  /** One seed by its URI, with its takes, deliveries and author. Null if it's gone. */
+  /** One seed by its URI, with its takes, deliveries, comments and author. Null if it's gone. */
   async function seed(uri, { force } = {}){
-    if (force) forget('all:' + TAKE, 'all:' + DELIVERY, `to:${TAKE}:${uri}`, `to:${DELIVERY}:${uri}`);
+    if (force) forget('all:' + TAKE, 'all:' + DELIVERY, 'all:' + COMMENT, `to:${TAKE}:${uri}`, `to:${DELIVERY}:${uri}`, `to:${COMMENT}:${uri}`);
     const inSpace = splitSpaceUri(uri);
     if (inSpace) {
       const g = (await myGroups()).find(x => x.space === inSpace.space);
@@ -241,10 +247,10 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     if (!p || p.collection !== SEED) return null;
     const rec = await net.getRecordOrNull(p.repo, SEED, p.rkey);
     if (!rec) return null;
-    const [takes, deliveries, prof, blocked] = await Promise.all([pointingAt(uri, TAKE).catch(() => []), pointingAt(uri, DELIVERY).catch(() => []), publicProfile(p.repo).catch(() => null), myBlocks()]);
+    const [takes, deliveries, comments, prof, blocked] = await Promise.all([pointingAt(uri, TAKE).catch(() => []), pointingAt(uri, DELIVERY).catch(() => []), pointingAt(uri, COMMENT).catch(() => []), publicProfile(p.repo).catch(() => null), myBlocks()]);
     const rel = viewer && viewer !== p.repo ? (await net.relationships(viewer, [p.repo]).catch(() => new Map())).get(p.repo) : null;
     const item = { ...rec, space: null, group: null, rel, closeness: closeness({ viewer, author: p.repo, rel }), profile: prof?.value || null };
-    attach([item], takes, deliveries, blocked);
+    attach([item], takes, deliveries, blocked, comments);
     // How you know whoever asked, and each person on it or who turned something in.
     const helpers = [...item.takes, ...item.deliveries];
     const [ties] = await Promise.all([viewer ? tiesOf([p.repo, ...helpers.map(r => r.repo)]).catch(() => new Map()) : new Map(), named([item])]);
@@ -348,9 +354,26 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     return rec;
   }
 
+  // Saying something on a seed, or replying to a comment on it. Anyone who can see it can.
+  async function comment(item, { text, parent } = {}){
+    const record = R.comment({ seed: item, parent, text });
+    const r = await into(item.space).create(COMMENT, record);
+    const rec = { uri: r.uri, cid: r.cid, repo: viewer, rkey: String(r.uri || '').split('/').pop(), value: record, space: item.space || null };
+    remember(COMMENT, rec);
+    forget('all:' + COMMENT, `to:${COMMENT}:${item.uri}`); if (item.space) forget('space:' + item.space);
+    return rec;
+  }
+  // Taking one of your own comments back. Replies to it stay, as replies to one that's gone.
+  async function uncomment(item, c){
+    if (!c || c.repo !== viewer) throw new SourceError('NotYourComment', 'Only the person who wrote a comment can delete it.');
+    await into(item.space).del(COMMENT, c.rkey);
+    forgetRecord(c.uri);
+    forget('all:' + COMMENT, `to:${COMMENT}:${item.uri}`); if (item.space) forget('space:' + item.space);
+  }
+
   return {
     viewer, signedIn: !!viewer, canPrivate: !!(spaces && groups),
-    board, seed, profileOf, saveProfile, plant, update, remove, take: takeOn, drop, turnIn,
+    board, seed, profileOf, saveProfile, plant, update, remove, take: takeOn, drop, turnIn, comment, uncomment,
     forget: () => forget(),
     groups: () => myGroups(),
     addToGroup: async did => { const space = await groups.add(did); forget('groups'); return space; },

@@ -2,7 +2,7 @@
 // (plain data) behind it, because the Vercel function behind /oauth-client-metadata.json imports it too
 // (api/oauth-client-metadata.js): a hosted client whose document declares less than the app
 // asks for fails every sign-in, so both come from here.
-import { GROUPS, FORGE_SCOPES } from '../core/ns.js';
+import { GROUPS, FORGE_SCOPES, COLLECTIONS } from '../core/ns.js';
 
 const env = import.meta.env || {};
 
@@ -13,7 +13,8 @@ export const AUD = HOST_DID + '#opensocial';
 export const NS = 'fyi.opensocial';
 export const PLC = env.VITE_PLC_URL || 'https://plc.directory';
 
-export const RAINSHARE = ['dev.rainshare.profile', 'dev.rainshare.seed', 'dev.rainshare.take', 'dev.rainshare.delivery'];
+// Every Rainshare record type: profiles, seeds, takes, deliveries and comments.
+export const RAINSHARE = COLLECTIONS;
 // The host methods Rainshare calls: your groups, a group's spaces, and adding Rainshare to one.
 export const METHODS = ['getActorGroups', 'getGroup', 'createSpace'];
 
@@ -22,14 +23,14 @@ const rpc = m => `rpc:${NS}.${m}?aud=${A}`;
 
 // Your own Rainshare records, asked for two ways. Rainshare publishes a permission set that
 // grants them (lexicons/dev/rainshare/authFull.json), and a server that can look it up shows
-// its title and a sentence on the page it signs you in on, in place of four record types by
+// its title and a sentence on the page it signs you in on, in place of each record type by
 // name. A server that can't refuses it (invalid_scope), and is asked for the records by name:
 // the same permissions, worded by the server. See `ladder`.
 export const PERMISSION_SET = 'dev.rainshare.authFull';
 export const OWN = { set: `include:${PERMISSION_SET}`, named: RAINSHARE.map(c => `repo:${c}`).join(' ') };
 
 // With groups off (GROUPS in ../core/ns.js), sign-in asks for nothing but your own Rainshare
-// records: your public seeds, takes, deliveries and profile. `own` is one of OWN's two.
+// records: your public seeds, takes, deliveries, comments and profile. `own` is one of OWN's two.
 //
 // Any atproto account: those, and finding your groups.
 const basic = own => ['atproto', own, ...(GROUPS ? METHODS.map(rpc) : [])].join(' ');

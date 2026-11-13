@@ -5,7 +5,7 @@
 import { wateredBy } from './garden.js';
 import { writableForge } from './forgewrite.js';
 import { repoPageOf, knotlessIssueSubject, knotlessPage } from './subjects.js';
-import { PROFILE, SEED, TAKE, DELIVERY } from './ns.js';
+import { PROFILE, SEED, TAKE, DELIVERY, COMMENT } from './ns.js';
 import * as R from './records.js';
 import { closeness } from './circle.js';
 import { shown } from './source.js';
@@ -111,6 +111,16 @@ const DELIVERIES = [
   { id: '3dl-you-priya', by: ME, on: '3sq-priya-done', at: 18 * day, value: { url: 'https://github.com/you-example/recipe-footprint', setup: { harness: 'claude-code', models: ['claude-sonnet-5-5'] }, note: 'One page, no accounts. The numbers are rough and say so.' } },
   { id: '3dl-you-tomas', by: ME, on: '3sq-tomas-done', at: 27 * day, state: 'merged', value: { url: 'https://tangled.org/tomas.example/tidepool/pulls/29', setup: { harness: 'claude-code', models: ['claude-sonnet-5-5'] } } }
 ];
+// What people have said on a few of them: a question and its answer, a thank-you, and a note
+// on one of your own that you can reply to. `to` is the comment one replies to.
+const COMMENTS = [
+  { id: '3cm-kai-amara', by: 'did:example:kai', on: '3sq-amara', at: 2 * day + 3600e3, value: { text: 'Should the calendar file have past shifts in it too, or only the ones coming up?' } },
+  { id: '3cm-amara-kai', by: 'did:example:amara', on: '3sq-amara', to: '3cm-kai-amara', at: 2 * day, value: { text: 'Only the ones coming up. The next three months is plenty: people mostly want next weekend.' } },
+  { id: '3cm-sam-juniper', by: 'did:example:sam', on: '3sq-juniper', at: 3600e3, value: { text: 'My students would get a lot out of this too. Happy to test it with a screen reader once there’s a branch.' } },
+  { id: '3cm-juniper-sam', by: 'did:example:juniper', on: '3sq-juniper', to: '3cm-sam-juniper', at: 1800e3, value: { text: 'Yes please! I’ll link it here as soon as someone’s on it.' } },
+  { id: '3cm-juniper-you', by: 'did:example:juniper', on: '3sq-you', at: 4 * day - 3600e3, value: { text: 'I took both at 1280×800, the size the old ones were. Shout if you’d like them bigger.' } },
+  { id: '3cm-tomas-done', by: 'did:example:tomas', on: '3sq-tomas-done', at: 26 * day, value: { text: 'Merged, and it’s in the 0.9 release. Thank you, this was the bug people hit most.' } }
+];
 // Tangled vouches, for the example: the two people you vouch for, and who each of them
 // vouches for. So Tomás and Juniper carry a mark you never gave them yourself.
 const MY_VOUCHES = {
@@ -134,7 +144,7 @@ const MY_PROFILE = {
 // the example has no group seed, no groups to share a profile with, and nothing kept back.
 export function createDemoSource({ store = null, me: meOverride = null, groups = true } = {}){
   const saved = store?.get('rainshare') || {};
-  const state = { profile: saved.profile || MY_PROFILE, hidden: groups ? saved.hidden || ['budget'] : [], share: groups ? saved.share ?? [GROUP.did] : [], mine: saved.mine || [], takes: saved.takes || [], deliveries: saved.deliveries || [], removed: saved.removed || [], edits: saved.edits || {}, added: saved.added || [], vouches: saved.vouches || MY_VOUCHES };
+  const state = { profile: saved.profile || MY_PROFILE, hidden: groups ? saved.hidden || ['budget'] : [], share: groups ? saved.share ?? [GROUP.did] : [], mine: saved.mine || [], takes: saved.takes || [], deliveries: saved.deliveries || [], comments: saved.comments || [], removed: saved.removed || [], edits: saved.edits || {}, added: saved.added || [], vouches: saved.vouches || MY_VOUCHES };
   const save = () => store?.set('rainshare', state);
   const me = { did: ME, handle: meOverride?.handle || 'you.example', displayName: meOverride?.displayName || 'You', avatar: meOverride?.avatar || null };
 
@@ -156,6 +166,11 @@ export function createDemoSource({ store = null, me: meOverride = null, groups =
     // What the forge would say is part of the pretence (`state` on a delivery, `forge` on a
     // seed): for real seeds it's asked of GitHub or Tangled, in status.js.
     const dels = [...DELIVERIES.map(d => ({ ...rec(on(d), DELIVERY), ties: tiesOf(d.by), ...(d.state ? { state: d.state } : {}) })), ...state.deliveries.map(d => ({ ...d, author: me }))];
+    // A reply points at the comment it answers the same way.
+    const comms = [...COMMENTS.map(c => {
+      const r = rec(on(c), COMMENT), to = c.to && COMMENTS.find(x => x.id === c.to);
+      return to ? { ...r, value: { ...r.value, parent: { uri: uriOf(to.by, COMMENT, to.id, groupOf(SEEDS.find(q => q.id === to.on))), cid: cidOf(to.id) } } } : r;
+    }), ...state.comments.map(c => ({ ...c, author: me }))];
     return all.map(x => {
       const r = rec(x, SEED);
       const mine = x.by === ME, priv = !!x.private, g = groupOf(x);
@@ -166,7 +181,8 @@ export function createDemoSource({ store = null, me: meOverride = null, groups =
         closeness: mine ? 'self' : priv ? 'group' : closeness({ viewer: ME, author: x.by, rel: relOf(x.by) }), ties: tiesOf(x.by),
         profile: mine ? state.profile : PEOPLE[x.by]?.profile || null,
         takes: takes.filter(t => t.value.seed?.uri === sqUri),
-        deliveries: dels.filter(d => d.value.seed?.uri === sqUri)
+        deliveries: dels.filter(d => d.value.seed?.uri === sqUri),
+        comments: comms.filter(c => c.value.seed?.uri === sqUri)
       };
     }).map(it => {
       // One that sprouted before you arrived names the work that did it, as a real one would.
@@ -221,8 +237,18 @@ export function createDemoSource({ store = null, me: meOverride = null, groups =
       const d = { uri: uriOf(ME, DELIVERY, id, item.group), cid: cidOf(id), repo: ME, rkey: id, value };
       state.deliveries.push(d); save(); return pause(d);
     },
+    async comment(item, { text, parent } = {}){
+      const value = R.comment({ seed: item, parent, text });
+      const id = tid('cm');
+      const c = { uri: uriOf(ME, COMMENT, id, item.group), cid: cidOf(id), repo: ME, rkey: id, value };
+      state.comments.push(c); save(); return pause(c);
+    },
+    async uncomment(item, c){
+      if (c?.repo !== ME) throw new Error('Only the person who wrote a comment can delete it.');
+      state.comments = state.comments.filter(x => x.uri !== c.uri); save(); return pause();
+    },
     forget(){},
-    reset(){ store?.set('rainshare', null); Object.assign(state, { profile: MY_PROFILE, hidden: groups ? ['budget'] : [], share: groups ? [GROUP.did] : [], mine: [], takes: [], deliveries: [], removed: [], edits: {}, added: [], vouches: MY_VOUCHES }); },
+    reset(){ store?.set('rainshare', null); Object.assign(state, { profile: MY_PROFILE, hidden: groups ? ['budget'] : [], share: groups ? [GROUP.did] : [], mine: [], takes: [], deliveries: [], comments: [], removed: [], edits: {}, added: [], vouches: MY_VOUCHES }); },
     groups: () => Promise.resolve(!groups ? [] : [GROUP, { ...HACKERS, space: state.added.includes(HACKERS.did) ? HACKERS.space : null, canAdd: true }]),
     reach: () => Promise.resolve({ following: 312, followers: 1204, mutuals: 84 }),
     addToGroup: async did => { if (!state.added.includes(did)) state.added.push(did); save(); return pause(GROUPS[did]?.space || `at://${did}/space/dev.rainshare.board/rainshare`); },

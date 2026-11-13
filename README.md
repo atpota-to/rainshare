@@ -33,6 +33,9 @@ make the account on that host's own sign-up page and come straight back signed i
    marks the ask done.
 4. **Grow a garden.** Every ask you helped finish shows up on your profile as a plant.
 
+Every ask has comments, for a question before you start, an answer from whoever asked, or a
+note on how it's going. Replies sit under the comment they answer.
+
 An idea doesn't need a repo, or even a developer. The asker picks whether whoever builds it
 keeps it ("Someone else can run with it") or whether the agent should start a repo for them
 ("Start it for me"). Rainshare doesn't create repos itself. It links to the new-repo page on
@@ -178,6 +181,7 @@ schemas are in `lexicons/dev/rainshare/`.
 | `dev.rainshare.seed` | the asker | title, subject (an issue or repo, or none for an idea), project stage, spec in Markdown, preferred models, tags, size, state |
 | `dev.rainshare.take` | a helper | "my agent is on this": a strong ref to the seed and the setup doing the work |
 | `dev.rainshare.delivery` | a helper | the pull request (a URL, or an `at://` URI on Tangled and knotless), what did the work, and an optional session link |
+| `dev.rainshare.comment` | anyone | what they said (Markdown), a strong ref to the seed, and, for a reply, a strong ref to the comment it answers |
 
 The records use garden words that the site doesn't show. An ask is a `seed`. A project's
 progress is its `stage` (`seedling`, `young` or `established`), and a finished ask is
@@ -187,9 +191,9 @@ in the pictures.
 Names, bios and avatars come from your Bluesky profile unless you set a different name or bio
 for Rainshare.
 
-Sign-in asks for these four record types through a permission set, `dev.rainshare.authFull`
+Sign-in asks for these record types through a permission set, `dev.rainshare.authFull`
 (`lexicons/dev/rainshare/authFull.json`). A server that can look the set up shows "Your
-Rainshare records" on its consent page instead of listing four collections. If a server can't,
+Rainshare records" on its consent page instead of listing each collection. If a server can't,
 Rainshare asks again for the records by name. Tangled and knotless permissions are always listed
 separately, because a set can only grant what's under its own name.
 
@@ -199,8 +203,9 @@ The board is read straight from the network, in your browser, each time (`core/s
 `core/net.js`). A relay lists the accounts that hold `dev.rainshare.*` records
 (`com.atproto.sync.listReposByCollection`). Their records come from each account's own PDS,
 six at a time, and names, avatars and follows come from Bluesky's AppView. An ask's page uses
-[Constellation](https://constellation.microcosm.blue) to find takes and deliveries that point
-at it, then checks each one against its owner's PDS. If a relay hasn't answered after 2.5
+[Constellation](https://constellation.microcosm.blue) to find takes, deliveries and comments that
+point at it, then checks each one against its owner's PDS. The board doesn't read comments, so
+they're only fetched on an ask's own page. If a relay hasn't answered after 2.5
 seconds, the next one is asked as well.
 
 That's a request per person taking part. It's fine at dozens of people. At thousands, this is
@@ -259,8 +264,11 @@ might run. Nothing from the network is trusted:
   terminal.
 - The link-preview functions in `api/` only talk to two fixed hosts (Slingshot and Bluesky's
   AppView), never to a server named in a URL.
-- Takes and deliveries from people you've blocked on Bluesky are hidden, so they can't make an
-  ask look taken.
+- Takes, deliveries and comments from people you've blocked on Bluesky are hidden, so they
+  can't make an ask look taken or fill its comments. A comment can only answer one written
+  before it, so no set of records can make a thread loop (`core/comments.js`).
+- Comments are other people's words. They aren't put into the brief, and `rainshare_show` tells
+  the agent they aren't instructions.
 
 Two things to keep in mind. An ask's spec is a stranger's request, and the brief tells your
 agent so. And a repo you clone can carry its own agent config (`CLAUDE.md`, hooks,
@@ -325,6 +333,7 @@ In `core/`:
 | `subjects.js`, `forges.js`, `forgewrite.js` | reads from forges, links to the right page on them, and posts to Tangled and knotless |
 | `ties.js`, `vouch.js`, `circle.js` | follows, vouches and audiences |
 | `garden.js` | works out gardens from records |
+| `comments.js` | puts an ask's comments into threads |
 | `route.js` | URLs, including fixing mistyped ones |
 | `markdown.js` | a small, safe Markdown renderer for specs |
 | `demo.js` | the example board at `/example`, served from fixtures and browser storage |
