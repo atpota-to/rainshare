@@ -3,7 +3,7 @@
 // line of text. Where it stands (progressOf) is also a single word, which the screens colour,
 // so whether anyone's on it, or it's done, can be told at a glance.
 import { labelOf, SIZES, HARNESSES, PLANS, UNPAID, plansIn, audienceOf, modelName } from './ns.js';
-import { describeSubject, kindOf, FORGE_NAMES, pullPageOf, pullNumber } from './subjects.js';
+import { describeSubject, kindOf, FORGE_NAMES, pullPageOf, pullNumber, safeHttp } from './subjects.js';
 import { join, modelReach, wantedOf, wantPhrase } from './rank.js';
 import { tieOf, TIE_SHORT } from './ties.js';
 
@@ -99,7 +99,8 @@ export const wantsShort = sq => { const p = wantPhrase(sq); return p ? 'wants ' 
  *            [{ did, author, mine, took, turnedIn, didIt, setup, note, pulls }]
  *            (`took` and `turnedIn` are when, or null; `didIt`: the asker marked it done with their work)
  *            Whoever did it comes first, then whoever turned something in, then the rest, earliest first.
- *   pulls    what's been turned in, newest first: [{ uri, link, number, state, didIt, did }]
+ *   pulls    what's been turned in, newest first: [{ uri, link, number, state, didIt, did, note, session }]
+ *            (`note` is what the helper said with it, or ''; `session` a link to the agent's session, or null)
  *            (`link` is a page to open, or null; `state` is what the forge said, once it's been asked:
  *            'open', 'merged', 'closed', or null)
  */
@@ -119,7 +120,7 @@ export function progressOf(item, viewer){
   // (Oldest first, so the setup said with the latest turn-in is the one shown: it's what did the work.)
   for (const d of [...deliveries].sort((a, b) => String(a.value?.createdAt || '').localeCompare(String(b.value?.createdAt || '')))) {
     const h = of(d), link = pullPageOf(d.value, sq.subject) || null;
-    const pull = { uri: d.uri, link, number: pullNumber(link), state: d.state || null, didIt: accepted.has(d.uri), did: d.repo };
+    const pull = { uri: d.uri, link, number: pullNumber(link), state: d.state || null, didIt: accepted.has(d.uri), did: d.repo, note: String(d.value?.note || ''), session: safeHttp(d.value?.sessionUrl) || null };
     h.turnedIn = latest(h.turnedIn, d.value?.createdAt || null); h.setup = d.value?.setup || h.setup; h.didIt ||= pull.didIt;
     h.pulls.unshift(pull); pulls.unshift(pull);
   }
