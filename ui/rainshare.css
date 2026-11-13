@@ -107,13 +107,15 @@
 .rs-item-top time{margin-left:auto;color:var(--rs-muted);font-size:13px;white-space:nowrap}
 .rs-item-title{font-size:17px;font-weight:650;letter-spacing:-.01em;line-height:1.3;overflow-wrap:anywhere}
 .rs-item-line{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;min-height:18px;font-size:13px;font-weight:500;color:var(--rs-muted)}
-.rs-item-taken{margin-left:auto;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;font-weight:650}
+/* where it stands, and who's helping, on a row of its own under the rest, starting where the rest does */
+.rs-item-taken{flex:0 0 100%;min-width:0;white-space:nowrap;display:flex;align-items:center;gap:6px;font-weight:650}
 /* where it stands, beside the faces of whoever's helping: blue while someone's on it, green once something's turned in */
 .rs-item-taken.rs-on-it{color:var(--rs-accent-text)}
 .rs-item-taken.rs-turned-in,.rs-item-taken.rs-done{color:var(--rs-ok)}
 /* what's been turned in, as a chip, so a pull request stands out down the list */
 .rs-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px 3px 7px;border-radius:999px;background:var(--rs-ok-soft);line-height:1.2}
 .rs-chip .rs-i{width:15px;height:15px}
+.rs-item-taken .rs-faces{padding-left:0}
 .rs-item-taken .rs-face.sm{width:20px;height:20px;font-size:9px;box-shadow:0 0 0 2px var(--rs-bg-card)}
 /* the glyphs the app shares with the landing's scene: a forecast's sky, and where a seed is in its life */
 .rs-sky,.rs-life{width:20px;height:20px}
