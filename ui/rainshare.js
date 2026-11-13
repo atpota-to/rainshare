@@ -20,7 +20,7 @@
 // host.landing), shows the board under it there. The board's own address is then 'board', and
 // every way back to the board leads there, to the board on its own.
 import { SEED, STAGE, FEATURES, PLANS, UNPAID, plansIn, HARNESSES, MODELS, RUNS_ON, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, labelOf, modelName } from '../core/ns.js';
-import { describeSubject, cloneUrlOf, safeHttp, pullPageOf, FORGE_NAMES } from '../core/subjects.js';
+import { describeSubject, cloneUrlOf, safeHttp, pullPageOf, pullState, FORGE_NAMES } from '../core/subjects.js';
 import { look, carry, standing } from '../core/status.js';
 import { newRepoPlaces, placesFor } from '../core/forges.js';
 import { writableForge, pickSource, pullText, FORGE_SAID } from '../core/forgewrite.js';
@@ -29,12 +29,12 @@ import { tieOf, tieLines, knownText, TIE_SHORT, FROM, fromMatches } from '../cor
 import { wateredText } from '../core/garden.js';
 import { audienceLine } from '../core/circle.js';
 import { rank, fit, join, pretty } from '../core/rank.js';
-import { whereText, shortWhere, jobAndNotes, jobShort, modelsText, onItText, takenShort, relationText, askExcerpt, stateText, pictureOf, nounOf, aNoun, whatItIs, planText } from '../core/words.js';
+import { whereText, shortWhere, jobAndNotes, jobShort, modelsText, progressOf, progressShort, relationText, askExcerpt, stateText, pictureOf, nounOf, aNoun, whatItIs, planText } from '../core/words.js';
 import { renderMarkdown } from '../core/markdown.js';
 import { brief, launchers, pageOf, readHandBack, readBranchBack, sh, INSTALL, MCP_ADD, CLI_HOME } from '../core/brief.js';
 import { strongRef, HARNESS_NAMES } from '../core/records.js';
 import { resolveHandle, knownPerson, parseUri, profiles } from '../core/net.js';
-import { esc, lit, unb64url, ago, until, nameOf, firstName, ico, skyIco, lifeIco, lifeOf, face, drops, pathOf, plantPic, avatarFallback, tip, tipLink, toggleTip } from './bits.js';
+import { esc, lit, unb64url, ago, until, nameOf, firstName, ico, skyIco, lifeIco, face, drops, pathOf, plantPic, avatarFallback, tip, tipLink, toggleTip } from './bits.js';
 import { createPoster } from './post.js';
 import { openWelcome, shouldWelcome } from './welcome.js';
 import { headSk, boardSk, seedSk, personSk, gardenSk, meSk, listSk } from './skeleton.js';
@@ -252,24 +252,31 @@ export function createRainshare({ root, base = '/', host }){
     }[S.from];
     return `<p class="rs-empty">${esc(said)} <button class="rs-link" type="button" data-rs-from="anyone">Show everyone’s</button></p>`;
   }
-  // Narrowed to the ones nobody's on yet, if you chose to: nobody's said they're on it, and
-  // nothing's been turned in.
-  const nobodyOn = it => lifeOf(it) === 'seed';
-  const narrowShow = items => S.show === 'free' ? items.filter(nobodyOn) : items;
-  const SHOW = [['all', 'Everything open'], ['free', 'Nobody on it yet']];
+  // Narrowed to where they stand, if you chose to: nobody's on it yet (nobody's said they're on
+  // it, and nothing's been turned in), someone's on it, or something's been turned in (a pull
+  // request, or for an idea, what someone built), which is waiting to be looked at.
+  const SHOW = [['all', 'Everything open'], ['free', 'Nobody on it yet'], ['on-it', 'In progress'], ['turned-in', 'Turned in']];
+  const SHOW_HINT = {
+    free: 'Nobody’s said they’re on it, and nothing’s been turned in.',
+    'on-it': 'Someone’s said they’re on it, and nothing’s been turned in yet.',
+    'turned-in': 'There’s a pull request for it, or for an idea, something someone built.'
+  };
+  const standsAs = it => { const k = progressOf(it, viewer()).key; return k === 'open' ? 'free' : k; };
+  const shows = (k, it) => k === 'all' || standsAs(it) === k;
+  const narrowShow = items => items.filter(it => shows(S.show, it));
   const showRow = items => `<div class="rs-from" role="group" aria-label="Which ones">${SHOW.map(([k, l]) => {
-    const n = k === 'all' ? items.length : items.filter(nobodyOn).length;
-    return `<button type="button" data-rs-show="${k}" aria-pressed="${S.show === k}"${n === 0 && S.show !== k ? ' class="rs-from-none"' : ''}>${esc(l)}<span class="rs-from-n">${n}</span></button>`;
+    const n = items.filter(it => shows(k, it)).length;
+    return `<button type="button" data-rs-show="${k}" aria-pressed="${S.show === k}"${SHOW_HINT[k] ? ` title="${esc(SHOW_HINT[k])}"` : ''}${n === 0 && S.show !== k ? ' class="rs-from-none"' : ''}>${esc(l)}<span class="rs-from-n">${n}</span></button>`;
   }).join('')}</div>`;
-  const showEmpty = () => `<p class="rs-empty">Someone’s on each of these already. <button class="rs-link" type="button" data-rs-show="all">Show them</button></p>`;
+  const showEmpty = () => `<p class="rs-empty">${esc({ free: 'Someone’s on each of these already.', 'on-it': 'Nobody’s in the middle of any of these right now.', 'turned-in': 'Nothing’s been turned in for any of these yet.' }[S.show] || '')} <button class="rs-link" type="button" data-rs-show="all">Show everything open</button></p>`;
   // Over the list: how it's sorted, and a button that folds out what narrows it (who asked,
   // and whether anyone's on it). Whatever is narrowing it shows beside the button while it's
   // folded away, each a press from undone.
   function tools(all, byFrom){
-    const fromLabel = (FROM.find(([k]) => k === S.from) || [])[1];
+    const fromLabel = (FROM.find(([k]) => k === S.from) || [])[1], showLabel = (SHOW.find(([k]) => k === S.show) || SHOW[0])[1];
     const on = [
       signedIn() && S.from !== 'anyone' && fromLabel ? `<button type="button" data-rs-from="anyone" aria-label="${esc(`Stop showing only ${fromLabel.toLowerCase()}`)}">${esc(fromLabel)}${ico('close')}</button>` : '',
-      S.show === 'free' ? `<button type="button" data-rs-show="all" aria-label="Show the ones someone’s on too">Nobody on it yet${ico('close')}</button>` : ''
+      S.show !== 'all' ? `<button type="button" data-rs-show="all" aria-label="${esc(`Stop showing only ${showLabel.toLowerCase()}`)}">${esc(showLabel)}${ico('close')}</button>` : ''
     ].filter(Boolean);
     const open = !!S.open.filters;
     return `<div class="rs-tools">
@@ -290,18 +297,72 @@ export function createRainshare({ root, base = '/', host }){
     const rel = mine ? '' : relationText(it, viewer());
     let line;
     if (!isOpen(it)) line = `<span class="rs-state${sq.state === 'sprouted' ? ' rs-ok' : ''}">${sq.state === 'sprouted' ? lifeIco('sprouted') : ''}${esc(stateText(sq))}</span>`;
-    else if (mine) line = `<span>Yours${(it.deliveries || []).length ? ` · ${it.deliveries.length} turned in` : ''}</span>`;
+    else if (mine) line = '<span>Yours</span>';   // (what's been turned in is on the right, with who)
     else if (it.fit) line = `${drops(it.fit.level)}<span class="rs-fit-l">${esc(it.fit.label)}</span>`;
     else line = `<span>${esc([shortWhere(sq), jobShort(sq)].filter(Boolean).join(' · '))}</span>`;
-    const taken = isOpen(it) ? takenShort(it, viewer()) : '';
+    const pr = progressOf(it, viewer()), short = progressShort(it, viewer());
+    const who = pr.helpers.filter(h => pr.key === 'done' ? h.didIt : pr.key === 'turned-in' ? h.turnedIn : true).slice(0, 3);
+    // (What's been turned in, a pull request or what someone built, is a chip of its own, so it stands out down the list.)
+    const faces = who.length ? `<span class="rs-faces" aria-hidden="true">${who.map(h => face(h.author, 'sm')).join('')}</span>` : '';
+    const taken = !short ? '' : pr.key === 'turned-in' ? `<span class="rs-item-taken rs-turned-in">${faces}<span class="rs-chip">${ico(pr.idea ? 'link' : 'pull')}${esc(short)}</span></span>`
+      : `<span class="rs-item-taken rs-${pr.key}">${faces}${esc(short)}</span>`;
     return `<li><a class="rs-item${on ? ' on' : ''}" href="${esc(href(pathOf(it)))}" ${nav ? `data-rs-go="${esc(pathOf(it))}"` : `data-rs-pick="${esc(it.uri)}"`}${on ? ' aria-current="true"' : ''}>
       <span class="rs-item-top">${face(p, 'xs')}<span class="rs-item-who"><b>${esc(mine ? 'You' : nameOf(p))}</b>${mine ? '' : hat(it.repo)}${rel ? `<span> · ${it.space ? ico('lock') : ''}${esc(rel)}</span>` : ''}</span><time>${esc(ago(sq.createdAt))}</time></span>
       <span class="rs-item-title">${esc(sq.title)}</span>
-      <span class="rs-item-line">${line}${taken ? `<span class="rs-item-taken">${lifeIco(lifeOf(it))}${esc(taken)}</span>` : ''}</span>
+      <span class="rs-item-line">${line}${taken}</span>
       ${plantPic(pictureOf(sq), 52, { key: it.uri })}
     </a></li>`;
   }
-  // Where, the job, what they'd like and who's on it, each as a plain line.
+  // Where it stands, in a word that's coloured to match (open, in progress, turned in, done,
+  // closed), and a row for each person on it or who turned something in: their face, name and
+  // handle, what they did and when, each a press from their profile. A take only says someone
+  // started, so the row says when, rather than claiming they're at it this minute.
+  const PROGRESS_LIFE = { open: 'seed', 'on-it': 'rain', 'turned-in': 'up', done: 'sprouted', closed: 'seed' };
+  function progressNote(it, key){
+    const mine = it.repo === viewer(), who = firstName(it.author);
+    if (key === 'open') return 'Nobody’s on it yet.';
+    if (key === 'turned-in' && !mine) return (it.deliveries || []).some(d => d.state === 'merged') ? `Merged. Waiting for ${who} to mark it done.` : `Waiting for ${who} to look it over.`;
+    if (key === 'closed') return mine ? 'You’re not looking for help with it now.' : `${who} isn’t looking for help with it now.`;
+    return '';
+  }
+  // What someone turned in, under their row: the pull request (or, for an idea, where what they
+  // built lives), opened on its own page, with what the forge says about it once it's been asked.
+  const PULL_STATE = { open: ['Open', ''], merged: ['Merged', ' rs-ok'], closed: ['Closed', ' rs-dim'] };
+  function pullLink(pl, { idea, forge, example, mine }){
+    const label = idea ? (mine ? 'What you built' : 'What they built') : `Pull request${pl.number ? ' #' + pl.number : ''}${forge ? ' on ' + forge : ''}`;
+    const st = PULL_STATE[pl.state], inner = `${ico(idea ? 'link' : 'pull')}<span class="rs-helper-pull-l">${esc(label)}</span>${st ? `<span class="rs-status${st[1]}">${st[0]}</span>` : ''}`;
+    // (The example's pull requests are made up, so they aren't links.)
+    return pl.link && !example ? `<a class="rs-helper-pull" href="${esc(pl.link)}" target="_blank" rel="noopener nofollow">${inner}${ico('out', 'rs-helper-out')}</a>` : `<span class="rs-helper-pull">${inner}</span>`;
+  }
+  function helperRow(h, ctx){
+    const p = h.author || {}, handle = !h.mine && p.displayName && p.handle ? '@' + p.handle : '';
+    const what = [h.didIt ? 'Did it' : h.turnedIn ? `Turned it in ${ago(h.turnedIn)}` : h.took ? `Took it on ${ago(h.took)}` : 'On it', setupText(h.setup)].filter(Boolean).join(' · ');
+    return `<li class="rs-helper">${a('profile/' + h.did, `${face(p)}<span class="rs-helper-text"><span class="rs-helper-name"><b>${esc(h.mine ? 'You' : nameOf(p))}</b>${hat(h.did)}${handle ? `<span class="rs-helper-handle">${esc(handle)}</span>` : ''}</span><small${h.didIt ? ' class="rs-ok"' : ''}>${esc(what)}</small>${h.note ? `<small class="rs-helper-note">“${esc(h.note)}”</small>` : ''}</span>${ico('next', 'rs-helper-go')}`, 'rs-helper-who')}${
+      h.pulls.map(pl => pullLink(pl, { ...ctx, mine: h.mine })).join('')}</li>`;
+  }
+  function progressBlock(it){
+    const pr = progressOf(it, viewer()), note = progressNote(it, pr.key);
+    const ctx = { idea: pr.idea, forge: FORGE_NAMES[describeSubject(it.value?.subject)?.forge] || '', example: !!it.example };
+    return `<div class="rs-progress" data-rs-progress="${esc(it.uri)}">
+      <p class="rs-progress-head"><span class="rs-pill rs-pill-${pr.key}">${lifeIco(PROGRESS_LIFE[pr.key])}${esc(pr.label)}</span>${note ? `<span class="rs-muted">${esc(note)}</span>` : ''}</p>
+      ${pr.helpers.length ? `<ul class="rs-helpers" aria-label="Who’s helping">${pr.helpers.map(h => helperRow(h, ctx)).join('')}</ul>` : ''}
+    </div>`;
+  }
+  // Picked on the board, an ask's pull requests are asked after (open, merged or closed), once
+  // each, and the block over its details fills in when the forge answers. (Its own page asks
+  // the forge for more than this: look, in ../core/status.js.)
+  const asking = new WeakSet();
+  function lookPulls(it){
+    if (!it || it.example) return;
+    const todo = (it.deliveries || []).filter(d => d.state === undefined && !asking.has(d));
+    if (!todo.length) return;
+    todo.forEach(d => asking.add(d));
+    Promise.all(todo.map(d => pullState({ url: d.value?.url, pull: d.value?.pull, subject: it.value?.subject }).then(st => { d.state = st; }))).then(() => {
+      const el = root.querySelector(`.rs-side [data-rs-progress="${CSS.escape(it.uri)}"]`);
+      if (el) el.outerHTML = progressBlock(it);
+    });
+  }
+  // Where, the job and what they'd like, each as a plain line. (Who's on it is over them: progressBlock.)
   function facts(it, extra = []){
     const sq = it.value || {}, d = describeSubject(sq.subject), mine = it.repo === viewer();
     const open = d?.href && !it.example ? ` · <a href="${esc(d.href)}" target="_blank" rel="noopener">open it</a>` : '';
@@ -309,13 +370,13 @@ export function createRainshare({ root, base = '/', host }){
       ['Where', esc(whereText(sq)) + open],
       ['The job', esc(jobAndNotes(sq))],
       ['Models', esc(modelsText(sq, mine ? null : S.mine?.merged))],
-      ...extra,
-      ['On it', esc(onItText(it, viewer()))]
+      ...extra
     ];
     return `<dl class="rs-facts">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
   }
   function detail(it){
     const sq = it.value || {}, p = it.author || {}, mine = it.repo === viewer(), open = isOpen(it), page = pathOf(it);
+    lookPulls(it);
     const rel = mine ? 'yours' : relationText(it, viewer());
     const f = !mine && open && signedIn() ? it.fit || fit(it, me()) : null;
     let buttons;
@@ -329,9 +390,10 @@ export function createRainshare({ root, base = '/', host }){
       <div class="rs-detail-top">${a('profile/' + it.repo, face(p) + `<b>${esc(mine ? 'You' : nameOf(p))}</b>`, 'rs-who')}${hat(it.repo)}<span class="rs-muted">${rel ? ' · ' + (it.space ? ico('lock') : '') + esc(rel) : ''} · ${esc(ago(sq.createdAt))}</span>
         <button class="rs-sheet-close" type="button" data-rs-close-sheet aria-label="Close">${ico('close')}</button></div>
       <div class="rs-seed-head"><div class="rs-seed-title"><h2 tabindex="-1">${esc(sq.title)}</h2><p class="rs-muted"><span class="rs-stage-name">${esc(whatItIs(sq).name)}</span> · ${esc(whatItIs(sq).note)}</p></div>${plantPic(pictureOf(sq), 88, { key: it.uri })}</div>
-      ${f ? fitBox(f) : !open ? `<p class="rs-state${sq.state === 'sprouted' ? ' rs-ok' : ''}">${sq.state === 'sprouted' ? `${lifeIco('sprouted')}Done.` : 'Closed.'}</p>`
+      ${progressBlock(it)}
+      ${f ? fitBox(f)
         // Signed out, who it's for is said once: beside the name when it's everyone, here when it's narrower.
-        : !signedIn() && !rel ? `<p class="rs-muted">${esc(audienceLine(sq, { authorName: firstName(p), groupName: it.group?.name }))}.</p>` : ''}
+        : open && !signedIn() && !rel ? `<p class="rs-muted">${esc(audienceLine(sq, { authorName: firstName(p), groupName: it.group?.name }))}.</p>` : ''}
       ${facts(it, [
         !mine && planText(it.profile) ? ['Their AI plan', esc(planText(it.profile))] : null,
         signedIn() && !mine ? ['You and them', tiesList(it.repo, it.ties, p)] : null
@@ -787,15 +849,13 @@ export function createRainshare({ root, base = '/', host }){
           : 'No repo yet. A helper can start one, or suggest where it should live.'}${open ? startOn : ''}`
       : `${esc(whereText(sq))}${issue?.title ? `<br><span class="rs-muted">“${esc(issue.title)}”${issue.state ? `, ${esc(issue.state)}` : ''}</span>` : ''}
         <span class="rs-row rs-where-links">${d.href && !it.example ? `<a class="rs-link" href="${esc(d.href)}" target="_blank" rel="noopener">Open on ${esc(FORGE_NAMES[d.forge] || 'the forge')}</a>` : ''}${pulls ? `<a class="rs-link" href="${esc(pulls)}" target="_blank" rel="noopener">Its pull requests</a>` : ''}${clone ? `<button class="rs-link" type="button" data-rs-copy-text="${esc('git clone ' + sh(clone))}">Copy the clone command</button>` : ''}</span>`;
-    const takes = (it.takes || []).map(t => `${t.repo === viewer() ? 'You' : nameOf(t.author)}${t.value?.setup ? ', with ' + setupText(t.value.setup) : ''}${t.value?.note ? `: “${t.value.note}”` : ''}`);
     const facts = [
       ['Where', where],
       ['The job', esc(jobAndNotes(sq))],
       ['Models', esc(modelsText(sq, mine ? null : S.mine?.merged))],
       sq.tags?.length ? ['Tagged', esc(join(sq.tags))] : null,
       FEATURES.seedValues && sq.values?.length ? ['Stands for', esc(join(sq.values.map(pretty)))] : null,
-      FEATURES.audience || it.space ? ['Who it’s for', esc(audienceLine(sq, { authorName: mine ? 'you' : firstName(p), groupName: it.group?.name })) + (it.space ? '. Only the group’s members can read it.' : '.')] : null,
-      ['On it', esc(takes.length ? takes.join('; ') : 'Nobody yet')]
+      FEATURES.audience || it.space ? ['Who it’s for', esc(audienceLine(sq, { authorName: mine ? 'you' : firstName(p), groupName: it.group?.name })) + (it.space ? '. Only the group’s members can read it.' : '.')] : null
     ].filter(Boolean);
     const sprouted = new Set((sq.sproutedWith || []).map(r => r.uri));
     const deliveries = (it.deliveries || []).map(dl => {
@@ -808,7 +868,8 @@ export function createRainshare({ root, base = '/', host }){
       const vouching = S.vouching?.evidence === dl.uri;
       const vouch = mine && dl.repo !== viewer() && S.source.vouchFor && S.circle !== 'loading' && !word(dl.repo)?.mine && !vouching ? `<button class="rs-link" type="button" data-rs-vouch="${esc(dl.repo)}" data-rs-evidence="${esc(dl.uri)}">Vouch for them on Tangled</button>` : '';
       const shown = String(url || v.url || v.pull || '').replace(/^https?:\/\//, '').slice(0, 70);
-      return `<li>${face(dl.author)}<div><span><b>${esc(dl.repo === viewer() ? 'You' : nameOf(dl.author))}</b>${hat(dl.repo)} turned it in${status ? ' · ' + status : ''}</span>
+      const prof = 'profile/' + dl.repo, handle = dl.repo !== viewer() && dl.author?.displayName && dl.author?.handle ? '@' + dl.author.handle : '';
+      return `<li><a class="rs-face-link" href="${esc(href(prof))}" data-rs-go="${esc(prof)}" tabindex="-1" aria-hidden="true">${face(dl.author)}</a><div><span>${a(prof, `<b>${esc(dl.repo === viewer() ? 'You' : nameOf(dl.author))}</b>`, 'rs-name')}${hat(dl.repo)}${handle ? ` <span class="rs-muted">${esc(handle)}</span>` : ''} turned it in${status ? ' · ' + status : ''}</span>
         <small>${tieWord(dl)}${setup ? esc(setup) + ' · ' : ''}${esc(ago(v.createdAt))}</small>
         ${v.note ? `<p>${esc(v.note)}</p>` : ''}
         <div class="rs-row">${url && !it.example ? `<a class="rs-link" href="${esc(url)}" target="_blank" rel="noopener nofollow">${ico('link')}${esc(shown)}</a>` : shown ? `<span class="rs-muted">${ico('link')} ${esc(shown)}</span>` : ''}${safeHttp(v.sessionUrl) && !it.example ? `<a class="rs-link" href="${esc(safeHttp(v.sessionUrl))}" target="_blank" rel="noopener nofollow">See the session</a>` : ''}${sprout}${thank}${vouch}</div>
@@ -870,7 +931,7 @@ export function createRainshare({ root, base = '/', host }){
               <p class="rs-muted"><span class="rs-stage-name">${esc(whatItIs(sq).name)}</span> · ${esc(whatItIs(sq).note)}</p></div>
             ${plantPic(pictureOf(sq), 128, { live: true, key: it.uri })}
           </div>
-          ${!open ? `<p class="rs-state${sq.state === 'sprouted' ? ' rs-ok' : ''}">${sq.state === 'sprouted' ? `${lifeIco('sprouted')}Done` : 'Closed'}</p>` : ''}
+          ${progressBlock(it)}
           ${f ? fitBox(f) : ''}
           <dl class="rs-facts">${facts.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
           <section class="rs-ask-full"><div class="rs-ask-head"><h2>The ask</h2>${mdBtn(it, 'rs-quiet rs-sm')}</div>
@@ -1021,6 +1082,8 @@ export function createRainshare({ root, base = '/', host }){
     if (o.error) title('Nothing here');
     if (o.error) return nothingHere('We couldn’t find that person. The link may have been cut short, or their handle has changed.');
     const p = o.person || {}, theirs = (S.board?.items || []).filter(it => it.repo === o.did);
+    // What they've said they're on, or turned something in for, that's still open: someone else's asks.
+    const helping = (S.board?.items || []).filter(it => isOpen(it) && it.repo !== o.did && [...(it.takes || []), ...(it.deliveries || [])].some(r => r.repo === o.did));
     title(nameOf(p));
     return `${newHere()}${back()}
       <section class="rs-person">
@@ -1028,6 +1091,7 @@ export function createRainshare({ root, base = '/', host }){
         <div class="rs-panel">${profileCard(o.merged, p)}${o.groups?.length && o.did !== viewer() ? `<p class="rs-muted">${ico('lock')} Some of this is shared only with ${esc(o.groups.map(g => g.name).join(' and '))}.</p>` : ''}</div>
         ${signedIn() && o.did !== viewer() ? `<h2>You and ${esc(firstName(p))}</h2><div class="rs-panel">${tiesList(o.did, o.ties, p, { vouch: false })}</div>` : ''}
         ${vouchBlock(o.did, p)}
+        ${helping.length ? `<h2>${o.did === viewer() ? 'What you’re helping with now' : `What ${esc(firstName(p))}’s helping with now`}</h2><ul class="rs-list">${helping.map(it => card(it, { nav: true })).join('')}</ul>` : ''}
         ${S.source.gardenOf ? `<h2>${o.did === viewer() ? 'What you’ve helped with' : `What ${esc(firstName(p))} has helped with`}</h2>${gardenBlock(o.garden, o.did === viewer() ? 'You' : firstName(p))}` : ''}
         <h2>${o.did === viewer() ? 'Your ideas and projects' : `${esc(firstName(p))}’s ideas and projects`}</h2>
         ${!S.board ? listSk(2, 'theirs') : theirs.length ? `<ul class="rs-list">${theirs.map(it => card(it, { nav: true })).join('')}</ul>` : '<p class="rs-muted">None that you can see.</p>'}

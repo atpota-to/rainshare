@@ -6,7 +6,7 @@ import { parseSubject, describeSubject, cloneUrlOf } from '../core/subjects.js';
 import * as R from '../core/records.js';
 import { meantFor, closeness } from '../core/circle.js';
 import { rank, score, fit } from '../core/rank.js';
-import { whereText, shortWhere, jobText, jobShort, modelsText, wantsShort, notesText, jobAndNotes, onItText, takenShort, askExcerpt, stageOf, nounOf, aNoun, pictureOf, whatItIs, stateText, planText } from '../core/words.js';
+import { whereText, shortWhere, jobText, jobShort, modelsText, wantsShort, notesText, jobAndNotes, progressOf, progressShort, askExcerpt, stageOf, nounOf, aNoun, pictureOf, whatItIs, stateText, planText } from '../core/words.js';
 import { wateredBy, wateredText } from '../core/garden.js';
 import { renderMarkdown } from '../core/markdown.js';
 import { brief, launchers, handBack, readHandBack, readBranchBack, handBackBranch } from '../core/brief.js';
@@ -15,7 +15,7 @@ import { splitSpaceUri, shown } from '../core/source.js';
 import { lifeOf } from '../ui/bits.js';
 import { standing, since, carry } from '../core/status.js';
 import { newRepoPlaces, placesFor, repoNameFor } from '../core/forges.js';
-import { pullsAbout, tangledRepos, tangledIssues, completeTangled, subjectInfo, pullState, linkedPulls, knotlessRepos, knotlessIssues, knotlessIssueSubject, pullPageOf, pullKey } from '../core/subjects.js';
+import { pullsAbout, tangledRepos, tangledIssues, completeTangled, subjectInfo, pullState, linkedPulls, knotlessRepos, knotlessIssues, knotlessIssueSubject, pullPageOf, pullKey, pullNumber } from '../core/subjects.js';
 import { look } from '../core/status.js';
 
 test('parses GitHub, Tangled and other links into subjects', () => {
@@ -291,9 +291,39 @@ test('a seed reads as plain lines, not chips', () => {
   assert.equal(jobAndNotes(sq), 'Small. Tests required. Under about 200 lines. More than one helper can try. Made with Claude Code. No new dependencies.');
   assert.equal(jobAndNotes({ wants: { notes: 'Plain JS, please' } }), 'Plain JS, please.');
   assert.equal(jobAndNotes({}), 'Not said.');
-  const item = { takes: [{ repo: 'did:kai', author: { displayName: 'Kai Nakamura' }, value: { setup: { harness: 'claude-code' } } }], deliveries: [{ repo: 'did:kai', author: { displayName: 'Kai Nakamura' } }] };
-  assert.equal(onItText(item, 'did:me'), 'Kai, with Claude Code. Kai turned it in'); assert.equal(onItText({}, 'did:me'), 'Nobody yet');
-  assert.equal(takenShort(item, 'did:me'), 'Kai’s on it'); assert.equal(takenShort(item, 'did:kai'), 'You’re on it');
+  // Where an ask stands, in a word, and who's helping: each person once, whoever did it first.
+  const kai = { did: 'did:kai', handle: 'kai.example', displayName: 'Kai Nakamura' }, ash = { did: 'did:ash', handle: 'ash.example' };
+  const repo = { $type: SEED + '#githubIssue', url: 'https://github.com/o/r/issues/14', repo: 'o/r', number: 14 };
+  const taking = { value: { subject: repo }, takes: [{ repo: 'did:kai', author: kai, value: { createdAt: '2026-11-10T00:00:00Z', setup: { harness: 'claude-code' }, note: 'This weekend' } }] };
+  assert.deepEqual(progressOf({ value: {} }), { key: 'open', label: 'Open', idea: true, helpers: [], pulls: [] });
+  assert.equal(progressShort({ value: {} }), '');
+  const on = progressOf(taking, 'did:me');
+  assert.equal(on.key, 'on-it'); assert.equal(on.label, 'In progress');
+  assert.deepEqual(on.helpers, [{ did: 'did:kai', author: kai, mine: false, took: '2026-11-10T00:00:00Z', turnedIn: null, didIt: false, setup: { harness: 'claude-code' }, note: 'This weekend', pulls: [] }]);
+  assert.equal(progressShort(taking, 'did:me'), 'Kai’s on it'); assert.equal(progressShort(taking, 'did:kai'), 'You’re on it');
+  assert.equal(progressShort({ ...taking, takes: [...taking.takes, { repo: 'did:ash', author: ash, value: {} }] }, 'did:me'), '2 helpers on it');
+  // Turning it in is one more thing the same person did, not another person.
+  const turned = { ...taking, takes: [...taking.takes, { repo: 'did:ash', author: ash, value: { createdAt: '2026-11-09T00:00:00Z' } }], deliveries: [{ uri: 'at://did:kai/d/1', repo: 'did:kai', author: kai, value: { createdAt: '2026-11-12T00:00:00Z', setup: { harness: 'codex' } } }] };
+  const ti = progressOf(turned, 'did:me');
+  assert.equal(ti.key, 'turned-in'); assert.deepEqual(ti.helpers.map(h => h.did), ['did:kai', 'did:ash']);
+  assert.equal(ti.helpers[0].turnedIn, '2026-11-12T00:00:00Z'); assert.equal(ti.helpers[0].setup.harness, 'codex');
+  // What's turned in is a pull request with a page to open and its number, newest first, and the card names it.
+  assert.deepEqual(ti.pulls, [{ uri: 'at://did:kai/d/1', link: null, number: '', state: null, didIt: false, did: 'did:kai' }]);
+  const pulled = { ...turned, deliveries: [{ ...turned.deliveries[0], state: 'merged', value: { ...turned.deliveries[0].value, url: 'https://github.com/o/r/pull/15' } }] };
+  assert.deepEqual(progressOf(pulled).pulls[0], { uri: 'at://did:kai/d/1', link: 'https://github.com/o/r/pull/15', number: '15', state: 'merged', didIt: false, did: 'did:kai' });
+  assert.equal(progressOf(pulled).helpers[0].pulls[0].number, '15');
+  assert.equal(progressShort(turned, 'did:me'), 'Kai’s pull request'); assert.equal(progressShort(turned, 'did:kai'), 'Your pull request');
+  const two = { ...pulled, deliveries: [...pulled.deliveries, { uri: 'at://did:ash/d/2', repo: 'did:ash', author: ash, value: { createdAt: '2026-11-13T00:00:00Z', url: 'https://github.com/o/r/pull/16' } }] };
+  assert.deepEqual(progressOf(two).pulls.map(x => x.number), ['16', '15']);
+  assert.equal(progressShort(two, 'did:me'), '2 pull requests');
+  // For an idea, what's turned in is where it lives, not a pull request.
+  const idea = { ...turned, value: {} };
+  assert.equal(progressOf(idea).idea, true); assert.equal(progressShort(idea, 'did:me'), 'Kai turned it in');
+  // Once it's done, whoever's work the asker named did it; closed, it's just closed.
+  const done = { ...turned, value: { subject: repo, state: 'sprouted', sproutedWith: [{ uri: 'at://did:kai/d/1' }] } };
+  assert.equal(progressOf(done).key, 'done'); assert.equal(progressOf(done).helpers[0].didIt, true);
+  assert.equal(progressShort(done, 'did:kai'), 'You did it');
+  assert.equal(progressOf({ ...turned, value: { state: 'closed' } }).label, 'Closed'); assert.equal(progressShort({ ...turned, value: { state: 'closed' } }), '');
   assert.equal(askExcerpt('# Hi\n\n- one **two**\n- [three](https://x.example)', 100), 'Hi: one two. three');
   assert.equal(askExcerpt('It’s broken.\n\n**Done looks like**\n- a\n- b'), 'It’s broken. Done looks like: a. b');
   assert.equal(askExcerpt('Done looks like:\n- a\n- b.\n\nThanks!'), 'Done looks like: a. b. Thanks!');
@@ -613,6 +643,10 @@ test('knotless is read through its API, and its seeds are briefed with its own c
     assert.equal(pullPageOf({ pull: merged.uri }, sub), `${PAGE}/pull/did:plc:bob/3pull1`);
     assert.equal(pullKey(merged.uri), pullKey(`${PAGE}/pull/did%3Aplc%3Abob/3pull1/`));
     assert.equal(pullKey('https://github.com/O/R/pull/12/'), pullKey('https://github.com/o/r/pull/12'));
+    // A pull request's number, from its page on whichever forge, and none from a record or a page without one.
+    assert.equal(pullNumber('https://github.com/o/r/pull/12/files'), '12'); assert.equal(pullNumber('https://tangled.org/kai.example/almanac/pulls/29'), '29');
+    assert.equal(pullNumber('https://gitlab.com/o/r/-/merge_requests/7'), '7'); assert.equal(pullNumber('https://codeberg.org/o/r/pulls/3#c'), '3');
+    assert.equal(pullNumber(`${PAGE}/pull/did%3Aplc%3Abob/3pull1`), ''); assert.equal(pullNumber('at://did:plc:bob/dev.knotless.pull/3pull1'), ''); assert.equal(pullNumber(null), '');
     // The pulls that name the issue come with its thread; ones that carry the seed's link are searched for.
     assert.deepEqual(await linkedPulls(sub, { rkey: '3kseedkey2' }), [
       { url: `${PAGE}/pull/did:plc:bob/3pull1`, number: null, title: 'Handle empty input', by: 'bob.test', state: 'merged' },
