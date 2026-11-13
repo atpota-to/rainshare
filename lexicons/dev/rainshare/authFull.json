@@ -1,0 +1,19 @@
+{
+  "lexicon": 1,
+  "id": "dev.rainshare.authFull",
+  "defs": {
+    "main": {
+      "type": "permission-set",
+      "description": "What signing in to Rainshare asks for in its own namespace: writing the person's own Rainshare records. A server that resolves it shows its title and detail on its sign-in page, in place of the four record types by name.",
+      "title": "Your Rainshare records",
+      "detail": "Create, change and delete your asks, what you take on, the work you turn in, and your Rainshare profile, all kept in your own account.",
+      "permissions": [
+        {
+          "type": "permission",
+          "resource": "repo",
+          "collection": ["dev.rainshare.profile", "dev.rainshare.seed", "dev.rainshare.take", "dev.rainshare.delivery"]
+        }
+      ]
+    }
+  }
+}

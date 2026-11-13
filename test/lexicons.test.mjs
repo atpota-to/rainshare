@@ -80,3 +80,32 @@ test('a kind of def the check doesn\'t know well may change only in its descript
   const changed = copy(q); changed.defs.main.output = { encoding: 'application/json' };
   assert.match(breaking(q, changed).join('\n'), /this query changed/);
 });
+
+test('the permission set grants Rainshare’s own records, the same ones sign-in names when a server can’t look it up', async () => {
+  const { PERMISSION_SET, OWN } = await import('../src/scope.js');
+  const { COLLECTIONS } = await import('../core/ns.js');
+  const { doc } = files.find(f => f.name === 'authFull.json'), main = doc.defs.main;
+  assert.equal(doc.id, PERMISSION_SET);
+  assert.equal(main.type, 'permission-set');
+  assert.ok(main.title && main.detail, 'what a sign-in page shows');
+  assert.ok(main.permissions.every(p => p.type === 'permission' && p.resource === 'repo'));
+  // The set, written out as scopes, is what's asked for by name: the same records, the same actions.
+  const named = main.permissions.flatMap(p => p.collection.map(c => `repo:${c}${p.action ? '?' + p.action.map(a => 'action=' + a).join('&') : ''}`));
+  assert.deepEqual([...named].sort(), OWN.named.split(' ').sort());
+  assert.deepEqual(main.permissions.flatMap(p => p.collection).sort(), [...COLLECTIONS].sort());
+});
+
+test('a permission set is the main def, grants nothing outside dev.rainshare, and may change', () => {
+  const set = () => copy(files.find(f => f.name === 'authFull.json').doc);
+  const others = files.filter(f => f.name !== 'authFull.json');
+  const aside = set(); aside.defs.extra = aside.defs.main;
+  assert.match(problems([...others, { name: 'authFull.json', doc: aside }]).join('\n'), /authFull#extra: a permission set has to be the main def/);
+  const wide = set(); wide.defs.main.permissions.push({ type: 'permission', resource: 'repo', collection: ['app.bsky.feed.post', '*'] });
+  const said = problems([...others, { name: 'authFull.json', doc: wide }]).join('\n');
+  assert.match(said, /grants app\.bsky\.feed\.post, which isn't under dev\.rainshare\.\*/);
+  assert.match(said, /grants \*, which isn't under/);
+  // Changing what it grants, or how it's worded, breaks no record.
+  const next = set(); next.defs.main.detail = 'Said differently.';
+  next.defs.main.permissions[0].collection.pop(); next.defs.main.permissions[0].action = ['create'];
+  assert.deepEqual(breaking(set(), next), []);
+});

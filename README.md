@@ -169,6 +169,17 @@ under it without the name: the sign-in finds the way itself, and only if that fa
 anything said. (bsky.social says a handle of its own is nobody's in a way the sign-in
 library doesn't know, so Rainshare looks handles up there itself, knowing both ways.)
 
+**What your server's page says.** Your Rainshare records are asked for by Rainshare's
+permission set, `dev.rainshare.authFull` (`lexicons/dev/rainshare/authFull.json`), published
+with the other lexicons. A server that can look it up shows its title, "Your Rainshare
+records", and a sentence about them, where it would otherwise list four record types by name.
+It grants the same four, with every action, and nothing else. A server that can't look it up
+refuses it before anyone is sent there, and is asked again with the records by name
+(`ladder` in `src/scope.js`). A server that couldn't find it looks again after five minutes,
+so a newly published set is picked up within about that. Posting to Tangled and knotless can't
+go in the set, since a set only grants what's under its own name (`dev.rainshare`), so those
+are listed one by one either way.
+
 On the landing the handle field is on the page, and the dialog opens at "Is this you?".
 Everywhere else ("Sign in" in the bar, on an ask's page, on the board) the dialog starts with
 the handle, and signing in comes back to the page you were on. "Connect Tangled" or "Connect
@@ -248,7 +259,8 @@ that's gone offers whoever asked.
 ## The records
 
 Everything is a record in its owner's own account, under `dev.rainshare.*` (rainshare.dev is
-the lexicon authority). The schemas are in `lexicons/dev/rainshare/`.
+the lexicon authority). The schemas are in `lexicons/dev/rainshare/`, beside the permission
+set sign-in asks for (`authFull.json`, see Signing in).
 
 | Record | Written by | Says |
 | --- | --- | --- |
@@ -706,7 +718,7 @@ take on only what you'd be comfortable asking it to do for yourself.
 | `scripts/og-plants.mjs` | `npm run plants:og`: the plant pictures again as JPEGs, for the preview cards |
 | `scripts/og-home.mjs`, `src/landing/og.html` | `npm run og`: the home page's own preview picture (`public/og.jpg`), its headline beside the landing's garden |
 | `scripts/bluesky.mjs`, `src/landing/bluesky.html`, `brand/` | `npm run bluesky`: the pictures for [@rainshare.dev](https://bsky.app/profile/rainshare.dev) on Bluesky, by day and by night. The profile picture is the logo on a square of sky, inside the circle it's cut to; the banner is the headline beside the landing's garden, with your cloud raining on a plot and your plan's meter beside it, all inside what's left after Bluesky cuts a banner to fit a computer or a phone, and clear of the profile picture and the back button it puts over it (add `?safe` to the page to see those) |
-| `lexicons/dev/rainshare/`, `lexicons/*.mjs` | The four record types and their shared defs. `publish.mjs` publishes them under rainshare.dev from every production build, and `compat.mjs` says whether a change to one would break what's published |
+| `lexicons/dev/rainshare/`, `lexicons/*.mjs` | The four record types, their shared defs, and the permission set sign-in asks for (`authFull.json`). `publish.mjs` publishes them under rainshare.dev from every production build, and `compat.mjs` says whether a change to one would break what's published |
 | `core/ns.js` | Collection names, and the words people see for every known value |
 | `core/records.js` | Building each record from what people type, within the lexicons' limits |
 | `core/net.js` | Public reads: identity, records from each PDS, the relay, the Bluesky graph, and accounts to offer as a handle is typed |
@@ -828,7 +840,10 @@ It's a Vercel project on this repo (`vercel.json`):
    preview or production, and says what it was (`lexicons/compat.mjs`, following atproto's
    rules for changing a lexicon): a field removed or renamed, a type or a limit changed, a field
    made required or no longer required, an option taken out of a union. New optional fields,
-   new defs, new options in an open union, descriptions and knownValues may change freely.
+   new defs, new options in an open union, descriptions and knownValues may change freely, and
+   so may the permission set, which describes a sign-in rather than a record. A set may grant
+   only what's under `dev.rainshare.` (anything else is a problem the build stops on, since a
+   server would leave it out without saying).
    Anything bigger needs a new NSID, or, while nobody has written records under the published
    schema, a single deploy with `RAINSHARE_LEXICON_ALLOW_BREAKING=1`. A production build that
    can't sign in or write stops too, so the site never runs ahead of its published schemas;
@@ -1055,5 +1070,17 @@ Not yet checked:
   and the DNS lookup for `_lexicon.rainshare.dev`. What counts as breaking is in
   `test/lexicons.test.mjs`. Not checked: a real publish, which waits for the brand account's
   app password on Vercel, and the schemas resolving by their names once the DNS record is in.
+- The permission set (13 November 2026). Checked with `@atproto/oauth-scopes`, the library
+  Bluesky's servers use: the set expands to the four record types with every action, exactly
+  what asking for them by name grants, and nothing else; every scope the client declares
+  parses; and both forges still count as connected on what such a server grants for the first
+  step. Against bsky.social, with a dev client and no account: the first step, asking for the
+  set before it's published, is refused at the very first request (`invalid_scope`, "Unable to
+  resolve Lexicon schema"), before anyone would be sent anywhere; the second, with the records
+  by name, is taken; and a set Bluesky publishes is taken, so bsky.social does look sets up.
+  `npm run lexicons:check` finds the other five published, and `_lexicon.rainshare.dev`
+  names the brand account in public DNS. Not
+  checked: the set being taken, which waits for the first production build to publish it; how
+  bsky.social's page shows it; and servers other than Bluesky's.
 - How smoothly the scene runs on real phones and older laptops. It has only been run on a
   software renderer so far, which says it draws correctly and nothing about frame rate.
