@@ -6,8 +6,10 @@
 // Sign-in asks for everything up front: your Rainshare records, and posting to knotless and
 // Tangled for you (issues, comments, pull requests, vouches), so nobody is sent back to their
 // server halfway through something. Posting to either is yours to leave out before you go
-// (./signin.js), and to add later. A server that refuses part of what's asked (invalid_scope)
-// is asked again for less, a step at a time, down to what any server grants: see `ladder`.
+// (./signin.js), and to add later. Your records are asked for by Rainshare's permission set, so
+// your server's page can say what they are in a sentence. A server that refuses part of what's
+// asked (invalid_scope), the set included, is asked again for less, a step at a time, down to
+// what any server grants: see `ladder`.
 import { DECLARED_SCOPE, REDIRECT_PATH, PLC, FORGES, ladder, forgesIn } from './scope.js';
 import { isHandle } from '../core/net.js';
 import { noSuchAccount, handleLookup } from './lookup.js';

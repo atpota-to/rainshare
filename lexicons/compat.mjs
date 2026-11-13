@@ -47,6 +47,13 @@ export function problems(files){
     const at = `${doc.id}#${name}`;
     if (typeof def?.type !== 'string') { out.push(`${at} has no type`); continue; }
     if (def.type === 'record' && name !== 'main') out.push(`${at}: a record has to be the main def`);
+    if (def.type === 'permission-set') {
+      if (name !== 'main') out.push(`${at}: a permission set has to be the main def`);
+      // A server leaves out, without saying so, anything a set grants outside its own namespace.
+      for (const p of Array.isArray(def.permissions) ? def.permissions : [])
+        for (const nsid of [...(p?.collection || []), ...(p?.lxm || [])])
+          if (!String(nsid).startsWith(PREFIX)) out.push(`${at} grants ${nsid}, which isn't under ${PREFIX}*, so servers would leave it out`);
+    }
     for (const ref of refsIn(def)) {
       const [nsid, frag = 'main'] = full(doc.id, ref).split('#');
       if (nsid.startsWith(PREFIX) && !byId.get(nsid)?.defs?.[frag]) out.push(`${at} points at ${ref}, which isn't defined`);
@@ -96,6 +103,10 @@ function compare(a, b, at, id, out){
     }
     // Everything that can change on these is in FIXED.
     case 'string': case 'integer': case 'boolean': case 'bytes': case 'cid-link': case 'blob': case 'unknown': case 'token':
+      return;
+    // A permission set says what a sign-in may do, not what a record looks like, so changing one
+    // breaks no record. Each sign-in that asked for it gets the new one when its tokens refresh.
+    case 'permission-set':
       return;
     default:
       // Methods and anything newer: only descriptions may change, since this doesn't know them well enough to say more.

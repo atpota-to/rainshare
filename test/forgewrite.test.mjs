@@ -305,12 +305,22 @@ test('a description to start a pull request from', () => {
 });
 
 test('sign-in asks for the forges up front, and for less only if a server refuses', async () => {
-  const { ladder, DECLARED_SCOPE, BASIC_SCOPE, forgesIn, clientMetadata } = await import('../src/scope.js');
+  const { ladder, DECLARED_SCOPE, BASIC_SCOPE, OWN, forgesIn, clientMetadata } = await import('../src/scope.js');
   const steps = ladder(), forge = Object.values(FORGE_SCOPES).flat(), tokens = s => s.split(' ');
-  // The first thing asked for is everything: Rainshare's own records and both forges.
-  assert.equal(steps[0], DECLARED_SCOPE);
+  // The first thing asked for is everything: Rainshare's own records, by its permission set,
+  // and both forges.
+  assert.ok(tokens(steps[0]).includes(OWN.set));
   for (const sc of forge) assert.ok(tokens(steps[0]).includes(sc), sc);
   assert.deepEqual(forgesIn(steps[0]), ['knotless', 'tangled']);
+  // A server that can't look the set up is asked for the same again, with the records by name,
+  // before anything is left out.
+  assert.equal(steps[1], steps[0].replace(OWN.set, OWN.named));
+  assert.deepEqual(forgesIn(steps[1]), ['knotless', 'tangled']);
+  for (let i = 0; i < steps.length; i += 2) {
+    assert.ok(tokens(steps[i]).includes(OWN.set) && !tokens(steps[i]).some(t => t.startsWith('repo:dev.rainshare.')), steps[i]);
+    assert.equal(steps[i + 1], steps[i].replace(OWN.set, OWN.named));
+  }
+  assert.equal(DECLARED_SCOPE, [...new Set(steps.flatMap(tokens))].join(' '));
   // The last is what any server grants: Rainshare alone, with nothing of the forges in it.
   assert.equal(steps.at(-1), BASIC_SCOPE);
   assert.ok(steps.length >= 2 && !tokens(steps.at(-1)).some(t => forge.includes(t)));

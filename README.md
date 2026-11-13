@@ -36,7 +36,8 @@ the right forge.
 
 Your profile says which AI plans you pay for to code with (Claude, ChatGPT, Copilot, Cursor,
 Gemini, Z.ai's GLM plan), or that you only have free tiers or nothing. That shows next to your
-asks, and the board puts people without a paid plan first.
+asks, and the board puts people without a paid plan first. The first time you sign in, a short
+welcome asks for your plan and which agents you run, and you can skip it.
 
 ## Is this allowed by my AI plan?
 
@@ -176,6 +177,12 @@ in the pictures.
 Names, bios and avatars come from your Bluesky profile unless you set a different name or bio
 for Rainshare.
 
+Sign-in asks for these four record types through a permission set, `dev.rainshare.authFull`
+(`lexicons/dev/rainshare/authFull.json`). A server that can look the set up shows "Your
+Rainshare records" on its consent page instead of listing four collections. If a server can't,
+Rainshare asks again for the records by name. Tangled and knotless permissions are always listed
+separately, because a set can only grant what's under its own name.
+
 ### No index server
 
 The board is read straight from the network, in your browser, each time (`core/source.js`,
@@ -285,11 +292,11 @@ which spells it out by hand.
 | `src/plants/`, `src/logo/` | the 3D plant models, and the animated logo (plain JavaScript, no three.js) |
 | `src/signin.js`, `src/oauth.js`, `src/scope.js`, `src/lookup.js` | the sign-in dialog, OAuth, and the scopes it asks for |
 | `src/spaces.js` | group spaces for private asks (switched off) |
-| `ui/` | the app's screens: the board, an ask, profiles, posting an ask, loading placeholders |
+| `ui/` | the app's screens: the board, an ask, profiles, posting an ask, the first-time welcome, loading placeholders |
 | `core/` | everything the site and the CLI share (below) |
 | `cli/rainshare.mjs` | the CLI and MCP server |
 | `api/` | Vercel functions: the OAuth client metadata, and link previews (`page.js` sets the meta tags, `og.js` draws the image) |
-| `lexicons/` | the record schemas, and the scripts that publish them and check changes for breakage |
+| `lexicons/` | the record schemas and the sign-in permission set, plus the scripts that publish them and check changes for breakage |
 | `scripts/` | the image scripts above |
 | `test/` | `npm test` |
 
@@ -334,7 +341,8 @@ what's published, and don't need the password.
 
 A breaking change fails the build, preview or production: removing or renaming a field,
 changing a type or a limit, changing what's required, or dropping an option from a union.
-Adding optional fields, new defs or new options to an open union is fine. For anything bigger,
+Adding optional fields, new defs or new options to an open union is fine, and so is changing
+the permission set, as long as it only grants things under `dev.rainshare.`. For anything bigger,
 use a new NSID. If nobody has written records under the published schema yet, you can deploy
 once with `RAINSHARE_LEXICON_ALLOW_BREAKING=1` instead. `npm run lexicons` publishes by hand,
 with the same variables.
@@ -359,4 +367,7 @@ done for real yet:
   Chromium's software renderer the full-window landing ran at about 4 frames a second.
 - Private asks in a real group space.
 - Link previews as Bluesky and other sites render them in production.
-- The first real lexicon publish, which is waiting on the app password in Vercel.
+- A real account's first sign-in, and the welcome that follows it.
+- A server accepting the permission set. That waits for a production build to publish it.
+  Until then, bsky.social refuses the set and Rainshare falls back to asking for the records by
+  name, which works.
