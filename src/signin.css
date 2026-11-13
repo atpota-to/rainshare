@@ -29,7 +29,6 @@
 .si-x{flex:none;width:40px;height:40px;margin:-6px -8px -6px 0;border:0;border-radius:50%;background:none;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
 @media (hover:hover){.si-x:hover{background:var(--sunk);color:var(--ink)}}
 .si-lede{font-size:16px;line-height:1.5;color:var(--muted)}
-.si-small{font-size:14px;line-height:1.5;color:var(--muted)}
 .si-err{font-size:15px;line-height:1.45;font-weight:700;color:#B3261E}
 @media (prefers-color-scheme:dark){.si-err{color:#FF8A80}}
 
@@ -45,6 +44,17 @@
 .si-card .rs-face{width:52px;height:52px;font-size:22px}
 .si-card .si-who b{font-size:18px;font-family:var(--display)}
 .si-card .si-who span{font-size:15px}
+
+/* where a new account can live: one row a host, each a step on */
+.si-hosts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.si-host{display:flex;align-items:center;gap:14px;width:100%;min-height:64px;padding:10px 12px 10px 14px;border:0;border-radius:18px;background:none;box-shadow:inset 0 0 0 1px var(--line);color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:background .15s}
+@media (hover:hover){.si-host:hover{background:var(--sunk)}}
+.si-host:active{background:var(--sunk)}
+.si-host .rs-face{width:40px;height:40px;font-size:17px}
+.si-host .si-who{flex:1}
+.si-host .si-who b{white-space:normal}
+.si-host .si-who i{font-style:normal;font-weight:500;color:var(--muted)}
+.si-host>.rs-i{flex:none;width:20px;height:20px;color:var(--muted)}
 
 /* what's asked for: one that's needed, and the ones that are yours to untick */
 .si-asks{border:0;margin:0;padding:0;min-width:0;display:flex;flex-direction:column;gap:2px}
@@ -79,4 +89,4 @@
   .si-step{padding:18px 18px 16px}
   .si-head h2{font-size:22px}
 }
-@media (prefers-reduced-motion:reduce){.si-box{animation:none}.si-go,.si-ask input,.si-ask input::after{transition:none}}
+@media (prefers-reduced-motion:reduce){.si-box{animation:none}.si-go,.si-ask input,.si-ask input::after,.si-host{transition:none}}

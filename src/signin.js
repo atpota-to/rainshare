@@ -7,6 +7,13 @@
 //         button that names the site you're about to be sent to: the one your account's own
 //         server signs people in on.
 //
+// Someone with no account yet makes one on the way, from "Make an account" under the first step:
+//
+//   hosts  where the account will live: the hosts in ./hosts.js, any of which lets anyone in
+//   make   the host, what Rainshare asks for (the same as "Is this you?", since the host asks
+//          for it as soon as the account is made), and a button that names the host's site.
+//          The account is made there, and the host sends you back here signed in to it.
+//
 // The landing's handle field is the first step, already on the page; anywhere else the dialog
 // starts with it. Adding a forge to a sign-in you already have ("Connect Tangled") is the
 // second step on its own. The signing in itself is your server's (./oauth.js).
@@ -14,6 +21,7 @@ import './signin.css';
 import * as oauth from './oauth.js';
 import { FORGES } from './scope.js';
 import { within } from './lookup.js';
+import { HOSTS, hostById, domainOf } from './hosts.js';
 import { GROUPS } from '../core/ns.js';
 import { suggestPeople, profiles, isHandle, isDid, normalizeHandle } from '../core/net.js';
 import { esc, face, ico, avatarFallback } from '../ui/bits.js';
@@ -27,6 +35,7 @@ const ASKS = {
 };
 const OFFERED = Object.keys(ASKS).filter(f => FORGES.includes(f));
 const OUT = '<svg class="rs-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h5v5M19 5l-8.5 8.5M11 6H7.5A2.5 2.5 0 0 0 5 8.5v8A2.5 2.5 0 0 0 7.5 19h8a2.5 2.5 0 0 0 2.5-2.5V13"/></svg>';
+const ON = '<svg class="rs-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>';
 
 // A forge someone unticked stays unticked the next time they sign in on this browser.
 const SKIP = 'rs:signin-skip';
@@ -134,6 +143,9 @@ function ensure(){
   dlg.addEventListener('click', e => {
     if ((e.target === dlg && downOn === dlg) || e.target.closest('[data-si-close]')) return dlg.close();
     if (e.target.closest('[data-si-back]')) return ask();
+    if (e.target.closest('[data-si-make]')) return hosts();
+    const host = e.target.closest('[data-si-host]');
+    if (host) return make(hostById(host.dataset.siHost));
     if (e.target.closest('[data-si-go]')) return go();
   });
   // What's ticked stays ticked, and what isn't stays out, through "Not you?" and back.
@@ -151,6 +163,14 @@ function card(p){
   const handle = invalid(p.handle) ? null : p.handle;
   return `${face({ ...p, handle })}<span class="si-who"><b>${esc(p.displayName || handle || 'Your account')}</b><span>${esc(handle ? '@' + handle : p.did || '')}</span></span>`;
 }
+// A host, as it's offered: its initial (in a colour of its own), its name, and where it is.
+const hostCard = (h, note = '') => `${face({ handle: domainOf(h), displayName: h.name, color: `hsl(${h.hue} 70% 78%)` })}<span class="si-who"><b>${esc(h.name)}${note}</b><span>${esc(domainOf(h))} · ${esc(h.region)}</span></span>`;
+// What's asked for, ticked as it was the last time this browser signed in.
+const asks = () => `<fieldset class="si-asks">
+        <legend>What Rainshare asks for</legend>
+        <label class="si-ask"><input type="checkbox" checked disabled><span><b>Your Rainshare records <i>(required)</i></b><small>${esc(OWN)}</small></span></label>
+        ${OFFERED.map(f => `<label class="si-ask"><input type="checkbox" name="forge" value="${f}"${st.want.has(f) ? ' checked' : ''}><span><b>Post to ${esc(ASKS[f][0])}</b><small>${esc(ASKS[f][1])}</small></span></label>`).join('')}
+      </fieldset>`;
 
 /**
  * Open the sign-in dialog.
@@ -158,21 +178,22 @@ function card(p){
  *   to              the path to come back to
  *   forges          which forges start ticked: all of them, less any unticked last time
  *   adding          a forge being added to the sign-in `person` already has
+ *   making          for someone with no account: it starts at the hosts to make one with
  */
-export function openSignIn({ handle = '', person = null, to = '/', forges = null, adding = null } = {}){
+export function openSignIn({ handle = '', person = null, to = '/', forges = null, adding = null, making = false } = {}){
   ensure();
   const out = skipped();
-  st = { to, adding, want: new Set(forges || FORGES.filter(f => !out.includes(f))), turn: 0, who: null, person: null, did: null, host: null, blind: false, busy: false, offer: null };
+  st = { to, adding, want: new Set(forges || FORGES.filter(f => !out.includes(f))), turn: 0, who: null, person: null, did: null, host: null, blind: false, busy: false, offer: null, making: null, create: false };
   const who = person?.did || normalizeHandle(handle);
-  if (who) confirm(who, person); else ask();
+  if (who) confirm(who, person); else if (making && !adding) hosts(); else ask();
   if (!dlg.open) dlg.showModal();
   focusStep();
 }
-const focusStep = () => (box.querySelector('input[name="handle"]') || box.querySelector('[data-si-go]'))?.focus();
+const focusStep = () => (box.querySelector('input[name="handle"]') || box.querySelector('[data-si-go]') || box.querySelector('[data-si-host]'))?.focus();
 
 // The first step: who's signing in.
 function ask(msg = '', typed = ''){
-  Object.assign(st, { turn: st.turn + 1, did: null, host: null, blind: false, busy: false });
+  Object.assign(st, { turn: st.turn + 1, did: null, host: null, blind: false, busy: false, making: null });
   box.innerHTML = `<form class="si-step" novalidate>
       ${head('Sign in to Rainshare')}
       <p class="si-lede">Use your handle from Bluesky, Tangled or any Atmosphere app.</p>
@@ -180,7 +201,7 @@ function ask(msg = '', typed = ''){
       <div class="si-offer"></div>
       <p class="si-err" role="alert"${msg ? '' : ' hidden'}>${esc(msg)}</p>
       <button class="si-go" type="submit">Continue</button>
-      <p class="si-small">Rainshare never sees your password.</p>
+      <p class="si-foot"><button class="si-link" type="button" data-si-make>Make an account</button><span>Rainshare never sees your password.</span></p>
     </form>`;
   const form = box.firstElementChild;
   st.offer = handleField(form, { err: form.querySelector('.si-err'), anchor: form.querySelector('.si-offer'), then: confirm });
@@ -190,16 +211,12 @@ function ask(msg = '', typed = ''){
 
 // The second step: the account, what's asked for, and where it's about to send you.
 function confirm(who, person = null){
-  Object.assign(st, { turn: st.turn + 1, who, person, did: null, host: null, blind: false, busy: false, offer: null });
+  Object.assign(st, { turn: st.turn + 1, who, person, did: null, host: null, blind: false, busy: false, offer: null, making: null });
   const adding = st.adding;
   box.innerHTML = `<div class="si-step">
       ${head(adding ? `Connect ${ASKS[adding]?.[0] || adding}` : 'Is this you?')}
       <div class="si-card">${card(person || (isDid(who) ? { did: who } : { handle: who }))}</div>
-      <fieldset class="si-asks">
-        <legend>What Rainshare asks for</legend>
-        <label class="si-ask"><input type="checkbox" checked disabled><span><b>Your Rainshare records <i>(required)</i></b><small>${esc(OWN)}</small></span></label>
-        ${OFFERED.map(f => `<label class="si-ask"><input type="checkbox" name="forge" value="${f}"${st.want.has(f) ? ' checked' : ''}><span><b>Post to ${esc(ASKS[f][0])}</b><small>${esc(ASKS[f][1])}</small></span></label>`).join('')}
-      </fieldset>
+      ${asks()}
       <p class="si-err" role="alert" hidden></p>
       <button class="si-go" type="button" data-si-go></button>
       <p class="si-next" aria-live="polite"></p>
@@ -209,12 +226,62 @@ function confirm(who, person = null){
   focusStep();
   find(st.turn);
 }
+// Making an account, first: where it will live.
+function hosts(){
+  Object.assign(st, { turn: st.turn + 1, who: null, person: null, did: null, host: null, blind: false, busy: false, offer: null, making: null });
+  box.innerHTML = `<div class="si-step">
+      ${head('Make an account')}
+      <p class="si-lede">Your account lives with a host you pick, and works on Bluesky, Tangled and every other Atmosphere app. You’ll make it on the host’s site, then come straight back.</p>
+      <ul class="si-hosts" aria-label="Hosts">
+        ${HOSTS.map(h => `<li><button class="si-host" type="button" data-si-host="${esc(h.id)}">${hostCard(h, h.usual ? ' <i>· most people start here</i>' : '')}${ON}</button></li>`).join('')}
+      </ul>
+      <p class="si-foot"><button class="si-link" type="button" data-si-back>I already have an account</button><span>You can move hosts later.</span></p>
+    </div>`;
+  focusStep();
+}
+
+// Then the host, what's asked for, and where it's about to send you. The host's site is known
+// from the start; asking its server first says whether it opens on its sign-up form.
+function make(h){
+  if (!h) return hosts();
+  Object.assign(st, { turn: st.turn + 1, who: null, person: null, did: null, host: domainOf(h), blind: false, busy: false, offer: null, making: h, create: true });
+  box.innerHTML = `<div class="si-step">
+      ${head('Make an account')}
+      <div class="si-card">${hostCard(h)}</div>
+      ${asks()}
+      <p class="si-err" role="alert" hidden></p>
+      <button class="si-go" type="button" data-si-go></button>
+      <p class="si-next" aria-live="polite"></p>
+      <p class="si-foot"><button class="si-link" type="button" data-si-make>Pick another host</button><span>Rainshare never sees your password.</span></p>
+    </div>`;
+  paintGo();
+  focusStep();
+  findMaking(st.turn);
+}
+async function findMaking(turn){
+  const mine = st;
+  try {
+    const at = await within(oauth.whereToMake(mine.making.url), LOOK);
+    if (st !== mine || st.turn !== turn) return;
+    mine.host = at.host; mine.create = at.create;
+    paintGo();
+  } catch (e) { console.warn('sign-up: where this host signs people up', e); }
+}
+
 // The button says where it leads once that's known, and the line under it says what happens
 // there. If it couldn't be found (`blind`), the button still goes on, without the name: the
 // sign-in finds the way itself, and it's only if that fails too that anything is said.
 function paintGo(){
   const b = box.querySelector('[data-si-go]'), next = box.querySelector('.si-next');
   if (!b || !st) return;
+  if (st.making) {
+    const h = esc(st.host);
+    b.setAttribute('aria-disabled', String(st.busy));
+    b.innerHTML = st.busy ? `Opening ${h}…` : `<span>Continue at ${h}</span>${OUT}`;
+    next.innerHTML = st.create ? `You’ll make your account at <b>${h}</b>, then say yes to Rainshare and come straight back.`
+      : `You’ll go to <b>${h}</b>, where you can make an account, then come straight back.`;
+    return;
+  }
   const host = st.host, known = host || st.blind, at = host ? ` at <b>${esc(host)}</b>,` : '';
   b.setAttribute('aria-disabled', String(st.busy || !known));
   b.innerHTML = !known ? 'Finding where you sign in…' : st.busy ? `Opening ${host ? esc(host) : 'where you sign in'}…` : `<span>Continue${host ? ' at ' + esc(host) : ''}</span>${OUT}`;
@@ -255,14 +322,18 @@ async function go(){
   const forges = [...box.querySelectorAll('input[name="forge"]:checked')].map(i => i.value);
   setSkipped(FORGES.filter(f => !forges.includes(f)));
   mine.busy = true; say(''); paintGo();
-  try { await oauth.signIn(mine.did || mine.who, mine.to, { forges }); }
+  try {
+    if (mine.making) await oauth.signIn(mine.making.url, mine.to, { forges, create: true });
+    else await oauth.signIn(mine.did || mine.who, mine.to, { forges });
+  }
   catch (e) {
     if (st !== mine) return;
     mine.busy = false; paintGo();
     // Coming back with the browser's Back button ends the wait, and nothing went wrong.
     if (/navigated back/i.test(String(e?.message))) return;
     console.warn('sign-in', e);
-    say(mine.host ? `${mine.host} didn’t let us start signing in. Try again in a moment.` : 'We couldn’t reach the server that signs this account in. Try again in a moment.');
+    say(mine.making ? `${mine.host} didn’t let us start making an account. Try again in a moment, or pick another host.`
+      : mine.host ? `${mine.host} didn’t let us start signing in. Try again in a moment.` : 'We couldn’t reach the server that signs this account in. Try again in a moment.');
   }
 }
 

@@ -10,9 +10,13 @@
 // your server's page can say what they are in a sentence. A server that refuses part of what's
 // asked (invalid_scope), the set included, is asked again for less, a step at a time, down to
 // what any server grants: see `ladder`.
+//
+// Making an account is the same sign-in, started from a host's address (./hosts.js) in place of
+// a handle, with the host asked to open on its sign-up form.
 import { DECLARED_SCOPE, REDIRECT_PATH, PLC, FORGES, ladder, forgesIn } from './scope.js';
 import { isHandle } from '../core/net.js';
 import { noSuchAccount, handleLookup } from './lookup.js';
+import { signsUp } from './hosts.js';
 
 const LOOPBACK = /^http:\/\/(127\.0\.0\.1|\[::1\]|localhost)(:\d+)?$/.test(location.origin);
 const SIGNED_IN = '@@atproto/oauth-client-browser(sub)';
@@ -51,8 +55,10 @@ export async function start(){
   try { r = await c.init(); }
   catch (e) {
     const p = pending();
-    // Refused for asking too much: ask again for the next step down, if there is one.
-    if (e?.params?.get?.('error') === 'invalid_scope' && p?.handle && (p.step ?? 0) + 1 < ladder(p.forges).length) { signIn(p.handle, p.to, { forges: p.forges, step: (p.step ?? 0) + 1 }).catch(() => {}); return { redirecting: true }; }
+    // Refused for asking too much: ask again for the next step down, if there is one. (A
+    // server refuses as its page opens, before anyone has signed in or made an account there,
+    // so someone making one is sent back to the sign-up form.)
+    if (e?.params?.get?.('error') === 'invalid_scope' && p?.handle && (p.step ?? 0) + 1 < ladder(p.forges).length) { signIn(p.handle, p.to, { forges: p.forges, step: (p.step ?? 0) + 1, create: !!p.create }).catch(() => {}); return { redirecting: true }; }
     setPending(null);
     throw e;
   }
@@ -89,13 +95,27 @@ export async function whereTo(who){
   return { did: id.did, handle: isHandle(id.handle) && !/\.invalid$/.test(id.handle) ? id.handle.toLowerCase() : null, host: new URL(metadata.authorization_endpoint).host };
 }
 
+/**
+ * Where making an account at a host (`url`, from ./hosts.js) would send someone: { host, create }.
+ * `host` is the site that host's server signs people up on, and `create` says whether it opens
+ * on its sign-up form or on its sign-in page (which has a way to make an account too).
+ */
+export async function whereToMake(url){
+  const c = await client();
+  const { metadata } = await c.oauthResolver.resolve(url);
+  return { host: new URL(metadata.authorization_endpoint).host, create: signsUp(metadata) };
+}
+
+// `who` is a handle or a DID, or a host's address with `create`, for making an account there.
 // `forges` is which forges to ask to post to: all of them unless told otherwise. `step` is
 // how far down the ladder to start (after a refusal that came back through the address bar).
-export async function signIn(handle, to, { forges = FORGES, step = 0 } = {}){
+export async function signIn(who, to, { forges = FORGES, step = 0, create = false } = {}){
   const c = await client(), state = JSON.stringify({ to }), steps = ladder(forges);
+  // The sign-up form, where the host has one. (The lookup is the one signing in makes anyway, and kept.)
+  const prompt = create && await whereToMake(who).then(w => w.create, () => false) ? { prompt: 'create' } : {};
   for (let i = Math.min(Math.max(0, step), steps.length - 1); ; i++) {
-    setPending({ handle, to, forges, step: i });
-    try { return await c.signIn(handle, { scope: steps[i], state }); }
+    setPending({ handle: who, to, forges, step: i, create });
+    try { return await c.signIn(who, { scope: steps[i], state, ...prompt }); }
     catch (e) { if (e?.error !== 'invalid_scope' || i >= steps.length - 1) throw e; }
   }
 }
