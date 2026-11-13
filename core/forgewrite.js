@@ -26,6 +26,8 @@ export const FORGE_SAID = { knotless: 'knotless', tangled: 'Tangled' };
 
 /** Which forge a subject is on, if it's one Rainshare can post to: 'knotless', 'tangled' or null. */
 export const writableForge = subject => { const f = describeSubject(subject)?.forge; return f === 'knotless' || f === 'tangled' ? f : null; };
+/** The same, only for an issue: somewhere a comment can go. */
+export const issueForge = subject => /Issue$/.test(kindOf(subject) || '') ? writableForge(subject) : null;
 
 const seg = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter() : null;
 const clip = (s, max) => { const t = String(s || '').trim(), g = seg ? [...seg.segment(t)].map(x => x.segment) : [...t]; return g.length > max ? g.slice(0, max - 1).join('') + '…' : t; };
@@ -65,7 +67,7 @@ async function knotlessComment(agent, subject, text){
   if (!ref.uri || parseUri(ref.uri)?.collection !== 'dev.knotless.issue') throw new ForgeError('NoIssue', 'There’s no issue to comment on.', 'knotless');
   const repo = await knotlessRepoRef(ref.page);
   const r = await create(agent, 'knotless', 'dev.knotless.comment', { $type: 'dev.knotless.comment', repo, subject: ref.uri, body: text, createdAt: new Date().toISOString() });
-  return { uri: r.uri, href: subject.url || null };
+  return { uri: r.uri, cid: r.cid || null, href: subject.url || null };
 }
 // A branch name: what git allows, less the characters that mean something in a link or a command.
 const BRANCH = /^(?![-/.])(?!.*(?:\.\.|\/\/|@\{|\.lock$|[/.]$))[\p{L}\p{N}._/+@-]{1,244}$/u;
@@ -161,7 +163,7 @@ async function tangledIssue(agent, subject, { title, body }){
   });
   return { $type: `${SEED}#tangledIssue`, uri: saved.uri, cid: saved.cid, repo: place.repoDid, repoUrl: place.page, url: `${place.page}/issues/${parseUri(saved.uri)?.rkey}` };
 }
-async function tangledComment(agent, subject, text){
+async function tangledComment(agent, subject, text, replyTo){
   // The comment goes on the issue the page shows a link to, whatever else the record names.
   const uri = await tangledTicket(subject.url || subject.uri).catch(() => null);
   if (!uri) throw new ForgeError('NoIssue', 'There’s no issue to comment on.', 'tangled');
@@ -170,9 +172,11 @@ async function tangledComment(agent, subject, text){
   if (!now?.cid) throw new ForgeError('NoIssue', 'Tangled couldn’t find that issue.', 'tangled');
   const place = await tangledPlace({ ...subject, uri });
   const saved = await knotCreate(agent, place, 'org.tangled.feed.comment', {
-    $type: 'org.tangled.feed.comment', subject: { $type: 'com.atproto.repo.strongRef', uri, cid: now.cid }, body: markdown(text), createdAt: new Date().toISOString()
+    $type: 'org.tangled.feed.comment', subject: { $type: 'com.atproto.repo.strongRef', uri, cid: now.cid }, body: markdown(text),
+    ...(replyTo ? { replyTo: { $type: 'com.atproto.repo.strongRef', uri: replyTo.uri, cid: replyTo.cid } } : {}),
+    createdAt: new Date().toISOString()
   });
-  return { uri: saved.uri, href: subject.url || null, attested: saved.attested };
+  return { uri: saved.uri, cid: saved.cid || null, href: subject.url || null, attested: saved.attested };
 }
 const tangledBranches = async repo => {
   const r = await xrpc(BOBBIN, 'org.tangled.temp.git.listBranches', { repo, limit: 100 }).catch(() => null);
@@ -234,13 +238,19 @@ export async function forgeIssue(agent, subject, { title, body } = {}){
   if (!String(title || '').trim()) throw new ForgeError('NoTitle', 'An issue needs a title.', forge);
   return forge === 'knotless' ? knotlessIssue(agent, subject, { title, body }) : tangledIssue(agent, subject, { title, body });
 }
-/** Comment on the issue a subject points at. Returns { uri, href }: the comment, and the page it shows on. */
-export async function forgeComment(agent, subject, text){
+/**
+ * Comment on the issue a subject points at. Returns { uri, cid, href }: the comment, and the
+ * page it shows on. `replyTo` ({ uri, cid }, another comment on that issue) makes it a reply,
+ * on Tangled only: knotless keeps an issue's comments in one list, with no replies.
+ */
+export async function forgeComment(agent, subject, text, { replyTo } = {}){
   const forge = writableForge(subject), said = String(text || '').trim();
-  if (!forge || !/Issue$/.test(kindOf(subject) || '')) throw new ForgeError('NoIssue', 'There’s no issue on knotless or Tangled to comment on.', forge);
+  if (!forge || !issueForge(subject)) throw new ForgeError('NoIssue', 'There’s no issue on knotless or Tangled to comment on.', forge);
   if (!said) throw new ForgeError('Empty', 'Say something first.', forge);
   if (said.length > 18000) throw new ForgeError('TooLong', 'That’s too long for a comment.', forge);
-  return forge === 'knotless' ? knotlessComment(agent, subject, said) : tangledComment(agent, subject, said);
+  if (replyTo && forge === 'knotless') throw new ForgeError('NoReplies', 'Comments on a knotless issue can’t be replies. Write a comment instead.', forge);
+  if (replyTo && (parseUri(replyTo.uri)?.collection !== 'org.tangled.feed.comment' || !replyTo.cid)) throw new ForgeError('NoReplies', 'That isn’t a comment on Tangled to reply to.', forge);
+  return forge === 'knotless' ? knotlessComment(agent, subject, said) : tangledComment(agent, subject, said, replyTo);
 }
 
 /**

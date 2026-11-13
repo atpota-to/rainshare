@@ -12,9 +12,10 @@ import { PROFILE, SEED, TAKE, DELIVERY, COMMENT } from './ns.js';
 import * as net from './net.js';
 import * as R from './records.js';
 import { closeness, meantFor } from './circle.js';
-import { completeTangled, tangledRepos, tangledIssues, knotlessRepos, knotlessIssues } from './subjects.js';
+import { completeTangled, tangledRepos, tangledIssues, knotlessRepos, knotlessIssues, issueComments } from './subjects.js';
+import { talksOn, fromForge } from './comments.js';
 import { wateredBy } from './garden.js';
-import { forgeIssue, forgeComment, forgePull, pullChoices } from './forgewrite.js';
+import { forgeIssue, forgeComment, forgePull, pullChoices, FORGE_SAID } from './forgewrite.js';
 import { circleOf, vouchFor, unvouch, evidenceFor } from './vouch.js';
 import { tangledFollowsOf, followsOnTangled, knownFollowers } from './ties.js';
 
@@ -79,6 +80,10 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
   // only just got its first record of a kind, so your own writes are layered over what the
   // network says until it catches up.
   const recent = new Map(), gone = new Set();
+  // The same for comments posted to an issue on Tangled or knotless, by the ask they're on:
+  // the forge's list can take a moment to show one.
+  const posted = new Map();
+  const withPosted = (uri, list) => { const have = new Set(list.map(c => c.uri)); return [...list, ...(posted.get(uri) || []).filter(c => !have.has(c.uri))]; };
   const remember = (collection, rec) => { if (rec.uri) { gone.delete(rec.uri); recent.set(rec.uri, { collection, ...rec }); } };
   const forgetRecord = uri => { recent.delete(uri); gone.add(uri); };
   // Every public record of a collection, across everyone who has any.
@@ -247,10 +252,17 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     if (!p || p.collection !== SEED) return null;
     const rec = await net.getRecordOrNull(p.repo, SEED, p.rkey);
     if (!rec) return null;
-    const [takes, deliveries, comments, prof, blocked] = await Promise.all([pointingAt(uri, TAKE).catch(() => []), pointingAt(uri, DELIVERY).catch(() => []), pointingAt(uri, COMMENT).catch(() => []), publicProfile(p.repo).catch(() => null), myBlocks()]);
+    // An ask on an issue on Tangled or knotless talks there, so the issue's comments are read
+    // too. Rainshare's own on it are still shown: written before, or from somewhere else.
+    const forge = talksOn({ value: rec.value });
+    const onIssue = forge ? issueComments(rec.value.subject, { fresh: !!force }).catch(e => { console.warn('rainshare issue comments', e); return null; }) : null;
+    const [takes, deliveries, comments, issue, prof, blocked] = await Promise.all([pointingAt(uri, TAKE).catch(() => []), pointingAt(uri, DELIVERY).catch(() => []), pointingAt(uri, COMMENT).catch(() => []), onIssue, publicProfile(p.repo).catch(() => null), myBlocks()]);
     const rel = viewer && viewer !== p.repo ? (await net.relationships(viewer, [p.repo]).catch(() => new Map())).get(p.repo) : null;
     const item = { ...rec, space: null, group: null, rel, closeness: closeness({ viewer, author: p.repo, rel }), profile: prof?.value || null };
-    attach([item], takes, deliveries, blocked, comments);
+    const fromIssue = forge ? withPosted(uri, (issue?.items || []).map(c => fromForge(c, uri, forge))) : [];
+    attach([item], takes, deliveries, blocked, [...comments, ...fromIssue]);
+    // Where its comments are kept, and whether the forge answered: { forge, read, more }.
+    item.talk = forge ? { forge, read: !!issue, more: !!issue?.more } : null;
     // How you know whoever asked, and each person on it or who turned something in.
     const helpers = [...item.takes, ...item.deliveries];
     const [ties] = await Promise.all([viewer ? tiesOf([p.repo, ...helpers.map(r => r.repo)]).catch(() => new Map()) : new Map(), named([item])]);
@@ -355,7 +367,17 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
   }
 
   // Saying something on a seed, or replying to a comment on it. Anyone who can see it can.
+  // On an ask on a Tangled or knotless issue, it's said on the issue, as a comment there.
   async function comment(item, { text, parent } = {}){
+    const forge = talksOn(item);
+    if (forge) {
+      if (parent && parent.forge !== forge) throw new SourceError('NotThere', 'That comment is only on Rainshare, so a reply to it can’t go on the issue.');
+      const said = String(text || '').trim(), replyTo = parent ? { uri: parent.uri, cid: parent.cid } : null;
+      const r = await forgeComment(agent, item.value.subject, said, replyTo ? { replyTo } : {});
+      const rec = { ...fromForge({ uri: r.uri, cid: r.cid, by: viewer, text: said, createdAt: new Date().toISOString(), replyTo }, item.uri, forge), attested: r.attested };
+      posted.set(item.uri, [...(posted.get(item.uri) || []), rec]);
+      return rec;
+    }
     const record = R.comment({ seed: item, parent, text });
     const r = await into(item.space).create(COMMENT, record);
     const rec = { uri: r.uri, cid: r.cid, repo: viewer, rkey: String(r.uri || '').split('/').pop(), value: record, space: item.space || null };
@@ -365,6 +387,7 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
   }
   // Taking one of your own comments back. Replies to it stay, as replies to one that's gone.
   async function uncomment(item, c){
+    if (c?.forge) throw new SourceError('OnForge', `It’s on ${FORGE_SAID[c.forge]}. Change or delete it there.`);
     if (!c || c.repo !== viewer) throw new SourceError('NotYourComment', 'Only the person who wrote a comment can delete it.');
     await into(item.space).del(COMMENT, c.rkey);
     forgetRecord(c.uri);

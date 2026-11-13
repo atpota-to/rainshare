@@ -31,11 +31,11 @@ import { audienceLine } from '../core/circle.js';
 import { rank, fit, join, pretty } from '../core/rank.js';
 import { whereText, shortWhere, jobAndNotes, jobShort, modelsText, onItText, takenShort, relationText, askExcerpt, stateText, pictureOf, nounOf, aNoun, whatItIs, planText } from '../core/words.js';
 import { renderMarkdown } from '../core/markdown.js';
-import { threads } from '../core/comments.js';
+import { threads, talksOn } from '../core/comments.js';
 import { brief, launchers, pageOf, readHandBack, readBranchBack, sh, INSTALL, MCP_ADD, CLI_HOME } from '../core/brief.js';
 import { strongRef, HARNESS_NAMES } from '../core/records.js';
 import { resolveHandle, knownPerson, parseUri, profiles } from '../core/net.js';
-import { esc, lit, unb64url, ago, until, nameOf, firstName, ico, skyIco, lifeIco, lifeOf, face, drops, pathOf, plantPic, avatarFallback, tip, tipLink, toggleTip } from './bits.js';
+import { esc, lit, unb64url, ago, until, nameOf, firstName, ico, forgeIco, skyIco, lifeIco, lifeOf, face, drops, pathOf, plantPic, avatarFallback, tip, tipLink, toggleTip } from './bits.js';
 import { createPoster } from './post.js';
 import { openWelcome, shouldWelcome } from './welcome.js';
 import { headSk, boardSk, seedSk, personSk, gardenSk, meSk, listSk } from './skeleton.js';
@@ -473,7 +473,8 @@ export function createRainshare({ root, base = '/', host }){
     // What was being written when you went off to connect a forge is waiting where you left it.
     const kept = takeKept();
     if (kept?.uri === uri) {
-      if (kept.say?.text) { S.drafts.say = kept.say; S.open.say = true; }
+      if (kept.comment?.text) S.drafts.comment = kept.comment;
+      if (kept.reply?.parent) { S.drafts.reply = kept.reply; S.reply = kept.reply.parent; }
       if (kept.pull) { S.drafts.pull = kept.pull; S.open.pull = true; }
       if (kept.vouching) S.vouching = kept.vouching;
     }
@@ -546,36 +547,6 @@ export function createRainshare({ root, base = '/', host }){
   const connectNote = (forge, what) => host.connectForge
     ? `<p class="rs-note">${ico('lock')}<span>Connect ${esc(FORGE_SAID[forge])} to ${what} there from here.${tip(`Your sign-in doesn’t let Rainshare ${what} on ${esc(FORGE_SAID[forge])} for you yet. Your server shows exactly what’s being added, and brings you back here with this still written.`)}</span><button class="rs-btn rs-primary rs-sm" type="button" data-rs-act="connect-forge" data-rs-forge="${forge}">Connect ${esc(FORGE_SAID[forge])}</button></p>`
     : `<p class="rs-muted">Posting to ${esc(FORGE_SAID[forge])} isn’t set up here.</p>`;
-  // Where the issue is on knotless or Tangled, a comment can go straight onto it from here, as you.
-  function sayBox(it, { mine, taken, page, d }){
-    const forge = d?.issue ? writableForge(it.value?.subject) : null;
-    if (!forge || !signedIn()) return '';
-    const name = FORGE_SAID[forge], on = connected(forge);
-    const draft = S.drafts.say?.uri === it.uri ? S.drafts.say.text
-      : mine && page && isOpen(it) ? `I’ve posted this on Rainshare, for anyone who’d like to send their agent to work on it: ${page}`
-        : taken && page ? `I’m working on this, through Rainshare: ${page}` : '';
-    const where = safeHttp(d.href) && !it.example ? `<a class="rs-link" href="${esc(safeHttp(d.href))}" target="_blank" rel="noopener">See the issue</a>` : '';
-    if (!S.open.say) return `<div class="rs-row"><button class="rs-btn rs-quiet rs-sm" type="button" data-rs-act="say-open">Comment on the issue</button>${where}</div>`;
-    return `<form class="rs-form rs-sayform" data-rs-form="say">
-        <label>Your comment on ${esc(name)} <small>(public, as you)</small><textarea name="text" rows="3" maxlength="4000" required>${esc(draft)}</textarea></label>
-        ${on ? `<div class="rs-row"><button class="rs-btn rs-primary rs-sm" type="submit">Post on ${esc(name)}</button><button class="rs-link" type="button" data-rs-act="say-close">Cancel</button></div>` : connectNote(forge, 'post')}
-      </form>`;
-  }
-  async function submitSay(form){
-    const it = S.seed, forge = writableForge(it?.value?.subject), text = String(new FormData(form).get('text') || '').trim(), btn = form.querySelector('[type=submit]');
-    if (!it || !forge || !text) return;
-    if (btn) btn.disabled = true;
-    try {
-      const r = await S.source.forgeComment(it.value.subject, text);
-      S.drafts.say = { uri: it.uri, text: '' }; S.open.say = false;
-      toast(r?.attested === false ? `Posted on ${FORGE_SAID[forge]}. It may show as unverified there for a while.` : `Posted on ${FORGE_SAID[forge]}.`);
-      render();
-    } catch (e) {
-      // Your server said this sign-in doesn't allow it: offer to connect, with the comment kept.
-      if (e?.name === 'NotConnected') { S.unlinked = forge; rerender(); }
-      toast(plainText(e)); if (btn) btn.disabled = false;
-    }
-  }
   /* ---------- Tangled's vouch network (../core/vouch.js) ---------- */
   // Beside the people who ask and the people who help: whether you, or someone you vouch for
   // on Tangled, has vouched for them or denounced them. It's read once per sign-in, the first
@@ -752,60 +723,87 @@ export function createRainshare({ root, base = '/', host }){
   }
 
   /* ---------- comments (../core/comments.js) ---------- */
-  // What people say on an ask: a question before starting, the answer, how it's going. Each is
-  // a record in its writer's own repo that points here, and it's shown as their words, apart
-  // from the ask itself. Replies sit under the comment that started the thread, and a reply
-  // is written at the foot of the thread it's in.
+  // What people say on an ask: a question before starting, the answer, how it's going. On an
+  // ask on a Tangled or knotless issue they're the issue's own comments, read from the forge,
+  // and one written here is posted there, as you (`it.talk` says whether the forge answered).
+  // Otherwise each is a record in its writer's own repo that points here. Either way they're
+  // shown as their writers' words, apart from the ask itself. Replies sit under the comment
+  // that started the thread, and a reply is written at the foot of the thread it's in.
+  // (knotless keeps an issue's comments as one list, so there's nothing to reply to there.)
   const commentKey = c => 'rsc-' + String(c.rkey || c.uri.split('/').pop()).replace(/[^A-Za-z0-9_-]/g, '');
   function roleOf(c, it){
     if (c.repo === it.repo) return 'Asked this';
     if ((it.deliveries || []).some(d => d.repo === c.repo)) return 'Turned it in';
     return (it.takes || []).some(t => t.repo === c.repo) ? 'On it' : '';
   }
-  function commentLi(c, it, { reply = false } = {}){
+  // Whether a comment can be answered here: on the issue, only one of Tangled's.
+  const canReply = (c, forge) => signedIn() && (forge ? forge === 'tangled' && c.forge === 'tangled' : !c.forge);
+  function commentLi(c, it, { reply = false, forge = null } = {}){
     const v = c.value || {}, role = roleOf(c, it), mine = c.repo === viewer();
     const to = reply && c.to ? ` <span class="rs-muted">to ${esc(c.to.repo === viewer() ? 'you' : nameOf(c.to.author))}</span>` : '';
     const tools = [
-      signedIn() ? `<button class="rs-link" type="button" data-rs-reply="${esc(c.uri)}">Reply</button>` : '',
-      mine ? `<button class="rs-link rs-danger" type="button" data-rs-uncomment="${esc(c.uri)}">Delete</button>` : ''
+      canReply(c, forge) ? `<button class="rs-link" type="button" data-rs-reply="${esc(c.uri)}">Reply</button>` : '',
+      // One on the forge is the forge's to change or delete: the tip says so.
+      mine && !c.forge ? `<button class="rs-link rs-danger" type="button" data-rs-uncomment="${esc(c.uri)}">Delete</button>` : ''
     ].join('');
+    const notes = [ago(v.createdAt), forge && !c.forge ? 'only on Rainshare' : '', !reply && c.lost ? 'in reply to a comment that isn’t here' : ''].filter(Boolean).join(' · ');
     return `<li class="rs-comment" id="${esc(commentKey(c))}">${face(c.author)}<div>
         <span>${a('profile/' + c.repo, `<b>${esc(mine ? 'You' : nameOf(c.author))}</b>`, 'rs-who')}${hat(c.repo)}${role ? `<span class="rs-role">${esc(role)}</span>` : ''}${to}</span>
-        <small>${esc(ago(v.createdAt))}${!reply && c.lost ? ' · in reply to a comment that isn’t here' : ''}</small>
+        <small>${esc(notes)}</small>
         <div class="rs-spec rs-comment-text">${renderMarkdown(v.text)}</div>
         ${tools ? `<div class="rs-row">${tools}</div>` : ''}
       </div></li>`;
   }
-  const commentForm = (kind, it, { parent, to } = {}) => {
+  // On an issue, what the old "Comment on the issue" box offered: a note that links here.
+  function noteFor(it){
+    const page = pageOf(it);
+    // (Once you've said it, there's no need to again.)
+    if (!page || (it.comments || []).some(c => c.repo === viewer() && String(c.value?.text || '').includes(page))) return null;
+    if (it.repo === viewer() && isOpen(it)) return ['Add a note that links here', `I’ve posted this on Rainshare, for anyone who’d like to send their agent to work on it: ${page}`];
+    return myTake(it) && isOpen(it) ? ['Say you’re working on it', `I’m working on this, through Rainshare: ${page}`] : null;
+  }
+  const commentForm = (kind, it, { parent, to, forge } = {}) => {
     const d = S.drafts[kind], text = d?.uri === it.uri && (kind === 'comment' || d.parent === parent) ? d.text : '';
-    const label = kind === 'reply' ? (to.repo === viewer() ? 'Your reply' : `Your reply to ${esc(nameOf(to.author))}`) : 'Add a comment';
+    const name = forge && FORGE_SAID[forge], label = kind === 'reply' ? (to.repo === viewer() ? 'Your reply' : `Your reply to ${esc(nameOf(to.author))}`) : 'Add a comment';
     const hint = kind === 'comment' ? (it.repo === viewer() ? 'Answer a question, or say what’s changed' : `Ask ${esc(firstName(it.author))} something, or say how it’s going`) : '';
+    const note = kind === 'comment' && forge && !text ? noteFor(it) : null;
+    const cancel = kind === 'reply' ? '<button class="rs-link" type="button" data-rs-act="reply-cancel">Cancel</button>' : '';
+    // On an issue, it's posted on the forge as you: that needs a sign-in that allows it.
+    const send = forge && !connected(forge) ? connectNote(forge, 'comment') + (cancel ? `<div class="rs-row">${cancel}</div>` : '')
+      : `<div class="rs-row"><button class="rs-btn rs-primary rs-sm" type="submit">${kind === 'reply' ? 'Reply' : 'Comment'}${forge ? ` on ${esc(name)}` : ''}</button>${cancel}${note ? `<button class="rs-link" type="button" data-rs-fill="${esc(note[1])}">${esc(note[0])}</button>` : ''}</div>`;
     return `<form class="rs-form rs-commentform" data-rs-form="${kind}">${parent ? `<input type="hidden" name="parent" value="${esc(parent)}">` : ''}
-        <label>${label} <small>(public, from your account)</small><textarea name="${kind}" rows="${kind === 'reply' ? 3 : 2}" maxlength="3000" required${hint ? ` placeholder="${hint}…"` : ''}>${esc(text)}</textarea></label>
-        <div class="rs-row"><button class="rs-btn rs-primary rs-sm" type="submit">${kind === 'reply' ? 'Reply' : 'Comment'}</button>${kind === 'reply' ? '<button class="rs-link" type="button" data-rs-act="reply-cancel">Cancel</button>' : ''}</div>
+        <label>${label} <small>(public, ${forge ? `on ${esc(name)} as you` : 'from your account'})</small><textarea name="${kind}" rows="${kind === 'reply' ? 3 : 2}" maxlength="3000" required${hint ? ` placeholder="${hint}…"` : ''}>${esc(text)}</textarea></label>
+        ${send}
       </form>`;
   };
   function talkBox(it){
-    const all = it.comments, list = all ? threads(all, it.uri) : null;
+    const all = it.comments, list = all ? threads(all, it.uri) : null, forge = talksOn(it), name = forge && FORGE_SAID[forge];
     const replyTo = S.reply && (all || []).find(c => c.uri === S.reply);
+    const href = forge && !it.example ? safeHttp(describeSubject(it.value?.subject)?.href) : null;
+    const issue = href ? `<a class="rs-link" href="${esc(href)}" target="_blank" rel="noopener">the issue on ${esc(name)}</a>` : `the issue on ${esc(name)}`;
+    const where = !forge ? '' : `<p class="rs-talk-where">${forgeIco(forge)}<span>${it.talk && !it.talk.read ? `${esc(name)} didn’t answer, so the comments on ${issue} aren’t showing.`
+      : `These are the comments on ${issue}.${it.talk?.more ? ` There are more there than ${esc(name)} listed.` : ''} What you write here is posted there.`}</span></p>`;
     const body = !list ? '<p class="rs-muted">Loading comments…</p>'
-      : !list.length ? `<p class="rs-muted">${it.repo === viewer() ? 'Nobody’s said anything yet. Questions from people thinking of helping show up here.' : 'Nobody’s said anything yet.'}</p>`
+      : !list.length ? (forge && it.talk && !it.talk.read ? '' : `<p class="rs-muted">${forge ? 'Nobody’s commented on the issue yet.' : it.repo === viewer() ? 'Nobody’s said anything yet. Questions from people thinking of helping show up here.' : 'Nobody’s said anything yet.'}</p>`)
         : `<ol class="rs-comments">${list.map(t => {
           const here = replyTo && (replyTo.uri === t.uri || t.replies.some(r => r.uri === replyTo.uri));
-          return `<li class="rs-thread"><ol class="rs-people rs-comment-list">${commentLi(t, it)}</ol>
-            ${t.replies.length ? `<ol class="rs-people rs-comment-list rs-replies">${t.replies.map(r => commentLi(r, it, { reply: true })).join('')}</ol>` : ''}
-            ${here ? `<div class="rs-replyform">${commentForm('reply', it, { parent: replyTo.uri, to: replyTo })}</div>` : ''}</li>`;
+          return `<li class="rs-thread"><ol class="rs-people rs-comment-list">${commentLi(t, it, { forge })}</ol>
+            ${t.replies.length ? `<ol class="rs-people rs-comment-list rs-replies">${t.replies.map(r => commentLi(r, it, { reply: true, forge })).join('')}</ol>` : ''}
+            ${here ? `<div class="rs-replyform">${commentForm('reply', it, { parent: replyTo.uri, to: replyTo, forge })}</div>` : ''}</li>`;
         }).join('')}</ol>`;
-    const write = !list ? '' : signedIn() ? commentForm('comment', it)
+    const write = !list ? '' : signedIn() ? commentForm('comment', it, { forge })
       : host.signIn ? `<div class="rs-row"><button class="rs-btn rs-quiet rs-sm" type="button" data-rs-act="signin">Sign in to comment</button></div>` : '';
-    return `<section class="rs-talk" aria-labelledby="rsTalkH"><div class="rs-hrow"><h2 id="rsTalkH">Comments${list?.length ? ` <span class="rs-count">${list.reduce((n, t) => n + 1 + t.replies.length, 0)}</span>` : ''}</h2>${tip('Each comment is a record in its writer’s own account, pointing at this ask. Anyone who can see the ask can read them. Only whoever wrote one can delete it, and you won’t see comments from people you block on Bluesky.')}</div>${body}${write}</section>`;
+    const about = forge
+      ? `These are the comments on the issue, read from ${esc(name)}. One you write here is posted on the issue, as you, where anyone can read it, and it’s changed or deleted there. Who wrote each one is what ${esc(name)} says. You won’t see comments from people you block on Bluesky.`
+      : 'Each comment is a record in its writer’s own account, pointing at this ask. Anyone who can see the ask can read them. Only whoever wrote one can delete it, and you won’t see comments from people you block on Bluesky.';
+    return `<section class="rs-talk" aria-labelledby="rsTalkH"><div class="rs-hrow"><h2 id="rsTalkH">Comments${list?.length ? ` <span class="rs-count">${list.reduce((n, t) => n + 1 + t.replies.length, 0)}</span>` : ''}</h2>${tip(about)}</div>${where}${body}${write}</section>`;
   }
   async function submitComment(form){
     // (What's in the other form is kept: posting this one redraws the page.)
     stash();
     const kind = form.dataset.rsForm, it = S.seed, fd = new FormData(form), text = String(fd.get(kind) || '').trim(), btn = form.querySelector('[type=submit]');
     if (!it || !text) return;
-    const parentUri = kind === 'reply' ? String(fd.get('parent') || '') : '';
+    const forge = talksOn(it), parentUri = kind === 'reply' ? String(fd.get('parent') || '') : '';
     const parent = parentUri ? (it.comments || []).find(c => c.uri === parentUri) : null;
     if (parentUri && !parent) { toast('That comment has gone.'); S.reply = null; rerender(); return; }
     if (btn) btn.disabled = true;
@@ -813,10 +811,14 @@ export function createRainshare({ root, base = '/', host }){
       const c = await S.source.comment(it, { text, parent });
       S.drafts[kind] = null; if (kind === 'reply') S.reply = null;
       S.seed = await reread(it);
-      toast(parent ? 'Replied' : 'Posted');
+      toast(!forge ? (parent ? 'Replied' : 'Posted') : c?.attested === false ? `Posted on ${FORGE_SAID[forge]}. It may show as unverified there for a while.` : `Posted on ${FORGE_SAID[forge]}`);
       render();
       root.querySelector('#' + commentKey(c))?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    } catch (e) { toast(plainText(e)); if (btn) btn.disabled = false; }
+    } catch (e) {
+      // Your server said this sign-in doesn't allow it: offer to connect, with what you wrote kept.
+      if (e?.name === 'NotConnected') { S.unlinked = e.forge || forge; rerender(); }
+      toast(plainText(e)); if (btn) btn.disabled = false;
+    }
   }
   async function uncomment(uri, el){
     const it = S.seed, c = (it?.comments || []).find(x => x.uri === uri);
@@ -953,7 +955,6 @@ export function createRainshare({ root, base = '/', host }){
           <section class="rs-ask-full"><div class="rs-ask-head"><h2>The ask</h2>${mdBtn(it, 'rs-quiet rs-sm')}</div>
             <div class="rs-spec">${sq.spec ? renderMarkdown(sq.spec) : '<p class="rs-muted">No details beyond the title.</p>'}${safeHttp(sq.specUrl) ? `<p><a href="${esc(safeHttp(sq.specUrl))}" target="_blank" rel="noopener nofollow">The longer spec</a></p>` : ''}</div></section>
           <div class="rs-actions">${actions}</div>
-          ${sayBox(it, { mine, taken, page, d })}
           ${deliveries ? `<h2>Turned in</h2><ul class="rs-people rs-deliveries">${deliveries}</ul>` : ''}
           ${linked ? `<h2>Also on ${esc(forge)}</h2><ul class="rs-people rs-deliveries rs-linked">${linked}</ul>` : ''}
           ${talkBox(it)}
@@ -1254,8 +1255,6 @@ export function createRainshare({ root, base = '/', host }){
   function stash(){
     const t = root.querySelector('[data-rs-form="turnin"]');
     if (t) S.drafts.turnIn = Object.fromEntries(new FormData(t));
-    const c = root.querySelector('[data-rs-form="say"]');
-    if (c && S.seed) S.drafts.say = { uri: S.seed.uri, text: String(new FormData(c).get('text') || '') };
     for (const kind of ['comment', 'reply']) {
       const f = root.querySelector(`[data-rs-form="${kind}"]`);
       if (f && S.seed) { const fd = new FormData(f); S.drafts[kind] = { uri: S.seed.uri, parent: String(fd.get('parent') || '') || undefined, text: String(fd.get(kind) || '') }; }
@@ -1288,12 +1287,11 @@ export function createRainshare({ root, base = '/', host }){
       if (name === 'show-launch') { S.launch = S.launch || pickLauncher(launchers(it, { viewer: viewer() }))?.id || 'brief'; rerender(); root.querySelector('#rsLaunch')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
       if (name === 'connect-forge') {
         stash();
-        try { sessionStorage.setItem(KEPT, JSON.stringify({ uri: S.view === 'seed' ? it?.uri : null, say: S.drafts.say || null, pull: S.drafts.pull || null, vouching: S.vouching })); } catch (_) {}
+        try { sessionStorage.setItem(KEPT, JSON.stringify({ uri: S.view === 'seed' ? it?.uri : null, comment: S.drafts.comment || null, reply: S.reply ? S.drafts.reply || null : null, pull: S.drafts.pull || null, vouching: S.vouching })); } catch (_) {}
         await host.connectForge?.(el.dataset.rsForge, S.sub);
         return;
       }
       if (name === 'pull-retry') { stash(); await loadPull(it, true); return; }
-      if (name === 'say-open' || name === 'say-close') { stash(); S.open.say = name === 'say-open'; render(); if (S.open.say) root.querySelector('[data-rs-form="say"] textarea')?.focus(); return; }
       if (name === 'me-more') { S.open['me-more'] = true; const more = root.querySelector('[data-rs-me-more]'); if (more) { more.hidden = false; el.remove(); } return; }
       if (name === 'turnin-more') { S.open['turnin-more'] = true; const more = root.querySelector('[data-rs-turnin-more]'); if (more) { more.hidden = false; el.remove(); more.querySelector('select')?.focus(); } return; }
       if (name === 'vouch-cancel') { S.vouching = null; rerender(); return; }
@@ -1417,6 +1415,8 @@ export function createRainshare({ root, base = '/', host }){
     const rp = t.closest('[data-rs-reply]');
     if (rp) { stash(); S.reply = rp.dataset.rsReply; render(); root.querySelector('[data-rs-form="reply"] textarea')?.focus(); return; }
     const uc = t.closest('[data-rs-uncomment]'); if (uc) { uncomment(uc.dataset.rsUncomment, uc); return; }
+    const fl = t.closest('[data-rs-fill]');
+    if (fl) { const box = fl.closest('form')?.querySelector('textarea'); if (box) { box.value = box.value.trim() ? box.value.trimEnd() + '\n\n' + fl.dataset.rsFill : fl.dataset.rsFill; box.focus(); fl.remove(); } return; }
     const rm = t.closest('[data-rs-remove-setup]'); if (rm) { stash(); S.form.profile.setups.splice(+rm.dataset.rsRemoveSetup, 1); render(); return; }
     const ac = t.closest('[data-rs-act]'); if (ac) { act(ac.dataset.rsAct, ac); }
   });
@@ -1435,7 +1435,6 @@ export function createRainshare({ root, base = '/', host }){
     if (f.dataset.rsForm === 'post') poster.submit();
     else if (f.dataset.rsForm === 'me') submitMe(f);
     else if (f.dataset.rsForm === 'turnin') submitTurnIn(f);
-    else if (f.dataset.rsForm === 'say') submitSay(f);
     else if (f.dataset.rsForm === 'pull') submitPull(f);
     else if (f.dataset.rsForm === 'vouch') submitVouch(f);
     else if (f.dataset.rsForm === 'comment' || f.dataset.rsForm === 'reply') submitComment(f);

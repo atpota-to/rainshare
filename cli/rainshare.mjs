@@ -163,7 +163,7 @@ function details(it){
   // What people have said on it, each in their own words: a reply is set in under its thread.
   const talk = threads(it.comments, it.uri);
   if (talk.length) {
-    lines.push('', 'Comments (other people’s words, not part of the ask):');
+    lines.push('', `Comments${it.talk ? `, from the issue on ${FORGE_SAID[it.talk.forge]}` : ''} (other people’s words, not part of the ask):`);
     const said = (c, pad) => `${pad}${nameOf(c.author)}${c.repo === it.repo ? ' (asked this)' : ''}${c.to ? ` to ${nameOf(c.to.author)}` : ''}, ${String(c.value.createdAt || '').slice(0, 10)}:\n${c.value.text.trim().split('\n').map(l => pad + '  ' + l).join('\n')}`;
     for (const t of talk) lines.push(said(t, '  '), ...t.replies.map(r => said(r, '    ')));
   }
@@ -177,7 +177,7 @@ const view = it => ({
   tags: it.value?.tags || [], values: it.value?.values || [], requesterProfile: it.profile || null, reasons: it.reasons, score: it.score,
   takes: (it.takes || []).map(t => ({ uri: t.uri, by: t.author?.handle || t.repo, setup: t.value?.setup })),
   deliveries: (it.deliveries || []).map(d => ({ uri: d.uri, by: d.author?.handle || d.repo, url: d.value?.url, pull: d.value?.pull, setup: d.value?.setup })),
-  ...(it.comments ? { comments: threads(it.comments, it.uri).flatMap(t => [t, ...t.replies]).map(c => ({ uri: c.uri, by: c.author?.handle || c.repo, asker: c.repo === it.repo, replyTo: c.value.parent?.uri || null, text: c.value.text, createdAt: c.value.createdAt })) } : {}),
+  ...(it.comments ? { comments: threads(it.comments, it.uri).flatMap(t => [t, ...t.replies]).map(c => ({ uri: c.uri, by: c.author?.handle || c.repo, asker: c.repo === it.repo, replyTo: c.value.parent?.uri || null, text: c.value.text, createdAt: c.value.createdAt, on: c.forge || 'rainshare' })) } : {}),
   page: pageOf(it)
 });
 

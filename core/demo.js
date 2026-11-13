@@ -9,6 +9,7 @@ import { PROFILE, SEED, TAKE, DELIVERY, COMMENT } from './ns.js';
 import * as R from './records.js';
 import { closeness } from './circle.js';
 import { shown } from './source.js';
+import { talksOn, fromForge } from './comments.js';
 
 const ME = 'did:example:you';
 const day = 864e5, ago = n => new Date(Date.now() - n).toISOString();
@@ -112,8 +113,14 @@ const DELIVERIES = [
   { id: '3dl-you-tomas', by: ME, on: '3sq-tomas-done', at: 27 * day, state: 'merged', value: { url: 'https://tangled.org/tomas.example/tidepool/pulls/29', setup: { harness: 'claude-code', models: ['claude-sonnet-5-5'] } } }
 ];
 // What people have said on a few of them: a question and its answer, a thank-you, and a note
-// on one of your own that you can reply to. `to` is the comment one replies to.
+// on one of your own that you can reply to. `to` is the comment one replies to. On the ones
+// on a Tangled or knotless issue, they're the issue's comments (as if read from the forge),
+// and knotless's are one list with no replies.
 const COMMENTS = [
+  { id: '3cm-juniper-tomas', by: 'did:example:juniper', on: '3sq-tomas', at: 20 * 3600e3, value: { text: 'Should peers that have never synced be in the list too? I’d guess with `"lastSync": null`.' } },
+  { id: '3cm-tomas-juniper', by: 'did:example:tomas', on: '3sq-tomas', to: '3cm-juniper-tomas', at: 18 * 3600e3, value: { text: 'Yes, with null. Scripts need to see them to know they’re stuck.' } },
+  { id: '3cm-priya-kai', by: 'did:example:priya', on: '3sq-kai', at: 3 * day, value: { text: 'I can make it fail every time with `TZ=Pacific/Kiritimati`. It’s the `time.Now()` in `next.go`, I think.' } },
+  { id: '3cm-kai-priya', by: 'did:example:kai', on: '3sq-kai', at: 3 * day - 7200e3, value: { text: 'That’s the one. A clock passed in from the test would fix it.' } },
   { id: '3cm-kai-amara', by: 'did:example:kai', on: '3sq-amara', at: 2 * day + 3600e3, value: { text: 'Should the calendar file have past shifts in it too, or only the ones coming up?' } },
   { id: '3cm-amara-kai', by: 'did:example:amara', on: '3sq-amara', to: '3cm-kai-amara', at: 2 * day, value: { text: 'Only the ones coming up. The next three months is plenty: people mostly want next weekend.' } },
   { id: '3cm-sam-juniper', by: 'did:example:sam', on: '3sq-juniper', at: 3600e3, value: { text: 'My students would get a lot out of this too. Happy to test it with a screen reader once there’s a branch.' } },
@@ -166,10 +173,13 @@ export function createDemoSource({ store = null, me: meOverride = null, groups =
     // What the forge would say is part of the pretence (`state` on a delivery, `forge` on a
     // seed): for real seeds it's asked of GitHub or Tangled, in status.js.
     const dels = [...DELIVERIES.map(d => ({ ...rec(on(d), DELIVERY), ties: tiesOf(d.by), ...(d.state ? { state: d.state } : {}) })), ...state.deliveries.map(d => ({ ...d, author: me }))];
-    // A reply points at the comment it answers the same way.
+    // A reply points at the comment it answers the same way. One on an issue is where the
+    // forge keeps it: Tangled's with the repo, knotless's in its writer's own account.
+    const forgeOf = id => { const s = SEEDS.find(q => q.id === id); return talksOn({ value: s.value, space: groupOf(s)?.space }); };
+    const commentUri = c => ({ tangled: `at://did:example:repo/org.tangled.feed.comment/${c.id}`, knotless: `at://${c.by}/dev.knotless.comment/${c.id}` })[forgeOf(c.on)] || uriOf(c.by, COMMENT, c.id, groupOf(SEEDS.find(q => q.id === c.on)));
     const comms = [...COMMENTS.map(c => {
-      const r = rec(on(c), COMMENT), to = c.to && COMMENTS.find(x => x.id === c.to);
-      return to ? { ...r, value: { ...r.value, parent: { uri: uriOf(to.by, COMMENT, to.id, groupOf(SEEDS.find(q => q.id === to.on))), cid: cidOf(to.id) } } } : r;
+      const r = rec(on(c), COMMENT), to = c.to && COMMENTS.find(x => x.id === c.to), forge = forgeOf(c.on);
+      return { ...r, uri: commentUri(c), ...(forge ? { forge } : {}), value: { ...r.value, ...(to ? { parent: { uri: commentUri(to), cid: cidOf(to.id) } } : {}) } };
     }), ...state.comments.map(c => ({ ...c, author: me }))];
     return all.map(x => {
       const r = rec(x, SEED);
@@ -182,7 +192,8 @@ export function createDemoSource({ store = null, me: meOverride = null, groups =
         profile: mine ? state.profile : PEOPLE[x.by]?.profile || null,
         takes: takes.filter(t => t.value.seed?.uri === sqUri),
         deliveries: dels.filter(d => d.value.seed?.uri === sqUri),
-        comments: comms.filter(c => c.value.seed?.uri === sqUri)
+        comments: comms.filter(c => c.value.seed?.uri === sqUri),
+        talk: talksOn({ value: x.value, space: g?.space }) ? { forge: talksOn({ value: x.value, space: g?.space }), read: true, more: false } : null
       };
     }).map(it => {
       // One that sprouted before you arrived names the work that did it, as a real one would.
@@ -237,13 +248,25 @@ export function createDemoSource({ store = null, me: meOverride = null, groups =
       const d = { uri: uriOf(ME, DELIVERY, id, item.group), cid: cidOf(id), repo: ME, rkey: id, value };
       state.deliveries.push(d); save(); return pause(d);
     },
+    // On an ask on a Tangled or knotless issue, it's pretended onto the issue, the way the
+    // real one would be posted there: knotless takes no replies, and nothing leaves this browser.
     async comment(item, { text, parent } = {}){
+      const forge = talksOn(item), id = tid('cm');
+      if (forge) {
+        if (parent && parent.forge !== forge) throw new Error('That comment is only on Rainshare, so a reply to it can’t go on the issue.');
+        if (parent && forge === 'knotless') throw new Error('Comments on a knotless issue can’t be replies. Write a comment instead.');
+        const said = String(text || '').trim();
+        if (!said) throw new Error('Say something first.');
+        const uri = forge === 'tangled' ? `at://did:example:repo/org.tangled.feed.comment/${id}` : `at://${ME}/dev.knotless.comment/${id}`;
+        const c = fromForge({ uri, cid: cidOf(id), by: ME, text: said, createdAt: new Date().toISOString(), replyTo: parent ? { uri: parent.uri, cid: parent.cid } : null }, item.uri, forge);
+        state.comments.push(c); save(); return pause(c);
+      }
       const value = R.comment({ seed: item, parent, text });
-      const id = tid('cm');
       const c = { uri: uriOf(ME, COMMENT, id, item.group), cid: cidOf(id), repo: ME, rkey: id, value };
       state.comments.push(c); save(); return pause(c);
     },
     async uncomment(item, c){
+      if (c?.forge) throw new Error(`It’s on ${c.forge === 'tangled' ? 'Tangled' : 'knotless'}. Change or delete it there.`);
       if (c?.repo !== ME) throw new Error('Only the person who wrote a comment can delete it.');
       state.comments = state.comments.filter(x => x.uri !== c.uri); save(); return pause();
     },
