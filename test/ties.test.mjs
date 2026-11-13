@@ -132,6 +132,9 @@ test('beside a name, a follow on Tangled counts as much as one on Bluesky', asyn
   assert.equal(relationText({ ...seed('following'), closeness: 'follows-you', ties: T('them', 'you them') }, ME), 'mutual');
   assert.equal(relationText({ ...seed('anyone'), closeness: null, ties: T('', 'them') }, ME), 'follows you');
   assert.equal(relationText({ ...seed('anyone'), closeness: null, ties: T('', '') }, ME), 'open to everyone');
+  // A card doesn't say who it's open to: only how you know them, if you do.
+  assert.equal(relationText({ ...seed('anyone'), closeness: null, ties: T('', '') }, ME, { audience: false }), '');
+  assert.equal(relationText({ ...seed('anyone'), closeness: null, ties: T('', 'them') }, ME, { audience: false }), 'follows you');
   // Without ties (an older source, or a network that didn't answer), Bluesky's word stands.
   assert.equal(relationText({ ...seed('mutuals'), closeness: 'mutual' }, ME), 'mutual');
 });

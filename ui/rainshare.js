@@ -29,7 +29,7 @@ import { tieOf, tieLines, knownText, TIE_SHORT, FROM, fromMatches } from '../cor
 import { wateredText } from '../core/garden.js';
 import { audienceLine } from '../core/circle.js';
 import { rank, fit, join, pretty } from '../core/rank.js';
-import { whereText, shortWhere, jobAndNotes, jobShort, modelsText, progressOf, progressShort, relationText, askExcerpt, stateText, pictureOf, nounOf, aNoun, whatItIs, planText } from '../core/words.js';
+import { whereText, jobAndNotes, modelsText, progressOf, progressShort, relationText, askExcerpt, stateText, pictureOf, nounOf, aNoun, whatItIs, planText } from '../core/words.js';
 import { renderMarkdown } from '../core/markdown.js';
 import { brief, launchers, pageOf, readHandBack, readBranchBack, sh, INSTALL, MCP_ADD, CLI_HOME } from '../core/brief.js';
 import { strongRef, HARNESS_NAMES } from '../core/records.js';
@@ -291,15 +291,17 @@ export function createRainshare({ root, base = '/', host }){
         <div class="rs-filter-row"><span class="rs-from-l">Show</span>${showRow(byFrom)}</div>
       </div>` : ''}`;
   }
-  // One card: who, the title, and one quiet line (how well it suits you, or where and how big).
+  // One card: who and when across the top, then beside its plant the title, the start of the ask
+  // in their own words, a quiet line (how well it suits you, or that it's yours or done) and where
+  // it stands. Where the work is and how big a job it is are in its details, and so is who it's
+  // open to unless you know them.
   function card(it, { nav = false } = {}){
     const sq = it.value || {}, p = it.author || {}, mine = it.repo === viewer(), on = !nav && it.uri === S.pick;
-    const rel = mine ? '' : relationText(it, viewer());
-    let line;
+    const rel = mine ? '' : relationText(it, viewer(), { audience: false }), ask = askExcerpt(sq.spec, 180);
+    let line = '';
     if (!isOpen(it)) line = `<span class="rs-state${sq.state === 'sprouted' ? ' rs-ok' : ''}">${sq.state === 'sprouted' ? lifeIco('sprouted') : ''}${esc(stateText(sq))}</span>`;
-    else if (mine) line = '<span>Yours</span>';   // (what's been turned in is on the right, with who)
+    else if (mine) line = '<span>Yours</span>';
     else if (it.fit) line = `${drops(it.fit.level)}<span class="rs-fit-l">${esc(it.fit.label)}</span>`;
-    else line = `<span>${esc([shortWhere(sq), jobShort(sq)].filter(Boolean).join(' · '))}</span>`;
     const pr = progressOf(it, viewer()), short = progressShort(it, viewer());
     const who = pr.helpers.filter(h => pr.key === 'done' ? h.didIt : pr.key === 'turned-in' ? h.turnedIn : true).slice(0, 3);
     // (What's been turned in, a pull request or what someone built, is a chip of its own, so it stands out down the list.)
@@ -308,8 +310,11 @@ export function createRainshare({ root, base = '/', host }){
       : `<span class="rs-item-taken rs-${pr.key}">${faces}${esc(short)}</span>`;
     return `<li><a class="rs-item${on ? ' on' : ''}" href="${esc(href(pathOf(it)))}" ${nav ? `data-rs-go="${esc(pathOf(it))}"` : `data-rs-pick="${esc(it.uri)}"`}${on ? ' aria-current="true"' : ''}>
       <span class="rs-item-top">${face(p, 'xs')}<span class="rs-item-who"><b>${esc(mine ? 'You' : nameOf(p))}</b>${mine ? '' : hat(it.repo)}${rel ? `<span> · ${it.space ? ico('lock') : ''}${esc(rel)}</span>` : ''}</span><time>${esc(ago(sq.createdAt))}</time></span>
-      <span class="rs-item-title">${esc(sq.title)}</span>
-      <span class="rs-item-line">${line}${taken}</span>
+      <span class="rs-item-main">
+        <span class="rs-item-title">${esc(sq.title)}</span>
+        ${ask ? `<span class="rs-item-ask">${esc(ask)}</span>` : ''}
+        ${line || taken ? `<span class="rs-item-line">${line}${taken}</span>` : ''}
+      </span>
       ${plantPic(pictureOf(sq), 52, { key: it.uri })}
     </a></li>`;
   }

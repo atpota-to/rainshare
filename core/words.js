@@ -159,13 +159,16 @@ export function planText(p){
   return UNPAID.includes(p?.budget) ? labelOf(PLANS, p.budget) : '';
 }
 
-/** How the asker relates to you: "mutual", "follows you", "Spine Club", "open to everyone". */
-export function relationText(item, viewer){
+/**
+ * How the asker relates to you: "mutual", "follows you", "Spine Club", "open to everyone".
+ * With `audience: false`, who it's open to isn't said when there's no tie (a card leaves it out).
+ */
+export function relationText(item, viewer, { audience = true } = {}){
   if (viewer && item?.repo === viewer) return 'you';
   if (item?.space) return item.group?.name || 'private';
   // A follow on Bluesky or on Tangled counts here (./ties.js); without ties, Bluesky's alone.
   return { ...TIE_SHORT, group: item.group?.name || 'your group' }[tieOf(item?.ties) || item?.closeness]
-    || (audienceOf(item?.value) === 'anyone' ? 'open to everyone' : '');
+    || (audience && audienceOf(item?.value) === 'anyone' ? 'open to everyone' : '');
 }
 
 /** The spec as a short plain-text excerpt, without its Markdown. Lines and list items become sentences. */

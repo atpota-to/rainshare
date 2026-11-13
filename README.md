@@ -160,6 +160,11 @@ None of it gates anything. You can filter the board by it (mutuals, people you f
 vouched for, and so on), and you can vouch for someone who helped you. Rainshare never writes
 denouncements; do that on Tangled.
 
+Each ask on the board is a short card: who asked (and how you know them, if you do) and when,
+across the top, then beside its plant the title, the first couple of lines of the ask in their
+words, and who's on it. Where the work
+is, how big a job it is and who it's open to are in its details.
+
 Over the board's list, it's sorted **Best for you** (signed in; see [Ranking](#ranking)) or
 **Newest**, and **Filter** folds out what narrows it: who asked, by the ties above, and whether
 to show only the asks **nobody's on yet** (nobody's said they're on it, and nothing's been
