@@ -1,7 +1,8 @@
-// The signed-out landing: the pitch, beside a scene to play with.
+// The signed-out landing: the pitch, and a scene to play with.
 //
-// The scene is the garden (./garden.js): your cloud, and your friends' plots to rain on. The
-// water cycle it replaced is kept in ./cycle, in case it's wanted back.
+// The scene is the garden (./garden.js): your cloud, and your friends' plots to rain on. It's
+// the page's whole backdrop, with the pitch in its sky. The water cycle it replaced is kept
+// in ./cycle, in case it's wanted back; that one is drawn in a box beside the pitch.
 //
 // Either is three.js, so it's fetched only when the landing is actually on screen, and it
 // holds still when it's scrolled away, the tab is hidden, or someone pauses it. If the browser
@@ -56,7 +57,8 @@ async function wire(){
   pause = $('#scenePause', figure);
   pause.addEventListener('click', e => { e.stopPropagation(); paused = !paused; sync(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && shown) scene.escape(); });
-  new IntersectionObserver(([e]) => { inView = e.isIntersecting; if (inView && shown) load(); sync(); }, { rootMargin: '120px' }).observe(figure);
+  // (The scene's own box, not the figure: the garden's is the page's backdrop, and is on screen before its figure is.)
+  new IntersectionObserver(([e]) => { inView = e.isIntersecting; if (inView && shown) load(); sync(); }, { rootMargin: '120px' }).observe($('#sceneView', figure));
   document.addEventListener('visibilitychange', sync);
   night.addEventListener('change', () => scene.setDark(night.matches));
   calm.addEventListener('change', () => { paused = calm.matches; sync(); });

@@ -6,16 +6,27 @@
 // the work's done the plant is a stage further on. Leave the cloud where it is and the plan
 // resets all the same: what was left in it is gone, and a full one takes its place.
 //
+// The scene is the landing's whole backdrop (./landing.css): its sky runs behind the bar and
+// the pitch, and the figure is the part of it kept clear for the garden. This file tells the
+// scene where that is. As the page is scrolled the garden doesn't keep up with it: it sinks
+// into the meadow left between it and the line of words under it, the hills behind it sink
+// less, and the sky not at all.
+//
 // The scene itself is three.js (./garden-scene.js), so it's fetched only when the landing is
 // on screen. If the browser can't draw it, a flat drawing takes its place, with the same
 // story set out under it in three short notes.
 import { PLOTS, FRIEND, GARDEN_PATH } from './plots.js';
+import { fit } from './fit.js';
 
 const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const SPARK = '<svg class="rd-spark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.3 7.2 7.2 2.3-7.2 2.3-2.3 7.2-2.3-7.2L2.5 12l7.2-2.3z"/></svg>';
 const HINT = 'Drag your cloud over someone’s idea or project.';
 const whose = p => `${p.name}’s ${p.noun}`;
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+
+const SPILL = 150;      // how far under the landing the backdrop runs, fading out as it goes
+const SINK = .4;        // how far the garden sinks for each pixel scrolled, once the whole of it has been seen
 
 /** Put the garden's labels in the landing's figure. What comes back is what ./landing.js drives a scene with. */
 export function mount(figure){
@@ -26,10 +37,61 @@ export function mount(figure){
     + `<div class="rd-cloud" id="sceneCloud"><span class="rd-pin rd-plan"><svg class="rd-ring" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><circle class="left" cx="10" cy="10" r="7.5" pathLength="100"/></svg><span><b>Your AI plan</b><small>Resets in 2 days</small></span></span></div>`;
   const pins = $$('.rd-plot', layer), friendTag = $('.rd-friend', layer), cloud = $('#sceneCloud', layer), plan = $('.rd-plan', cloud), ring = $('.rd-ring', cloud), resets = $('small', cloud);
 
-  // Under 880px the scene has the page's width to itself, and its line of words under it (./landing.css).
-  const stacked = matchMedia('(max-width:880px)');
-  stacked.addEventListener('change', () => scene?.setClose(stacked.matches));
   let scene = null, shown = -1, toastTimer = 0, doneTimer = 0;
+
+  /* where the garden goes in the backdrop, and how far it has sunk */
+  // Under 880px the pitch is over the garden, not beside it, and the garden has the window's width (./landing.css).
+  const stacked = matchMedia('(max-width:880px)'), calm = matchMedia('(prefers-reduced-motion: reduce)');
+  const land = figure.parentElement, base = $('.rd-base', figure), bar = $('.rd-bar'), pitch = $('.rd-pitch', land), signIn = $('.rd-signin', land);
+  let frame = null, sunk = 0, deep = 0, stood = 0;
+  function layout(){
+    const f = figure.getBoundingClientRect();
+    if (!f.width || figure.classList.contains('flat')) return;
+    // the landing fills what the bar leaves of the first screenful
+    land.style.setProperty('--rd-bar', (bar?.offsetHeight || 76) + 'px');
+    const at = view.getBoundingClientRect(), close = stacked.matches;
+    figure.style.setProperty('--sky-h', Math.round(land.getBoundingClientRect().bottom - at.top + SPILL) + 'px');
+    // Beside the pitch, the garden reaches a little under it on the left and out toward the
+    // window's edge on the right. Under it, it has the window's whole width.
+    // (Further out on a wider window, so the garden grows with it.)
+    const x0 = close ? 0 : f.left - at.left - 40, x1 = close ? at.width : Math.min(at.width - 24, f.right - at.left + 130 + Math.max(0, at.width - 1440) * .4);
+    // the line under the garden is as wide as the garden is
+    figure.style.setProperty('--out-l', Math.round(f.left - at.left - x0) + 'px');
+    figure.style.setProperty('--out-r', Math.round(x1 - (f.right - at.left)) + 'px');
+    // Between the garden and that line the figure leaves a stretch of meadow (its gap): the
+    // garden can sink as far as that.
+    const room = parseFloat(getComputedStyle(figure).rowGap) || 0;
+    deep = Math.max(0, room - 8);
+    frame = { x: x0, y: f.top - at.top, w: x1 - x0, h: base.getBoundingClientRect().top - room - f.top, close };
+    scene?.setFrame(frame);
+    // Beside the garden, the pitch stands on its horizon: the heading and what's under it in
+    // the sky, and the sign-in on the line of the far woods. It's moved from where the page's
+    // layout centres it, as far as the landing has room for.
+    // (The horizon is known from the frame alone, so this doesn't wait for the scene.)
+    let to = 0;
+    if (!close && pitch && signIn) {
+      const p = pitch.getBoundingClientRect(), l = land.getBoundingClientRect(), up = l.top - (p.top - stood), down = Math.max(up, l.bottom - 22 - (p.bottom - stood));
+      to = Math.round(clamp(fit(frame).horizon + at.top - 6 - (signIn.getBoundingClientRect().top - stood), up, down));
+    }
+    if (to !== stood) { stood = to; land.style.setProperty('--stand', to + 'px'); }
+    scroll();
+  }
+  // Nothing sinks until the hint under the garden is on screen, so on a phone, where the
+  // garden starts below the first screenful, the whole of it is seen first. Its labels go
+  // down with it, so it can be played with all the way. Anyone who's asked for less motion
+  // gets a garden that scrolls away like the rest of the page.
+  function scroll(){
+    if (!frame || land.hidden) return;      // (on another page there's no garden to sink)
+    const to = calm.matches ? 0 : clamp(SINK * clamp(innerHeight - 52 - base.getBoundingClientRect().top, 0, scrollY), 0, deep);
+    if (to === sunk) return;
+    sunk = to;
+    scene?.setLift(to);
+  }
+  const sized = new ResizeObserver(layout);
+  for (const el of [land, figure, base, bar, pitch]) if (el) sized.observe(el);
+  stacked.addEventListener('change', layout); calm.addEventListener('change', scroll);
+  addEventListener('scroll', scroll, { passive: true });
+
   const state = PLOTS.map(() => 'open');            // 'open', 'rain' (your cloud's on it) or 'done'
   const label = (p, i) => state[i] === 'done' ? `${whose(p)}, done: ${p.title}` : p.theirs ? `${whose(p)}, with ${FRIEND.name}’s agent on it: ${p.title}` : `Send your cloud to ${whose(p)}: ${p.title}`;
   function mark(){
@@ -127,19 +189,22 @@ export function mount(figure){
   view.addEventListener('pointermove', e => {
     if (e.pointerType !== 'mouse' || !scene) return;
     const r = view.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
-    scene.setPointer(x / r.width * 2 - 1, y / r.height * 2 - 1);
     // a plot your cloud could go to shows it can be picked
     const i = e.target === view || e.target.tagName === 'CANVAS' ? scene.plotAt(x, y) : -1;
     view.style.cursor = i >= 0 && state[i] === 'open' && !PLOTS[i].theirs ? 'pointer' : '';
   });
-  view.addEventListener('pointerleave', () => scene?.setPointer(0, 0));
+  // The backdrop gives a little to the pointer, wherever on the page it is.
+  addEventListener('pointermove', e => { if (e.pointerType === 'mouse') scene?.setPointer(e.clientX / innerWidth * 2 - 1, e.clientY / innerHeight * 2 - 1); }, { passive: true });
+  document.documentElement.addEventListener('pointerleave', () => scene?.setPointer(0, 0));
   again.addEventListener('click', () => { clearTimeout(doneTimer); state.fill('open'); mark(); say(-1); scene?.again(); });
   mark();
 
   return {
     async load({ dark }){
       const { createGarden } = await import('./garden-scene.js');
-      scene = createGarden($('canvas', view), { dark, close: stacked.matches, plots: PLOTS, onFrame, onEvent });
+      layout();
+      scene = createGarden($('canvas', view), { dark, frame, plots: PLOTS, onFrame, onEvent });
+      scene.setLift(sunk);
     },
     setRunning(on){ scene?.setRunning(on); },
     setDark(on){ scene?.setDark(on); },

@@ -56,8 +56,9 @@ It runs in two places, both from this repo:
 
 ## The landing
 
-Signed out, the home page is the pitch beside a small garden, drawn in 3D (`src/landing/`), to
-play with. It's Rainshare in one picture:
+Signed out, the home page is the pitch in a small garden, drawn in 3D (`src/landing/`), to
+play with. The garden is the page's whole backdrop: its sky runs behind the bar and the
+pitch, and its meadow from one edge of the window to the other. It's Rainshare in one picture:
 
 | In the scene | In Rainshare |
 | --- | --- |
@@ -85,22 +86,46 @@ rain is spent. The gold in the rain, and over a plant that's done, is the spark 
 
 The ground, the grass and the far woods are generated in code from one fixed number
 (`garden-scene.js`), so there are no models or textures to download. The scene follows the
-system's light or dark setting as day or night, and has no frame: its edges fade into the page.
-Under 880 pixels wide it has the page's width to itself, so it frames the row more closely and
-the line of words goes under it.
+system's light or dark setting as day or night.
+
+**The backdrop.** The canvas runs from the top of the page to a little under the landing,
+where it fades into the page, so the board's heading stands in the last of the meadow. The
+garden itself is fitted into the part of the picture the page keeps clear for it (`fit.js`):
+beside the pitch on a wide window, and under it below 880 pixels, where the pitch is in the
+sky and most of the garden is below the first screenful. Beside the garden the pitch stands
+on its horizon: the heading and the line under it in the sky, and the sign-in on the line of
+the far woods, with nothing under it. (The horizon is worked out from the layout alone, so
+the pitch is there before the scene has been fetched.) Over the sky and the meadow the grey
+the rest of the site writes its asides in is too faint to read, so the bar and the pitch
+write theirs in most of the ink; and if a handle is mistyped, what's said about it under the
+sign-in is on a pane of frosted glass, like the scene's own labels.
+
+**Scrolling.** The backdrop scrolls with the page, and the garden doesn't quite keep up: the
+camera rises as the page goes by, so the garden sinks into a stretch of meadow left between
+it and the line of words under it, the hills behind it sink less, and the sky not at all. It
+sinks only as far as that stretch (120 pixels at most), with its labels, so it can be played
+with all the way, and on a phone it starts once the whole garden has been seen.
 
 It's three.js, about 150 kB gzipped, and the page asks for it only when the landing is on
 screen, so someone who's signed in never downloads it. It holds still when it's scrolled out
 of view, when the tab is hidden, when someone presses pause, and from the start for anyone
 who has asked their system to reduce motion (sending the cloud still works for them: it's
-there at once, and the work done). A browser that can't do WebGL gets a flat drawing with the
-same story in three notes under it.
+there at once, and the work done; and nothing sinks as they scroll). A browser that can't do
+WebGL gets a flat drawing beside the pitch, with the same story in three notes under it.
+
+Filling the window costs pixels: about three times as many as the scene had in a box of its
+own on a laptop, and more on a phone, where the backdrop is taller than the screen. Most of
+the extra is sky, which is cheap to draw, and the canvas is capped at 4.2 million pixels, so
+on a big, dense screen it's drawn a little under the screen's own sharpness. It hasn't been
+timed on a real graphics card yet (see below).
 
 **The water cycle.** The scene used to be the water cycle: a stretch of coast where mist rose
 off the sea, gathered into clouds, rained on seeds by a river and ran home. It had nobody in
 it, and a cycle promises that what you give comes back, which Rainshare doesn't. It's kept,
 whole, in `src/landing/cycle/` in case it's wanted back: set `SCENE` in `landing.js` to
 `'cycle'`, or add `?scene=cycle` to the address to look at it. Nobody downloads it otherwise.
+It's still drawn in a box of its own beside the pitch, with its edges fading into the page,
+as the garden was before it became the backdrop.
 
 ## Signing in
 
@@ -624,7 +649,7 @@ take on only what you'd be comfortable asking it to do for yourself.
 | Path | What it is |
 | --- | --- |
 | `index.html`, `src/main.js` | The site: the page, its routes, and who's signed in |
-| `src/landing/` | The signed-out landing: `landing.js` (which scene, and when it runs), `garden.js` (the cloud to drag, the plots' labels and the line under them), `garden-scene.js` (the garden itself), `plots.js` (what's planted), `puffs.js` and `sky.js` (how a cloud and the sky are drawn), `landing.css`, and `cycle/` (the water cycle it replaced) |
+| `src/landing/` | The signed-out landing: `landing.js` (which scene, and when it runs), `garden.js` (the cloud to drag, the plots' labels and the line under them, and where in the backdrop the garden goes), `garden-scene.js` (the garden itself), `fit.js` (how it's fitted into its place), `plots.js` (what's planted), `puffs.js` and `sky.js` (how a cloud and the sky are drawn), `landing.css`, and `cycle/` (the water cycle it replaced) |
 | `src/plants/` | The four 3D plants: `models.js` (how each stage of each kind is grown), `live.js` (one renderer drawing them all, turning), `sheet.html` (a page to look at every kind on) |
 | `scripts/render-plants.mjs`, `public/plants/` | `npm run plants`, and the pictures it takes of every stage of every kind |
 | `src/logo/` | The logo in 3D: `drop.js` (the drop and the spark, how they're lit and how they move), `live.js` (the moving one in the bar), `sheet.html` (a page to look at it on) |
@@ -707,11 +732,11 @@ npm run build       # the site in dist/, with the CLI bundled at dist/rainshare.
 npm run build:cli   # just the CLI, at dist-cli/rainshare.mjs
 ```
 
-The app says it's an early alpha in a badge beside the logo, on the landing, once on the
-signed-in board, and where you post an ask; the CLI's help and version and the MCP server's
-title say so too. `STAGE` in `core/ns.js` drives the board note, the ask screen and the CLI and
-MCP text. `index.html` writes the word out by hand in three places (the badge, the badge's
-title, and the landing line), so change those with it.
+The app says it's an early alpha in a badge beside the logo, once on the signed-in board,
+and where you post an ask; the CLI's help and version and the MCP server's title say so too.
+`STAGE` in `core/ns.js` drives the board note, the ask screen and the CLI and MCP text.
+`index.html` writes the word out by hand in two places (the badge and the badge's title), so
+change those with it.
 
 Sign-in in dev uses atproto's loopback client, so open the dev server at `http://127.0.0.1:<port>`
 rather than `localhost`.
@@ -781,7 +806,25 @@ pixels wide in light and dark, with the Content Security Policy from `vercel.jso
 sideways scrolling, nothing past the edge of the phone sheet, and nothing blocked by the policy
 (the landing's scene, the turning plants and the sign-in code all load under it).
 
+The garden as the page's backdrop was checked on 12 November 2026, in headless Chromium on a
+software renderer: from 360 to 2200 pixels wide, in light and dark, with no sideways
+scrolling and the backdrop the window's whole width; the garden sinking as the page scrolls
+and stopping short of the line under it, and not sinking at all with reduced motion; on a
+desktop and on a phone with a finger, sending the cloud by a label and by a plot in the
+canvas (and on the desktop by dragging it), all three plots through to "Three done",
+and starting again, on the phone with the garden part of the way sunk; typing in the sign-in
+over the backdrop; pause; going on to the example circle and back; the fallback without
+WebGL and the water cycle at `?scene=cycle`, each in its box beside the pitch as before; and
+the production build under the Content Security Policy at 1280 and 390 pixels wide, with
+nothing blocked.
+
 Not yet checked:
+
+- The backdrop on a real graphics card, on a real phone, or in Safari or Firefox: how
+  smoothly it runs now that it fills the window, and whether the frosted panes and the fade
+  at its foot look as they do in Chromium. On the software renderer, which does all of it on
+  the processor, it ran at a little over half the frames a second the scene did in its box
+  (3.8 against 6.5 on a laptop-sized window, 4.3 against 6.8 on a phone-sized one).
 
 - Signing in with a real account, past the point where a password is typed, and writing to a
   real PDS. Checked on 12 November 2026, from the dev server and from the deployment at

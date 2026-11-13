@@ -14,8 +14,6 @@
 /* on the landing they float under the field and its button */
 .rd-signin{position:relative}
 .rd-signin>.si-list{position:absolute;left:0;right:0;top:calc(100% + 8px);z-index:6}
-/* (the line under the field would show past the list's round corner) */
-.rd-signin:has(.si-list:not([hidden]))~.rd-with{visibility:hidden}
 
 /* The dialog fills the window, and the box sits toward the top of it, so it doesn't jump about
    as accounts are offered or the keyboard comes up. */

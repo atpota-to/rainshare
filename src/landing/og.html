@@ -40,7 +40,7 @@
   // there. That's counted in frames drawn, not seconds, so a slow renderer takes the same picture.
   let raining = -1, frames = 0;
   const scene = createGarden(document.querySelector('canvas'), {
-    dark: false, close: false, plots: PLOTS,
+    dark: false, plots: PLOTS,
     onEvent: what => { if (what === 'rain') raining = frames; },
     onFrame: () => { frames++; if (raining >= 0 && frames - raining === 30) document.fonts.ready.then(() => { scene.setRunning(false); window.ogReady = true; }); }
   });

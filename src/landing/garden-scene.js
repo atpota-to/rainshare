@@ -13,6 +13,10 @@
 // The clouds are the ones atmosphere.online's sky is made of (./puffs.js), under the same
 // morning and night (./sky.js). The ground is made here from a seed: nothing to download but
 // this file, which the page asks for only when the landing is on screen (see ./garden.js).
+//
+// The canvas is the landing's whole backdrop: the sky runs behind the bar and the pitch, and
+// the meadow from one side of the window to the other. The garden is fitted into the part of
+// it the page keeps clear (`frame`), and sinks as the page is scrolled away (`setLift`).
 import {
   WebGLRenderer, Scene, PerspectiveCamera, Color, Vector3, Vector4, Fog, Box3,
   HemisphereLight, DirectionalLight,
@@ -23,6 +27,7 @@ import {
 } from 'three';
 import { makeNoise, mulberry, puffBatch, newCloud, shapeCloud, settleCloud, stageCloud } from './puffs.js';
 import { SKY, SKY_RAW, SUN_LIGHT, skyDome } from './sky.js';
+import { EYE, fit, alone } from './fit.js';
 import { buildPlant, disposePlant } from '../plants/models.js';
 
 /* ---------- small maths ---------- */
@@ -59,7 +64,8 @@ function railZ(x){
 }
 
 // Level where the row is, a rise behind it for the friend's plot, rolling a little beyond,
-// and low hills in the haze.
+// and low hills in the haze. It runs far out to either side, so a wide window has land all
+// the way across.
 function height(x, z){
   const far = Math.hypot(x - 1, (z + 1) * 1.15);
   return (fbm(x * .13 + 3.1, z * .13 - 1.4) - .5) * 1.4 * smooth(8, 20, far)
@@ -74,7 +80,7 @@ function warp(n, lo, hi, mid, k){
 }
 const LAND = { meadow: '#A9C383', lush: '#7FA96C', dry: '#BDBC8C', wood: '#5E8C61', soil: '#9C7D64', dug: '#7C5D49' };
 function groundGeometry(){
-  const X = warp(190, -80, 80, 1, .22), Z = warp(170, -98, 15, -1, .22), nx = X.length, nz = Z.length;
+  const X = warp(330, -140, 140, 1, .22), Z = warp(170, -98, 15, -1, .22), nx = X.length, nz = Z.length;
   const pos = new Float32Array(nx * nz * 3), col = new Float32Array(nx * nz * 3), index = [];
   const K = Object.fromEntries(Object.entries(LAND).map(([k, v]) => [k, new Color(v)])), c = new Color();
   for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
@@ -103,7 +109,8 @@ const LOOKS = {
 const RAW = [...SKY_RAW, 'tuft', 'tuftShade', 'leaf', 'leafShade'];
 const FOG_NEAR = 22, FOG_FAR = 84;
 // The sun stands up and to the left, just out of the picture: this close to the ground a sun
-// in view would wash out the sky the clouds are seen against.
+// in view would wash out the sky the clouds are seen against. This is where it starts; once
+// the canvas has a size it's put just past the picture's top left corner, wherever that is.
 const SUN_AT = new Vector3(-.44, .42, -.79).normalize();
 // The plants face the camera, so most of their light comes from in front of them, up and to
 // the left; the sun itself is behind, and rims them.
@@ -115,12 +122,10 @@ const RAIN = 5.2;            // seconds of your rain that bring a plot on a stag
 const USE = .32;             // how much of a full cloud that takes: three plots, and a wisp left over
 const FRIEND_RAIN = 9;       // the friend's cloud takes its time, so there's rain to see on arriving
 const FRIEND_WET = .32;      // how far along its plot is to begin with
-const EYE = [.35, 3, 15.2];   // where the camera stands: in front of the row's middle, at about the height of a grown plant
-// What the camera takes in: how far to each side of the row's middle, and the height it looks
-// at. Beside the pitch the scene's edges fade into the page, so the row is kept clear of them
-// and of the line of words over its lower edge. `close` is for when it has the page's whole
-// width to itself, with that line under it.
-const FRAME = { wide: { reach: 6.23, aim: 2.55 }, close: { reach: 5.35, aim: 3.1 } };
+// (Where the camera stands, and how the garden is fitted into its frame, are in ./fit.js.)
+// The most pixels the canvas is drawn with. It fills the window, so on a big, dense screen
+// it's drawn a little under the screen's own sharpness: the clouds are soft anyway.
+const MOST = 4.2e6;
 
 /**
  * Draw the garden into `canvas`. `plots` says what's planted: for each, the `stage` it's at
@@ -135,15 +140,16 @@ const FRAME = { wide: { reach: 6.23, aim: 2.55 }, close: { reach: 5.35, aim: 3.1
  * much rain is left in your cloud) and `fresh` (true while a new cloud is forming).
  * `onEvent(what, n)` says what happened: 'rain' and 'dry' (your rain started or stopped on
  * plot n), 'done' (plot n came on a stage) and 'reset' (your plan reset, with n of a cloud
- * unused). `close` frames the row tightly (see FRAME). Throws if the browser can't give a
- * WebGL context.
+ * unused). `frame` is where in the canvas the garden goes (see setFrame); with none, it has
+ * the canvas to itself. Throws if the browser can't give a WebGL context.
  */
-export function createGarden(canvas, { dark = false, close = false, plots: planted = [], onFrame, onEvent } = {}){
+export function createGarden(canvas, { dark = false, frame: into = null, plots: planted = [], onFrame, onEvent } = {}){
   const renderer = new WebGLRenderer({ canvas, antialias: true, powerPreference: 'low-power' });
   const scene = new Scene();
   const camera = new PerspectiveCamera(38, 1, .5, 700);
-  let framing = FRAME[close ? 'close' : 'wide'];
+  let unit = 60, aim = 2.55, sunk = 0;
   const rand = mulberry(20261112);
+  const wide = mulberry(20261113);        // for what's out to the sides, so the garden itself is seeded as it always was
   let look = LOOKS[dark ? 'night' : 'day'];
 
   const noiseTex = makeNoise(256, rand);
@@ -159,7 +165,8 @@ export function createGarden(canvas, { dark = false, close = false, plots: plant
   sun.position.copy(SUN_LIGHT).multiplyScalar(60); key.position.copy(KEY_LIGHT).multiplyScalar(60); fill.position.copy(FILL_LIGHT).multiplyScalar(60);
   scene.add(hemi, sun, key, fill);
 
-  const sky = skyDome(C, uTime, SUN_AT);
+  const sunAt = SUN_AT.clone(), uSpan = { value: 2.3 };
+  const sky = skyDome(C, uTime, sunAt, uSpan);
   scene.add(sky);
 
   /* the ground: darker under a cloud, and where rain has soaked into a plot */
@@ -203,6 +210,15 @@ export function createGarden(canvas, { dark = false, close = false, plots: plant
       const size = lerp(.09, .2, rand());
       P.push(x, height(x, z) + size * .46, z); S.push(size); T.push(rand());
     }
+    // and on out to either side, where the meadow runs behind the pitch and to the window's
+    // edge: thinner the further it is from the garden
+    for (let tries = 0, most = S.length + 5200; S.length < most && tries < 120000; tries++) {
+      const x = lerp(-50, 40, wide()), z = lerp(-13, 9.5, wide());
+      if (x > -13 && x < 14) continue;
+      if (wide() > .25 + .9 * fbm(x * .5 + 4, z * .5 + 9) - smooth(-4, -13, z) * .7 - smooth(14, 46, Math.abs(x - .5)) * .45) continue;
+      const size = lerp(.09, .2, wide());
+      P.push(x, height(x, z) + size * .46, z); S.push(size); T.push(wide());
+    }
     pointsOf(P, S, T, new ShaderMaterial({
       uniforms: { uScale, uTuft: { value: C.tuft }, uTuftShade: { value: C.tuftShade }, uFog: { value: C.hor }, uFogNear, uFogFar, uClouds, uShade: { value: C.shade } },
       vertexShader: POINT,
@@ -229,6 +245,12 @@ export function createGarden(canvas, { dark = false, close = false, plots: plant
       if (fbm(x * .07 + 9, z * .07 + 3) < .52 + (rand() - .5) * .16) continue;
       const size = lerp(.9, 1.9, rand());
       P.push(x, height(x, z) + size * .36, z); S.push(size); T.push(rand());
+    }
+    for (let tries = 0, most = S.length + 700; S.length < most && tries < 60000; tries++) {
+      const x = (wide() < .5 ? -1 : 1) * lerp(81, 138, wide()), z = lerp(-88, -24, wide());
+      if (fbm(x * .07 + 9, z * .07 + 3) < .52 + (wide() - .5) * .16) continue;
+      const size = lerp(.9, 1.9, wide());
+      P.push(x, height(x, z) + size * .36, z); S.push(size); T.push(wide());
     }
     pointsOf(P, S, T, new ShaderMaterial({
       uniforms: { uScale, uLeaf: { value: C.leaf }, uLeafShade: { value: C.leafShade }, uFog: { value: C.hor }, uFogNear, uFogFar, uClouds },
@@ -394,16 +416,19 @@ export function createGarden(canvas, { dark = false, close = false, plots: plant
     for (const p of PLOTS) if (p.model) glow(p.model);
   }
 
-  /* camera: still, but for a slow drift and a little give to the pointer */
+  /* camera: still, but for a slow drift, a little give to the pointer, and a rise as the page scrolls away */
   const pointer = { x: 0, y: 0, ex: 0, ey: 0 }, tmp = new Vector3();
   let width = 1, height_ = 1;
   function pose(t, dt, snap){
     const k = snap ? 1 : 1 - Math.exp(-dt * 2.4);
     pointer.ex += (pointer.x - pointer.ex) * k; pointer.ey += (pointer.y - pointer.ey) * k;
-    camera.position.set(EYE[0] + Math.sin(t * .11) * .14 + pointer.ex * .4, EYE[1] - pointer.ey * .16, EYE[2]);
-    camera.lookAt(EYE[0], framing.aim, 0); camera.updateMatrixWorld();
+    // Scrolled away, the camera rises without turning: the garden sinks, the hills behind it
+    // sink less, and the sky stays where it is.
+    const lift = sunk / unit;
+    camera.position.set(EYE[0] + Math.sin(t * .11) * .14 + pointer.ex * .4, EYE[1] + lift - pointer.ey * .16, EYE[2]);
+    camera.lookAt(EYE[0], aim + lift, 0); camera.updateMatrixWorld();
     sky.position.copy(camera.position);
-    uSunView.value.copy(SUN_AT).transformDirection(camera.matrixWorldInverse);
+    uSunView.value.copy(sunAt).transformDirection(camera.matrixWorldInverse);
   }
   // A place in the scene, as CSS pixels from the canvas's top left.
   const seen = (x, y, z) => { tmp.set(x, y, z).project(camera); return [(tmp.x * .5 + .5) * width, (-tmp.y * .5 + .5) * height_]; };
@@ -439,15 +464,31 @@ export function createGarden(canvas, { dark = false, close = false, plots: plant
     draw(dt, false, real);
   }
   const still = () => { if (!running) draw(0, true); };
+  // The same moment drawn again, from where the camera is now.
+  const redraw = () => { if (!running) draw(0, false); };
   function resize(){
     const w = canvas.clientWidth, h = canvas.clientHeight;
     if (!w || !h) return;
     width = w; height_ = h;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, Math.max(1, Math.min(2, Math.sqrt(MOST / (w * h))))));
     renderer.setSize(w, h, false);
-    // the lens is as wide as takes in the whole row, whatever shape the canvas is
-    camera.aspect = w / h; camera.fov = clamp(2 * Math.atan(framing.reach / EYE[2] / camera.aspect) * 180 / Math.PI, 28, 62);
+    // The garden is drawn as big as fits its frame (./fit.js). The lens is whatever gives
+    // that, and the middle of the picture is moved to where the frame is, so the rest of the
+    // canvas is the same sky and the same meadow, carried on.
+    const fitted = fit(into || alone(w, h)), { lens, midX, midY } = fitted;
+    unit = fitted.unit; aim = fitted.aim;
+    camera.aspect = w / h; camera.fov = 2 * Math.atan(h / (2 * lens)) * 180 / Math.PI;
+    camera.setViewOffset(w, h, w / 2 - midX, h / 2 - midY, w, h);
     camera.updateProjectionMatrix();
+    // As the page's backdrop: the sun, a hand's breadth past the top of the picture near its
+    // left edge, so its glow comes in at that corner; and the sky's colours spread over as
+    // much sky as there is, which on a phone is a tall one with the pitch in it. (With the
+    // canvas to itself, both are as they were made.)
+    if (into) {
+      const side = w * .1 - midX, turn = Math.atan2(side, lens), up = Math.atan2(midY, Math.hypot(lens, side)) + .2;
+      sunAt.set(Math.sin(turn) * Math.cos(up), Math.sin(up), -Math.cos(turn) * Math.cos(up));
+      uSpan.value = clamp(Math.hypot(midY, lens) / Math.max(midY, 1), 1.05, 2.3);
+    }
     uScale.value = renderer.domElement.height / (2 * Math.tan(camera.fov * Math.PI / 360));
     still();
   }
@@ -488,8 +529,10 @@ export function createGarden(canvas, { dark = false, close = false, plots: plant
     /** Put everything back as it was on arriving. */
     again(){ begin(); still(); },
     setDark(on){ look = LOOKS[on ? 'night' : 'day']; paint(); still(); },
-    /** Frame the row tightly, or leave room round it (see FRAME). */
-    setClose(on){ framing = FRAME[on ? 'close' : 'wide']; resize(); },
+    /** Where in the canvas the garden goes: a frame, as ./fit.js takes it. */
+    setFrame(to){ into = to; resize(); },
+    /** Sink the garden `px` CSS pixels from where its frame puts it, as the page scrolls away. */
+    setLift(px){ px = Math.max(0, px); if (px === sunk) return; sunk = px; redraw(); },
     /** Animate, or hold still on the current frame. Held still, a cloud sent to a plot is there at once, and its work done. */
     setRunning(on){
       if (on === running) return;

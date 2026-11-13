@@ -1,5 +1,5 @@
-/* The signed-out landing: the pitch, beside the garden to rain on. Colours and the typeface
-   come from ../theme.css. What's only the water cycle's is in ./cycle/cycle.css. */
+/* The signed-out landing: the pitch, in the garden to rain on. Colours and the typeface come
+   from ../theme.css. What's only the water cycle's is in ./cycle/cycle.css. */
 :root{--pin:rgba(255,255,255,.84);--pin-edge:rgba(18,32,58,.1)}
 @media (prefers-color-scheme:dark){:root{--pin:rgba(19,28,46,.8);--pin-edge:rgba(255,255,255,.14)}}
 
@@ -15,16 +15,15 @@
 .rd-signin button{min-height:52px;padding:12px 22px;border:0;border-radius:16px;background:var(--accent);color:#fff;font:700 16px var(--body);cursor:pointer}
 @media (prefers-color-scheme:dark){.rd-signin button{color:#0B1220}}
 .rd-signin button:disabled{opacity:.6;cursor:progress}
-.rd-pitch>.rd-err{font-size:15px;color:#B3261E;font-weight:700}
+/* under the sign-in: anything that went wrong with the handle */
+.rd-pitch>.rd-err{font-size:15px;color:#B3261E;font-weight:700;max-width:46ch}
 @media (prefers-color-scheme:dark){.rd-pitch>.rd-err{color:#FF8A80}}
-.rd-pitch>.rd-also{font-size:15px}
-.rd-pitch>.rd-alpha{font-size:14px;line-height:1.5;color:var(--muted);max-width:46ch;margin-top:-6px}
-/* which handle, and that the password stays with your server: said under the field */
-.rd-pitch>.rd-with{font-size:14px;line-height:1.5;max-width:46ch;margin-top:-8px}
-.rd-also a,.rd-note a,.rd-how a{color:var(--accent);font-weight:700;text-underline-offset:3px}
+.rd-note a,.rd-how a{color:var(--accent);font-weight:700;text-underline-offset:3px}
 
-/* The scene has no frame: its edges melt into the page. On a wide screen it runs out past
-   the page's column, toward the window's edge. */
+/* A scene in a box of its own, beside the pitch (the water cycle, and the garden's flat
+   drawing): it has no frame, and its edges melt into the page. On a wide screen it runs out
+   past the page's column, toward the window's edge. The garden itself is the page's whole
+   backdrop instead: see further down. */
 .rd-scene{position:relative;margin:-24px min(0px,max(-130px,calc((1112px - 100vw) / 2))) -24px -40px;min-width:0;container-type:inline-size}
 .rd-view{position:relative;aspect-ratio:1/.84}
 .rd-view canvas,.rd-still{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .9s ease}
@@ -92,7 +91,7 @@
 .rd-ring{flex:none;width:22px;height:22px;rotate:-90deg}
 .rd-ring circle{fill:none;stroke:var(--accent-soft);stroke-width:3}
 .rd-ring .left{stroke:var(--accent);stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:calc(100 - var(--left,66))}
-@container (max-width:470px){
+@media (max-width:470px){
   .rd-plot{padding:0 4px}
   .rd-plot>span,.rd-friend>span{display:none}
   .rd-plot.done{padding-right:8px}
@@ -100,10 +99,42 @@
 }
 @media (pointer:coarse){.rd-plot{height:34px;margin-top:-17px;padding-left:7px}}
 
-/* the line under the plots: a hint, then what's happening on the plot your cloud is over */
-/* (no wider than leaves the pause button clear) */
-.rd-garden .rd-notes{position:absolute;left:50%;bottom:5%;translate:-50% 0;width:max-content;max-width:min(560px,72%);display:none}
+/* The garden is the landing's whole backdrop. Its sky runs behind the bar and the pitch, and
+   its meadow from one edge of the window to the other; a little under the landing it fades
+   into the page. The figure is the part of the picture kept clear for the garden itself:
+   ./garden.js tells the scene where that is, and how tall the backdrop has to be (--sky-h). */
+body{position:relative}
+.rd-bar{position:relative;z-index:1}
+.rd-landing:has(>.rd-garden:not(.flat)){align-items:stretch;min-height:calc(100svh - var(--rd-bar,76px) - 8px);padding-bottom:22px}
+/* (--stand, from ./garden.js, is how far the pitch is moved to stand on the garden's horizon) */
+.rd-landing:has(>.rd-garden:not(.flat)) .rd-pitch{align-self:center;translate:0 var(--stand,0px)}
+/* The figure, from the top: room for the garden, a stretch of meadow (the gap), and the
+   line under it. Scrolled, the garden sinks into that meadow, toward the line. */
+.rd-garden:not(.flat){position:static;margin:0;container-type:normal;display:flex;flex-direction:column;gap:clamp(56px,12svh,130px)}
+.rd-garden:not(.flat)::before{content:'';flex:1 0 300px}
+.rd-garden:not(.flat) .rd-view{position:absolute;top:0;left:0;right:0;height:var(--sky-h,100svh);aspect-ratio:auto}
+.rd-garden:not(.flat) .rd-view canvas{
+  -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 172px),transparent calc(100% - 14px));-webkit-mask-composite:source-over;
+  mask-image:linear-gradient(to bottom,#000 calc(100% - 172px),transparent calc(100% - 14px));mask-composite:add
+}
+/* Words over the sky and the meadow: the grey the rest of the site writes its asides in is
+   too faint there, so the bar and the pitch write theirs in most of the ink. What goes wrong
+   with a handle is said under the sign-in, over the far woods, so it has a pane of frosted
+   glass under it, like the scene's own labels. */
+body:has(#landing:not([hidden])>.rd-garden:not(.flat)) :is(.rd-bar,.rd-pitch){--muted:color-mix(in srgb,var(--ink) 80%,transparent)}
+.rd-landing:has(>.rd-garden:not(.flat)) .rd-err{width:fit-content;padding:9px 14px 10px;border-radius:14px;background:var(--pin);box-shadow:0 0 0 1px var(--pin-edge);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+/* The board's heading stands in the last of the meadow, so what's under it is written the same way. */
+body:has(#landing:not([hidden])>.rd-garden:not(.flat)) #circle .rs-head{--rs-muted:color-mix(in srgb,var(--ink) 80%,transparent)}
+
+/* Under the garden: a hint, then what's happening on the plot your cloud is over, with the
+   pause button at the end of the line. It's as wide as the garden, which reaches past the
+   figure on both sides (--out-l and --out-r, from ./garden.js), and as tall as the tallest
+   thing it says, so the garden over it stays where it is when what it says changes. */
+.rd-garden .rd-base{position:relative;display:flex;align-items:flex-start;justify-content:center;gap:12px;min-height:60px;margin:0 calc(var(--out-r,0px) * -1) 0 calc(var(--out-l,0px) * -1);padding:0 48px}
+.rd-garden .rd-notes{min-width:0;max-width:560px;display:none}
 .rd-garden.live .rd-notes{display:block}
+.rd-garden .rd-pause{position:absolute;right:0;top:0}
+
 .rd-garden .rd-hint{margin:0 auto}
 .rd-garden .rd-note{display:flex;align-items:center;gap:6px 16px;padding:10px 16px 11px 18px;border-radius:18px}
 .rd-garden .rd-note>div{min-width:0}
@@ -113,9 +144,9 @@
 .rd-garden .rd-note button{flex:none;min-height:34px;padding:6px 12px;border:0;border-radius:10px;background:var(--accent-soft);color:var(--ink);font:700 13px var(--body);cursor:pointer;white-space:nowrap}
 .rd-garden .rd-note button:hover{background:var(--accent);color:#fff}
 @media (prefers-color-scheme:dark){.rd-garden .rd-note button:hover{color:#0B1220}}
-/* a scene too small to have the line over it has it underneath */
-@container (max-width:660px){
-  .rd-garden .rd-notes{position:static;translate:none;width:auto;max-width:none;margin:-8px 16px 0}
+/* beside a pitch on a narrower window there isn't the width for all of that on one line */
+@media (max-width:1180px){
+  .rd-garden .rd-base{min-height:128px}
   .rd-garden .rd-note{flex-wrap:wrap}
   .rd-garden .rd-note>div{flex:1 1 100%}
   .rd-garden .rd-note h2{white-space:normal}
@@ -125,9 +156,10 @@
 .rd-how h2{margin:0;font:700 19px/1.2 var(--display)}
 .rd-how p{margin:0;font-size:15px;line-height:1.5;color:var(--muted)}
 .rd-how a{font-size:15px;width:fit-content}
-.rd-garden.flat .rd-notes{position:static;translate:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:20px 24px;width:auto;max-width:none;margin:0 40px}
+.rd-garden.flat .rd-base{display:block;min-height:0;margin:0;padding:0}
+.rd-garden.flat .rd-notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:20px 24px;max-width:none;margin:0 40px}
 .rd-garden.flat .rd-how{display:flex}
-.rd-garden.flat .rd-hint,.rd-garden.flat .rd-note{display:none}
+.rd-garden.flat .rd-hint,.rd-garden.flat .rd-note,.rd-garden.flat .rd-pause{display:none}
 
 @media (max-width:880px){
   .rd-landing{grid-template-columns:1fr;gap:0}
@@ -137,12 +169,15 @@
     -webkit-mask-image:linear-gradient(to bottom,transparent,#000 13%,#000 86%,transparent);-webkit-mask-composite:source-over;
     mask-image:linear-gradient(to bottom,transparent,#000 13%,#000 86%,transparent);mask-composite:add
   }
-  /* the line goes under the scene, where it isn't in the way of it, and the pause button to the left, where nothing's planted */
-  .rd-garden .rd-pause{left:16px;right:auto}
-  .rd-garden .rd-notes{position:static;translate:none;width:auto;max-width:none;margin:-8px 16px 0}
-  .rd-garden .rd-note{flex-wrap:wrap}
-  .rd-garden .rd-note>div{flex:1 1 100%}
-  .rd-garden .rd-note h2{white-space:normal}
+  /* The pitch comes first, in the sky, and the garden under it: as tall as the row needs
+     at the window's width, so most of it is below the first screenful, as the scene was. */
+  .rd-landing:has(>.rd-garden:not(.flat)){min-height:0}
+  .rd-landing:has(>.rd-garden:not(.flat)) .rd-pitch{translate:none}
+  .rd-garden:not(.flat){margin:0}
+  .rd-garden:not(.flat)::before{flex-basis:calc(64vw + 110px)}
+  /* (here the line can grow, and push the board down: nothing is beside it to keep level with) */
+  .rd-garden .rd-base{min-height:36px;margin:0;padding:0 44px 0 0;justify-content:flex-start}
+  .rd-garden .rd-notes{flex:1}
   .rd-garden.flat .rd-notes{margin:0 16px}
 }
 @media (prefers-reduced-motion:reduce){
