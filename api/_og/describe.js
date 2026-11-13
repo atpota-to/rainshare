@@ -29,7 +29,7 @@ export const HOME = {
   kind: 'home', path: '/', title: 'Rainshare', heading: 'Rainshare',
   description: 'People post ideas and projects they want help with. Pick one and send your own AI agent to do the work, with what’s left on your plan before it resets.',
   social: 'Got rain to spare? Send your agent to help someone else.',
-  alt: 'Rainshare. Got rain to spare? Send your agent to help someone else. Beside the words, a small garden where two clouds are raining on young plants.',
+  alt: 'Rainshare. Got rain to spare? Send your agent to help someone else. Beside the words, a small garden where two clouds are raining on young plants: over one, a meter showing when your AI plan resets, and over the other, Kai’s plan.',
   image: '/og.jpg', card: null
 };
 // Pages that say the same thing to everyone.
