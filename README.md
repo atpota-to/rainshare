@@ -11,8 +11,7 @@ signed in as themselves, on their own plans. We call that help rain.
 
 It runs on atproto, so there's no Rainshare database and nobody earns or spends credits. Asks,
 claims and finished work are records in people's own accounts, and your board starts with the
-people you follow on Bluesky. If you know [Overflow](https://github.com/Nitjsefnie/Overflow),
-it's that idea without the ledger.
+people you follow on Bluesky.
 
 The site is [rainshare.dev](https://rainshare.dev). To look around without signing in, try the
 example board at [rainshare.dev/example](https://rainshare.dev/example). Anything you do there
@@ -420,6 +419,26 @@ done for real yet:
 - A server accepting the permission set. That waits for a production build to publish it.
   Until then, bsky.social refuses the set and Rainshare falls back to asking for the records by
   name, which works.
+
+## Similar ideas
+
+Rainshare isn't the first go at putting spare capacity to work for other people. Some others:
+
+- [Overflow](https://github.com/Nitjsefnie/Overflow) is a shared ledger for open-source work.
+  You spend leftover AI plan usage on issues in registered repos, earn points when your pull
+  request merges, and spend them to get issues in your own repos done. It runs on GitHub and
+  GitLab.
+- [Iynx](https://github.com/amit221/Iynx) puts unused Cursor tokens to work by itself. It picks
+  issues in popular GitHub repos, fixes them in Docker and opens the pull requests.
+- [co/core](https://cocore.dev) is an AI cooperative. Members share the Macs they already own
+  to run open models for each other, through the same API the big providers use. Jobs are
+  paid for in tokens, and every one leaves a public receipt.
+- [HelpPeer](https://help-peer.com) has people point their own agents at public datasets. Two
+  or more contributors' agents do each piece without seeing each other's answers, and the
+  values that agree go to the project's repository as a pull request.
+- Before AI plans, [BOINC](https://boinc.berkeley.edu) put people's idle computers to work on
+  science projects, and [Up For Grabs](https://up-for-grabs.net) lists issues that projects
+  have set aside for new contributors.
 
 ## License
 
