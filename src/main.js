@@ -3,7 +3,8 @@
 //
 //   /               signed out, the landing, and everything open to everyone under it;
 //                   signed in, the board
-//   /board          the board on its own, signed in or out (the bar's "Board")
+//   /board          the board on its own, signed in or out (the bar's "Help someone")
+//   /new            asking for help (the bar's "Ask for help")
 //   /example/…      the example circle, kept in this browser (linked from the landing)
 //   /seed/…, /new, /me, /profile/…, /agents, /feedback   Rainshare's own screens (see ../ui/rainshare.js)
 //   /signed-in      where your server sends you back after signing in
@@ -23,7 +24,7 @@ import { profiles } from '../core/net.js';
 // host's methods, for private seeds.
 import * as atp from './spaces.js';
 import * as oauth from './oauth.js';
-import { openSignIn, landingSignIn } from './signin.js';
+import { openSignIn } from './signin.js';
 import { showLanding, hideLanding } from './landing/landing.js';
 import { peekWords, peekPeople } from './landing/peek.js';
 import { face, avatarFallback } from '../ui/bits.js';
@@ -95,7 +96,7 @@ const host = kind => ({
   // One from before it asked is told to sign in again, on the moderation page.
   canModerate: kind === 'real' ? () => canModerate(granted) : null,
   connectForge: kind === 'real' ? (forge, sub) => { if (session) openSignIn({ person: me || { did: session.did }, to: '/' + (sub || '') + location.search, forges: [...new Set([...forges, forge])], adding: forge }); } : null,
-  ...(kind === 'example' ? { exitDemo: session ? 'Back to your circle' : 'Sign in for your real circle', onExitDemo: () => navigate('/') } : {})
+  ...(kind === 'example' ? { exitDemo: session ? 'Back to the real board' : 'Sign in for the real board', onExitDemo: () => navigate('/') } : {})
 });
 let real = null, example = null;
 function app(kind){
@@ -208,8 +209,11 @@ function route(){
   // so every one of its pages says where you are.
   $('[data-tab="example"]').hidden = kind !== 'example';
   landing ? showLanding() : hideLanding();
-  // (The landing isn't the board: no tab is the page you're on there.)
-  const tab = kind === 'example' ? 'example' : sub === 'agents' ? 'agents' : landing || sub === 'admin' || sub === 'feedback' ? null : 'circle';
+  // The bar has the two things to do here: help someone (the board, and an ask's page) and ask
+  // for help. (The landing isn't either, and nor are your profile, someone else's, or the pages
+  // in the footer.)
+  const top = sub.split('/')[0];
+  const tab = kind === 'example' ? 'example' : landing ? null : top === 'new' ? 'new' : !top || top === 'board' || top === 'seed' ? 'circle' : null;
   document.querySelectorAll('[data-tab]').forEach(a => a.setAttribute('aria-current', String(a.dataset.tab === tab)));
   app(kind).show(sub);
 }
@@ -224,12 +228,12 @@ document.addEventListener('click', e => {
   if (a && !e.metaKey && !e.ctrlKey && !e.shiftKey && e.button === 0) { e.preventDefault(); navigate(a.getAttribute('href')); }
   if (e.target.closest('[data-signout]')) signOut();
   if (e.target.closest('#rdPeek') && !e.metaKey && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); toBoard(); }
-  // The bar's "Sign in": on the landing its handle field is right there; anywhere else, the
-  // dialog, and you come back to the page you were on (the example circle isn't yours to come back to).
-  if (e.target.closest('[data-signin]')) {
-    if (!$('#landing').hidden) focusSignIn();
-    else openSignIn({ to: isExample(location.pathname) ? '/' : location.pathname + location.search });
-  }
+  // The bar's "Sign in": the dialog, and you come back to the page you were on (the example
+  // board isn't yours to come back to).
+  if (e.target.closest('[data-signin]')) openSignIn({ to: isExample(location.pathname) ? '/' : location.pathname + location.search });
+  // The landing's two buttons: the same dialog, saying what it's for, and on to the board or to asking.
+  const start = e.target.closest('[data-start]');
+  if (start) openSignIn(START[start.dataset.start] || START.board);
   // "Make one", for someone with no account yet: the dialog, at the hosts to make one with.
   if (e.target.closest('[data-signup]')) openSignIn({ making: true, to: isExample(location.pathname) ? '/' : location.pathname + location.search });
 });
@@ -252,6 +256,8 @@ function renderMe(){
     + `<a class="rd-menu-you" href="/me" data-nav>${face(p)}<span class="rd-menu-name"><span class="rd-sr">Your profile: </span><b>${esc(name)}</b>${handle ? `<small>${esc(handle)}</small>` : ''}</span><svg class="rd-menu-go" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>`
     // @rainshare.dev's own sign-in has its moderation page here, and nobody else's mentions it.
     + (session.did === MODERATOR ? `<a href="/admin" data-nav><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l7 2.6v5.5c0 4.2-3 7.6-7 8.9-4-1.3-7-4.7-7-8.9V6.1z"/><path d="M9 12l2 2 4-4"/></svg>Moderation</a>` : '')
+    // Sending your agent from a terminal, or letting it do the Rainshare side itself: setup, so it's here rather than in the bar.
+    + `<a href="/agents" data-nav><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M7.5 10l2.5 2-2.5 2M12.5 14.5h4"/></svg>CLI &amp; MCP</a>`
     + `<a href="/feedback" data-nav><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5h14a1.5 1.5 0 0 1 1.5 1.5v8.5A1.5 1.5 0 0 1 19 17h-7l-4.5 3.5V17H5a1.5 1.5 0 0 1-1.5-1.5V7A1.5 1.5 0 0 1 5 5.5z"/></svg>Feedback</a>`
     + `<hr>`
     + `<button type="button" data-signout><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 20H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3M15 16l4-4-4-4M19 12H9"/></svg>Sign out</button>`
@@ -280,12 +286,11 @@ async function signOut(){
   await oauth.signOut(s);
   renderMe(); await app('real').setSource(sourceNow()); toast('Signed out'); navigate('/');
 }
-// The landing's handle field is the first step of signing in; the dialog takes it from there.
-landingSignIn($('#rdSignIn'), $('#rdErr'));
-function focusSignIn(){
-  scrollTo({ top: 0, behavior: 'smooth' });
-  $('#rdSignIn input')?.focus({ preventScroll: true });
-}
+// Where the landing's two buttons lead once you're signed in, and what the dialog says first.
+const START = {
+  board: { to: '/board', why: 'Sign in, then pick something to help with.' },
+  new: { to: '/new', why: 'Sign in, then say what you’d like help with. It’s kept in your own account.' }
+};
 
 /* ---------- boot ---------- */
 async function boot(){

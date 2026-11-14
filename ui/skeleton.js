@@ -34,13 +34,13 @@ const LABELS = ['44px', '58px', '52px', '36px', '64px'], VALUES = ['56%', '74%',
 const factsSk = (n, cls = '') => `<dl class="rs-facts${cls ? ' ' + cls : ''}">${Array.from({ length: n }, (_, i) => `<dt>${line(pick(LABELS, i))}</dt><dd>${line(pick(VALUES, i))}</dd>`).join('')}</dl>`;
 const askSk = () => `<div class="rs-ask">${line('56px')}${line('96%')}${line('88%')}${line('52%')}</div>`;
 
-// The one you picked, beside the list: who, its title and plant, how it suits you, the facts, the ask, what to do.
+// The one you picked, beside the list: who, its title and plant, the ask, how it suits you (with fit on), the facts, what to do.
 export const detailSk = ({ fit = false } = {}) => `<article class="rs-detail" aria-hidden="true">
   <div class="rs-detail-top">${face()}${line('32%')}</div>
   <div class="rs-seed-head"><div class="rs-seed-title">${line('84%', 'rs-sk-h2')}${line('46%', 'rs-sk-h2')}${line('38%')}</div>${plant(88)}</div>
   ${fit ? '<i class="rs-sk rs-sk-box"></i>' : ''}
-  ${factsSk(fit ? 5 : 4)}
   ${askSk()}
+  ${factsSk(fit ? 5 : 4)}
   <div class="rs-row rs-detail-actions">${pill(156)}${pill(172)}${pill(92)}</div>
 </article>`;
 
@@ -60,8 +60,8 @@ export const seedSk = () => `<div class="rs-seed" data-rs-sk="seed" aria-hidden=
   <div class="rs-seed-main">
     <div class="rs-seed-head"><div class="rs-detail-top">${face()}${line('180px')}</div>
       <div class="rs-seed-title">${line('78%', 'rs-sk-h1')}${line('44%', 'rs-sk-h1')}${line('210px')}</div>${plant(120)}</div>
-    ${factsSk(4)}
     ${askSk()}
+    ${factsSk(4)}
     <div class="rs-row">${pill(176)}${pill(96)}</div>
   </div>
   <div class="rs-seed-side"><div class="rs-panel">${line('120px', 'rs-sk-h3')}${line('92%')}${line('70%')}${factsSk(2, 'rs-facts-sm')}${line('96px')}</div></div>

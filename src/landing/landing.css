@@ -9,17 +9,16 @@
 .rd-pitch{position:relative;z-index:1;display:flex;flex-direction:column;gap:18px;min-width:0}
 .rd-pitch h1{margin:0;font:900 clamp(34px,4.2vw,50px)/1.1 var(--display);letter-spacing:-.025em;text-wrap:balance}
 .rd-pitch>p{margin:0;font-size:18px;line-height:1.6;color:var(--muted);max-width:46ch}
-.rd-signin{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
-.rd-signin input{flex:1 1 220px;min-width:0;min-height:52px;border:0;border-radius:16px;padding:12px 16px;font:500 17px var(--body);color:var(--ink);background:var(--card);box-shadow:inset 0 0 0 1.5px var(--line)}
-.rd-signin input:focus{outline:none;box-shadow:inset 0 0 0 2px var(--accent)}
-.rd-signin button{min-height:52px;padding:12px 22px;border:0;border-radius:16px;background:var(--accent);color:#fff;font:700 16px var(--body);cursor:pointer}
-[data-mode=night] .rd-signin button{color:#0B1220}
-.rd-signin button:disabled{opacity:.6;cursor:progress}
-/* under the sign-in: anything that went wrong with the handle */
-.rd-pitch>.rd-err{font-size:15px;color:#B3261E;font-weight:700;max-width:46ch}
-[data-mode=night] .rd-pitch>.rd-err{color:#FF8A80}
+/* the two things to do here, side by side: helping someone first */
+.rd-ctas{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+.rd-cta{flex:1 1 0;min-width:max-content;min-height:52px;padding:12px 22px;border:0;border-radius:16px;font:700 16px var(--body);cursor:pointer;color:var(--ink);background:var(--pin);box-shadow:inset 0 0 0 1.5px var(--pin-edge);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.rd-cta:hover{box-shadow:inset 0 0 0 2px var(--accent)}
+.rd-cta-main{background:var(--accent);color:#fff;box-shadow:none}
+.rd-cta-main:hover{box-shadow:none;filter:brightness(1.06)}
+[data-mode=night] .rd-cta-main{color:#0B1220}
+@media (min-width:881px){.rd-cta{flex:0 0 auto}}
 .rd-note a,.rd-how a{color:var(--accent);font-weight:700;text-underline-offset:3px}
-/* and for someone with no account to sign in with, the way to make one, tucked under the field */
+/* and for someone with no account to sign in with, the way to make one, tucked under the buttons */
 .rd-pitch>.rd-new{margin-top:-8px;font-size:16px;line-height:1.5}
 .rd-new button{border:0;background:none;padding:6px 0;margin:-6px 0;font:700 16px/1.5 var(--body);color:var(--accent);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 /* Under the sign-in: the way down to the real board, with the faces of whoever's asking. It's
@@ -171,11 +170,8 @@ body{position:relative}
   }
 }
 /* Words over the sky and the meadow: the grey the rest of the site writes its asides in is
-   too faint there, so the bar and the pitch write theirs in most of the ink. What goes wrong
-   with a handle is said under the sign-in, over the far woods, so it has a pane of frosted
-   glass under it, like the scene's own labels. */
+   too faint there, so the bar and the pitch write theirs in most of the ink. */
 body:has(#landing:not([hidden])>.rd-garden:not(.flat)) :is(.rd-bar,.rd-pitch){--muted:color-mix(in srgb,var(--ink) 80%,transparent)}
-.rd-landing:has(>.rd-garden:not(.flat)) .rd-err{width:fit-content;padding:9px 14px 10px;border-radius:14px;background:var(--pin);box-shadow:0 0 0 1px var(--pin-edge);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 /* The board's heading stands in the last of the meadow, so what's under it is written the same way. */
 body:has(#landing:not([hidden])>.rd-garden:not(.flat)) #circle .rs-head{--rs-muted:color-mix(in srgb,var(--ink) 80%,transparent)}
 /* where the way down from the pitch brings you: the board's heading, a little under the window's top */

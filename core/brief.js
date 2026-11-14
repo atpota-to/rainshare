@@ -294,18 +294,18 @@ export function launchers(item, opts){
   const clone = cloneUrlOf(item.value?.subject), d = describeSubject(item.value?.subject), out = [];
   const text = brief(item, opts), dir = workDir(item), pub = !!safeAtUri(item.uri) && !item.space;
   if (clone) {
-    out.push({ id: 'claude', label: 'Claude Code', note: 'Clones the repo and starts Claude Code with the brief.', command: `git clone ${sh(clone)} ${dir} && cd ${dir} && claude ${heredoc(text)}` });
+    out.push({ id: 'claude', label: 'Claude Code', note: 'Clones the repo and starts Claude Code with the prompt.', command: `git clone ${sh(clone)} ${dir} && cd ${dir} && claude ${heredoc(text)}` });
     if (d?.forge === 'github' && REPO_NAME.test(d.repo || '')) out.push({ id: 'cloud', label: 'Claude Code in the cloud', note: 'Forks it with the GitHub CLI, then runs the work as a cloud session on your fork, so it keeps going after you close your laptop.', command: `gh repo fork ${sh(d.repo)} --clone && cd ${sh(d.repo.split('/')[1])} && claude --cloud ${heredoc(text)}` });
-    out.push({ id: 'codex', label: 'Codex', note: 'Clones the repo and starts Codex with the brief.', command: `git clone ${sh(clone)} ${dir} && cd ${dir} && codex ${heredoc(text)}` });
+    out.push({ id: 'codex', label: 'Codex', note: 'Clones the repo and starts Codex with the prompt.', command: `git clone ${sh(clone)} ${dir} && cd ${dir} && codex ${heredoc(text)}` });
   }
   if (!d) {
-    out.push({ id: 'claude', label: 'Claude Code', note: 'Makes a new, empty repository and starts Claude Code in it with the brief.', command: `mkdir ${dir} && cd ${dir} && git init && claude ${heredoc(text)}` });
-    out.push({ id: 'codex', label: 'Codex', note: 'Makes a new, empty repository and starts Codex in it with the brief.', command: `mkdir ${dir} && cd ${dir} && git init && codex ${heredoc(text)}` });
+    out.push({ id: 'claude', label: 'Claude Code', note: 'Makes a new, empty repository and starts Claude Code in it with the prompt.', command: `mkdir ${dir} && cd ${dir} && git init && claude ${heredoc(text)}` });
+    out.push({ id: 'codex', label: 'Codex', note: 'Makes a new, empty repository and starts Codex in it with the prompt.', command: `mkdir ${dir} && cd ${dir} && git init && codex ${heredoc(text)}` });
   }
   if (pub) out.push({
     id: 'cli', label: 'Rainshare CLI',
-    note: d ? 'Checks nobody else is on it, clones the repo, starts your agent with the brief, and turns the pull request in when it’s done. Needs the CLI signed in once.'
-      : 'Checks where it stands, makes a new repository, starts your agent with the brief, and turns in where it ends up. Needs the CLI signed in once.',
+    note: d ? 'Checks nobody else is on it, clones the repo, starts your agent with the prompt, and turns the pull request in when it’s done. Needs the CLI signed in once.'
+      : 'Checks where it stands, makes a new repository, starts your agent with the prompt, and turns in where it ends up. Needs the CLI signed in once.',
     command: `${INSTALL} && node ${CLI_HOME} run ${sh(item.uri)}`
   });
   if (pub) out.push({ id: 'mcp', label: 'Any agent, through MCP', note: 'Add Rainshare to your agent once, then ask it to take this one on.', command: `${INSTALL} && ${MCP_ADD}\n# then ask: "Take this one on from Rainshare: ${String(item.uri).replace(/[^\w:./-]/g, '')}"` });
