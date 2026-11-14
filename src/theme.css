@@ -120,7 +120,7 @@ a{color:inherit}
 .rd-foot{max-width:1112px;width:100%;margin:0 auto;padding:24px 16px 40px;color:var(--muted);font-size:14px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:10px 24px;align-items:baseline;justify-content:space-between}
 .rd-foot p{margin:0}
 .rd-foot nav{display:flex;flex-wrap:wrap;gap:8px 18px}
-/* off the site: Rainshare's code on Tangled, and who makes it on Bluesky, each with its own mark */
+/* off the site: Rainshare's code on Tangled and GitHub, and who makes it on Bluesky, each with its own mark */
 .rd-out{display:inline-flex;align-items:center;gap:6px}
 .rd-out svg{flex:none;width:16px;height:16px;fill:currentColor}
 .rd-foot a{font-weight:600;text-decoration:none}
