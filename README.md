@@ -114,8 +114,11 @@ However you send it, your agent gets the same brief (`core/brief.js`):
   says), and the commands to check again before starting, since a brief can sit in a clipboard
   for days
 - the ask itself, framed as another person's request, not as instructions that override the
-  agent's own rules. It tells the agent to stay inside the repo and ask before doing anything
-  outside it.
+  agent's own rules. Their words sit between two markers they can't forge, and the rules above
+  them say what to stop and ask about: reaching outside the repo, touching secrets, running
+  code from elsewhere, or keeping anything from you.
+- what Rainshare's checks flagged in it, if anything (see [Security](#security)), in Rainshare's
+  own words, with the advice to show you before starting
 - how to turn it in: open a pull request with the ask's link in it (and "Fixes #N" on GitHub)
 - what to tell you when it's finished
 
@@ -195,6 +198,7 @@ schemas are in `lexicons/dev/rainshare/`.
 | `dev.rainshare.seed` | the asker | title, subject (an issue or repo, or none for an idea), project stage, spec in Markdown, preferred models, tags, size, state |
 | `dev.rainshare.take` | a helper | "my agent is on this": a strong ref to the seed and the setup doing the work |
 | `dev.rainshare.delivery` | a helper | the pull request (a URL, or an `at://` URI on Tangled and knotless), what did the work, and an optional session link |
+| `dev.rainshare.moderation` | @rainshare.dev only | something Rainshare has hidden: an account, or one record, and why. See [Moderation](#moderation) |
 | `dev.rainshare.comment` | anyone | what they said (Markdown), a strong ref to the seed, and, for a reply, a strong ref to the comment it answers. An ask on a Tangled or knotless issue uses the issue's comments instead (`org.tangled.feed.comment`, `dev.knotless.comment`) |
 
 The records use garden words that the site doesn't show. An ask is a `seed`. A project's
@@ -249,6 +253,39 @@ agree: the helper's delivery and the asker's record naming it as the one that fi
 So nobody can add to their own garden. Two friends could still pad each other's, which is why
 there's no leaderboard.
 
+### Moderation
+
+@rainshare.dev can hide an ask, a take, a delivery, a comment (Rainshare's own or one on a forge's
+issue), someone's Rainshare name and bio, or a whole account. Hidden things are left off the
+board, out of an ask's page and its comments, away from the CLI and the MCP server, and out of
+link previews. Whoever asked still sees their own ask, marked hidden, with the reason.
+
+Each decision is a `dev.rainshare.moderation` record in @rainshare.dev's own repo, and every app
+reads them from that one repo (`MODERATOR` in `core/ns.js`, the same DID that publishes the
+lexicons). Anyone can write a record of that type into their own repo, but nobody else's is
+read, so the moderation page needs no server and no password check of its own: it's only shown
+to that account, and anyone else who found their way to it would only be writing to their own
+repo. A record's key is made from what it's about (`keyOf` in `core/moderation.js`), so there's
+one per thing, hiding it again replaces it, and unhiding deletes it. Link previews look a
+decision up by that key, through Slingshot, since they can't list a repo.
+
+Signed in as @rainshare.dev, the menu under your face has **Moderation** (`/admin`). It has:
+
+- **Hide something**: paste an ask's or a person's link, an at:// address (a comment's, say) or
+  a handle, see what it is, then pick a reason and add an optional note.
+- **Needs a look**: open asks on the board that the checks below flagged, likeliest tricks first.
+- **Hidden**: every decision, with what it's about and an Unhide button.
+
+An ask's page, a comment and a person's page also have a Hide button for that account.
+
+Only @rainshare.dev's sign-in asks to write moderation records (`repo:dev.rainshare.moderation`,
+added in `src/scope.js`), so nobody else's sign-in page mentions them. A sign-in from before
+this was added is told on the moderation page to sign out and in again.
+
+The records are public, like everything on atproto, so a note says why in words that are fine
+for anyone to read. If @rainshare.dev's server doesn't answer, nothing is hidden for that minute
+rather than the board going dark; the moderation page says so.
+
 ### Switched off for now
 
 Some features are built but turned off to keep the alpha simple. The switches are in
@@ -288,6 +325,28 @@ might run. Nothing from the network is trusted:
   wrote each one isn't checked against their own server. Tangled keeps comments with the repo,
   not in the writer's account. Each one is still checked to be on the issue asked about, in
   the right place, and written by a DID.
+
+- Characters a person can't see and an agent still reads (zero-width spaces and joiners,
+  Unicode tag characters, runs of variation selectors) are taken out of briefs and of everything
+  the CLI and MCP server print. They're how instructions get hidden in plain sight.
+- In the brief, the asker's words (the spec and their notes) sit between two markers, and the
+  tag is one that appears nowhere in their words after anything invisible is taken out, so
+  nothing inside can close it early and pass for Rainshare's own text. Guidelines are only
+  printed when they're values Rainshare knows.
+- Every ask is read for what's often used to misuse an agent (`core/scan.js`): talk that tries
+  to change an agent's rules (fake system messages included), asking it to keep things from
+  you, hidden characters (and what they spell), reaching for SSH keys, credentials or the whole
+  environment, piping a download into a shell, request-catching services like webhook.site,
+  turning off an agent's permission prompts, `rm -rf ~`, `authorized_keys`, long encoded blobs,
+  and asks for malware or phishing. What's found is shown to helpers above "Send my agent", to
+  whoever asked (so an honest ask can be reworded), in the brief as Rainshare's own sentences
+  (the words that set it off stay between the markers), and to @rainshare.dev under "Needs a
+  look". When it's very likely a trick, the site asks before taking it on, and the CLI and MCP
+  server hold it until you say `--anyway` (or `anyway: true`). It's a smoke alarm, not a lock:
+  it catches the lazy tricks, a careful one can be worded past it, and an honest ask trips it
+  now and then, so nothing is refused for it alone.
+- What @rainshare.dev has hidden ([Moderation](#moderation)) is refused outright: the brief for
+  it says only that it's hidden, and the CLI won't show or take it.
 
 Two things to keep in mind. An ask's spec is a stranger's request, and the brief tells your
 agent so. And a repo you clone can carry its own agent config (`CLAUDE.md`, hooks,
@@ -333,7 +392,7 @@ which spells it out by hand.
 | `src/mode.js`, `public/mode.js` | day and night: the toggle in the bar, and the small script that picks one before the page is first drawn |
 | `src/hosts.js` | the hosts offered for making an account, for someone who hasn't got one |
 | `src/spaces.js` | group spaces for private asks (switched off) |
-| `ui/` | the app's screens: the board, an ask, profiles, posting an ask, the first-time welcome, loading placeholders |
+| `ui/` | the app's screens: the board, an ask, profiles, posting an ask, the first-time welcome, loading placeholders, and @rainshare.dev's moderation page |
 | `core/` | everything the site and the CLI share (below) |
 | `cli/rainshare.mjs` | the CLI and MCP server |
 | `api/` | Vercel functions: the OAuth client metadata, and link previews (`page.js` sets the meta tags, `og.js` draws the image) |
@@ -354,6 +413,8 @@ In `core/`:
 | `ties.js`, `vouch.js`, `circle.js` | follows, vouches and audiences |
 | `garden.js` | works out gardens from records |
 | `comments.js` | puts an ask's comments into threads, whether they're Rainshare's or an issue's |
+| `scan.js` | Rainshare's checks on an ask, for what's often used to misuse an agent |
+| `moderation.js` | what @rainshare.dev has hidden: reading decisions, their keys, and what a pasted link is |
 | `route.js` | URLs, including fixing mistyped ones |
 | `mode.js` | day or night (the system's setting, or the toggle's choice), and the fade between them |
 | `markdown.js` | a small, safe Markdown renderer for specs |
@@ -414,6 +475,8 @@ done for real yet:
 - The 3D landing and plants on a real graphics card, a real phone, Safari or Firefox. On
   Chromium's software renderer the full-window landing ran at about 4 frames a second.
 - Private asks in a real group space.
+- Moderating as @rainshare.dev for real. The moderation page has only been driven against a fake
+  source in headless Chromium, and no server has been asked for its extra scope yet.
 - Link previews as Bluesky and other sites render them in production.
 - A real account's first sign-in, and the welcome that follows it.
 - A server accepting the permission set. That waits for a production build to publish it.

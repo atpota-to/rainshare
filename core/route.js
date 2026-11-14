@@ -8,13 +8,15 @@
 // address is by DID; a handle works in its place, and the old 'u/<who>' leads there too.
 import { isHandle, isRkey } from './net.js';
 
-const PAGES = ['board', 'new', 'me', 'agents'];
+// ('admin' is @rainshare.dev's moderation page: to anyone else, it's as if nothing were there.)
+const PAGES = ['board', 'new', 'me', 'agents', 'admin'];
 // Other words people reach for.
 const ALIAS = {
   ask: 'new', post: 'new', plant: 'new', create: 'new', add: 'new',
   profile: 'me', settings: 'me', account: 'me', you: 'me',
   agent: 'agents', cli: 'agents', mcp: 'agents', terminal: 'agents', install: 'agents', setup: 'agents', docs: 'agents', help: 'agents', faq: 'agents',
   circle: 'board', feed: 'board', all: 'board', browse: 'board', explore: 'board',
+  moderation: 'admin', moderate: 'admin', mod: 'admin',
   home: '', index: '', 'index.html': ''
 };
 const SEED_WORDS = ['seed', 'seeds', 's', 'idea', 'ideas', 'project', 'projects', 'plant', 'plants', 'ask', 'asks'];

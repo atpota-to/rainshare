@@ -8,7 +8,8 @@
 //             they're for is checked against the Bluesky graph (getRelationships, lists).
 //   private   records in a group's Rainshare space, through `spaces` and `groups`, which
 //             the site supplies (src/spaces.js and the group host). Members only.
-import { PROFILE, SEED, TAKE, DELIVERY, COMMENT } from './ns.js';
+import { PROFILE, SEED, TAKE, DELIVERY, COMMENT, MODERATION, MODERATOR } from './ns.js';
+import { decisionsFrom, hiddenBy, keyOf, moderationRecord, subjectFrom, subjectOf, kindOf as subjectKind } from './moderation.js';
 import * as net from './net.js';
 import * as R from './records.js';
 import { closeness, meantFor } from './circle.js';
@@ -109,10 +110,22 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     return recs.filter(r => r?.value?.seed?.uri === uri);
   }).then(list => layered(collection, list), () => everyone(collection));
   const people = dids => net.profiles(dids);
-  const publicProfile = did => memo('profile:' + did, () => net.getRecordOrNull(did, PROFILE, 'self'));
+  // (A Rainshare profile Rainshare has hidden, a name or a bio that's abuse, is shown to nobody
+  // but its owner: everyone else sees them as Bluesky has them.)
+  const publicProfile = did => memo('profile:' + did, async () => {
+    const [rec, mod] = await Promise.all([net.getRecordOrNull(did, PROFILE, 'self'), did === viewer ? null : decisions()]);
+    return rec && hiddenBy(mod, rec.uri, did) ? null : rec;
+  });
   // Who you block on Bluesky. Their seeds are left out, and so are their takes and deliveries,
   // so nobody you've blocked can mark something as taken to keep others off it.
   const myBlocks = () => viewer ? memo('blocks', () => net.blocksOf(viewer), 300e3).catch(() => new Set()) : Promise.resolve(new Set());
+  // What @rainshare.dev has hidden (./moderation.js), read from that one account's own repo and
+  // nowhere else. Its seeds, takes, deliveries and comments are left out for everyone, as if
+  // blocked, except that whoever asked still sees their own ask, marked hidden, so they know.
+  // If the account's server doesn't answer, nothing is hidden this time round: the board
+  // shouldn't go dark because one server did, and it's asked again a minute later.
+  const readDecisions = () => memo('moderation', () => net.listRecords(MODERATOR, MODERATION, { pages: 10 }).then(decisionsFrom), 60e3);
+  const decisions = () => readDecisions().catch(e => { console.warn('rainshare moderation', e); return new Map(); });
 
   // How you and others are connected on Bluesky and on Tangled (./ties.js): beside people, and
   // for narrowing the board. Who you follow on Tangled is one listing of your records; whether
@@ -149,10 +162,11 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     return records;
   }, 20e3);
 
-  // What points at each seed, leaving out anyone you block. Comments are only read for one
-  // seed's page, so an item from the board has none attached (rather than an empty list).
-  function attach(items, takes, deliveries, blocked = new Set(), comments = null){
-    const by = (list, uri) => list.filter(r => r.value?.seed?.uri === uri && !blocked.has(r.repo));
+  // What points at each seed, leaving out anyone you block and anything Rainshare has hidden.
+  // Comments are only read for one seed's page, so an item from the board has none attached
+  // (rather than an empty list).
+  function attach(items, takes, deliveries, blocked = new Set(), comments = null, hidden = null){
+    const by = (list, uri) => list.filter(r => r.value?.seed?.uri === uri && !blocked.has(r.repo) && !hiddenBy(hidden, r.uri, r.repo));
     for (const it of items) {
       it.takes = by(takes, it.uri); it.deliveries = by(deliveries, it.uri);
       if (comments) it.comments = by(comments, it.uri);
@@ -182,9 +196,10 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
    */
   async function board({ force } = {}){
     if (force) forget();
-    const notes = [];
+    const notes = [], modded = decisions();
     const [sqs, takes, deliveries] = await Promise.all([everyone(SEED), everyone(TAKE).catch(() => []), everyone(DELIVERY).catch(() => [])])
       .catch(e => { notes.push('The network didn’t answer, so public asks are missing. Try again in a moment.'); console.warn(e); return [[], [], []]; });
+    const mod = await modded;
     const authors = [...new Set(sqs.map(r => r.repo))];
     let rels = new Map(), blocked = new Set();
     if (viewer) {
@@ -196,12 +211,14 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     const visible = [];
     for (const r of sqs) {
       if (blocked.has(r.repo)) continue;
+      const hidden = hiddenBy(mod, r.uri, r.repo);
+      if (hidden && r.repo !== viewer) continue;
       const rel = rels.get(r.repo), aud = r.value?.audience?.$type || '';
       const inList = aud.endsWith('#list') && viewer ? (await net.listMembers(r.value.audience.list).catch(() => new Set())).has(viewer) : false;
       if (!meantFor(r.value, { viewer, author: r.repo, rel, inList })) continue;
-      visible.push({ ...r, space: null, group: null, closeness: closeness({ viewer, author: r.repo, rel }), rel });
+      visible.push({ ...r, space: null, group: null, closeness: closeness({ viewer, author: r.repo, rel }), rel, hidden });
     }
-    attach(visible, takes, deliveries, blocked);
+    attach(visible, takes, deliveries, blocked, null, mod);
     // How you know each person who asked, read while their profiles are.
     const tied = viewer ? tiesOf(visible.map(v => v.repo)).catch(() => new Map()) : null;
     await Promise.all([...new Set(visible.map(v => v.repo))].map(async d => {
@@ -256,11 +273,13 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     // too. Rainshare's own on it are still shown: written before, or from somewhere else.
     const forge = talksOn({ value: rec.value });
     const onIssue = forge ? issueComments(rec.value.subject, { fresh: !!force }).catch(e => { console.warn('rainshare issue comments', e); return null; }) : null;
-    const [takes, deliveries, comments, issue, prof, blocked] = await Promise.all([pointingAt(uri, TAKE).catch(() => []), pointingAt(uri, DELIVERY).catch(() => []), pointingAt(uri, COMMENT).catch(() => []), onIssue, publicProfile(p.repo).catch(() => null), myBlocks()]);
+    const [takes, deliveries, comments, issue, prof, blocked, mod] = await Promise.all([pointingAt(uri, TAKE).catch(() => []), pointingAt(uri, DELIVERY).catch(() => []), pointingAt(uri, COMMENT).catch(() => []), onIssue, publicProfile(p.repo).catch(() => null), myBlocks(), decisions()]);
     const rel = viewer && viewer !== p.repo ? (await net.relationships(viewer, [p.repo]).catch(() => new Map())).get(p.repo) : null;
-    const item = { ...rec, space: null, group: null, rel, closeness: closeness({ viewer, author: p.repo, rel }), profile: prof?.value || null };
+    // A hidden ask still comes back, marked, so its page can say so (and show it to whoever
+    // asked, and to @rainshare.dev): what it says is for the screens to keep back.
+    const item = { ...rec, space: null, group: null, rel, closeness: closeness({ viewer, author: p.repo, rel }), profile: prof?.value || null, hidden: hiddenBy(mod, uri, p.repo) };
     const fromIssue = forge ? withPosted(uri, (issue?.items || []).map(c => fromForge(c, uri, forge))) : [];
-    attach([item], takes, deliveries, blocked, [...comments, ...fromIssue]);
+    attach([item], takes, deliveries, blocked, [...comments, ...fromIssue], mod);
     // Where its comments are kept, and whether the forge answered: { forge, read, more }.
     item.talk = forge ? { forge, read: !!issue, more: !!issue?.more } : null;
     // How you know whoever asked, and each person on it or who turned something in.
@@ -275,13 +294,13 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
   // What someone has watered: their own deliveries say which seeds and plants they worked on,
   // and each of those says whether its planter marked it sprouted with that work. Public ones only.
   const gardenOf = did => memo('garden:' + did, async () => {
-    const mine = await net.listRecords(did, DELIVERY, { pages: 2 }).catch(() => []), on = new Map();
+    const [mine, mod] = await Promise.all([net.listRecords(did, DELIVERY, { pages: 2 }).catch(() => []), decisions()]), on = new Map();
     for (const d of mine) { const u = d.value?.seed?.uri, p = net.parseUri(u); if (p?.collection === SEED) on.set(u, [...(on.get(u) || []), { uri: d.uri, repo: did }]); }
     const found = await net.pool([...on.keys()].slice(0, 80), 6, async u => {
       const p = net.parseUri(u), rec = await net.getRecordOrNull(p.repo, SEED, p.rkey).catch(() => null);
       return rec ? { uri: u, repo: p.repo, rkey: p.rkey, value: rec.value, deliveries: on.get(u) } : null;
     });
-    const garden = wateredBy(did, found.filter(Boolean)), people = await net.profiles(garden.map(g => g.repo)).catch(() => new Map());
+    const garden = wateredBy(did, found.filter(g => g && !hiddenBy(mod, g.uri, g.repo))), people = await net.profiles(garden.map(g => g.repo)).catch(() => new Map());
     return garden.map(g => ({ ...g, author: people.get(g.repo) || net.knownPerson(g.repo) || { did: g.repo } }));
   });
   async function profileOf(did, { force } = {}){
@@ -289,7 +308,7 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     // `unread`: their server didn't answer, so whether they have a profile isn't known (which
     // isn't the same as not having one: see the welcome, ../ui/welcome.js).
     let unread = false;
-    const [pub, who, ties] = await Promise.all([publicProfile(did).catch(() => { unread = true; return null; }), people([did]), tiesOf([did]).catch(() => new Map())]);
+    const [pub, who, ties, mod] = await Promise.all([publicProfile(did).catch(() => { unread = true; return null; }), people([did]), tiesOf([did]).catch(() => new Map()), decisions()]);
     let full = null, inGroups = [];
     for (const g of (await myGroups().catch(() => [])).filter(g => g.space)) {
       const rec = (await groupRecords(g).catch(() => [])).find(r => r.collection === PROFILE && r.repo === did && r.rkey === 'self');
@@ -299,7 +318,9 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     const hidden = full ? R.PRIVATE_FIELDS.filter(k => full[k] !== undefined && pub?.value?.[k] === undefined) : [];
     // `bluesky` is them as their Bluesky profile has them; `person` is how Rainshare shows them.
     const bluesky = who.get(did) || { did };
-    return { person: shown(bluesky, merged), bluesky, public: pub?.value || null, merged, hidden, groups: inGroups, ties: ties.get(did) || null, unread };
+    // `moderated`: Rainshare has hidden everything this account writes (or its Rainshare profile).
+    const moderated = hiddenBy(mod, null, did) || mod.get(net.recordUri(did, PROFILE, 'self')) || null;
+    return { person: shown(bluesky, merged), bluesky, public: pub?.value || null, merged, hidden, groups: inGroups, ties: ties.get(did) || null, unread, moderated };
   }
 
   /* ---------- writes ---------- */
@@ -394,8 +415,45 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     forget('all:' + COMMENT, `to:${COMMENT}:${item.uri}`); if (item.space) forget('space:' + item.space);
   }
 
+  /* ---------- moderating, as @rainshare.dev ---------- */
+  // Only that account's records count (./moderation.js), so only its sign-in gets these. A
+  // decision is a record keyed by what it's about: hiding something again replaces it, and
+  // unhiding deletes it. What it's about is read again for the page (`about`), never trusted
+  // from the decision itself.
+  const moderator = viewer === MODERATOR;
+  async function hide(subject, { reason, note } = {}){
+    const record = moderationRecord({ subject, reason, note }), key = keyOf(record.subject);
+    if (!key) throw new SourceError('BadSubject', 'That can’t be hidden: its address is too long to name.');
+    await put(MODERATION, key, record);
+    // (Everything read before is read again: profiles and gardens are kept with what was hidden then.)
+    forget();
+    return record;
+  }
+  async function unhide(subject){
+    const s = subjectOf(subject), d = (await readDecisions()).get(s);
+    for (const k of d?.rkeys?.length ? d.rkeys : [keyOf(s)].filter(Boolean)) await del(MODERATION, k);
+    forget();
+  }
+  /** Every decision, newest first. Unlike the board, this says so when the account's server didn't answer. */
+  const listDecisions = async () => [...(await readDecisions()).values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  /** What a subject is, read from where it lives: { kind, author, title, text, unread }. */
+  async function about(subject){
+    const s = subjectOf(subject), p = net.parseUri(s), did = p?.repo || String(s || '').slice(5);
+    const [who, rec] = await Promise.all([
+      people([did]).then(m => m.get(did) || { did }, () => ({ did })),
+      p ? net.getRecordOrNull(p.repo, p.collection, p.rkey).catch(() => undefined) : null
+    ]);
+    const v = rec?.value || {}, words = [v.text, v.body, v.spec, v.bio, v.note].find(x => typeof x === 'string' && x.trim()) || '';
+    return { subject: s, kind: subjectKind(s), author: who, title: typeof v.title === 'string' ? v.title : typeof v.displayName === 'string' ? v.displayName : '', text: words, unread: !!p && !rec, gone: rec === null };
+  }
+
   return {
     viewer, signedIn: !!viewer, canPrivate: !!(spaces && groups),
+    // The moderation page's: null for everyone but @rainshare.dev.
+    moderation: moderator ? {
+      list: listDecisions, hide, unhide, about,
+      subjectFrom: input => subjectFrom(input, { resolve: net.resolveHandle })
+    } : null,
     board, seed, profileOf, saveProfile, plant, update, remove, take: takeOn, drop, turnIn, comment, uncomment,
     forget: () => forget(),
     groups: () => myGroups(),

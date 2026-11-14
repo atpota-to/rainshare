@@ -13,7 +13,7 @@
 //
 // Making an account is the same sign-in, started from a host's address (./hosts.js) in place of
 // a handle, with the host asked to open on its sign-up form.
-import { DECLARED_SCOPE, REDIRECT_PATH, PLC, FORGES, ladder, forgesIn } from './scope.js';
+import { DECLARED_SCOPE, REDIRECT_PATH, PLC, FORGES, ladder, forgesIn, moderates } from './scope.js';
 import { isHandle } from '../core/net.js';
 import { noSuchAccount, handleLookup } from './lookup.js';
 import { signsUp } from './hosts.js';
@@ -66,12 +66,15 @@ export async function start(){
   if (!r) return null;
   let to = null;
   try { to = r.state ? JSON.parse(r.state).to : null; } catch (_) {}
-  return { session: r.session, to: samePath(to), forges: await forgesOf(r.session) };
+  const scope = await grantedScope(r.session);
+  return { session: r.session, to: samePath(to), forges: forgesIn(scope), scope };
+}
+/** What your server granted this sign-in, as a scope string ('' if it won't say). */
+export async function grantedScope(session){
+  try { return String((await session.getTokenInfo(false)).scope || ''); } catch (_) { return ''; }
 }
 /** The forges this sign-in lets Rainshare post to (see FORGE_SCOPES): what your server granted, not what was asked for. */
-export async function forgesOf(session){
-  try { return forgesIn((await session.getTokenInfo(false)).scope); } catch (_) { return []; }
-}
+export const forgesOf = async session => forgesIn(await grantedScope(session));
 
 /** Have the sign-in code loaded by the time it's wanted: someone has started typing a handle. */
 export const warm = () => { client().catch(() => {}); };
@@ -110,7 +113,7 @@ export async function whereToMake(url){
 // `forges` is which forges to ask to post to: all of them unless told otherwise. `step` is
 // how far down the ladder to start (after a refusal that came back through the address bar).
 export async function signIn(who, to, { forges = FORGES, step = 0, create = false } = {}){
-  const c = await client(), state = JSON.stringify({ to }), steps = ladder(forges);
+  const c = await client(), state = JSON.stringify({ to }), steps = ladder(forges, { moderator: moderates(who) });
   // The sign-up form, where the host has one. (The lookup is the one signing in makes anyway, and kept.)
   const prompt = create && await whereToMake(who).then(w => w.create, () => false) ? { prompt: 'create' } : {};
   for (let i = Math.min(Math.max(0, step), steps.length - 1); ; i++) {

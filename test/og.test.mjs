@@ -6,15 +6,16 @@ import assert from 'node:assert/strict';
 import { describe, clean, HOME, canonical } from '../api/_og/describe.js';
 import { cardFor } from '../api/_og/card.js';
 import { withTags } from '../api/page.js';
-import { SEED, PROFILE, SITE } from '../core/ns.js';
+import { SEED, PROFILE, SITE, MODERATION, MODERATOR } from '../core/ns.js';
+import { keyOf } from '../core/moderation.js';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const DID = 'did:plc:alice', HANDLE = 'alice.test';
-let records, profile, asked;
+let records, profile, asked, mods;
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 beforeEach(() => {
-  asked = [];
+  asked = []; mods = {};
   records = { [`${SEED}/3k1`]: { $type: SEED, title: 'Keep drafts out of the feed', spec: 'Right now drafts show up in the RSS feed. They shouldn’t.\n\nMore detail here.', audience: { $type: `${SEED}#anyone` }, createdAt: '2026-11-01T00:00:00Z' } };
   profile = { did: DID, handle: HANDLE, displayName: 'Alice', description: 'I make small tools.', avatar: 'https://cdn.bsky.app/img/avatar/plain/did:plc:alice/bafy' };
 });
@@ -22,7 +23,10 @@ globalThis.fetch = async input => {
   const u = new URL(typeof input === 'string' ? input : input.url), q = u.searchParams;
   asked.push(u.host);
   if (u.host === 'slingshot.microcosm.blue' && u.pathname.endsWith('com.atproto.repo.getRecord')) {
-    const repo = q.get('repo'), v = [DID, HANDLE].includes(repo) ? records[`${q.get('collection')}/${q.get('rkey')}`] : null;
+    const repo = q.get('repo');
+    // @rainshare.dev's moderation records, by their keys; and another account's, by mistake.
+    if (repo === MODERATOR || repo === 'did:plc:mallory') { const m = mods[`${repo} ${q.get('collection')}/${q.get('rkey')}`]; return m ? json({ uri: `at://${repo}/${q.get('collection')}/${q.get('rkey')}`, cid: 'bafy', value: m }) : json({ error: 'RecordNotFound' }, 400); }
+    const v = [DID, HANDLE].includes(repo) ? records[`${q.get('collection')}/${q.get('rkey')}`] : null;
     return v ? json({ uri: `at://${DID}/${q.get('collection')}/${q.get('rkey')}`, cid: 'bafy', value: v }) : json({ error: 'RecordNotFound' }, 400);
   }
   if (u.host === 'public.api.bsky.app' && u.pathname.endsWith('app.bsky.actor.getProfile')) return [DID, HANDLE].includes(q.get('actor')) && profile ? json(profile) : json({ error: 'NotFound' }, 400);
@@ -151,4 +155,21 @@ test('every plant picture has its copy for the cards', () => {
   // …and the logo on a card is the site's own picture of it.
   const bytes = f => readFileSync(fileURLToPath(new URL(f, import.meta.url)));
   assert.ok(bytes('../api/_og/logo.png').equals(bytes('../public/logo.png')), 'run npm run logo after changing the logo');
+});
+
+test('what Rainshare has hidden gets the home card, looked up by its key in @rainshare.dev’s repo alone', async () => {
+  const hide = (subject, by = MODERATOR) => { mods[`${by} ${MODERATION}/${keyOf(subject)}`] = { $type: MODERATION, subject, action: 'hide', reason: 'spam', createdAt: '2026-11-01T00:00:00Z' }; };
+  const ask = `at://${DID}/${SEED}/3k1`;
+  hide(ask, 'did:plc:mallory');
+  assert.equal((await describe({ kind: 'seed', who: HANDLE, rkey: '3k1' })).kind, 'seed', 'nobody else’s record counts');
+  hide(ask);
+  assert.equal(await describe({ kind: 'seed', who: HANDLE, rkey: '3k1' }), HOME);
+  mods = {}; hide('at://' + DID);
+  assert.equal(await describe({ kind: 'seed', who: DID, rkey: '3k1' }), HOME);
+  assert.equal(await describe({ kind: 'person', who: HANDLE }), HOME);
+  // A hidden Rainshare name and bio: the preview names them as Bluesky does.
+  mods = {}; records[`${PROFILE}/self`] = { $type: PROFILE, displayName: 'Buy my course', bio: 'Click here' }; hide(`at://${DID}/${PROFILE}/self`);
+  const p = await describe({ kind: 'person', who: HANDLE });
+  assert.deepEqual([p.card.person.name, p.card.person.bio], ['Alice', 'I make small tools.']);
+  assert.deepEqual([...new Set(asked)].sort(), ['public.api.bsky.app', 'slingshot.microcosm.blue'], 'still only the two fixed hosts');
 });

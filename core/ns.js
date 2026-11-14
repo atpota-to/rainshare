@@ -3,6 +3,14 @@
 export const NS = 'dev.rainshare';
 export const PROFILE = NS + '.profile', SEED = NS + '.seed', TAKE = NS + '.take', DELIVERY = NS + '.delivery', COMMENT = NS + '.comment';
 export const COLLECTIONS = [PROFILE, SEED, TAKE, DELIVERY, COMMENT];
+// Rainshare's own moderation: what @rainshare.dev has hidden (./moderation.js). Only records in
+// that one account's repo count, so it isn't one of everyone's collections above, and only
+// that account's sign-in asks to write it (../src/scope.js).
+export const MODERATION = NS + '.moderation';
+// The account that moderates, by its DID: the brand account, @rainshare.dev. It's the same
+// account that publishes the lexicons (OWNER in ../lexicons/compat.mjs). Named by its DID, never
+// its handle, so a new handle or a move to another server doesn't change whose word counts.
+export const MODERATOR = 'did:plc:cmkittusvczhnei4gjt3asiv';
 // The space type a group's Rainshare lives in (its private seeds, takes, deliveries and profiles).
 export const BOARD = NS + '.board';
 // Where Rainshare lives: every link it writes starts here (an ask's page in a brief, the link an
