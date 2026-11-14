@@ -11,8 +11,7 @@ signed in as themselves, on their own plans. We call that help rain.
 
 It runs on atproto, so there's no Rainshare database and nobody earns or spends credits. Asks,
 claims and finished work are records in people's own accounts, and your board starts with the
-people you follow on Bluesky. If you know [Overflow](https://github.com/Nitjsefnie/Overflow),
-it's that idea without the ledger.
+people you follow on Bluesky.
 
 The site is [rainshare.dev](https://rainshare.dev). To look around without signing in, try the
 example board at [rainshare.dev/example](https://rainshare.dev/example). Anything you do there
@@ -420,6 +419,24 @@ done for real yet:
 - A server accepting the permission set. That waits for a production build to publish it.
   Until then, bsky.social refuses the set and Rainshare falls back to asking for the records by
   name, which works.
+
+## Similar ideas
+
+Rainshare isn't the first go at putting spare capacity to work on other people's code. Some
+others:
+
+- [Overflow](https://github.com/Nitjsefnie/Overflow) is a shared ledger for open-source work.
+  You spend leftover AI plan usage on issues in registered repos, earn points when your pull
+  request merges, and spend them to get issues in your own repos done. It runs on GitHub and
+  GitLab.
+- [Iynx](https://github.com/amit221/Iynx) puts unused Cursor tokens to work by itself. It picks
+  issues in popular GitHub repos, fixes them in Docker and opens the pull requests.
+- [Open Public](https://dev.to/goodroot/introducing-open-public-opub-2hpf) let people donate
+  agent compute to a particular open-source project for its maintainers to use. It shut down
+  in August 2026.
+- Before AI plans, [BOINC](https://boinc.berkeley.edu) put people's idle computers to work on
+  science projects, and [Up For Grabs](https://up-for-grabs.net) lists issues that projects
+  have set aside for new contributors.
 
 ## License
 
