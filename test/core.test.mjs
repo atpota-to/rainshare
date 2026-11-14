@@ -360,7 +360,7 @@ test('a long ask says how long, and an issue too long for an ask is cut where it
   assert.match(b, /It’s a long ask · about 300 words · 9 sections · 13 checklist items\. Read all of it before you start\./);
   assert.match(b, /If it does only part, write "Part of #64" instead/);
   assert.match(b, /If `gh` can’t reach GitHub from here, read the issue’s page instead: https:\/\/github\.com\/o\/r\/issues\/64/);
-  assert.match(b, /https:\/\/github\.com\/o\/r\/fork[\s\S]*https:\/\/github\.com\/o\/r\/compare\/<base branch>\.\.\.<their GitHub username>:<branch>\?expand=1&title=<title>/);
+  assert.match(b, /https:\/\/github\.com\/o\/r\/fork[\s\S]*https:\/\/github\.com\/o\/r\/compare\/<base branch>\.\.\.<their GitHub username>:<branch>\?expand=1&title=A%20big%20plan&body=<description>/);
   assert.match(b, /unless your own rules keep model names out of pull requests/);
 });
 
@@ -389,6 +389,24 @@ test('the brief frames the request and the launchers paste as one command', () =
   assert.match(b, /## Before you start[\s\S]*gh issue view 5 --repo o\/r --comments[\s\S]*rainshare\.mjs check at:\/\/did:plc:abc/);
   assert.match(b, /include its Rainshare link: https:\/\/[a-z.]+\/seed\/friend\.example\/3k1/);
   assert.match(b, /## When you’re done[\s\S]*@friend\.example marks it done once the pull request is merged/);
+  // Placeholders are to be filled in before anything's handed over, and the end is a list of links to act on.
+  assert.match(b, /## Turning it in\n\nSome commands and links below have placeholders in angle brackets[^\n]*A link with < or > still in it won’t work\./);
+  assert.match(b, /End with a short list of the links your user needs, one per line, with every placeholder filled in:\n\n- The pull request: its address\.\n- If you couldn’t open the pull request yourself: the GitHub link[^\n]*\n- Turning it in: if you did it yourself, say so\.[^\n]*\n- The issue: https:\/\/github\.com\/o\/r\/issues\/5\n- The ask on Rainshare, where @friend\.example will see it and anyone can comment: https:\/\/[a-z.]+\/seed\/friend\.example\/3k1\n/);
+  assert.match(b, /- That if anyone asks for changes on the pull request, your user can bring you back to make them\. Update the same pull request/);
+  // Its title goes in GitHub's form already encoded, whatever it says.
+  assert.match(brief({ ...item, value: { ...item.value, title: 'Fix <it> & "this"\n## Now' } }), /&title=Fix%20%3Cit%3E%20%26%20%22this%22%20%23%23%20Now&body=<description>/);
+  // Copied without saying they're on it: the agent asks its user whether to, and doesn't do it for them.
+  assert.match(brief(item, { viewer: 'did:plc:me' }), /\d\. Your user hasn’t said on Rainshare that they’re on this\. Ask them whether to, before you start[^\n]*rainshare_take/);
+  assert.doesNotMatch(b, /Your user hasn’t said/);
+  // On it with a day: the agent's told the day, how to get more time, and to say it at the end.
+  const due = { ...item, takes: [{ repo: 'did:plc:me', author: { handle: 'me.example' }, value: { createdAt: new Date().toISOString(), until: new Date(Date.now() + 864e5).toISOString() } }] };
+  const db = brief(due, { viewer: 'did:plc:me' }), dd = new Date(Date.now() + 864e5), dayWord = `${dd.getUTCDate()} ${dd.toLocaleString('en-GB', { month: 'short', timeZone: 'UTC' })}`;
+  assert.ok(db.includes(`Your user said they’d turn this in by ${dayWord}. After that`), db);
+  assert.ok(db.includes('`node ~/.rainshare.mjs take at://did:plc:abc/dev.rainshare.seed/3k1 --days <days>`, the MCP tool `rainshare_take` with `days`, or “More time” on its page.'));
+  assert.match(db, new RegExp(`- That it needs turning in by ${dayWord}, if it isn’t yet`));
+  assert.doesNotMatch(db, /Your user hasn’t said/);
+  const gone = { ...item, takes: [{ ...due.takes[0], value: { createdAt: '2026-11-01T00:00:00Z', until: '2026-11-02T00:00:00Z' } }] };
+  assert.match(brief(gone, { viewer: 'did:plc:me' }), /Your user said they’d turn this in by 2 Nov, and that has passed, so others see it as free again\. Tell them/);
   // Whoever it's made for reads as "your user", and what the forge said comes along.
   const taken = { ...item, takes: [{ repo: 'did:plc:me', author: { handle: 'me.example' }, value: { createdAt: new Date().toISOString(), setup: { harness: 'codex' } } }], issue: { state: 'open' } };
   assert.match(brief(taken, { viewer: 'did:plc:me' }), /- The issue is still open on GitHub\.\n- Your user took it on today, with Codex\./);
@@ -402,7 +420,7 @@ test('the brief frames the request and the launchers paste as one command', () =
   const tb = brief({ ...item, value: { title: 't', subject: parseSubject('https://tangled.org/a/b/issues/2') } });
   assert.match(tb, /1\. Look at the issue, and at the repository’s pull requests on tangled\.org, for one that already does this: https:\/\/tangled\.org\/a\/b\/issues\/2 and https:\/\/tangled\.org\/a\/b\/pulls\./);
   assert.match(tb, /- Push your branch first: to a\/b itself[\s\S]*open-pr at:\/\/did:plc:abc\/dev\.rainshare\.seed\/3k1 --branch <branch> --model <model>`[\s\S]*rainshare_open_pr[\s\S]*[a-z.]+\/seed\/friend\.example\/3k1\?branch=<branch>&model=<model>[\s\S]*link the issue \(https:\/\/tangled\.org\/a\/b\/issues\/2\)[\s\S]*git format-patch[\s\S]*https:\/\/tangled\.org\/a\/b\/pulls\/new/);
-  assert.match(tb, /1\. The pull request’s address, if you opened it yourself\. If you didn’t, the link above that opens it from Rainshare[^\n]*\n2\. Whether it’s turned in on Rainshare\./);
+  assert.match(tb, /- The pull request: its address, if you opened it yourself\. If you didn’t, the link from “Turning it in” that opens it from Rainshare[^\n]*\n- Whether it’s turned in on Rainshare\./);
   assert.doesNotMatch(tb, /\?pr=|gh pr list|Fixes #/);
   // A private one has no link to hand back and nothing a CLI can reach: the person opens it on Tangled.
   const tp = brief({ ...item, space: 'at://g/space/x/y', value: { title: 't', subject: parseSubject('https://tangled.org/a/b/issues/2') } });
@@ -812,7 +830,8 @@ test('an idea with no repo says whose it will be, and is briefed and turned in a
   assert.match(b, /What gets turned in is the repository’s address\. There’s no pull request to open\./);
   assert.match(b, /turn-in at:\/\/did:plc:mo\/dev\.rainshare\.seed\/3kidea12345 --url <repository URL>/);
   assert.match(b, /\?pr=<repository URL>&model=<model>/);
-  assert.match(b, /1\. Where the new repository is\.[\s\S]*@mo\.example marks it done once they’ve seen it, and the project is your user’s to keep\./);
+  assert.match(b, /- The new repository: its address\.[\s\S]*@mo\.example marks it done once they’ve seen it, and the project is your user’s to keep\./);
+  assert.doesNotMatch(b, /asks for changes on the pull request/);
   assert.doesNotMatch(b, /open a pull request|Fixes #|gh pr list/);
   // One started for the person who asked is theirs to place.
   assert.match(brief({ ...idea, value: { ...idea.value, owner: 'requester' } }), /@mo\.example would like one started for them, so where it lives is theirs to say/);

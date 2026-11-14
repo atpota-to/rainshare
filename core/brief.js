@@ -6,7 +6,7 @@ import { nounOf, whatItIs, askSizeText } from './words.js';
 import { wantPhrase } from './rank.js';
 import { describeSubject, cloneUrlOf, kindOf, safeHttp, FORGE_NAMES, REPO_NAME, KNOTLESS, KNOTLESS_NAME } from './subjects.js';
 import { parseUri, safeAtUri } from './net.js';
-import { standing } from './status.js';
+import { standing, day } from './status.js';
 import { newRepoPlaces } from './forges.js';
 import { concerns, INVISIBLE } from './scan.js';
 import { reasonName } from './moderation.js';
@@ -162,7 +162,10 @@ export function brief(item, { viewer, now = Date.now() } = {}){
       : 'Ask your user to glance at its page in Rainshare.',
     'If someone is already on it, or it’s already done, stop and tell your user rather than doing it twice.',
     // Which model does the work is picked before the agent starts, so it's said here and not only under their guidelines.
-    wantPhrase(sq) ? `They’d prefer ${wantPhrase(sq)}. If that isn’t what you are, say so to your user now, before starting, so they can switch if they want to.` : ''
+    wantPhrase(sq) ? `They’d prefer ${wantPhrase(sq)}. If that isn’t what you are, say so to your user now, before starting, so they can switch if they want to.` : '',
+    // Copied without saying so (the person picked "Not yet, just copy it"): saying so is theirs to decide, so it's asked.
+    viewer && pub && st.state === 'open' && !st.takes.some(t => t.mine) && !st.deliveries.some(x => x.mine)
+      ? `Your user hasn’t said on Rainshare that they’re on this. Ask them whether to, before you start, so nobody else does it twice: “Send my agent” on its page${page ? ` (${page})` : ''}, \`node ${CLI_HOME} take ${item.uri}\`, or the MCP tool \`rainshare_take\`.` : ''
   ].filter(Boolean);
   lines.push('## Before you start', '', 'Things may have moved on since then, so check first:', '', ...checks.map((c, i) => `${i + 1}. ${c}`), '');
 
@@ -195,7 +198,14 @@ export function brief(item, { viewer, now = Date.now() } = {}){
   const credit = `say that it came from Rainshare${page ? `, and include its Rainshare link: ${page} (that link is how the two find each other)` : ''}. Say which model did the work there too, unless your own rules keep model names out of pull requests: Rainshare records the model when it’s turned in, so that’s enough`;
   const what = idea ? 'repository URL' : 'pull request URL';
   const yourself = `\`node ${CLI_HOME} turn-in ${item.uri} --url <${what}> --model <model>\`, or the MCP tool \`rainshare_turn_in\``;
-  lines.push('## Turning it in', '');
+  // The day your user gave (./takes.js): past it, with nothing turned in, others see it as free.
+  const mine = st.takes.find(t => t.mine && t.said && t.due === t.due), by = mine ? day(mine.due) : '';
+  const moreTime = `\`node ${CLI_HOME} take ${item.uri} --days <days>\`, the MCP tool \`rainshare_take\` with \`days\`, or “More time” on its page`;
+  lines.push('## Turning it in', '',
+    ...(mine && pub ? [mine.lapsed
+      ? `Your user said they’d turn this in by ${by}, and that has passed, so others see it as free again. Tell them, and if they’re still on it, ask them to give themselves more time first: ${moreTime}.`
+      : `Your user said they’d turn this in by ${by}. After that, with nothing turned in, others see it as free again. If the work will take longer, tell them before then, so they can give themselves more time: ${moreTime}.`, ''] : []),
+    'Some commands and links below have placeholders in angle brackets, like <branch> or <model>. Put the real value in each before you run a command or give a link to your user. A link with < or > still in it won’t work.', '');
   const openPr = `\`node ${CLI_HOME} open-pr ${item.uri} --branch <branch> --model <model>\` (with \`--from <the fork’s address>\` if you pushed to a fork), or the MCP tool \`rainshare_open_pr\``;
   const branchLink = pub && page ? handBackBranch(item, '<branch>', { model: '<model>' }) : null;
   if (tangled) lines.push(
@@ -230,23 +240,34 @@ export function brief(item, { viewer, now = Date.now() } = {}){
         // Some agents can push to a fork but can't make one, or can't open the pull request: the
         // person can do both from links, the way they turn it in.
         ...((kind === 'githubIssue' || d?.forge === 'github') && REPO_NAME.test(d?.repo || '')
-          ? [`- If you can’t fork the repository or open the pull request from here, give your user links that do each in a tap. To fork it: https://github.com/${d.repo}/fork. Once your branch is on their fork, this opens the pull request form ready to send, with your branch, their GitHub username and the title (URL-encoded) put in: https://github.com/${d.repo}/compare/<base branch>...<their GitHub username>:<branch>?expand=1&title=<title>`] : [])]),
+          ? [`- If you can’t fork the repository or open the pull request from here, give your user links that do each in a tap. To fork it: https://github.com/${d.repo}/fork. Once your branch is on their fork, this opens the pull request form ready to send. Put in the repository’s default branch, their GitHub username, your branch and the description you wrote (URL-encoded). The title is filled in already, so change it only if yours is better: https://github.com/${d.repo}/compare/<base branch>...<their GitHub username>:<branch>?expand=1&title=${encodeURIComponent(String(sq.title || '').replace(/\s+/g, ' ').trim().slice(0, 200))}&body=<description>`] : [])]),
     ...(pub
       ? [`- Then turn it in on Rainshare. If the Rainshare CLI or MCP server is set up here, do it yourself: ${yourself}.`,
         ...(page ? [`- If neither is set up, your user turns it in with one click. Give them this link with the ${idea ? 'repository’s' : 'pull request’s'} address on the end; it opens its page with the turn-in form filled in: ${handBack(item, `<${what}>`, '<model>')}`] : [])]
       : ['- Then your user turns it in from its page in Rainshare.']),
     '');
 
-  lines.push('## When you’re done', '', 'End by telling your user:', '',
-    ...(tangled
-      ? [pub ? '1. The pull request’s address, if you opened it yourself. If you didn’t, the link above that opens it from Rainshare, and the title and description you wrote for it.'
-        : '1. Where to open the pull request, and the title and description you wrote for it.',
-        pub ? '2. Whether it’s turned in on Rainshare. Opening the pull request through Rainshare turns it in as well, so say which it was.'
-          : `2. That once it’s open it needs turning in: its address goes in the form on its page in Rainshare.`]
-      : [idea ? '1. Where the new repository is.' : '1. The pull request’s address.',
-        pub ? '2. Whether it’s turned in on Rainshare. If you turned it in yourself, say so. If you didn’t, give them the link above to open.' : '2. That it still needs turning in on its page in Rainshare.']),
-    idea ? `3. That nothing more is needed after that: ${who(item)} marks it done once they’ve seen it${theirs ? ', and the project is your user’s to keep' : ''}.`
-      : `3. That nothing more is needed after that: ${who(item)} marks it done once the pull request is merged.`, '',
+  // The end: the links your user acts on, filled in, then what happens next.
+  const compare = !idea && (kind === 'githubIssue' || d?.forge === 'github') && REPO_NAME.test(d?.repo || '');
+  const links = [
+    ...(idea ? ['- The new repository: its address.']
+      : tangled ? [pub ? '- The pull request: its address, if you opened it yourself. If you didn’t, the link from “Turning it in” that opens it from Rainshare, with your branch in it, and the title and description you wrote for it.'
+        : '- Where to open the pull request, and the title and description you wrote for it.']
+        : ['- The pull request: its address.',
+          ...(compare ? ['- If you couldn’t open the pull request yourself: the GitHub link from “Turning it in”, filled in, and the fork link if they need one.'] : [])]),
+    ...(pub && page ? [tangled
+      ? '- Whether it’s turned in on Rainshare. Opening the pull request through Rainshare turns it in as well, so say which it was.'
+      : `- Turning it in: if you did it yourself, say so. If you didn’t, the link from “Turning it in” with the ${idea ? 'repository’s' : 'pull request’s'} address and the model filled in, so it’s one click.`]
+      : [tangled ? '- That once it’s open it needs turning in: its address goes in the form on its page in Rainshare.' : '- That it still needs turning in, from its page in Rainshare.']),
+    ...(d?.issue && d.href ? [`- The issue: ${d.href}`] : []),
+    ...(page ? [`- The ask on Rainshare, where ${who(item)} will see it and anyone can comment: ${page}`] : [])
+  ];
+  lines.push('## When you’re done', '', 'End with a short list of the links your user needs, one per line, with every placeholder filled in:', '', ...links, '',
+    'Then say, in a sentence or two:', '',
+    idea ? `- That nothing more is needed once it’s turned in: ${who(item)} marks it done once they’ve seen it${theirs ? ', and the project is your user’s to keep' : ''}.`
+      : `- That nothing more is needed once it’s turned in: ${who(item)} marks it done once the pull request is merged.`,
+    ...(idea ? [] : ['- That if anyone asks for changes on the pull request, your user can bring you back to make them. Update the same pull request (push to the same branch) rather than opening a new one: what’s turned in is that pull request, so it doesn’t need turning in again.']),
+    ...(mine && pub && !mine.lapsed ? [`- That it needs turning in by ${by}, if it isn’t yet, or it shows as free again.`] : []), '',
     `If you stop before finishing, say so plainly, so it can be dropped and someone else can pick it up${pub ? ` (\`node ${CLI_HOME} drop ${item.uri}\`, the MCP tool \`rainshare_drop\`, or its page on Rainshare)` : ''}.`,
     '');
   return printable(lines.join('\n'));
