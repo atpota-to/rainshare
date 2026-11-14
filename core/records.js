@@ -123,6 +123,8 @@ export function moreTime(prev, days){
 export function preferences(input = {}, prev){
   const was = prev?.send || {}, s = { ...was, ...(input.send || {}) };
   const days = Math.round(Number(s.days));
+  // Messages from @rainshare.dev (../api/_messages.js): only what's switched on is kept.
+  const n = { ...(prev?.notify || {}), ...(input.notify || {}) };
   return prune({
     $type: PREFERENCES,
     send: prune({
@@ -131,6 +133,7 @@ export function preferences(input = {}, prev){
       days: days >= 1 ? Math.min(days, MAX_DAYS) : undefined,
       askEachTime: typeof s.askEachTime === 'boolean' ? s.askEachTime : undefined
     }),
+    notify: prune({ updates: n.updates === true || undefined, newAsks: n.newAsks === true || undefined }),
     createdAt: prev?.createdAt || now(),
     updatedAt: prev ? now() : undefined
   });

@@ -32,6 +32,9 @@ export const SITE = siteFrom(typeof __RAINSHARE_SITE__ !== 'undefined' ? __RAINS
 export const STAGE = 'alpha';
 // Rainshare's own account on Bluesky, @-mentioned in what people share from the site.
 export const HANDLE = 'rainshare.dev';
+// The direct messages someone can ask it for (`notify` in their dev.rainshare.preferences,
+// sent by ../api/_messages.js). [value, what people read]
+export const NOTIFY = [['updates', 'Updates on my asks and my work'], ['newAsks', 'New asks on the board']];
 // Private seeds in a group's space. Spaces are still an alpha on the group host, so for now
 // every seed is public: sign-in asks only for Rainshare's own records, and the app shows
 // groups as coming. Turning this on brings back everything private (src/scope.js, the

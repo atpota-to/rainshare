@@ -21,7 +21,7 @@
 // A host with a landing of its own at its base address, for people signed out (rainshare.dev,
 // host.landing), shows the board under it there. The board's own address is then 'board', and
 // every way back to the board leads there, to the board on its own.
-import { SEED, PROFILE, STAGE, HANDLE, SITE, FEATURES, TAKE_DAYS, TAKE_DAYS_DEFAULT, ROUTES, PLANS, UNPAID, plansIn, HARNESSES, MODELS, RUNS_ON, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, labelOf, modelName } from '../core/ns.js';
+import { SEED, PROFILE, STAGE, HANDLE, SITE, FEATURES, TAKE_DAYS, TAKE_DAYS_DEFAULT, ROUTES, PLANS, UNPAID, plansIn, HARNESSES, MODELS, RUNS_ON, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, NOTIFY, labelOf, modelName } from '../core/ns.js';
 import { describeSubject, cloneUrlOf, safeHttp, pullState, FORGE_NAMES } from '../core/subjects.js';
 import { look, carry, standing } from '../core/status.js';
 import { newRepoPlaces, placesFor } from '../core/forges.js';
@@ -282,12 +282,12 @@ export function createRainshare({ root, base = '/', host }){
     S.prefs = rec && savedAt(rec) >= savedAt(local) ? rec : local;
     S.prefsLocal = !!local && S.prefs === local && savedAt(local) > savedAt(rec);
   }
-  /** Save how you send your agent. Says 'saved', or 'local' when only this browser could keep it. */
-  async function savePrefs(send){
-    const next = prefsRecord({ send }, S.prefs);
+  /** Save your settings ({ send } or { notify }). Says 'saved', or 'local' when only this browser could keep it. */
+  async function savePrefs(change){
+    const next = prefsRecord(change, S.prefs);
     S.prefs = next;
     try { localStorage.setItem(PREFS_KEY(), JSON.stringify(next)); } catch (_) {}
-    try { await S.source.savePreferences?.({ send: next.send }); S.prefsLocal = false; return 'saved'; }
+    try { await S.source.savePreferences?.({ send: next.send, notify: next.notify || { updates: false, newAsks: false } }); S.prefsLocal = false; return 'saved'; }
     catch (e) { console.warn('rainshare preferences', e); S.prefsLocal = true; return 'local'; }
   }
   // What "Send my agent" starts with on an ask: your settings, where they suit it. Before
@@ -680,7 +680,7 @@ export function createRainshare({ root, base = '/', host }){
     if (alarming(flags) && !confirm(`Rainshare’s checks flagged this ask:\n\n${flags.map(f => '• ' + f.said).join('\n')}\n\nYour agent will be told too. Send it anyway?`)) return;
     const start = sendStart(it);
     const send = async answers => {
-      if (answers.remember) await savePrefs({ route: answers.route, claim: answers.claim, days: answers.days, askEachTime: answers.askEachTime });
+      if (answers.remember) await savePrefs({ send: { route: answers.route, claim: answers.claim, days: answers.days, askEachTime: answers.askEachTime } });
       const r = answers.claim ? await claim(it, el, answers) : { fresh: it, launch: copyWay(it, answers.route, false) };
       if (!r) return;
       // On the board, it goes on to the ask's own page, with the commands open there.
@@ -1311,6 +1311,7 @@ export function createRainshare({ root, base = '/', host }){
       </form>
       <aside class="rs-me-side">
         ${sendSettings()}
+        ${messageSettings()}
         ${S.source.gardenOf ? `<section class="rs-mygarden"><h2>What you’ve helped with</h2>${gardenBlock(S.garden, 'You')}</section>` : ''}
         ${a('profile/' + viewer(), 'See your profile as others do', 'rs-link')}
       </aside>
@@ -1331,10 +1332,30 @@ export function createRainshare({ root, base = '/', host }){
       </form>
     </section>`;
   }
+  // The direct messages you'd like from @rainshare.dev (../api/_messages.js). It reads your
+  // settings from your account, so a copy kept only in this browser doesn't reach it.
+  function messageSettings(){
+    const n = S.prefs?.notify || {};
+    return `<section class="rs-panel rs-mynotify"><div class="rs-hrow"><h2>Messages from @${esc(HANDLE)}</h2>${tip('Rainshare’s Bluesky account can send you a direct message, once a day at most, when there’s news. Your settings are saved in your account, where anyone can read them.')}</div>
+      <form class="rs-prefs" data-rs-form="notify">
+        ${NOTIFY.map(([k, l]) => `<label class="rs-check"><input type="checkbox" name="${k}"${n[k] ? ' checked' : ''}> ${esc(l)}</label>`).join('')}
+        <p class="rs-muted">Bluesky only lets accounts you follow message you, unless you’ve changed that, so <a class="rs-link" href="https://bsky.app/profile/${esc(HANDLE)}" target="_blank" rel="noopener">follow @${esc(HANDLE)}</a>. To stop them, untick these, or reply STOP to any message.</p>
+        ${S.prefsLocal ? `<p class="rs-muted">${ico('lock')} These can’t reach @${esc(HANDLE)} yet: your sign-in is from before Rainshare had settings, so they’re kept in this browser only. Sign out and in again to send them.</p>` : ''}
+        <button class="rs-btn rs-quiet rs-sm" type="submit">Save</button>
+      </form>
+    </section>`;
+  }
+  async function submitNotify(form){
+    const fd = new FormData(form), btn = form.querySelector('[type=submit]');
+    btn.disabled = true;
+    const r = await savePrefs({ notify: Object.fromEntries(NOTIFY.map(([k]) => [k, !!fd.get(k)])) });
+    toast(r === 'saved' ? 'Saved' : 'Saved in this browser only: sign out and in again for messages');
+    rerender();
+  }
   async function submitPrefs(form){
     const fd = new FormData(form), btn = form.querySelector('[type=submit]');
     btn.disabled = true;
-    const r = await savePrefs({ route: String(fd.get('route') || 'brief'), claim: !!fd.get('claim'), days: +fd.get('days') || TAKE_DAYS_DEFAULT, askEachTime: !!fd.get('ask') });
+    const r = await savePrefs({ send: { route: String(fd.get('route') || 'brief'), claim: !!fd.get('claim'), days: +fd.get('days') || TAKE_DAYS_DEFAULT, askEachTime: !!fd.get('ask') } });
     toast(r === 'saved' ? 'Saved' : 'Saved in this browser');
     rerender();
   }
@@ -1887,6 +1908,7 @@ export function createRainshare({ root, base = '/', host }){
     if (f.dataset.rsForm === 'post') poster.submit();
     else if (f.dataset.rsForm === 'me') submitMe(f);
     else if (f.dataset.rsForm === 'prefs') submitPrefs(f);
+    else if (f.dataset.rsForm === 'notify') submitNotify(f);
     else if (f.dataset.rsForm === 'turnin') submitTurnIn(f);
     else if (f.dataset.rsForm === 'pull') submitPull(f);
     else if (f.dataset.rsForm === 'vouch') submitVouch(f);

@@ -11,8 +11,14 @@
     "api/page.js": {
       "includeFiles": "dist/index.html",
       "maxDuration": 10
+    },
+    "api/announce.js": {
+      "maxDuration": 60
     }
   },
+  "crons": [
+    { "path": "/api/announce", "schedule": "0 16 * * *" }
+  ],
   "redirects": [
     { "source": "/favicon.svg", "destination": "/favicon.png", "permanent": true },
     { "source": "/u/:who", "destination": "/profile/:who", "permanent": true }
