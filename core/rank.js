@@ -2,6 +2,7 @@
 // do, and how close they are to whoever asked. Each item says why it's where it is: as
 // short reasons (for the CLI), and as a fit level with one plain sentence (for the apps).
 import { FEATURES, PLANS, PLAN_FAMILIES, LEVELS, plansIn, familyOf, familyName, levelWord, lowBudgetOf, labelOf, BUDGETS, modelName } from './ns.js';
+import { activeTakes } from './takes.js';
 
 const has = (a, v) => Array.isArray(a) && a.includes(v);
 const lower = a => (a || []).map(s => String(s).toLowerCase());
@@ -107,7 +108,7 @@ export function score(item, me, { priorities = FEATURES.priorities, values = FEA
   const skills = lower(mine.offering), fits = lower(sq.tags).filter(t => skills.includes(t));
   if (fits.length) { s += Math.min(fits.length, 2); add('Your kind of work: ' + fits.slice(0, 2).join(', '), `It’s ${join(fits.slice(0, 2))}, your kind of work`, 'match', 'job'); }
 
-  const taken = (item.takes || []).filter(t => t.repo !== me?.did);
+  const taken = activeTakes(item).filter(t => t.repo !== me?.did);
   if (taken.length && !sq.parallel) { s -= 3; add('Someone’s on it', 'someone’s already on it', 'down', 'job'); }
   const days = (Date.now() - Date.parse(sq.createdAt || 0)) / 864e5;
   if (days >= 0 && days < 3) s += 1;

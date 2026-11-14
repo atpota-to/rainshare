@@ -8,7 +8,7 @@
 //             they're for is checked against the Bluesky graph (getRelationships, lists).
 //   private   records in a group's Rainshare space, through `spaces` and `groups`, which
 //             the site supplies (src/spaces.js and the group host). Members only.
-import { PROFILE, SEED, TAKE, DELIVERY, COMMENT, MODERATION, MODERATOR } from './ns.js';
+import { PROFILE, SEED, TAKE, DELIVERY, COMMENT, PREFERENCES, MODERATION, MODERATOR } from './ns.js';
 import { decisionsFrom, hiddenBy, keyOf, moderationRecord, subjectFrom, subjectOf, kindOf as subjectKind } from './moderation.js';
 import * as net from './net.js';
 import * as R from './records.js';
@@ -365,13 +365,37 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     forget('all:' + SEED); if (item.space) forget('space:' + item.space);
   }
   const mine = list => (list || []).filter(r => r.repo === viewer);
-  async function takeOn(item, { setup, note } = {}){
+  /* ---------- your settings ---------- */
+  // One record, dev.rainshare.preferences/self. Null when there isn't one (or it can't be read).
+  async function preferences(){
+    if (!viewer) return null;
+    return (await net.getRecordOrNull(viewer, PREFERENCES, 'self').catch(() => null))?.value || null;
+  }
+  async function savePreferences(input){
+    if (!viewer) throw new SourceError('NotSignedIn', 'Sign in first.');
+    const record = R.preferences(input, await preferences());
+    await put(PREFERENCES, 'self', record);
+    return record;
+  }
+
+  // `days`: how long you give yourself to turn it in (the take's `until`: ./takes.js).
+  async function takeOn(item, { setup, note, days } = {}){
     if (mine(item.takes).length) return mine(item.takes)[0];
-    const record = R.take({ seed: item, setup, note });
+    const record = R.take({ seed: item, setup, note, days });
     const r = await into(item.space).create(TAKE, record);
     const rec = { uri: r.uri, cid: r.cid, repo: viewer, rkey: String(r.uri || '').split('/').pop(), value: record, space: item.space || null };
     remember(TAKE, rec);
     forget('all:' + TAKE); if (item.space) forget('space:' + item.space);
+    return rec;
+  }
+  // More time: your take on it, written again with a later day.
+  async function moreTime(item, days){
+    const t = mine(item.takes)[0];
+    if (!t) throw new SourceError('NotOnIt', 'You aren’t on this one.');
+    const record = R.moreTime(t.value, days), r = await into(item.space).put(TAKE, t.rkey, record);
+    const rec = { ...t, cid: r?.cid || t.cid, value: record };
+    remember(TAKE, rec);
+    forget('all:' + TAKE, `to:${TAKE}:${item.uri}`); if (item.space) forget('space:' + item.space);
     return rec;
   }
   async function drop(item){
@@ -454,7 +478,7 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
       list: listDecisions, hide, unhide, about,
       subjectFrom: input => subjectFrom(input, { resolve: net.resolveHandle })
     } : null,
-    board, seed, profileOf, saveProfile, plant, update, remove, take: takeOn, drop, turnIn, comment, uncomment,
+    board, seed, profileOf, saveProfile, preferences, savePreferences, plant, update, remove, take: takeOn, moreTime, drop, turnIn, comment, uncomment,
     forget: () => forget(),
     groups: () => myGroups(),
     addToGroup: async did => { const space = await groups.add(did); forget('groups'); return space; },

@@ -6,10 +6,11 @@
 // rainshare.js owns the screen and hands in what this needs as `ui`; this keeps the draft
 // (so it survives leaving and coming back) and draws the steps.
 import { SEED, STAGE, STAGES, FAMILIES, LEVELS, GROUPS, FEATURES } from '../core/ns.js';
-import { parseSubject, describeSubject, kindOf, subjectInfo, knotlessIssueSubject } from '../core/subjects.js';
+import { parseSubject, describeSubject, kindOf, subjectInfo, knotlessIssueSubject, safeHttp } from '../core/subjects.js';
 import { newRepoPlaces } from '../core/forges.js';
+import { specFromIssue } from '../core/records.js';
 import { writableForge, FORGE_SAID } from '../core/forgewrite.js';
-import { whereText, shortWhere, jobAndNotes, jobShort, modelsText, wantsShort, askExcerpt, stageOf, aNoun } from '../core/words.js';
+import { whereText, shortWhere, jobAndNotes, jobShort, modelsText, wantsShort, askExcerpt, askSizeText, stageOf, aNoun } from '../core/words.js';
 import { join, wantPhrase } from '../core/rank.js';
 import { pageOf } from '../core/brief.js';
 import { esc, ago, ico, forgeIco, face, people, pathOf, plantPic, tip } from './bits.js';
@@ -218,7 +219,7 @@ export function createPoster(ui){
   }
   function prefill(){
     if (P.info?.title && !P.title.trim()) { P.title = P.info.title.slice(0, 120); P.prefilled = true; }
-    if (P.info?.body && !P.spec.trim()) { P.spec = P.info.body.slice(0, 4000); P.prefilled = true; }
+    if (P.info?.body && !P.spec.trim()) { P.spec = specFromIssue(P.info.body, safeHttp(describeSubject(P.subject)?.href)); P.prefilled = true; }
   }
   function goStep(n){
     for (let s = P.step; s < n; s++) {
@@ -339,6 +340,7 @@ export function createPoster(ui){
       <label>A short title<input name="title" maxlength="120" required autocomplete="off" placeholder="A seating chart that shuffles itself" value="${esc(P.title)}"></label>
       <label>What should it do? <small>Plain words are fine.</small>
         <textarea name="spec" rows="8" maxlength="10000" placeholder="A little tool that… It’s for… It should… It doesn’t need to…">${esc(P.spec)}</textarea></label>
+      <div data-rs-size-note aria-live="polite" data-was="${esc(sizeNote())}">${sizeNote()}</div>
       <label>Written up somewhere already? <small>Optional: a link to notes or a sketch</small><input name="specUrl" type="url" inputmode="url" placeholder="https://…" value="${esc(P.specUrl)}"></label>
       ${howFields()}${LAST === 2 ? lastChoices() : ''}`;
     return `<h1 tabindex="-1">What would you like done?</h1>
@@ -346,8 +348,17 @@ export function createPoster(ui){
       <label>A short title<input name="title" maxlength="120" required autocomplete="off" placeholder="Keep drafts out of the RSS feed" value="${esc(P.title)}"></label>
       <label>What does done look like? <small>Markdown works.</small>
         <textarea name="spec" rows="8" maxlength="10000" placeholder="Right now… It should… Please don’t…">${esc(P.spec)}</textarea></label>
+      <div data-rs-size-note aria-live="polite" data-was="${esc(sizeNote())}">${sizeNote()}</div>
       <label>A longer spec somewhere? <small>Optional, like a SPEC.md in the repo</small><input name="specUrl" type="url" inputmode="url" placeholder="https://…/SPEC.md" value="${esc(P.specUrl)}"></label>
       ${howFields()}${LAST === 2 ? lastChoices() : ''}`;
+  }
+  // A very long ask is often a plan rather than one piece of work: whoever takes it on may only
+  // finish part. Said while it's being written, from the words themselves.
+  function sizeNote(){
+    const size = askSizeText(P.spec);
+    if (!size) return '';
+    const issue = P.kind !== 'idea' && /Issue$/.test(kindOf(P.subject) || '');
+    return `<p class="rs-note">${ico('info')}<span>${esc(size)}. A helper is more likely to finish something they can do in a sitting or two. If this is a bigger plan, you could ask for the first piece now and post the rest later${issue ? ', or split the issue up' : ''}.${issue ? ' A pull request that does only part of it will say “Part of” the issue rather than closing it.' : ''}</span></p>`;
   }
   function howFields(){
     // An idea given away is the builder's to build their way: only what helps someone find it and size it up is asked.
@@ -453,6 +464,8 @@ export function createPoster(ui){
     const s = ui.root.querySelector('.rs-post-side'); if (s) { s.innerHTML = side(); ui.live?.(); }
     const f = ui.root.querySelector('[data-rs-found]'); if (f) f.innerHTML = found();
     const o = ui.root.querySelector('[data-rs-issue-offer]'); if (o) o.innerHTML = issueOffer();
+    // Only redrawn when it changes, so a screen reader hears it once, not at every keystroke.
+    const z = ui.root.querySelector('[data-rs-size-note]'); if (z) { const h = sizeNote(); if (z.dataset.was !== h) { z.innerHTML = h; z.dataset.was = h; } }
     // The Bluesky post follows the title until it's been edited (it's on the same step as the title when that's the last).
     const b = ui.root.querySelector('.rs-post [name="bskyText"]'); if (b && P.bskyText == null && document.activeElement !== b) b.value = bskyText();
   }

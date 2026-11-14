@@ -1,8 +1,9 @@
 // Building the records from what people type, so every app writes the same shapes.
 // Each builder trims, clips to the lexicon's limits and leaves out what's empty.
-import { PROFILE, SEED, TAKE, DELIVERY, COMMENT, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, PLANS, UNPAID, LEVELS, planKey, HARNESSES, RUNS_ON, AUDIENCES, TESTS, SIZES, OWNERS, STAGES, audienceOf } from './ns.js';
+import { PROFILE, SEED, TAKE, DELIVERY, COMMENT, PREFERENCES, ROUTES, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, PLANS, UNPAID, LEVELS, planKey, HARNESSES, RUNS_ON, AUDIENCES, TESTS, SIZES, OWNERS, STAGES, audienceOf } from './ns.js';
 import { parseUri } from './net.js';
 import { kindOf } from './subjects.js';
+import { untilIn, MAX_DAYS } from './takes.js';
 
 const seg = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter() : null;
 /** Clip to `max` graphemes (what people count as characters). */
@@ -11,6 +12,21 @@ export function clip(s, max){
   if (!seg) return t.slice(0, max);
   const parts = [...seg.segment(t)];
   return parts.length <= max ? t : parts.slice(0, max).map(p => p.segment).join('').trim();
+}
+/**
+ * An issue's body as the start of an ask. The ask holds up to 10,000 characters (the lexicon's
+ * limit, and the form's). A longer body is cut at a paragraph or line, never silently: a note at
+ * the end says the rest is on the issue, so neither the person posting nor a helper's agent
+ * takes the start for the whole of it.
+ */
+export function specFromIssue(body, url, max = 10000){
+  const t = String(body ?? '').replace(/\r\n?/g, '\n').trim();
+  if (t.length <= max) return t;
+  const note = `\n\n(This is the start of the issue. The rest is on the issue itself${url ? `: ${url}` : ''})`;
+  let cut = t.slice(0, max - note.length);
+  const at = Math.max(cut.lastIndexOf('\n\n'), cut.lastIndexOf('\n'));
+  cut = at > cut.length * 0.5 ? cut.slice(0, at) : cut.replace(/\s+\S*$/, '');
+  return cut.trimEnd() + note;
 }
 const known = (list, v) => list.some(x => x[0] === v) ? v : undefined;
 /** A tag the way it's stored: lower case, words joined by dashes. */
@@ -103,9 +119,36 @@ export function seed(input = {}, prev){
 
 export const strongRef = item => ({ uri: item.uri, cid: item.cid });
 
-export function take({ seed: sq, setup: s, note }){
+/** A take. `days`: how long the helper gives themselves to turn it in (its `until`; ./takes.js). */
+export function take({ seed: sq, setup: s, note, days }){
   if (!sq?.uri || !sq?.cid) throw new Error('That seed can’t be found.');
-  return prune({ $type: TAKE, seed: strongRef(sq), setup: setup(s), note: clip(note || '', 300), createdAt: now() });
+  return prune({ $type: TAKE, seed: strongRef(sq), setup: setup(s), note: clip(note || '', 300), until: days ? untilIn(days) : undefined, createdAt: now() });
+}
+/**
+ * The same take with more time: `days` past its day, or past now if that's gone by. Never
+ * more than 30 days from now, the most a take can hold an ask (./takes.js).
+ */
+export function moreTime(prev, days){
+  const t = Date.now(), from = Math.max(t, Date.parse(prev?.until) || 0);
+  const until = new Date(Math.min(Date.parse(untilIn(days, from)), t + MAX_DAYS * 864e5)).toISOString();
+  return prune({ ...prev, $type: TAKE, until, updatedAt: now() });
+}
+
+/** Your settings. `prev` keeps its createdAt, and anything not being changed. */
+export function preferences(input = {}, prev){
+  const was = prev?.send || {}, s = { ...was, ...(input.send || {}) };
+  const days = Math.round(Number(s.days));
+  return prune({
+    $type: PREFERENCES,
+    send: prune({
+      route: known(ROUTES, s.route),
+      claim: typeof s.claim === 'boolean' ? s.claim : undefined,
+      days: days >= 1 ? Math.min(days, MAX_DAYS) : undefined,
+      askEachTime: typeof s.askEachTime === 'boolean' ? s.askEachTime : undefined
+    }),
+    createdAt: prev?.createdAt || now(),
+    updatedAt: prev ? now() : undefined
+  });
 }
 
 export function delivery({ seed: sq, take: tk, url, pull, setup: s, sessionUrl, note }){
