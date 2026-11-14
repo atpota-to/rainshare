@@ -766,7 +766,7 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-sd-way>span{display:flex;flex-direction:column;gap:2px;min-width:0}
 .rs-sd-way b{font-size:15px}
 .rs-sd-way small{font-size:13px;line-height:1.4;color:var(--rs-muted)}
-/* "Send my agent" (./send.js): who writes the prompt, which way to send it (the rest folded
+/* "Send my agent" (./send.js): whose words the prompt is, which way to send it (the rest folded
    away), and the two buttons, with how long saying you're on it lasts between them */
 .rs-sd-intro{font-size:15px;line-height:1.45;margin:0;text-wrap:pretty}
 .rs-wl fieldset.rs-sd-how{padding:0;background:none}

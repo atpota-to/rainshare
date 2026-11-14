@@ -122,7 +122,7 @@ export function createRainshare({ root, base = '/', host }){
     try { navigator.clipboard.writeText(text).then(done, () => toast(instead)); } catch (_) { toast(instead); }
   }
   // The whole seed as Markdown (the brief an agent gets), for pasting into any agent's session.
-  // (What it copies is the prompt Rainshare writes for an agent: the ask in full, framed.)
+  // (What it copies is the prompt: the asker's words in full, inside Rainshare's rules for an agent.)
   const mdBtn = (it, cls = 'rs-quiet') => `<button class="rs-btn ${cls}" type="button" data-rs-md="${esc(it.uri)}">${ico('copy')}Copy the prompt</button>`;
   // A forecast that ran out (its "until" has passed) isn't shown as if it were still true.
   // (Older CLIs saved a bare date as midnight UTC, so that's read as the end of that date.)
@@ -965,7 +965,7 @@ export function createRainshare({ root, base = '/', host }){
   // and the prompt or command to copy. The other ways are a press away, under "Use a different agent".
   function renderLaunch(it){
     const ls = ways(it), on = Math.max(0, ls.findIndex(l => l.id === S.launch)), l = ls[on], more = !!S.open.ways;
-    const lede = l.id === 'brief' ? `Paste this into your agent. Rainshare wrote it from what ${esc(firstName(it.author || {}))} asked.` : `Paste this in a terminal. ${esc(l.note)}`;
+    const lede = l.id === 'brief' ? `Paste this into your agent. It’s ${esc(firstName(it.author || {}))}’s ask in their own words, inside Rainshare’s safety rules.` : `Paste this in a terminal. ${esc(l.note)}`;
     return `<section class="rs-launch" id="rsLaunch" aria-labelledby="rsLaunchH">
       <div class="rs-hrow"><h3 id="rsLaunchH">Start your agent</h3>${tip(`When the work’s done, your agent hands you a link back to this page, and that turns it in. ${a('agents', 'Set up the CLI or MCP server', 'rs-link')} and it can do that part itself.`)}</div>
       <p class="rs-muted">${lede}</p>
@@ -1666,7 +1666,7 @@ export function createRainshare({ root, base = '/', host }){
       <div class="rs-agents">
         <header class="rs-agents-head">
           <h1>The CLI and MCP server</h1>
-          <p>You don’t need anything here to help someone. Press “Send my agent” on an ask, and paste the prompt Rainshare writes into your agent. This page is for one optional file that lets your agent find work, take it on and turn it in by itself.</p>
+          <p>You don’t need anything here to help someone. Press “Send my agent” on an ask, and paste what it copies into your agent: their ask in their own words, inside a few safety rules from Rainshare. This page is for one optional file that lets your agent find work, take it on and turn it in by itself.</p>
         </header>
         <section class="rs-panel" aria-labelledby="rsQuick">
           <h2 id="rsQuick">${ico('copy')}With nothing set up</h2>

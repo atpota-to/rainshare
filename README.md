@@ -21,7 +21,7 @@ You sign in with a Bluesky or other Atmosphere handle. If you haven't got one, "
 on the sign-in lets you pick a host (Bluesky, Blacksky, Eurosky, selfhosted.social or npmx). You
 make the account on that host's own sign-up page and come straight back signed in.
 
-Signed out, the home page says what happens in three plain steps and has two buttons, **Help
+Signed out, the home page says what happens in a sentence and has two buttons, **Help
 someone** and **Ask for help**. Either opens the sign-in, and signing in goes on to the board or
 to asking. They're the two tabs in the bar as well.
 
@@ -30,9 +30,10 @@ to asking. They're the two tabs in the bar as well.
 1. **Ask for help.** Post an idea or a project. A project is an existing repo or issue on
    Tangled, knotless, GitHub or any git host. Say what done looks like and, if you care, which
    models you'd like: a family (Claude, GPT, GLM…) and a level (frontier, mid-tier or small).
-2. **Send your agent.** Pick an ask and press "Send my agent". Rainshare writes the prompt for
-   your agent from the ask (see [What your agent gets](#what-your-agent-gets)), so there's
-   nothing to write yourself. One short screen asks how to hand it over: the command for what
+2. **Send your agent.** Pick an ask and press "Send my agent". The prompt your agent gets is
+   the asker's own words, with safety rules from Rainshare around them (see
+   [What your agent gets](#what-your-agent-gets)). The rules help, but they can't catch
+   everything, so the screen says to read the ask first. It asks how to hand it over: the command for what
    your profile says you run (Claude Code or Codex), or the prompt to paste into any agent, with
    the cloud, the CLI and MCP folded away under "Other ways". Then "I'm on it" copies it and says
    you're on it, for a day unless you pick three days, a week or two, and everyone sees the ask
@@ -73,7 +74,7 @@ the right forge.
 Your profile says which AI plans you pay for to code with (Claude, ChatGPT, Copilot, Cursor,
 Gemini, Z.ai's GLM plan), or that you only have free tiers or nothing. That shows next to your
 asks, and "Send my agent" starts with the command for what you run. The first time you sign in,
-a short welcome says what happens in the same three steps as the home page, then asks for your
+a short welcome says what happens in three steps, then asks for your
 plan and which agents you run, and you can skip it.
 
 ## Is this allowed by my AI plan?

@@ -34,7 +34,7 @@ export const welcomeProfile = ({ plans = [], runs = [] } = {}) => ({ plans: [...
 // [icon, the step, what it means for you]
 const STORY = [
   [lifeIco('up'), 'People post ideas and projects they’d like help with.', 'You can post your own with “Ask for help”.'],
-  [skyIco('showers'), 'Pick one, and Rainshare writes the prompt for your agent.', 'Paste it into Claude Code, Codex or any agent, on your own plan.'],
+  [skyIco('showers'), 'Pick one and send your agent, on your own plan.', 'It gets their ask in their own words, with safety rules from Rainshare around it. Read it before you start.'],
   [lifeIco('sprouted'), 'Your agent opens a pull request. Paste its link back here.', 'If it does the job, they accept it, and it grows in your garden.']
 ];
 

@@ -6,8 +6,9 @@
 //   then    one of two buttons: say you're on it and copy it, or just copy it for now. Saying
 //           you're on it is for a day, with the other lengths a press away.
 //
-// It says up front that Rainshare writes the prompt from what was asked, so nobody wonders
-// whether they're meant to write it themselves. Ticking "Next time, skip this" keeps these
+// It says up front what the prompt is: the asker's own words, which Rainshare puts inside a
+// few safety rules for the agent (../core/brief.js). It doesn't promise more than those rules
+// do: whoever sends their agent should still read what was asked. Ticking "Next time, skip this" keeps these
 // answers in your settings (dev.rainshare.preferences) and the button does the same thing
 // from then on; nothing is kept otherwise. Nothing is written until a button is pressed, and
 // closing it leaves everything as it was. Someone who said to skip it can change their answers
@@ -62,7 +63,7 @@ export function openSend({ title, asker, ways, answers, send, setup = null, erro
     const days = dayChoices(st.days);
     box.innerHTML = `<div class="rs-wl-top"><h2 id="rsSdTitle" tabindex="-1">Send your agent</h2><button class="rs-wl-x" type="button" data-sd="cancel" aria-label="Close">${ico('close')}</button></div>
       <p class="rs-sd-what">${esc(title)}</p>
-      <p class="rs-sd-intro">Rainshare writes the prompt for your agent from what ${esc(asker)} asked: where the code is, what they’d like done, and how to hand the work back. You don’t need to write anything.</p>
+      <p class="rs-sd-intro">The prompt is ${esc(asker)}’s ask, in their own words. Rainshare wraps it in safety rules for your agent: stay in the repo, leave secrets alone, and check with you before anything risky. They can’t catch everything, so read the ask before you start.</p>
       <fieldset class="rs-sd-how"><legend>Send it with</legend>
         <div class="rs-sd-ways">${first.map(choice).join('')}</div>
         ${rest.length ? `<details class="rs-sd-more"${st.moreWays || rest.some(w => w.id === st.route) ? ' open' : ''}><summary>Other ways: ${esc(rest.map(w => w.name).join(', '))}</summary>
