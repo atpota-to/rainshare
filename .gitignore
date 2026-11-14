@@ -3,3 +3,8 @@ dist/
 dist-cli/
 .vercel/
 .DS_Store
+# The announcer's settings (announcer/.env.example is the template)
+.env
+.env.*
+!.env.example
+KILL

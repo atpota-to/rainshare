@@ -140,7 +140,7 @@ export function moreTime(prev, days){
 export function preferences(input = {}, prev){
   const was = prev?.send || {}, s = { ...was, ...(input.send || {}) };
   const days = Math.round(Number(s.days));
-  // Messages from @rainshare.dev (../api/_messages.js): only what's switched on is kept.
+  // Messages from @rainshare.dev (../announcer/src/messages.js): only what's switched on is kept.
   const n = { ...(prev?.notify || {}), ...(input.notify || {}) };
   // That the terms were agreed to, which version and when (./agreement.js). A new one takes the
   // old one's place whole; otherwise what's there stays, whatever else is being changed.

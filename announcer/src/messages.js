@@ -5,16 +5,20 @@
 //             asks they've helped with (marked done with their work or someone else's, or closed)
 //   newAsks   new asks on the board, from anyone
 //
-// Each person gets at most one message a day, from the daily run (api/announce.js), and only
-// when there's something to say. It's sent with the same app password as the posts, which has
-// to be allowed to send direct messages.
+// The announcer service (./index.js) runs this a minute or two after anything happens on the
+// board. Each run sends each person one message at most, and only when there's something to
+// say: their updates since the last one, so they hear within a couple of minutes, and once a
+// day, after DAILY, the day's new asks. It's sent with the same app password as the posts, which
+// has to be allowed to send direct messages.
 //
-// What's been sent, with no database: each message covers whole periods, from one BOUNDARY to
-// the next, so the last message the account sent someone says how far they've heard. The next
-// one starts at the boundary before that message and stops at the boundary before now. A
-// boundary falls a quarter of an hour before the daily run (16:00 UTC in vercel.json), so a run
-// never straddles one, and what's only just been written waits a day rather than going out
-// half done. Running more often (Vercel Pro), make PERIOD shorter to match.
+// What's been sent, with no database: each message covers whole periods, from one boundary to
+// the next, so what the account last sent someone says how far they've heard. Updates go by
+// minutes (EVERY), and new asks by days (from DAILY to DAILY). The next message starts at the
+// boundary before the last one and stops at the boundary before now. The service runs this half
+// a minute past a boundary, and a run stops sending before the next boundary (GUARD), so no
+// message is sent in the period after the one its run began in; whoever it didn't reach hears
+// next run. A run that starts too near a boundary (one run by hand, say) leaves the messages to
+// the next. A first message catches up on the day before.
 //
 // Nothing the account has hidden (../core/moderation.js) is in anyone's news, and it doesn't
 // message an account it has hidden.
@@ -24,16 +28,18 @@
 //   - reply STOP to any message. Their latest STOP or START in the conversation is what
 //     counts, and a STOP is answered once, to say it worked.
 //   - Bluesky's own settings: leave the conversation, or stop letting @rainshare.dev message them
-import { SEED, TAKE, DELIVERY, PREFERENCES, SITE } from '../core/ns.js';
-import * as net from '../core/net.js';
-import { aNoun } from '../core/words.js';
-import { ACCOUNT, passable, isHidden, reader, session, blocked, whoAre, graphemes, bytes } from './_announce.js';
-import { clean } from './_og/describe.js';
+import { SEED, TAKE, DELIVERY, PREFERENCES, SITE } from '../../core/ns.js';
+import * as net from '../../core/net.js';
+import { aNoun } from '../../core/words.js';
+import { ACCOUNT, passable, free, isHidden, reader, session, blocked, whoAre, graphemes, bytes } from './posts.js';
+import { clean } from '../../api/_og/describe.js';
 
-const HOUR = 3600e3, DAY = 24 * HOUR;
-export const PERIOD = DAY, BOUNDARY = 15.75 * HOUR, LOOKBACK = 3 * DAY;
-/** The latest boundary at or before `t`. */
-export const boundary = t => Math.floor((t - BOUNDARY) / PERIOD) * PERIOD + BOUNDARY;
+const MINUTE = 60e3, HOUR = 60 * MINUTE, DAY = 24 * HOUR;
+// Updates by the minute; new asks by the day, from 15:45 UTC; nothing older than LOOKBACK.
+// GUARD: how near the next boundary a run stops sending, so that nothing it sends lands after it.
+export const EVERY = MINUTE, DAILY = 15.75 * HOUR, LOOKBACK = 3 * DAY, GUARD = 15e3;
+/** The latest boundary at or before `t`: by minutes, or with `day`, by days from DAILY. */
+export const boundary = (t, day = false) => day ? Math.floor((t - DAILY) / DAY) * DAY + DAILY : Math.floor(t / EVERY) * EVERY;
 // What a message may hold (chat.bsky.convo.defs#messageInput), and how many of each kind of news it lists.
 const MAX_GRAPHEMES = 1000, MAX_BYTES = 10000, MAX_UPDATES = 10, MAX_NEW = 5;
 const STOP = /^\W*(stop|unsubscribe|opt out)\W*$/i, START = /^\W*(start|unstop|resume)\W*$/i;
@@ -74,9 +80,12 @@ function person(r, p){
   return name ? r.add(')') : r;
 }
 const shortLink = u => u.replace(/^https?:\/\//, '').replace(/\/$/, '');
-// The last line of every message the run sends, and how it knows them again: a link to the profile page.
+// The last line of every message the run sends, and how it knows them again: a link to the
+// profile page. One with the day's new asks also links to the board, in its heading.
 const footer = (r, start) => r.add(`\n\nReply ${start ? 'START to have them again' : 'STOP to stop these'}, or choose what you get at `).link(shortLink(SITE + '/me'), SITE + '/me').add('.');
-const isOurs = m => m?.sender?.did === ACCOUNT && (m.facets || []).some(f => (f?.features || []).some(x => /^https?:\/\/[^/]+\/me$/.test(String(x?.uri || ''))));
+const links = (m, path) => (m?.facets || []).some(f => (f?.features || []).some(x => new RegExp(`^https?://[^/]+${path}$`).test(String(x?.uri || ''))));
+const isOurs = m => m?.sender?.did === ACCOUNT && links(m, '/me');
+const hasNewAsks = m => isOurs(m) && links(m, '/board');
 
 /** One line of news, written into `r`. */
 function line(r, n, who){
@@ -118,7 +127,7 @@ export function compose({ updates = [], fresh = [] }, who){
     list(updates, MAX_UPDATES, n => r.add(`\n• and ${n} more.`));
   }
   if (fresh.length) {
-    r.add(updates.length ? '\n\nNew asks:' : 'New asks on Rainshare:');
+    r.add(updates.length ? '\n\nNew on ' : 'New on ').link('the board', SITE + '/board').add(':');
     list(fresh, MAX_NEW, n => r.add(`\n• and ${n} more on `).link('the board', SITE + '/board').add('.'));
   }
   return footer(r).build();
@@ -132,9 +141,10 @@ const within = (t, from, to) => { const x = Date.parse(t); return x >= from && x
  * Someone's news from `from` up to `to`: { updates, fresh }, each oldest first. `theirBlocks` is
  * who they block, whose doings aren't news to them; `ourBlocks` is who the account blocks,
  * whose asks it doesn't pass on; `hidden` is what it has hidden (decisions from
- * ../core/moderation.js), which is nobody's news.
+ * ../core/moderation.js), which is nobody's news. A new ask is only news while nobody's on it
+ * (`free`, ./posts.js), as of `now`.
  */
-export function newsFor(r, { seeds, takes, deliveries, from, to, theirBlocks = new Set(), ourBlocks = new Set(), hidden = new Map() }){
+export function newsFor(r, { seeds, takes, deliveries, from, to, theirBlocks = new Set(), ourBlocks = new Set(), hidden = new Map(), now = Date.now() }){
   const shown = list => list.filter(x => !isHidden(hidden, x));
   [seeds, takes, deliveries] = [shown(seeds), shown(takes), shown(deliveries)];
   const updates = [], bySeed = new Map(seeds.map(s => [s.uri, s])), at = x => Date.parse(x.value?.createdAt);
@@ -153,7 +163,8 @@ export function newsFor(r, { seeds, takes, deliveries, from, to, theirBlocks = n
       updates.push({ kind: state === 'closed' ? 'closed' : withTheirs ? 'done-yours' : 'done', seed: sq, by: sq.repo, at: Date.parse(sq.value.updatedAt) });
     }
   }
-  const fresh = !r.newAsks ? [] : seeds.filter(s => s.repo !== r.did && !theirBlocks.has(s.repo) && !ourBlocks.has(s.repo) && passable(s.value) && within(s.value.createdAt, from, to))
+  const blocks = new Set([...theirBlocks, ...ourBlocks]);
+  const fresh = !r.newAsks ? [] : seeds.filter(s => s.repo !== r.did && !blocks.has(s.repo) && passable(s.value) && within(s.value.createdAt, from, to) && free(s, { takes, deliveries, blocks, now }))
     .map(s => ({ kind: 'new', seed: s, by: s.repo, at: at(s) }));
   const order = (a, b) => a.at - b.at;
   return { updates: updates.sort(order), fresh: fresh.sort(order) };
@@ -164,12 +175,12 @@ export function newsFor(r, { seeds, takes, deliveries, from, to, theirBlocks = n
 const noChat = e => /scope|not allowed|privileged/i.test(`${e?.name} ${e?.message}`);
 /**
  * Where things stand with someone, from the account's conversation with them:
- * { canChat, convoId, last, said, acked }. `last` is when the run last sent them a message (ms),
- * `said` is their latest STOP or START ('stop', 'start' or null), and `acked` whether the run has
- * sent anything since a STOP.
+ * { canChat, convoId, last, lastNew, said, acked }. `last` is when the run last sent them a
+ * message (ms), and `lastNew` the last one with the day's new asks in it. `said` is their latest
+ * STOP or START ('stop', 'start' or null), and `acked` whether the run has sent anything since a STOP.
  */
 export async function standing(as, did){
-  const none = { canChat: false, convoId: null, last: null, said: null, acked: false };
+  const none = { canChat: false, convoId: null, last: null, lastNew: null, said: null, acked: false };
   let a;
   try { a = await as.get('chat.bsky.convo.getConvoAvailability', { members: [did] }, { chat: true }); }
   catch (e) {
@@ -182,10 +193,10 @@ export async function standing(as, did){
   if (!a?.canChat && !convoId) return none;
   const messages = convoId ? (await as.get('chat.bsky.convo.getMessages', { convoId, limit: 100 }, { chat: true })).messages || [] : [];
   // Newest first.
-  const ours = messages.findIndex(isOurs);
+  const ours = messages.findIndex(isOurs), withNew = messages.find(hasNewAsks);
   const cmd = messages.findIndex(m => m?.sender?.did === did && (STOP.test(m.text || '') || START.test(m.text || '')));
   const said = cmd < 0 ? null : STOP.test(messages[cmd].text) ? 'stop' : 'start';
-  return { canChat: !!a.canChat, convoId, last: ours < 0 ? null : Date.parse(messages[ours].sentAt), said, acked: said === 'stop' && ours >= 0 && ours < cmd };
+  return { canChat: !!a.canChat, convoId, last: ours < 0 ? null : Date.parse(messages[ours].sentAt), lastNew: withNew ? Date.parse(withNew.sentAt) : null, said, acked: said === 'stop' && ours >= 0 && ours < cmd };
 }
 async function send(as, did, convoId, message){
   const id = convoId || (await as.get('chat.bsky.convo.getConvoForMembers', { members: [did] }, { chat: true })).convo?.id;
@@ -208,10 +219,14 @@ export async function message({ post = true, password = process.env.RAINSHARE_BL
   out.asked = people.length;
   if (!people.length) { log('Nobody has asked for messages yet.'); return out; }
 
-  const to = boundary(now);
-  const [seeds, takes, deliveries, hidden] = await Promise.all([read(SEED), read(TAKE).catch(() => []), read(DELIVERY).catch(() => []), read.hidden()]);
+  // A run this near the next boundary could still be sending after it, and the next run would
+  // take that message for one that covered its minute. It leaves the messages to that run.
+  if (boundary(now + GUARD) !== boundary(now)) { out.note = 'Too near the next minute to send messages: the next run will.'; log(out.note); return out; }
+  const to = boundary(now), today = boundary(now, true);
+  // All of these are needed to know what's news and what's free: if any can't be read, nothing is sent this run.
+  const [seeds, takes, deliveries, hidden] = await Promise.all([read(SEED), read(TAKE), read(DELIVERY), read.hidden()]);
   // Who the account won't deal with: those it blocks or who block it, among the people asking and anyone whose new ask it could pass on.
-  const askers = seeds.filter(s => passable(s.value) && within(s.value.createdAt, to - LOOKBACK, to)).map(s => s.repo);
+  const askers = seeds.filter(s => passable(s.value) && within(s.value.createdAt, today - LOOKBACK, today)).map(s => s.repo);
   const ourBlocks = await blocked([...new Set([...people.map(p => p.did), ...askers])]);
   const skip = (p, why) => { out.skipped.push({ to: p.did, why }); log(`Not messaging ${p.did}: ${why}`); };
   if (password) await as.signIn();
@@ -221,7 +236,7 @@ export async function message({ post = true, password = process.env.RAINSHARE_BL
   for (const p of people) {
     if (ourBlocks.has(p.did)) { skip(p, 'the account blocks them, or they block it.'); continue; }
     if (isHidden(hidden, { repo: p.did })) { skip(p, 'the account has hidden them.'); continue; }
-    let st = { canChat: true, convoId: null, last: null, said: null, acked: false };
+    let st = { canChat: true, convoId: null, last: null, lastNew: null, said: null, acked: false };
     if (password) {
       try { st = await standing(as, p.did); }
       catch (e) {
@@ -236,22 +251,35 @@ export async function message({ post = true, password = process.env.RAINSHARE_BL
       else skip(p, 'they replied STOP.');
       continue;
     }
-    if (st.last != null && st.last >= to) { skip(p, 'they’ve had today’s message.'); continue; }
-    const from = st.last == null ? to - PERIOD : Math.max(boundary(st.last), to - LOOKBACK);
-    ready.push({ p, st, from });
+    if (st.last != null && st.last >= to) { skip(p, 'they’ve had this minute’s message.'); continue; }
+    // Updates since the minute their last message went out in; the day's new asks if they haven't had them.
+    const from = st.last == null ? to - DAY : Math.max(boundary(st.last), to - LOOKBACK);
+    const daily = p.newAsks && (st.lastNew == null || st.lastNew < today) ? { from: st.lastNew == null ? today - DAY : Math.max(boundary(st.lastNew, true), today - LOOKBACK), to: today } : null;
+    ready.push({ p, st, from, daily });
   }
-  if (!password && post === false) log('Without the password, the conversations can’t be read, so this is the last day’s news for everyone who’s asked.');
+  if (!password && post === false) log('Without the password, the conversations can’t be read, so this is a day’s news for everyone who’s asked.');
 
   // What each of them has to hear, and everyone it names.
   const theirBlocks = new Map(await Promise.all(ready.filter(x => !x.stop).map(async x => [x.p.did, await net.blocksOf(x.p.did)])));
-  for (const x of ready) if (!x.stop) x.news = newsFor(x.p, { seeds, takes, deliveries, from: x.from, to, theirBlocks: theirBlocks.get(x.p.did), ourBlocks, hidden });
+  for (const x of ready) {
+    if (x.stop) continue;
+    const common = { seeds, takes, deliveries, theirBlocks: theirBlocks.get(x.p.did), ourBlocks, hidden, now };
+    x.news = {
+      updates: newsFor({ ...x.p, newAsks: false }, { ...common, from: x.from, to }).updates,
+      fresh: x.daily ? newsFor({ ...x.p, updates: false }, { ...common, ...x.daily }).fresh : []
+    };
+  }
   const named = [...new Set(ready.flatMap(x => [x.p.did, ...(x.news ? [...x.news.updates, ...x.news.fresh].flatMap(n => [n.by, n.seed.repo]) : [])]))];
   const who = await whoAre(named);
   for (const x of ready) if (!x.stop) x.message = compose(x.news, who);
 
+  // Nothing is sent after the boundary that ends this run's period (less GUARD): the next run
+  // would take it for one sent in its own. Whoever isn't reached by then hears from that run.
+  const started = Date.now(), budget = to + EVERY - GUARD - now;
   for (const x of ready) {
     const at = who.get(x.p.did)?.handle ? '@' + who.get(x.p.did).handle : x.p.did;
     if (!x.message) { log(`Nothing new for ${at}.`); continue; }
+    if (post && Date.now() - started > budget) { out.note = 'Out of time for this minute: the rest go next run.'; log(out.note); break; }
     const sent = { to: x.p.did, text: x.message.text, error: null };
     out.sent.push(sent);
     if (!post) { log(`\nWould message ${at}:\n  ${x.message.text.replace(/\n/g, '\n  ')}`); continue; }

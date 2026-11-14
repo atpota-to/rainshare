@@ -1,0 +1,39 @@
+[Unit]
+Description=Rainshare announcer: @rainshare.dev's posts and messages
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+# Code from the deploy (atpota-to/rainshare, installed by droplet/deploy.sh into
+# /root/rainshare-live/current). Secrets and the KILL file stay in the data folder, which is the
+# working directory. Node resolves the link at start, so a running process keeps reading its own
+# release even after the next deploy switches it.
+WorkingDirectory=/root/rainshare-announcer
+# Node 22 explicitly: the droplet's default node is 18, which has no WebSocket.
+ExecStart=/opt/node22/bin/node /root/rainshare-live/current/announcer/src/index.js
+
+Restart=always
+RestartSec=10
+
+# Copy .env.example (in announcer/) to .env here and fill it in before the first deploy.
+EnvironmentFile=/root/rainshare-announcer/.env
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=rainshare-announcer
+Environment=NODE_ENV=production
+Environment=NODE_OPTIONS=--max-old-space-size=96
+
+# The droplet also runs Poe's services and has 960 MB. This one listens to a trickle (Rainshare's
+# own records), and a run reads the board, which is small, so it's held well under theirs.
+MemoryHigh=96M
+MemoryMax=128M
+CPUQuota=25%
+
+# Let a run in progress finish (it's given 20 s) before SIGKILL.
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

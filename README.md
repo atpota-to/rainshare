@@ -573,9 +573,11 @@ which spells it out by hand.
 | `ui/` | the app's screens: the board, an ask, profiles, posting an ask, the first-time welcome, loading placeholders, the feedback page, the note before a first job, the terms and privacy pages, and @rainshare.dev's moderation page |
 | `core/` | everything the site and the CLI share (below) |
 | `cli/rainshare.mjs` | the CLI and MCP server |
-| `api/` | Vercel functions: the OAuth client metadata, link previews (`page.js` sets the meta tags, `og.js` draws the image), and the daily run that posts new asks to Bluesky and sends people their messages (`announce.js`) |
+| `api/` | Vercel functions: the OAuth client metadata, and link previews (`page.js` sets the meta tags, `og.js` draws the image) |
+| `announcer/` | the service that posts new asks to Bluesky and sends people their messages, on the droplet (see [Deploying](#deploying)) |
+| `droplet/` | how the announcer is deployed to the droplet, and set up there |
 | `lexicons/` | the record schemas and the sign-in permission set, plus the scripts that publish them and check changes for breakage |
-| `scripts/` | the image scripts above, `feedback.mjs` for the feedback board, and `announce.mjs`, which runs the daily posts and messages by hand (see [Deploying](#deploying)) |
+| `scripts/` | the image scripts above, `feedback.mjs` for the feedback board, and `announce.mjs`, which runs the announcer once by hand (see [Deploying](#deploying)) |
 | `.claude/skills/feedback/` | the feedback routine's instructions |
 | `supabase/` | Rainshare's ledger of who agreed to its terms: the table (`migrations/`) and the function that writes it (`functions/rainshare-agree/`) |
 | `test/` | `npm test` |
@@ -639,47 +641,48 @@ with the same variables.
 
 ### Posts and messages on Bluesky
 
-Once a day, Vercel calls `/api/announce` (`crons` in `vercel.json`, at 16:00 UTC). @rainshare.dev
-posts each new ask on the board, then sends a direct message to everyone who's asked for one
-and has news. A post names who's asking, with a mention so they hear about it, and gives the
-ask's title, with a card that links to its page. To turn it on:
+@rainshare.dev posts each new ask on the board, and sends a direct message to everyone who's asked
+for one and has news. A post names who's asking, with a mention so they hear about it, and gives
+the ask's title, with a card that links to its page.
 
-1. Make another app password for @rainshare.dev, with "Allow access to your direct messages"
-   ticked, and set it as `RAINSHARE_BLUESKY_APP_PASSWORD`, for Production only, marked
-   sensitive. It's separate from the lexicons' password, so either can be revoked on its own.
-   Without direct messages allowed, the posts still go out, and the run says the messages
-   can't.
-2. Set `CRON_SECRET` to a long random string (`openssl rand -hex 32`), for Production. Vercel
-   sends it with each call, and the function turns away any request without it.
-3. Redeploy.
+That's the announcer, [`announcer/`](announcer), a small service that stays up on the same
+droplet as Poe's services (atpota-to/atpota.to). It listens to Jetstream for Rainshare's own
+records, so a run follows within a minute or two of someone asking, taking something on or turning
+work in, and it keeps one Bluesky session rather than signing in each time. Merging to `main`
+deploys it there, the way Poe's are deployed: a GitHub Action has the droplet fetch the commit,
+test it, restart the service and check its health, rolling back by itself if it isn't healthy.
+[`droplet/README.md`](droplet/README.md) has the layout, the one-time setup on the droplet, the
+deploy key and rollbacks, and [`announcer/README.md`](announcer/README.md) how it decides what to
+post and send.
 
-Until both are set, the daily call posts and sends nothing. To see what it would post and send
-right now, without doing either, run `npm run announce`, or ask the deployed function:
+It needs an app password for @rainshare.dev made with "Allow access to your direct messages"
+ticked, in the droplet's `/root/rainshare-announcer/.env`, not in Vercel. Without direct messages
+allowed, the posts still go out, and each run says the messages can't. It starts in `MODE=dry`,
+saying in its log what it would post and send, until that's set to `live`.
 
-```sh
-curl -H "Authorization: Bearer $CRON_SECRET" "https://rainshare.dev/api/announce?dry=1"
-```
-
-`npm run announce` needs no password, but with one it reads the account's conversations, so it
-knows what each person has already been sent. `npm run announce -- --post` posts and sends for
-real, with the password set.
+To see what it would post and send right now, from anywhere, without doing either:
+`npm run announce`. It needs no password, but with one it reads the account's conversations, so
+it knows what each person has already been sent.
 
 #### Posts
 
-`api/_announce.js` decides what counts as new and posts it. A new ask is open, meant for
-everyone, and was asked in the last three days, at least 15 minutes ago (in case its title is
-fixed straight after posting). Each run posts at most five asks, the earliest first, and leaves
-the rest for the next day.
+`announcer/src/posts.js` decides what counts as new and posts it. A new ask is meant for everyone,
+was asked in the last three days, at least 15 minutes ago (in case its title is fixed straight
+after posting), and nobody's on it yet, as the board's "Nobody on it yet" has it: nobody has said
+they're on it, or their take has lapsed, nothing's been turned in, and it isn't done or closed.
+So an ask goes out about a quarter of an hour after it's asked, unless someone has taken it up by
+then, and isn't posted at all once it has. Each run posts at most five, the earliest first, and
+leaves the rest for the next run. If the takes and turn-ins can't be read, nothing is posted.
 
 There's no database, so the account's own posts say what's been posted. An ask that one of its
-last 300 posts links to isn't posted again, even if that post was written by hand. Each post
-also takes the ask's own record key, so two runs at once can't post the same ask twice.
+last 300 posts links to isn't posted again, even if that post was written by hand. Each post also
+takes the ask's own record key, so two runs at once can't post the same ask twice.
 
-Asks from anyone @rainshare.dev blocks aren't posted, and neither are asks from anyone who
-blocks it. To keep someone's asks off the account, block them from it. Nothing it has hidden on
-the moderation page is posted or messaged either, and neither is an ask that Rainshare's checks
-find very likely a trick on helpers' agents. If the list of what it has hidden can't be read,
-the run posts and sends nothing.
+Asks from anyone @rainshare.dev blocks aren't posted, and neither are asks from anyone who blocks
+it. To keep someone's asks off the account, block them from it. Nothing it has hidden on the
+moderation page is posted or messaged either, and neither is an ask that Rainshare's checks find
+very likely a trick on helpers' agents. If the list of what it has hidden can't be read, the run
+posts and sends nothing.
 
 #### Messages
 
@@ -689,36 +692,38 @@ People ask for messages in their settings beside their profile, under "Messages 
 - **Updates on my asks and my work**: someone's on one of your asks, or has turned in work on it
   (with a link to the pull request); an ask you were on was marked done, with your work or
   someone else's, or was closed.
-- **New asks on the board**: open asks meant for everyone, except your own.
+- **New asks on the board**: asks meant for everyone that nobody's on yet, as for the posts,
+  except your own.
 
-Each person gets one message a day at most, listing everything since the last one, and nothing
-on a day with no news. What they've asked for is saved as `notify` in their
-`dev.rainshare.preferences` record, which anyone can read, like every record in their repo. A
-sign-in from before Rainshare had settings can only keep them in the browser, where the daily
-run can't see them, and the panel says so. `api/_messages.js` works out who gets what.
+Updates go out within a minute or two: each run sends someone one message at most, with
+everything since their last one, and nothing when there's no news. New asks come once a day, the
+day's together, in the first message after 15:45 UTC. What people have asked for is saved as
+`notify` in their `dev.rainshare.preferences` record, which anyone can read, like every record in
+their repo. A sign-in from before Rainshare had settings can only keep them in the browser, where
+the announcer can't see them, and the panel says so. `announcer/src/messages.js` works out who
+gets what.
 
 Bluesky only lets accounts someone follows message them, unless they've changed that, so the
-settings ask people to follow @rainshare.dev. The run skips anyone it can't message and
-says why.
+settings ask people to follow @rainshare.dev. The announcer skips anyone it can't message and says
+why.
 
-There's no database here either. Each message covers whole days, from 15:45 UTC to 15:45 UTC (a
-quarter of an hour before the cron). The last message the account sent someone says which days
-they've heard about, so a run that's missed is caught up the next day, for up to three days.
+There's no database here either. Each message covers whole minutes for updates, and whole days
+from 15:45 UTC for new asks. The last message the account sent someone says how far they've heard,
+so a restart or a missed run is caught up by the next, for up to three days. Runs start half a
+minute past a minute and stop sending before the next, so no message lands in a period it didn't
+cover. Someone's first message catches up on the day before.
 
 There are three ways to stop them, and any one of them works:
 
 - Untick them in their settings.
-- Reply STOP to any message, and the account answers once to say it worked. START turns them
-  back on. Whichever of the two someone sent last is what counts.
+- Reply STOP to any message, and the account answers once to say it worked. START turns them back
+  on. Whichever of the two someone sent last is what counts. The announcer looks at its
+  conversations every minute, so a STOP is answered quickly.
 - Use Bluesky's own settings: leave the conversation, or stop letting @rainshare.dev message you.
 
-People someone blocks on Bluesky aren't in their news, and the account doesn't message anyone
-it blocks or who blocks it. Nothing it has hidden is in anyone's news, and it doesn't message an
+People someone blocks on Bluesky aren't in their news, and the account doesn't message anyone it
+blocks or who blocks it. Nothing it has hidden is in anyone's news, and it doesn't message an
 account it has hidden.
-
-On Vercel's Hobby plan, a daily cron can run at any point in its hour. To change the time, edit
-the schedule in `vercel.json`, and keep `BOUNDARY` in `api/_messages.js` a little before it. On
-Pro the cron can run more often. Make `PERIOD` match, and messages go out that often too.
 
 ## Not tried for real yet
 
@@ -745,10 +750,12 @@ done for real yet:
 - Moderating as @rainshare.dev for real. The moderation page has only been driven against a fake
   source in headless Chromium, and no server has been asked for its extra scope yet.
 - Link previews as Bluesky and other sites render them in production.
-- Posting new asks to @rainshare.dev, and sending messages. The dry run has read the real board
-  and worked out what it would post, but nothing has been posted or sent yet. The Bluesky chat
-  calls have only been tried against a stand-in, including whether a STOP reaches the account
-  when its own settings only allow messages from people it follows.
+- The announcer on the droplet, and its deploy. It has run here against the live network in
+  `MODE=dry`, listening to Jetstream and working out what it would post, and `droplet/deploy.sh`
+  has been run against a stand-in droplet, but it hasn't been set up on the real one, and nothing
+  has been posted or sent yet. The Bluesky chat calls have only been tried against a stand-in,
+  including whether a STOP reaches the account when its own settings only allow messages from
+  people it follows.
 - A real account's first sign-in, and the welcome that follows it.
 - A server accepting the permission set. That waits for a production build to publish it.
   Until then, bsky.social refuses the set and Rainshare falls back to asking for the records by

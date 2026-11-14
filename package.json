@@ -18,6 +18,7 @@
     "og": "node scripts/og-home.mjs",
     "bluesky": "node scripts/bluesky.mjs",
     "announce": "node scripts/announce.mjs",
+    "announcer": "node announcer/src/index.js",
     "logo": "node scripts/render-logo.mjs && node -e \"require('fs').copyFileSync('public/logo.png', 'api/_og/logo.png')\""
   },
   "dependencies": {
