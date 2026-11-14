@@ -29,7 +29,7 @@
 import { SEED, TAKE, DELIVERY, PREFERENCES, SITE } from '../core/ns.js';
 import * as net from '../core/net.js';
 import { aNoun } from '../core/words.js';
-import { ACCOUNT, passable, isHidden, reader, session, blocked, whoAre, graphemes, bytes } from './_announce.js';
+import { ACCOUNT, passable, free, isHidden, reader, session, blocked, whoAre, graphemes, bytes } from './_announce.js';
 import { clean } from './_og/describe.js';
 
 const MINUTE = 60e3, HOUR = 60 * MINUTE, DAY = 24 * HOUR;
@@ -140,9 +140,10 @@ const within = (t, from, to) => { const x = Date.parse(t); return x >= from && x
  * Someone's news from `from` up to `to`: { updates, fresh }, each oldest first. `theirBlocks` is
  * who they block, whose doings aren't news to them; `ourBlocks` is who the account blocks,
  * whose asks it doesn't pass on; `hidden` is what it has hidden (decisions from
- * ../core/moderation.js), which is nobody's news.
+ * ../core/moderation.js), which is nobody's news. A new ask is only news while nobody's on it
+ * (`free`, ./_announce.js), as of `now`.
  */
-export function newsFor(r, { seeds, takes, deliveries, from, to, theirBlocks = new Set(), ourBlocks = new Set(), hidden = new Map() }){
+export function newsFor(r, { seeds, takes, deliveries, from, to, theirBlocks = new Set(), ourBlocks = new Set(), hidden = new Map(), now = Date.now() }){
   const shown = list => list.filter(x => !isHidden(hidden, x));
   [seeds, takes, deliveries] = [shown(seeds), shown(takes), shown(deliveries)];
   const updates = [], bySeed = new Map(seeds.map(s => [s.uri, s])), at = x => Date.parse(x.value?.createdAt);
@@ -161,7 +162,8 @@ export function newsFor(r, { seeds, takes, deliveries, from, to, theirBlocks = n
       updates.push({ kind: state === 'closed' ? 'closed' : withTheirs ? 'done-yours' : 'done', seed: sq, by: sq.repo, at: Date.parse(sq.value.updatedAt) });
     }
   }
-  const fresh = !r.newAsks ? [] : seeds.filter(s => s.repo !== r.did && !theirBlocks.has(s.repo) && !ourBlocks.has(s.repo) && passable(s.value) && within(s.value.createdAt, from, to))
+  const blocks = new Set([...theirBlocks, ...ourBlocks]);
+  const fresh = !r.newAsks ? [] : seeds.filter(s => s.repo !== r.did && !blocks.has(s.repo) && passable(s.value) && within(s.value.createdAt, from, to) && free(s, { takes, deliveries, blocks, now }))
     .map(s => ({ kind: 'new', seed: s, by: s.repo, at: at(s) }));
   const order = (a, b) => a.at - b.at;
   return { updates: updates.sort(order), fresh: fresh.sort(order) };
@@ -220,7 +222,8 @@ export async function message({ post = true, password = process.env.RAINSHARE_BL
   // take that message for one that covered its quarter. It leaves the messages to that run.
   if (boundary(now + GUARD) !== boundary(now)) { out.note = 'Too near the next quarter of an hour to send messages: the next run will.'; log(out.note); return out; }
   const to = boundary(now), today = boundary(now, true);
-  const [seeds, takes, deliveries, hidden] = await Promise.all([read(SEED), read(TAKE).catch(() => []), read(DELIVERY).catch(() => []), read.hidden()]);
+  // All of these are needed to know what's news and what's free: if any can't be read, nothing is sent this run.
+  const [seeds, takes, deliveries, hidden] = await Promise.all([read(SEED), read(TAKE), read(DELIVERY), read.hidden()]);
   // Who the account won't deal with: those it blocks or who block it, among the people asking and anyone whose new ask it could pass on.
   const askers = seeds.filter(s => passable(s.value) && within(s.value.createdAt, today - LOOKBACK, today)).map(s => s.repo);
   const ourBlocks = await blocked([...new Set([...people.map(p => p.did), ...askers])]);
@@ -259,7 +262,7 @@ export async function message({ post = true, password = process.env.RAINSHARE_BL
   const theirBlocks = new Map(await Promise.all(ready.filter(x => !x.stop).map(async x => [x.p.did, await net.blocksOf(x.p.did)])));
   for (const x of ready) {
     if (x.stop) continue;
-    const common = { seeds, takes, deliveries, theirBlocks: theirBlocks.get(x.p.did), ourBlocks, hidden };
+    const common = { seeds, takes, deliveries, theirBlocks: theirBlocks.get(x.p.did), ourBlocks, hidden, now };
     x.news = {
       updates: newsFor({ ...x.p, newAsks: false }, { ...common, from: x.from, to }).updates,
       fresh: x.daily ? newsFor({ ...x.p, updates: false }, { ...common, ...x.daily }).fresh : []

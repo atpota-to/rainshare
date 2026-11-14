@@ -13,16 +13,19 @@
 // recent posts links to is left alone, whoever wrote the post. And each post takes the ask's own
 // record key, so two runs at once can't post the same ask twice: the second is refused.
 //
-// Nothing is posted for anyone the account blocks, or anyone who blocks it, nor anything it has
-// hidden (../core/moderation.js), nor an ask Rainshare's checks find very likely a trick on
-// helpers' agents (../core/scan.js). To keep someone's asks off the account, block them from it.
+// Only an ask nobody's on yet is posted: as the board's "Nobody on it yet" has it, nobody has
+// said they're on it (or their take has lapsed, ../core/takes.js), nothing's been turned in, and
+// it isn't done or closed. Nothing is posted for anyone the account blocks, or anyone who blocks
+// it, nor anything it has hidden (../core/moderation.js), nor an ask Rainshare's checks find very
+// likely a trick on helpers' agents (../core/scan.js). To keep someone's asks off the account,
+// block them from it.
 //
 // A post names who's asking (with a mention, so they hear about it) and gives the ask's title,
 // with a card for its page: the same words as the page's own link preview (./_og/describe.js),
 // and its picture (./og.js).
-import { SEED, PROFILE, SITE, MODERATION, MODERATOR, audienceOf } from '../core/ns.js';
+import { SEED, TAKE, DELIVERY, PROFILE, SITE, MODERATION, MODERATOR, audienceOf } from '../core/ns.js';
 import * as net from '../core/net.js';
-import { askExcerpt, aNoun } from '../core/words.js';
+import { askExcerpt, aNoun, progressOf } from '../core/words.js';
 import { decisionsFrom, hiddenBy } from '../core/moderation.js';
 import { concerns, alarming } from '../core/scan.js';
 import { clean } from './_og/describe.js';
@@ -113,11 +116,23 @@ export async function whoAre(dids){
 }
 
 // Those of `asks` that haven't been posted and whose askers aren't blocked, each with `who` asked.
-async function unposted(asks){
+async function unposted(asks, { read, now }){
   if (!asks.length) return [];
   const authors = [...new Set(asks.map(a => a.repo))];
-  const [done, blocks, who] = await Promise.all([postedAlready(), blocked(authors), whoAre(authors)]);
-  return asks.filter(a => !blocks.has(a.repo) && !posted(a, who.get(a.repo), done)).map(a => ({ ...a, who: who.get(a.repo) }));
+  // Takes and turn-ins are read whole: if they can't be, nothing is posted, rather than an ask someone's on.
+  const [done, blocks, who, takes, deliveries, hidden] = await Promise.all([postedAlready(), blocked(authors), whoAre(authors), read(TAKE), read(DELIVERY), read.hidden()]);
+  return asks.filter(a => !blocks.has(a.repo) && !posted(a, who.get(a.repo), done) && free(a, { takes, deliveries, hidden, blocks, now }))
+    .map(a => ({ ...a, who: who.get(a.repo) }));
+}
+/**
+ * Whether nobody's on an ask: what the board calls "Nobody on it yet" (progressOf in
+ * ../core/words.js). Nobody holds it with a take that hasn't lapsed, nothing's been turned in,
+ * and it isn't done or closed. As on the board, a take or turn-in that's hidden, or from someone
+ * in `blocks`, doesn't count, so nobody can keep an ask off the account by saying they're on it.
+ */
+export function free(ask, { takes = [], deliveries = [], hidden = new Map(), blocks = new Set(), now = Date.now() } = {}){
+  const on = list => list.filter(r => r.value?.seed?.uri === ask.uri && !isHidden(hidden, r) && !blocks.has(r.repo));
+  return progressOf({ ...ask, takes: on(takes), deliveries: on(deliveries) }, null, now).key === 'open';
 }
 
 const segmenter = typeof Intl?.Segmenter === 'function' ? new Intl.Segmenter() : null;
@@ -204,7 +219,7 @@ async function thumbnail(url, upload){
  * posted (which needs no password). `log` is told each step in a line.
  *
  * { setUp, dryRun, found, skipped, posts: [{ ask, text, link, uri, error }], later }: `found`
- * is how many asks were new, `skipped` how many of them were posted already or blocked, and
+ * is how many asks were new, `skipped` how many of them were posted already, blocked or taken up, and
  * `later` how many are left for the next run.
  */
 export async function announce({ post = true, password = process.env.RAINSHARE_BLUESKY_APP_PASSWORD, now = Date.now(), max = MAX_POSTS, log = console.log, read = reader(), as = session(password) } = {}){
@@ -212,11 +227,11 @@ export async function announce({ post = true, password = process.env.RAINSHARE_B
     log(`RAINSHARE_BLUESKY_APP_PASSWORD isn't set, so nothing was posted. Set it to an app password for ${ACCOUNT} (@rainshare.dev) to post new asks there.`);
     return { setUp: false, dryRun: false, found: 0, skipped: 0, posts: [], later: 0 };
   }
-  const asks = await newAsks(now, read), todo = await unposted(asks);
+  const asks = await newAsks(now, read), todo = await unposted(asks, { read, now });
   const posts = todo.slice(0, max).map(a => ({ ask: a.uri, rkey: a.rkey, ...compose(a, a.who), uri: null, error: null }));
   const result = () => ({ setUp: !!password, dryRun: !post, found: asks.length, skipped: asks.length - todo.length,
     posts: posts.map(({ ask, text, card, uri, error }) => ({ ask, text, link: card.uri, uri, error })), later: todo.length - posts.length });
-  log(`${asks.length} new ${asks.length === 1 ? 'ask' : 'asks'}, ${asks.length - todo.length} posted already or blocked, ${posts.length} to post${todo.length > posts.length ? `, ${todo.length - posts.length} left for next time` : ''}.`);
+  log(`${asks.length} new ${asks.length === 1 ? 'ask' : 'asks'}, ${asks.length - todo.length} posted already, blocked or with someone on them, ${posts.length} to post${todo.length > posts.length ? `, ${todo.length - posts.length} left for next time` : ''}.`);
   if (!post) {
     for (const p of posts) log(`\nWould post, for ${p.ask}:\n  ${p.text.replace(/\n/g, '\n  ')}\n  [${p.card.title}](${p.card.uri})`);
     return result();

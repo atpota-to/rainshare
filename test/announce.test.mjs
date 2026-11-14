@@ -3,9 +3,9 @@
 // Bluesky's AppView, and the site's link preview pictures.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { announce, compose, isNew, askAt, linksIn, ACCOUNT, WINDOW, SETTLE } from '../api/_announce.js';
+import { announce, compose, isNew, askAt, linksIn, reader, ACCOUNT, WINDOW, SETTLE } from '../api/_announce.js';
 import handler, { allowed } from '../api/announce.js';
-import { SEED, PROFILE, MODERATION, SITE } from '../core/ns.js';
+import { SEED, TAKE, DELIVERY, PROFILE, MODERATION, SITE } from '../core/ns.js';
 
 const NOW = Date.parse('2026-11-13T16:00:00Z'), ago = ms => new Date(NOW - ms).toISOString();
 const HOUR = 3600e3, DAY = 24 * HOUR;
@@ -121,6 +121,29 @@ test('what the account has hidden isn’t posted, nor an ask that’s very likel
   assert.deepEqual([created.length, out.found], [0, 4]);
   delete repos[ACCOUNT][MODERATION];
   await assert.rejects(announce({ password: 'app-pass', now: NOW, log: quiet, read: Object.assign(() => Promise.resolve([]), { hidden: () => Promise.reject(new Error('down')) }) }), /down/, 'and if what it hid can’t be read, nothing is posted');
+});
+
+test('only an ask nobody’s on yet is posted: not one someone’s taken, nor one with work turned in', async () => {
+  const GAIL = 'did:plc:gail', HAL = 'did:plc:hal', on = rkey => ({ uri: `at://${rkey === A1 ? ALICE : BOB}/${SEED}/${rkey}`, cid: 'bafy' + rkey });
+  // Gail says she's on Alice's ask until tomorrow, and Hal has turned in work for Bob's.
+  repos[GAIL] = { [TAKE]: { g1: { $type: TAKE, seed: on(A1), until: ago(-DAY), createdAt: ago(HOUR) } } };
+  repos[HAL] = { [DELIVERY]: { h1: { $type: DELIVERY, seed: on(B1), url: 'https://github.com/bob/weather/pull/2', createdAt: ago(HOUR) } } };
+  let out = await run();
+  assert.deepEqual([created.length, out.found, out.skipped], [0, 6, 6], 'both are taken up, and the other four as before');
+
+  // Hal's turn-in goes, and the only take on Bob's ask is one that lapsed half an hour ago, so it's free again.
+  delete repos[HAL];
+  repos[GAIL][TAKE].g2 = { $type: TAKE, seed: on(B1), until: ago(HOUR / 2), createdAt: ago(HOUR + 1) };
+  // A take from someone the account blocks (Carol) doesn't hold an ask either, as on the board.
+  repos[CAROL][TAKE] = { c2: { $type: TAKE, seed: on(B1), until: ago(-DAY), createdAt: ago(HOUR) } };
+  out = await run();
+  assert.deepEqual(created.map(c => c.rkey), [B1], 'Bob’s is posted, and Alice’s, which Gail is still on, isn’t');
+});
+
+test('if who’s on what can’t be read, nothing is posted', async () => {
+  const read = Object.assign(c => c === TAKE ? Promise.reject(new Error('relay down')) : reader()(c), { hidden: () => Promise.resolve(new Map()) });
+  await assert.rejects(run({ read }), /relay down/);
+  assert.equal(created.length, 0);
 });
 
 test('a dry run says what it would post and posts nothing, with no password', async () => {

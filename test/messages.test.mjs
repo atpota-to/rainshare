@@ -164,6 +164,20 @@ test('nothing the account has hidden is anyone’s news, and an account it hid i
   assert.match(out.skipped.find(s => s.to === DEE).why, /hidden/);
 });
 
+test('the day’s new asks leave out any someone’s on or has turned work in for', async () => {
+  // Kai says he's on Bob's "Tiny timer" until tomorrow; Gus has turned in work for one of Carol's;
+  // and Gus's take on another of Carol's lapsed at 14:00, so that one's free again.
+  repos[KAI][TAKE].kb2 = { seed: ref(BOB, SEED, 'b2'), until: '2026-11-15T12:00:00Z', createdAt: '2026-11-14T13:00:00Z' };
+  repos[CAROL][SEED].f2 = { $type: SEED, title: 'Turned in already', audience: anyone, createdAt: '2026-11-14T12:00:00Z' };
+  repos[GUS][DELIVERY] = { gf2: { seed: ref(CAROL, SEED, 'f2'), url: 'https://github.com/carol/f/pull/1', createdAt: '2026-11-14T13:00:00Z' } };
+  repos[CAROL][SEED].f3 = { $type: SEED, title: 'Free again', audience: anyone, createdAt: '2026-11-14T11:00:00Z' };
+  repos[GUS][TAKE].gf3 = { seed: ref(CAROL, SEED, 'f3'), until: '2026-11-14T14:00:00Z', createdAt: '2026-11-14T11:30:00Z' };
+  await go();
+  const jun = sentMessages.find(m => m.to === JUN).text;
+  assert.ok(!/Tiny timer|Turned in already/.test(jun), jun);
+  assert.match(jun, /New on the board:\n• “Free again”: an idea from Carol/);
+});
+
 test('a dry run sends nothing, and without the password it shows a day’s news for everyone', async () => {
   let out = await go({ post: false });
   assert.deepEqual([sentMessages.length, out.sent.length, out.dryRun], [0, 3, true]);

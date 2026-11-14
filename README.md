@@ -576,10 +576,14 @@ real, with the password set.
 
 #### Posts
 
-`api/_announce.js` decides what counts as new and posts it. A new ask is open, meant for
-everyone, and was asked in the last three days, at least 15 minutes ago (in case its title is
-fixed straight after posting), so an ask goes out a quarter to half an hour after it's asked.
-Each run posts at most five, the earliest first, and leaves the rest for the next run.
+`api/_announce.js` decides what counts as new and posts it. A new ask is meant for everyone,
+was asked in the last three days, at least 15 minutes ago (in case its title is fixed straight
+after posting), and nobody's on it yet, as the board's "Nobody on it yet" has it: nobody has
+said they're on it, or their take has lapsed, nothing's been turned in, and it isn't done or
+closed. So an ask goes out a quarter to half an hour after it's asked, unless someone has taken
+it up by then, and isn't posted at all once it has. Each run posts at most five, the earliest
+first, and leaves the rest for the next run. If the takes and turn-ins can't be read, nothing is
+posted.
 
 There's no database, so the account's own posts say what's been posted. An ask that one of its
 last 300 posts links to isn't posted again, even if that post was written by hand. Each post
@@ -599,7 +603,8 @@ People ask for messages in their settings beside their profile, under "Messages 
 - **Updates on my asks and my work**: someone's on one of your asks, or has turned in work on it
   (with a link to the pull request); an ask you were on was marked done, with your work or
   someone else's, or was closed.
-- **New asks on the board**: open asks meant for everyone, except your own.
+- **New asks on the board**: asks meant for everyone that nobody's on yet, as for the posts,
+  except your own.
 
 Updates go out within about a quarter of an hour: each run sends someone one message at most,
 with everything since their last one, and nothing when there's no news. New asks come once a
