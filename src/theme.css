@@ -137,9 +137,11 @@ a{color:inherit}
   .rd-btn svg{display:block}
   .rd-btn span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 }
-/* (and on the narrowest, the logo's word a little smaller, so all of that still fits) */
+/* (and on the narrowest, the logo's word a little smaller, so all of that still fits, and the
+   tabs closer together, so the example board's third one does too) */
 @media (max-width:359px){
   .rd-bar{column-gap:4px}
+  .rd-nav a{padding:8px 10px;font-size:14px}
   .rd-logo{font-size:20px;gap:8px}
   .rd-stage{padding:2px 7px;font-size:11px}
   .rd-mode{width:34px}

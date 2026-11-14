@@ -156,7 +156,11 @@
 .rs-detail-top .rs-i{width:13px;height:13px;vertical-align:-2px;margin-right:2px}
 .rs-detail h2{font-size:clamp(24px,2.4vw,30px);font-weight:800;margin:0;overflow-wrap:anywhere}
 .rs-detail h2:focus,.rs-post h1:focus{outline:none}
-.rs-sheet-close{display:none;margin-left:auto;width:36px;height:36px;border:0;border-radius:50%;align-items:center;justify-content:center;background:var(--rs-sunk);color:var(--rs-ink);cursor:pointer}
+.rs-detail-tools{margin-left:auto;display:inline-flex;align-items:center;gap:8px}
+.rs-detail-page{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 12px;border-radius:999px;background:var(--rs-sunk);color:var(--rs-ink);font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap}
+.rs-detail-page .rs-i{width:14px;height:14px;margin:0;vertical-align:0}
+.rs-detail-page:hover{color:var(--rs-accent-text)}
+.rs-sheet-close{display:none;width:36px;height:36px;border:0;border-radius:50%;align-items:center;justify-content:center;background:var(--rs-sunk);color:var(--rs-ink);cursor:pointer}
 .rs-fitbox{display:flex;gap:10px;align-items:flex-start;padding:13px 15px;border-radius:14px;background:var(--rs-accent-soft);font-size:15px;line-height:1.5}
 .rs-fitbox .rs-drops{margin-top:3px}
 .rs-fitbox .rs-drops svg{width:16px;height:16px}
@@ -226,6 +230,7 @@ span.rs-helper-pull{color:var(--rs-muted)}
 .rs-label{font-size:14px;font-weight:600;color:var(--rs-muted)}
 .rs-ask p{font-size:15px;line-height:1.6}
 .rs-ask .rs-link{align-self:flex-start}
+.rs-ask .rs-link .rs-count{display:inline-block;text-decoration:none;font-weight:700}
 .rs-state{display:inline-flex;align-items:center;gap:6px;font-weight:650;font-size:14px;color:var(--rs-muted)}
 .rs-ok{color:var(--rs-ok)}
 .rs-status{font-weight:650;font-size:13px;color:var(--rs-accent-text)}
@@ -301,6 +306,9 @@ span.rs-helper-pull{color:var(--rs-muted)}
   .rs-scrim{display:block;position:fixed;inset:0;z-index:var(--rs-sheet-z);background:rgba(12,18,32,.32);opacity:0;pointer-events:none;transition:opacity .25s}
   .rs-split.rs-open .rs-scrim{opacity:1;pointer-events:auto}
   .rs-sheet-close{display:inline-flex}
+  /* on a phone, the way to its page is a round button beside the close one, so the top row stays one line */
+  .rs-detail-page{width:36px;height:36px;padding:0;justify-content:center}
+  .rs-detail-page span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
   .rs-detail{gap:14px}
   .rs-detail h2{font-size:24px}
   .rs-facts{grid-template-columns:92px minmax(0,1fr);gap:8px 14px;font-size:14px}
@@ -410,6 +418,9 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-launch+.rs-turn{margin-top:10px}
 .rs-l-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .rs-l-head small{color:var(--rs-muted)}
+.rs-l-head b{font-size:14px}
+.rs-launch>p{margin:0}
+.rs-launch .rs-l-other{align-self:flex-start;font-size:14px}
 .rs-code,.rs-cmd pre{margin:0;padding:10px 12px;border-radius:10px;background:#0F1A2E;color:#E2E9F7;font:12.5px/1.5 var(--rs-mono);overflow:auto;max-height:180px;white-space:pre-wrap;word-break:break-all}
 .rs-code code,.rs-cmd pre code{background:none;padding:0;color:inherit}
 /* the brief is prose, so it wraps like prose */
@@ -634,7 +645,7 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 /* the forms on an ask's page sit inside its own card */
 .rs-form.rs-turnin,.rs-pull .rs-form,.rs-form.rs-commentform{padding:0;background:none;box-shadow:none;outline:0;-webkit-backdrop-filter:none;backdrop-filter:none;max-width:none}
 /* comments on an ask: a thread is a comment and every reply to it, set in beneath */
-.rs-talk{display:flex;flex-direction:column;gap:12px;padding-top:16px;border-top:1px solid var(--rs-line);min-width:0}
+.rs-talk{scroll-margin-top:16px;display:flex;flex-direction:column;gap:12px;padding-top:16px;border-top:1px solid var(--rs-line);min-width:0}
 .rs-talk h2{font-size:14px;font-weight:600;color:var(--rs-muted);font-family:var(--rs-font);letter-spacing:0}
 .rs-talk .rs-count{margin-left:2px;font-weight:700;color:var(--rs-ink)}
 .rs-comments{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
@@ -748,20 +759,26 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 /* the way on, and the ways out */
 .rs-wl .rs-primary{width:100%;min-height:52px;font-size:16px}
 .rs-sd-what{margin:-6px 0 0;color:var(--rs-muted);font-size:15px;line-height:1.4;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.rs-sd-ways{display:flex;flex-direction:column;gap:8px}
-.rs-sd-way{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:var(--rs-radius-sm);background:var(--rs-sunk);cursor:pointer;box-shadow:inset 0 0 0 1.5px transparent}
-.rs-sd-way:has(input:checked){box-shadow:inset 0 0 0 2px var(--rs-accent);background:var(--rs-accent-soft)}
-.rs-sd-way input{margin:3px 0 0;accent-color:var(--rs-accent);flex:none}
-.rs-sd-way>span{display:flex;flex-direction:column;gap:2px;min-width:0}
-.rs-sd-way b{font-size:15px}
-.rs-sd-way small{font-size:13px;line-height:1.4;color:var(--rs-muted)}
-.rs-sd-days{display:flex;flex-direction:column;gap:8px;padding:2px 4px 6px 40px}
-.rs-sd-days p{font-weight:600;font-size:14px;margin:0}
+/* "Send my agent" (./send.js): the ways as chips with a line on the one picked, a line on what
+   the agent gets, the button with how long it says you're on it, a quieter way to just copy it,
+   and the box that skips it next time */
+.rs-sd .rs-chips{flex-wrap:wrap;overflow:visible;padding-right:0;-webkit-mask-image:none;mask-image:none}
+.rs-sd .rs-chips button{min-height:36px;font-size:14px}
+.rs-sd .rs-chips .rs-sd-more{box-shadow:none;text-decoration:underline;text-underline-offset:3px;padding:0 6px}
+.rs-sd-how{display:flex;flex-direction:column;gap:8px}
+.rs-sd-note{margin:0;font-size:13px;line-height:1.45;color:var(--rs-muted)}
+.rs-sd-note .rs-link{font-size:13px}
+.rs-sd-intro{margin:0;font-size:14px;line-height:1.45;text-wrap:pretty}
+.rs-sd-intro .rs-tipwrap{vertical-align:-3px}
+/* (everything on the one left edge, the chips' and the button's) */
+.rs-sd-go{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.rs-sd-days-line{margin:0;font-size:13px;line-height:1.45;color:var(--rs-muted)}
+.rs-sd-days-line .rs-link{font-size:13px}
+.rs-sd-days{display:flex;flex-direction:column;gap:6px}
 .rs-sd-days small{font-size:13px;line-height:1.4;color:var(--rs-muted)}
-.rs-sd-keep{display:flex;flex-direction:column;gap:8px}
-.rs-sd-keep .rs-check{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14px}
-.rs-sd-keep .rs-check:has(input:disabled){opacity:.5}
-.rs-sd-keep small{font-size:13px}
+.rs-sd-copy{font-size:15px;padding:4px 0}
+.rs-sd-skip{display:flex;align-items:center;gap:8px;margin-top:-4px;font-size:13px;color:var(--rs-muted);cursor:pointer}
+.rs-sd-skip input{width:16px;height:16px;margin:0;accent-color:var(--rs-accent)}
 .rs-wl-foot{display:flex;align-items:center;justify-content:space-between;gap:6px 16px;flex-wrap:wrap;padding-top:12px;border-top:1px solid var(--rs-line)}
 .rs-wl-foot .rs-link .rs-i{width:16px;height:16px}
 @media (max-width:420px){

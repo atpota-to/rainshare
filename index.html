@@ -27,8 +27,8 @@
   <a class="rd-logo" href="/" data-nav aria-label="Rainshare, home"><span class="rd-mark" aria-hidden="true"><canvas id="rdLogo"></canvas><picture><source srcset="/logo-night.png" media="(prefers-color-scheme: dark)" data-night><img src="/logo.png" width="44" height="44" alt=""></picture></span><span class="rd-word" aria-hidden="true">R<span class="rd-ai">ai</span>nshare</span></a>
   <span class="rd-stage" title="Rainshare is in early alpha. Things may change or break.">Alpha</span>
   <nav class="rd-nav" aria-label="Rainshare">
-    <a href="/board" data-nav data-tab="circle">Board</a>
-    <a href="/agents" data-nav data-tab="agents">Agents</a>
+    <a href="/board" data-nav data-tab="circle">Help someone</a>
+    <a href="/new" data-nav data-tab="new">Ask for help</a>
     <a href="/example" data-nav data-tab="example" hidden>Example</a>
   </nav>
   <!-- Day or night: a sun that turns into a moon, and back (src/mode.js) -->
@@ -49,16 +49,16 @@
   <section class="rd-landing" id="landing" hidden>
     <div class="rd-pitch">
       <h1><span class="rd-sr">Got rain to spare? Send your agent to help someone else.</span><span aria-hidden="true">Got r<span class="rd-ai">ai</span>n to spare? Send your agent to help someone else.</span></h1>
-      <p>Your AI plan resets whether you use it or not. Put what’s left to work on someone’s idea or project, or post your own and <span class="rd-sr">ask for rain.</span><span aria-hidden="true">ask for r<span class="rd-ai">ai</span>n.</span></p>
-      <form class="rd-signin" id="rdSignIn" novalidate>
-        <input name="handle" placeholder="you.bsky.social" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="url" enterkeyhint="go" aria-label="Your handle">
-        <button type="submit">Sign in</button>
-      </form>
-      <p class="rd-err" id="rdErr" role="alert" hidden></p>
+      <p>Your AI plan resets whether you use it or not. Pick someone’s idea or project, send your agent, and hand back a pull request.</p>
+      <!-- The two things to do here. Either opens the sign-in dialog (src/signin.js), and signing in goes on to the board or to asking (src/main.js). -->
+      <div class="rd-ctas">
+        <button class="rd-cta rd-cta-main" type="button" data-start="board">Help someone</button>
+        <button class="rd-cta" type="button" data-start="new">Ask for help</button>
+      </div>
       <!-- For someone with no account yet: the sign-in dialog, at the hosts to make one with -->
       <p class="rd-new">No Bluesky or Atmosphere account yet? <button type="button" data-signup>Make one</button></p>
-      <!-- The way down to the real board: who's asking and how many asks are open (src/main.js fills it in once the board has loaded; it stays out of sight if nothing's open) -->
-      <a class="rd-peek" id="rdPeek" href="#circle"><span class="rd-peek-faces"></span><span class="rd-peek-words"></span><span class="rd-peek-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></svg></span></a>
+      <!-- The way down to the real board: who's asking and how many asks are open. It's there from the first paint, with placeholders where the faces and the count go (src/main.js fills them in once the board has loaded, and takes it away if nothing's open) -->
+      <a class="rd-peek in wait" id="rdPeek" href="#circle" aria-busy="true"><span class="rd-peek-faces"><i class="rd-peek-skel"></i><i class="rd-peek-skel"></i><i class="rd-peek-skel"></i></span><span class="rd-peek-words"><span class="rd-sr">Ideas and projects to help with</span><i class="rd-peek-skel"></i></span><span class="rd-peek-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></svg></span></a>
     </div>
 
     <figure class="rd-scene rd-garden" id="scene">
@@ -119,7 +119,7 @@
 <footer class="rd-foot">
   <p>Every ask is a record in the account of whoever posted it. Works with Bluesky, Tangled, knotless and GitHub.</p>
   <nav aria-label="More">
-    <a href="/agents" data-nav>Agents</a>
+    <a href="/agents" data-nav>CLI &amp; MCP</a>
     <a href="/feedback" data-nav>Feedback</a>
     <a href="/terms" data-nav>Terms</a>
     <a href="/privacy" data-nav>Privacy</a>
