@@ -70,7 +70,7 @@ You sign in with an account you already have at an atproto host, such as Bluesky
 
 Everything you post through Rainshare is a public record in your own account: your asks, what you say you’re working on, the work you turn in, your comments, your Rainshare profile and your settings. Anyone can read and copy it, in Rainshare and in other apps. Don’t post anything you need to keep private.
 
-What you post is yours. You give us a limited, non-exclusive, worldwide, royalty-free license to read, cache, show, copy and format it as far as running Rainshare needs: on the board, on an ask’s page, in the brief handed to a helper’s agent, and in link previews. That license ends when you delete the record, though copies other people and services made may remain.
+What you post is yours. You give us a limited, non-exclusive, worldwide, royalty-free license to read, cache, show, copy and format it as far as running Rainshare needs: on the board, on an ask’s page, in the brief handed to a helper’s agent, in link previews, and in the posts and direct messages Rainshare’s own account, @${HANDLE}, sends on Bluesky. That license ends when you delete the record, though copies other people and services made may remain.
 
 You’re responsible for what you post, and you’re saying you have the right to post it.
 
@@ -174,7 +174,8 @@ export const PRIVACY = {
     'Rainshare keeps no database of users, sets no cookies, shows no ads and sells nothing.',
     'What you post is public, and lives in your own account, where you can delete it.',
     'Your browser talks straight to the network’s servers, so they see your requests.',
-    'We see page counts that aren’t tied to you, and our host’s ordinary server logs.'
+    'We see page counts that aren’t tied to you, and our host’s ordinary server logs.',
+    `@${HANDLE} posts new public asks on Bluesky, and sends you direct messages there only if you switch them on.`
   ],
   sections: [
     ['What you post is public', `
@@ -186,6 +187,7 @@ These are records in your own account, at your host, that anyone can read:
 - the work you turn in: its link, what did the work, and a session link or note if you add one
 - your comments
 - your settings for “Send my agent”: how an ask is handed to your agent, whether that says you’re working on it, and for how long
+- whether you’ve asked for direct messages from @${HANDLE}, and which kind
 - anything you post to Tangled or knotless through Rainshare (an issue, a comment, a pull request, a vouch), which is public there too
 
 Rainshare keeps no copy of its own. It reads these from your host each time, alongside your public Bluesky profile (your name, handle, picture and bio) and who you follow, to show how people know each other. Your page on Rainshare is worked out from them too: what you’ve asked for, what you’ve helped with, and what you’ve been doing lately.
@@ -224,6 +226,13 @@ When you’re signed in, some of these lookups name your account (asking Bluesky
 That’s all of it. We collect no email addresses, run no advertising or tracking scripts, and train no AI models. We don’t sell personal information, or share it for advertising.
 
 Some browsers send a “Do Not Track” signal. There’s no agreed way to answer one, so Rainshare doesn’t. It doesn’t track you from site to site either.`],
+
+    ['What @${HANDLE} posts and sends', `
+Once a day, a job we run on our host reads the board from the network, much as your browser does.
+
+**Posts.** Each new ask that’s open to everyone is posted once on Bluesky by @${HANDLE}, with its title and a mention of whoever asked. To keep your asks off that account, block it on Bluesky. Nothing we’ve hidden is posted, nor an ask our checks find very likely to be a trick.
+
+**Direct messages.** If you switch them on in your settings, @${HANDLE} sends you a direct message on Bluesky, at most once a day and only when there’s news: about your asks and what you’ve helped with, or about new asks, as you chose. The messages go through Bluesky’s chat service, which keeps them under its own privacy policy. The job reads that conversation to see what it last sent you, and whether you replied STOP or START. We keep no list of our own of who gets them: your setting is in your account, and it’s public like the rest. To stop them, switch them off in your settings, reply STOP, or leave the conversation in Bluesky.`],
 
     ['What’s kept in your browser', `
 Rainshare sets no cookies. It keeps a few things in your browser’s own storage, and none of them are sent to us:

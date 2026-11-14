@@ -3,7 +3,7 @@
 // Policy keeps up with what the code does.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { LEGAL, TERMS, PRIVACY, LEGAL_VERSION, SAFETY, OPERATOR, asMarkdown } from '../core/legal.js';
 import { renderMarkdown } from '../core/markdown.js';
@@ -82,6 +82,10 @@ test('the Privacy Policy names every service the code asks, and everything kept 
   // What a page view counts is its path alone: the page says so, and src/main.js does it.
   assert.match(all, /without anything after a `\?` or `#`/);
   assert.match(readFileSync(new URL('../src/main.js', import.meta.url), 'utf8'), /inject\(\{ beforeSend\(e\)\{[^\n]*u\.origin \+ u\.pathname/);
+  // What @rainshare.dev does once a day on Rainshare's own host (api/announce.js): the policy says both halves.
+  assert.ok(existsSync(new URL('../api/_announce.js', import.meta.url)) && existsSync(new URL('../api/_messages.js', import.meta.url)));
+  for (const says of [/posted once on Bluesky by @rainshare\.dev, with its title and a mention of whoever asked/, /block it on Bluesky/, /at most once a day and only when there’s news/,
+    /reads that conversation to see what it last sent you, and whether you replied STOP or START/, /whether you’ve asked for direct messages from @rainshare\.dev/]) assert.match(all, says);
   // Every key the site keeps in the browser. A new one belongs in the policy's list too, then here.
   const KEYS = ['rs:accept-vouch', 'rs:agreed', 'rs:garden-seen:', 'rs:kept', 'rs:mode', 'rs:prefs:', 'rs:signin', 'rs:signin-skip', 'rs:stage-seen:', 'rs:waiting-later', 'rs:welcomed:'];
   const found = new Set();
