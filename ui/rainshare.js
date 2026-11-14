@@ -63,6 +63,7 @@ export function createRainshare({ root, base = '/', host }){
     show: 'all',         // which open asks the board shows: 'all', or 'free' (nobody's on it yet)
     known: {},           // by DID: which of the people you follow on Bluesky follow them ('loading' while asked)
     reply: null,         // the comment a reply is being written to: its URI, while the reply form is open
+    toTalk: null,        // the ask whose page is being opened scrolled to its comments (from "Comments" on the board)
     admin: null,         // the moderation page, for @rainshare.dev: { list, about, error, loading }
     found: null,         // what was looked up there to hide: { subject, about, error }
     modding: null,       // what a hide form is open for: { subject, reason, note }
@@ -575,6 +576,12 @@ export function createRainshare({ root, base = '/', host }){
     ];
     return `<dl class="rs-facts">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
   }
+  // The way from the panel (or the sheet) to the comments, which are only on the ask's own page:
+  // it opens there, scrolled to them. (How many there are is only known once the page has been read.)
+  function toTalk(it, page){
+    const n = it.comments ? threads(it.comments, it.uri).reduce((k, t) => k + 1 + t.replies.length, 0) : null;
+    return `<a href="${esc(href(page))}#comments" data-rs-go="${esc(page)}" data-rs-to="comments" class="rs-link">Comments${n ? ` <span class="rs-count">${n}</span>` : ''}</a>`;
+  }
   function detail(it){
     const sq = it.value || {}, p = it.author || {}, mine = it.repo === viewer(), open = isOpen(it), page = pathOf(it);
     lookPulls(it);
@@ -590,7 +597,7 @@ export function createRainshare({ root, base = '/', host }){
     const st = open && !mine && !myTake(it) ? stand(it) : null;
     return `<article class="rs-detail">
       <div class="rs-detail-top">${a('profile/' + it.repo, face(p) + `<b>${esc(mine ? 'You' : nameOf(p))}</b>`, 'rs-who')}${hat(it.repo)}<span class="rs-muted">${rel ? ' · ' + (it.space ? ico('lock') : '') + esc(rel) : ''} · ${esc(ago(sq.createdAt))}</span>
-        <button class="rs-sheet-close" type="button" data-rs-close-sheet aria-label="Close">${ico('close')}</button></div>
+        <span class="rs-detail-tools">${a(page, `${ico('expand')}<span>Full page</span>`, 'rs-detail-page')}<button class="rs-sheet-close" type="button" data-rs-close-sheet aria-label="Close">${ico('close')}</button></span></div>
       <div class="rs-seed-head"><div class="rs-seed-title"><h2 tabindex="-1">${esc(sq.title)}</h2><p class="rs-muted"><span class="rs-stage-name">${esc(whatItIs(sq).name)}</span> · ${esc(whatItIs(sq).note)}</p></div>${plantPic(pictureOf(sq), 88, { key: it.uri })}</div>
       ${progressBlock(it)}
       ${f ? fitBox(f)
@@ -600,7 +607,7 @@ export function createRainshare({ root, base = '/', host }){
         !mine && planText(it.profile) ? ['Their AI plan', esc(planText(it.profile))] : null,
         signedIn() && !mine ? ['You and them', tiesList(it.repo, it.ties, p)] : null
       ].filter(Boolean))}
-      <div class="rs-ask"><span class="rs-label">The ask</span><p>${esc(askExcerpt(sq.spec) || 'No details beyond the title.')}</p><span class="rs-row">${a(page, 'Read all of it', 'rs-link')}${askSizeText(sq.spec) ? `<small class="rs-muted">${esc(askSizeText(sq.spec))}</small>` : ''}</span></div>
+      <div class="rs-ask"><span class="rs-label">The ask</span><p>${esc(askExcerpt(sq.spec) || 'No details beyond the title.')}</p><span class="rs-row">${a(page, 'Read all of it', 'rs-link')}${toTalk(it, page)}${askSizeText(sq.spec) ? `<small class="rs-muted">${esc(askSizeText(sq.spec))}</small>` : ''}</span></div>
       ${open ? cautionNote(it) : ''}
       ${heedNote(it, st)}
       <div class="rs-row rs-detail-actions">${buttons}</div>${hint}
@@ -1087,7 +1094,7 @@ export function createRainshare({ root, base = '/', host }){
     const about = forge
       ? `These are the comments on the issue, read from ${esc(name)}. One you write here is posted on the issue, as you, where anyone can read it, and it’s changed or deleted there. Who wrote each one is what ${esc(name)} says. You won’t see comments from people you block on Bluesky.`
       : 'Each comment is a record in its writer’s own account, pointing at this ask. Anyone who can see the ask can read them. Only whoever wrote one can delete it, and you won’t see comments from people you block on Bluesky.';
-    return `<section class="rs-talk" aria-labelledby="rsTalkH"><div class="rs-hrow"><h2 id="rsTalkH">Comments${list?.length ? ` <span class="rs-count">${list.reduce((n, t) => n + 1 + t.replies.length, 0)}</span>` : ''}</h2>${tip(about)}</div>${where}${body}${write}</section>`;
+    return `<section class="rs-talk" id="comments" aria-labelledby="rsTalkH"><div class="rs-hrow"><h2 id="rsTalkH">Comments${list?.length ? ` <span class="rs-count">${list.reduce((n, t) => n + 1 + t.replies.length, 0)}</span>` : ''}</h2>${tip(about)}</div>${where}${body}${write}</section>`;
   }
   async function submitComment(form){
     // (What's in the other form is kept: posting this one redraws the page.)
@@ -1822,7 +1829,7 @@ export function createRainshare({ root, base = '/', host }){
     const t = e.target, plainClick = !e.metaKey && !e.ctrlKey && !e.shiftKey && e.button === 0;
     const tb = t.closest('[data-rs-tip]'); if (tb) { toggleTip(tb); return; }
     const goEl = t.closest('[data-rs-go]');
-    if (goEl && plainClick) { e.preventDefault(); stash(); go(goEl.dataset.rsGo); return; }
+    if (goEl && plainClick) { e.preventDefault(); stash(); S.toTalk = goEl.dataset.rsTo === 'comments' ? goEl.dataset.rsGo : null; go(goEl.dataset.rsGo); return; }
     const pk = t.closest('[data-rs-pick]'); if (pk) { if (plainClick) { e.preventDefault(); pick(pk.dataset.rsPick); } return; }
     if (t.closest('[data-rs-close-sheet]')) { closeSheet(); return; }
     const tk = t.closest('[data-rs-take]'); if (tk) { sendAgent(S.shown.find(i => i.uri === tk.dataset.rsTake), tk, { panel: true }); return; }
@@ -1956,7 +1963,11 @@ export function createRainshare({ root, base = '/', host }){
       // A link that picked up a full stop or a capital on the way here is tried again without it.
       if (S.seedErr && !S.seed) { const meant = reroute(sub); if (meant && meant !== sub && known(meant)) return go(meant, { replace: true }); }
       render();
+      // Come from "Comments" on the board, or by a link to them: they're scrolled to.
+      const toTalk = S.toTalk === sub || (typeof location !== 'undefined' && location.hash === '#comments');
+      S.toTalk = null;
       if (S.launch) root.querySelector('#rsLaunch')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      else if (toTalk) root.querySelector('#comments')?.scrollIntoView({ block: 'start' });
     }
   }
 

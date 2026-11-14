@@ -156,7 +156,11 @@
 .rs-detail-top .rs-i{width:13px;height:13px;vertical-align:-2px;margin-right:2px}
 .rs-detail h2{font-size:clamp(24px,2.4vw,30px);font-weight:800;margin:0;overflow-wrap:anywhere}
 .rs-detail h2:focus,.rs-post h1:focus{outline:none}
-.rs-sheet-close{display:none;margin-left:auto;width:36px;height:36px;border:0;border-radius:50%;align-items:center;justify-content:center;background:var(--rs-sunk);color:var(--rs-ink);cursor:pointer}
+.rs-detail-tools{margin-left:auto;display:inline-flex;align-items:center;gap:8px}
+.rs-detail-page{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 12px;border-radius:999px;background:var(--rs-sunk);color:var(--rs-ink);font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap}
+.rs-detail-page .rs-i{width:14px;height:14px;margin:0;vertical-align:0}
+.rs-detail-page:hover{color:var(--rs-accent-text)}
+.rs-sheet-close{display:none;width:36px;height:36px;border:0;border-radius:50%;align-items:center;justify-content:center;background:var(--rs-sunk);color:var(--rs-ink);cursor:pointer}
 .rs-fitbox{display:flex;gap:10px;align-items:flex-start;padding:13px 15px;border-radius:14px;background:var(--rs-accent-soft);font-size:15px;line-height:1.5}
 .rs-fitbox .rs-drops{margin-top:3px}
 .rs-fitbox .rs-drops svg{width:16px;height:16px}
@@ -226,6 +230,7 @@ span.rs-helper-pull{color:var(--rs-muted)}
 .rs-label{font-size:14px;font-weight:600;color:var(--rs-muted)}
 .rs-ask p{font-size:15px;line-height:1.6}
 .rs-ask .rs-link{align-self:flex-start}
+.rs-ask .rs-link .rs-count{display:inline-block;text-decoration:none;font-weight:700}
 .rs-state{display:inline-flex;align-items:center;gap:6px;font-weight:650;font-size:14px;color:var(--rs-muted)}
 .rs-ok{color:var(--rs-ok)}
 .rs-status{font-weight:650;font-size:13px;color:var(--rs-accent-text)}
@@ -300,6 +305,9 @@ span.rs-helper-pull{color:var(--rs-muted)}
   .rs-scrim{display:block;position:fixed;inset:0;z-index:var(--rs-sheet-z);background:rgba(12,18,32,.32);opacity:0;pointer-events:none;transition:opacity .25s}
   .rs-split.rs-open .rs-scrim{opacity:1;pointer-events:auto}
   .rs-sheet-close{display:inline-flex}
+  /* on a phone, the way to its page is a round button beside the close one, so the top row stays one line */
+  .rs-detail-page{width:36px;height:36px;padding:0;justify-content:center}
+  .rs-detail-page span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
   .rs-detail{gap:14px}
   .rs-detail h2{font-size:24px}
   .rs-facts{grid-template-columns:92px minmax(0,1fr);gap:8px 14px;font-size:14px}
@@ -572,7 +580,7 @@ span.rs-helper-pull{color:var(--rs-muted)}
 /* the forms on an ask's page sit inside its own card */
 .rs-form.rs-turnin,.rs-pull .rs-form,.rs-form.rs-commentform{padding:0;background:none;box-shadow:none;outline:0;-webkit-backdrop-filter:none;backdrop-filter:none;max-width:none}
 /* comments on an ask: a thread is a comment and every reply to it, set in beneath */
-.rs-talk{display:flex;flex-direction:column;gap:12px;padding-top:16px;border-top:1px solid var(--rs-line);min-width:0}
+.rs-talk{scroll-margin-top:16px;display:flex;flex-direction:column;gap:12px;padding-top:16px;border-top:1px solid var(--rs-line);min-width:0}
 .rs-talk h2{font-size:14px;font-weight:600;color:var(--rs-muted);font-family:var(--rs-font);letter-spacing:0}
 .rs-talk .rs-count{margin-left:2px;font-weight:700;color:var(--rs-ink)}
 .rs-comments{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}

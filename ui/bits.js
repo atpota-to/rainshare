@@ -31,6 +31,7 @@ const ICON = {
   next: '<path d="M9 5l7 7-7 7"/>',
   out: '<path d="M13.5 5H19v5.5M19 5l-8 8"/><path d="M17 13.5V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h4.5"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
+  expand: '<path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7"/>',
   more: '<path d="M5 12h.01M12 12h.01M19 12h.01" stroke-width="3.2"/>',
   lock: '<rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
   link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
