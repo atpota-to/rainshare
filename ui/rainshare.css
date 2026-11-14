@@ -268,19 +268,20 @@ span.rs-helper-pull{color:var(--rs-muted)}
 @keyframes rs-sk-out{to{opacity:0}}
 @keyframes rs-in{from{opacity:0;transform:translateY(10px)}}
 /* (Each region's start is kept on the box as --rs-at-<region>, counted back from now, so a redraw part-way through carries on from where it was.) */
-[data-rs-in] :is(.rs-list>li,.rs-side>.rs-detail,.rs-seed-main,.rs-seed-side>*,.rs-person>*,.rs-garden>li,.rs-me-wrap>*){--rs-i:0s}
-[data-rs-in] :is(.rs-list,.rs-garden,.rs-person,.rs-seed-side)>:nth-child(2){--rs-i:.05s}
-[data-rs-in] :is(.rs-list,.rs-garden,.rs-person,.rs-seed-side)>:nth-child(3){--rs-i:.1s}
-[data-rs-in] :is(.rs-list,.rs-garden,.rs-person,.rs-seed-side)>:nth-child(4){--rs-i:.15s}
-[data-rs-in] :is(.rs-list,.rs-garden,.rs-person,.rs-seed-side)>:nth-child(5){--rs-i:.2s}
-[data-rs-in] :is(.rs-list,.rs-garden,.rs-person,.rs-seed-side)>:nth-child(6){--rs-i:.25s}
-[data-rs-in] :is(.rs-list,.rs-garden,.rs-person,.rs-seed-side)>:nth-child(n+7){--rs-i:.3s}
+[data-rs-in] :is(.rs-list>li,.rs-side>.rs-detail,.rs-seed-main,.rs-seed-side>*,.rs-person>*,.rs-garden>li,.rs-activity>li,.rs-me-wrap>*){--rs-i:0s}
+[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side)>:nth-child(2){--rs-i:.05s}
+[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side)>:nth-child(3){--rs-i:.1s}
+[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side)>:nth-child(4){--rs-i:.15s}
+[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side)>:nth-child(5){--rs-i:.2s}
+[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side)>:nth-child(6){--rs-i:.25s}
+[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side)>:nth-child(n+7){--rs-i:.3s}
 [data-rs-in] :is(.rs-side>.rs-detail,.rs-seed-side>*,.rs-me-side){--rs-i:.08s}
 [data-rs-in~="board"] :is(.rs-split>.rs-list>li,.rs-side>.rs-detail){animation:rs-in .5s cubic-bezier(.2,.8,.2,1) calc(var(--rs-at-board,0s) + var(--rs-i)) backwards}
 [data-rs-in~="seed"] :is(.rs-seed-main,.rs-seed-side>*){animation:rs-in .5s cubic-bezier(.2,.8,.2,1) calc(var(--rs-at-seed,0s) + var(--rs-i)) backwards}
 [data-rs-in~="person"] .rs-person>*{animation:rs-in .5s cubic-bezier(.2,.8,.2,1) calc(var(--rs-at-person,0s) + var(--rs-i)) backwards}
 [data-rs-in~="theirs"] .rs-person>.rs-list>li{animation:rs-in .5s cubic-bezier(.2,.8,.2,1) calc(var(--rs-at-theirs,0s) + var(--rs-i)) backwards}
 [data-rs-in~="garden"] .rs-garden>li{animation:rs-in .5s cubic-bezier(.2,.8,.2,1) calc(var(--rs-at-garden,0s) + var(--rs-i)) backwards}
+[data-rs-in~="activity"] .rs-activity>li{animation:rs-in .5s cubic-bezier(.2,.8,.2,1) calc(var(--rs-at-activity,0s) + var(--rs-i)) backwards}
 [data-rs-in~="me"] .rs-me-wrap>*{animation:rs-in .5s cubic-bezier(.2,.8,.2,1) calc(var(--rs-at-me,0s) + var(--rs-i)) backwards}
 @media (prefers-reduced-motion:reduce){.rs-sk{animation:none}.rs-sk-out{display:none}[data-rs-in] *{animation:none!important}}
 /* A word for someone who came by a link, signed out */
@@ -324,12 +325,53 @@ span.rs-helper-pull{color:var(--rs-muted)}
 .rs-seed-head>.rs-detail-top{grid-column:1/-1}
 .rs-stage-name{font-weight:650;color:var(--rs-ink)}
 /* the garden someone has watered: one plant for each thing they helped finish */
-.rs-garden{display:flex;flex-wrap:wrap;gap:2px 0;list-style:none;margin:0;padding:0}
-.rs-garden a{display:block;border-radius:14px;transition:background .2s}
-.rs-garden a:hover{background:var(--rs-accent-soft)}
+.rs-gardenbox{display:flex;flex-direction:column;gap:12px}
+.rs-garden{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:6px;list-style:none;margin:0;padding:0}
+.rs-garden>li{min-width:0}
+/* each plant: its picture, its name, and whose it was, opening its ask */
+.rs-plot{display:flex;flex-direction:column;align-items:center;gap:2px;width:100%;height:100%;padding:6px 6px 10px;border-radius:14px;color:inherit;text-align:center;text-decoration:none;transition:background .2s}
+a.rs-plot:hover{background:var(--rs-accent-soft)}
+.rs-plot-name{font-size:13px;font-weight:650;line-height:1.3;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden}
+.rs-plot small{font-size:12px}
+/* a bud: merged, waiting to be accepted, not counted. Its label says so; the plant is paler */
+.rs-plot.rs-bud .rs-plant{opacity:.5}
+/* what whoever asked said when they accepted it: a line of text, as people are quoted elsewhere here */
+.rs-thanks{font-size:15px;line-height:1.5;overflow-wrap:anywhere}
+.rs-thanks .rs-link{margin-left:4px;padding:0}
+.rs-form.rs-thanksform{padding:0;background:none;box-shadow:none;outline:0;-webkit-backdrop-filter:none;backdrop-filter:none;max-width:none;gap:10px}
 .rs-watered-btn .rs-plant{margin:-6px 2px -4px -6px}
 .rs-mygarden{display:flex;flex-direction:column;gap:10px}
-.rs-panel>.rs-garden{margin:6px 0}
+/* on the board: what grew since you last looked, and your asks waiting on you */
+.rs-grew,.rs-waiting{align-items:center}
+.rs-note.rs-grew>.rs-plant{flex:none;min-width:0;margin:-8px 0}
+.rs-grow{transform-origin:50% 92%;animation:rs-grow .9s cubic-bezier(.2,.8,.2,1) .15s backwards}
+@keyframes rs-grow{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
+.rs-waiting>.rs-i{align-self:flex-start;margin-top:2px}
+.rs-waiting-list{flex:1 1 100%;list-style:none;margin:0;padding:0 0 0 28px;display:flex;flex-direction:column;gap:2px}
+.rs-waiting-list li{display:flex;flex-wrap:wrap;gap:0 8px;align-items:baseline}
+.rs-waiting-list .rs-link{padding:2px 0}
+.rs-yours-wait{color:var(--rs-ok);font-weight:650}
+/* what someone's been doing: one row for each ask, with the steps under it */
+.rs-act-box{display:flex;flex-direction:column;gap:12px;padding:16px}
+.rs-activity{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.rs-act{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--rs-line)}
+.rs-act:first-child{border-top:0;padding-top:2px}
+.rs-act-pic{flex:none}
+.rs-act-face{display:flex;justify-content:center;width:40px}
+.rs-act-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.rs-act-head{font-size:15px;line-height:1.4;overflow-wrap:anywhere}
+.rs-act-title{font-weight:650;text-decoration:none;color:var(--rs-ink)}
+.rs-act-title:hover{text-decoration:underline}
+.rs-act-steps{list-style:none;margin:0;padding:0;font-size:13px;line-height:1.6;color:var(--rs-muted)}
+/* the steps run as a sentence does, each dot ending the step before it, so a wrapped line starts with words */
+.rs-act-steps>li{display:inline;overflow-wrap:anywhere}
+.rs-act-steps>li:not(:last-child)::after{content:"·";margin:0 7px 0 6px}
+.rs-act-steps>li.rs-ok{color:var(--rs-ok)}
+.rs-act-steps time{color:var(--rs-muted);font-weight:500;opacity:.85;white-space:nowrap}
+.rs-act-steps .rs-link{font-size:13px;padding:0}
+.rs-act-body .rs-thanks{font-size:14px;margin-top:2px}
+.rs-sk-act{gap:12px;align-items:center;padding:8px 0}
+@media (prefers-reduced-motion:reduce){.rs-grow{animation:none}}
 .rs-ask-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .rs-seed-main>h2,.rs-ask-full h2{font-size:14px;font-weight:600;color:var(--rs-muted);font-family:var(--rs-font);letter-spacing:0}
 .rs-ask-full{display:flex;flex-direction:column;gap:8px;padding-top:16px;border-top:1px solid var(--rs-line)}

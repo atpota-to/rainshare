@@ -47,6 +47,7 @@
             "items": { "type": "ref", "ref": "com.atproto.repo.strongRef" },
             "description": "The deliveries that cleared it."
           },
+          "thanks": { "type": "string", "maxLength": 3000, "maxGraphemes": 300, "description": "What whoever asked said to whoever's work it sprouted with, when they accepted it. Apps show it beside that helper's plant in their garden." },
           "createdAt": { "type": "string", "format": "datetime" },
           "updatedAt": { "type": "string", "format": "datetime" }
         }
