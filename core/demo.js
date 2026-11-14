@@ -1,5 +1,5 @@
 // An example circle: pretend friends, their profiles and seeds, for trying Rainshare
-// without signing in (rainshare.dev/example, linked from the landing and the footer).
+// without signing in (rainshare.dev/example, linked from the landing).
 // It answers the same calls as the real source (source.js); what you do is kept in this
 // browser through `store`, and nothing is written anywhere.
 import { wateredBy } from './garden.js';

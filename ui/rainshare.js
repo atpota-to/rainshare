@@ -508,7 +508,7 @@ export function createRainshare({ root, base = '/', host }){
       <header class="rs-head">
         <div class="rs-brand">${host.brand !== 'rainshare' ? `<span class="rs-logo">${ico('drop')}</span>` : ''}<div>${
           host.brand !== 'rainshare' ? `<h1>Rainshare</h1><p>${lit('Got rain to spare? Pick an idea or a project and send your agent.')}</p>`
-            : signedIn() ? `<h1>Your circle’s ideas and projects</h1><p>${lit('Got rain to spare? Pick one and send your agent.')}</p>`
+            : signedIn() ? `<h1>Ideas and projects you can help with</h1><p>${lit('Got rain to spare? Pick one and send your agent.')}</p>`
               // Under the landing, which has the page's h1 and says what Rainshare is.
               : underLanding() ? '<h2>Ideas and projects anyone can help with</h2><p>Sign in to see the ones from people you follow too, sorted by how well each suits you.</p>'
                 // On its own, for someone who may have come straight here: the way to what Rainshare is.
