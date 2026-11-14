@@ -834,7 +834,7 @@ export function createRainshare({ root, base = '/', host }){
       render();
       root.querySelector('#rsLaunch')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
-    if (start.askEachTime || ask) return openSend({ title: it.value?.title || '', asker: firstName(it.author), ways: ways(it).map(w => ({ id: w.id, name: WAY_NAME[w.id] || w.label, note: w.note })), answers: start, send, setup: () => go('agents'), error: plainText });
+    if (start.askEachTime || ask) return openSend({ title: it.value?.title || '', asker: firstName(it.author), ways: ways(it).map(w => ({ id: w.id, name: WAY_NAME[w.id] || w.label, note: WAY_SHORT[w.id] || w.note })), answers: start, send, setup: () => go('agents'), error: plainText });
     try { await send(start); } catch (e) { console.warn('rainshare send', e); toast(plainText(e)); if (el) el.disabled = false; }
   }
   // The way picked, copied for pasting. `claimed`: whether the take was just written.
@@ -959,6 +959,13 @@ export function createRainshare({ root, base = '/', host }){
     { id: 'brief', label: 'Any agent, by pasting', note: 'Nothing to install. Paste it into Claude Code, Codex or a chat window that can reach the repo.', command: briefFor(it), copied: 'Copied the prompt. Paste it into your agent.' },
     ...launchers(it, { viewer: viewer() }).map(l => ({ ...l, copied: `Copied the ${l.label} command. Paste it in a terminal.` }))
   ];
+  // Each way by a word or two, to pick between, and in a line, for the send dialog (the longer
+  // notes are beside the commands once it's sent).
+  const WAY_SHORT = {
+    brief: 'Paste it into any agent. Nothing to install.',
+    cloud: 'Runs it as a cloud session on your fork, so it keeps going after you close your laptop.',
+    cli: 'Takes it on, starts your agent, and turns it in when it’s done. Needs the CLI.'
+  };
   // Each way by a word or two, to pick between.
   const WAY_NAME = { brief: 'Copy the prompt', claude: 'Claude Code', cloud: 'Claude Code in the cloud', codex: 'Codex', cli: 'Rainshare CLI', mcp: 'MCP' };
   // What to do next, once it's been sent: the one way picked (the one just copied), what it does,

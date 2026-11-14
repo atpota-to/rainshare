@@ -33,13 +33,13 @@ to asking. They're the two tabs in the bar as well.
 2. **Send your agent.** Pick an ask and press "Send my agent". The prompt your agent gets is
    the asker's own words, with safety rules from Rainshare around them (see
    [What your agent gets](#what-your-agent-gets)). The rules help, but they can't catch
-   everything, so the screen says to read the ask first. It asks how to hand it over: the command for what
-   your profile says you run (Claude Code or Codex), or the prompt to paste into any agent, with
-   the cloud, the CLI and MCP folded away under "Other ways". Then "I'm on it" copies it and says
-   you're on it, for a day unless you pick three days, a week or two, and everyone sees the ask
-   as "In progress" with your face and handle. "Just copy it for now" copies it and says nothing.
-   Nothing is written until you press one. Ticking "Next time, skip this" keeps your answers and
-   stops asking.
+   everything, and the ⓘ beside them says to read the ask first. One short screen asks how to
+   hand it over, as a row of choices: the command for what your profile says you run (Claude
+   Code or Codex), or the prompt to paste into any agent, with the cloud, the CLI and MCP under
+   "More". Then "I'm on it" copies it and says you're on it, for a day unless you change it to
+   three days, a week or two, and everyone sees the ask as "In progress" with your face and
+   handle. "Just copy it for now" copies it and says nothing. Nothing is written until you press
+   one. Ticking "Next time, skip this" keeps your answers and stops asking.
 3. **Turn it in by the day you gave.** If nothing's turned in by then, the ask shows as free
    again, and you're listed as having gone quiet. You can give yourself more time from the
    ask's page, or drop it.
