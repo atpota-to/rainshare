@@ -112,6 +112,8 @@ export function seed(input = {}, prev){
     parallel: input.parallel ? true : undefined,
     state: input.state && input.state !== 'open' ? input.state : prev?.state && prev.state !== 'open' ? prev.state : undefined,
     sproutedWith: input.sproutedWith || prev?.sproutedWith,
+    // What whoever asked said to whoever's work it was done with, when they accepted it.
+    thanks: clip(input.thanks ?? prev?.thanks ?? '', 300) || undefined,
     createdAt: prev?.createdAt || now(),
     updatedAt: prev ? now() : undefined
   });

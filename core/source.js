@@ -13,11 +13,12 @@ import { decisionsFrom, hiddenBy, keyOf, moderationRecord, subjectFrom, subjectO
 import * as net from './net.js';
 import * as R from './records.js';
 import { closeness, meantFor } from './circle.js';
-import { completeTangled, tangledRepos, tangledIssues, knotlessRepos, knotlessIssues, issueComments } from './subjects.js';
+import { completeTangled, tangledRepos, tangledIssues, knotlessRepos, knotlessIssues, issueComments, pullState, pullPageOf, describeSubject, TICKET } from './subjects.js';
 import { talksOn, fromForge } from './comments.js';
-import { wateredBy } from './garden.js';
+import { wateredBy, budsOf, onRepo } from './garden.js';
+import { activityOf } from './activity.js';
 import { forgeIssue, forgeComment, forgePull, pullChoices, FORGE_SAID } from './forgewrite.js';
-import { circleOf, vouchFor, unvouch, evidenceFor } from './vouch.js';
+import { circleOf, vouchFor, unvouch, evidenceFor, vouchesBy } from './vouch.js';
 import { tangledFollowsOf, followsOnTangled, knownFollowers } from './ties.js';
 
 const TTL = 60e3;
@@ -85,8 +86,11 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
   // the forge's list can take a moment to show one.
   const posted = new Map();
   const withPosted = (uri, list) => { const have = new Set(list.map(c => c.uri)); return [...list, ...(posted.get(uri) || []).filter(c => !have.has(c.uri))]; };
-  const remember = (collection, rec) => { if (rec.uri) { gone.delete(rec.uri); recent.set(rec.uri, { collection, ...rec }); } };
-  const forgetRecord = uri => { recent.delete(uri); gone.add(uri); };
+  // (Anything written can change someone's garden, its buds or what their activity says, so
+  // those are read again next time rather than kept.)
+  const forgetPeople = () => { for (const k of [...cache.keys()]) if (/^(garden|buds|activity):/.test(k)) cache.delete(k); };
+  const remember = (collection, rec) => { if (rec.uri) { gone.delete(rec.uri); recent.set(rec.uri, { collection, ...rec }); forgetPeople(); } };
+  const forgetRecord = uri => { recent.delete(uri); gone.add(uri); forgetPeople(); };
   // Every public record of a collection, across everyone who has any.
   const layered = (collection, list) => {
     const seen = new Set(list.map(r => r.uri));
@@ -290,19 +294,113 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     return item;
   }
 
-  /** Someone's profile: the public copy, made fuller by any group copy you can read. */
-  // What someone has watered: their own deliveries say which seeds and plants they worked on,
-  // and each of those says whether its planter marked it sprouted with that work. Public ones only.
-  const gardenOf = did => memo('garden:' + did, async () => {
-    const [mine, mod] = await Promise.all([net.listRecords(did, DELIVERY, { pages: 2 }).catch(() => []), decisions()]), on = new Map();
-    for (const d of mine) { const u = d.value?.seed?.uri, p = net.parseUri(u); if (p?.collection === SEED) on.set(u, [...(on.get(u) || []), { uri: d.uri, repo: did }]); }
-    const found = await net.pool([...on.keys()].slice(0, 80), 6, async u => {
-      const p = net.parseUri(u), rec = await net.getRecordOrNull(p.repo, SEED, p.rkey).catch(() => null);
-      return rec ? { uri: u, repo: p.repo, rkey: p.rkey, value: rec.value, deliveries: on.get(u) } : null;
-    });
-    const garden = wateredBy(did, found.filter(g => g && !hiddenBy(mod, g.uri, g.repo))), people = await net.profiles(garden.map(g => g.repo)).catch(() => new Map());
-    return garden.map(g => ({ ...g, author: people.get(g.repo) || net.knownPerson(g.repo) || { did: g.repo } }));
+  /* ---------- what one person has done: their garden, its buds, their activity ---------- */
+  // Each is read from their own account: one listing per kind of record (yours with what you've
+  // just written laid over it), and then the asks those point at, each from its own author's
+  // server. Public ones only: what's in a group's space stays there.
+  const recordsOf = (did, collection) => memo(`of:${collection}:${did}`, () => net.listRecords(did, collection, { pages: 2 }).catch(() => []))
+    .then(list => did === viewer ? layered(collection, list).filter(r => r.repo === did && !r.space) : list);
+  const askRecord = uri => memo('ask:' + uri, async () => {
+    const p = net.parseUri(uri);
+    return p?.collection === SEED ? net.getRecordOrNull(p.repo, SEED, p.rkey).catch(() => null) : null;
   });
+  /**
+   * The asks some records point at (`seed.uri`), the most recently pointed at first and no more
+   * than `max` of them, as items: { uri, repo, rkey, value, space: null }. What's gone, what
+   * Rainshare has hidden, and asks from people you block are left out.
+   */
+  async function asksBehind(recs, { max = 80, mod, blocked } = {}){
+    const uris = [...new Set([...recs].sort((a, b) => String(b.value?.createdAt || '').localeCompare(String(a.value?.createdAt || ''))).map(r => r.value?.seed?.uri).filter(u => net.parseUri(u)?.collection === SEED))].slice(0, max);
+    const found = await net.pool(uris, 6, async uri => {
+      const p = net.parseUri(uri), rec = (recent.get(uri)?.collection === SEED && !gone.has(uri)) ? recent.get(uri) : await askRecord(uri);
+      return rec && !gone.has(uri) ? { uri, cid: rec.cid || null, repo: p.repo, rkey: p.rkey, value: rec.value, space: null } : null;
+    });
+    return found.filter(it => it && !hiddenBy(mod, it.uri, it.repo) && !blocked?.has(it.repo));
+  }
+  /**
+   * Marks each ask `shared`: whether it's meant for whoever's looking, by its audience, as the
+   * board decides it. (`also`: someone who counts as meant for it anyway, such as the helper
+   * looking at their own garden.) Bluesky not answering leaves only what's open to everyone.
+   */
+  async function markShared(items, { also } = {}){
+    const authors = [...new Set(items.map(it => it.repo))].filter(d => d !== viewer);
+    const rels = viewer && authors.length ? await net.relationships(viewer, authors).catch(() => new Map()) : new Map();
+    for (const it of items) {
+      const aud = it.value?.audience?.$type || '';
+      const inList = viewer && aud.endsWith('#list') ? (await net.listMembers(it.value.audience.list).catch(() => new Set())).has(viewer) : false;
+      it.shared = (!!also && also === viewer) || meantFor(it.value, { viewer, author: it.repo, rel: rels.get(it.repo), inList });
+    }
+    return items;
+  }
+  // People as Rainshare shows them: their Bluesky profile, with their Rainshare name if they gave one.
+  async function whoAre(dids){
+    const list = [...new Set(dids)].filter(net.isDid);
+    const [who, profs] = await Promise.all([people(list).catch(() => new Map()), Promise.all(list.map(d => publicProfile(d).then(r => r?.value || null, () => null)))]);
+    return new Map(list.map((d, i) => [d, shown(who.get(d) || net.knownPerson(d) || { did: d }, profs[i])]));
+  }
+  // What someone has watered: their own deliveries say which seeds and plants they worked on,
+  // and each of those says whether its planter marked it sprouted with that work.
+  const gardenOf = did => memo('garden:' + did, async () => {
+    const [dels, mod, blocked] = await Promise.all([recordsOf(did, DELIVERY), decisions(), myBlocks()]);
+    const items = await asksBehind(dels.filter(d => !hiddenBy(mod, d.uri, did)), { mod, blocked });
+    for (const it of items) it.deliveries = dels.filter(d => d.value?.seed?.uri === it.uri);
+    const garden = wateredBy(did, await markShared(items.filter(it => it.value?.state === 'sprouted'), { also: did }));
+    const names = await whoAre(garden.map(g => g.repo));
+    return garden.map(g => ({ ...g, author: names.get(g.repo) || { did: g.repo } }));
+  });
+  /**
+   * Their buds (./garden.js): pull requests they turned in on asks that are still open, which the
+   * forge says were merged. The forge is asked about the few turned in most recently (GitHub
+   * answers a browser that isn't signed in 60 times an hour), and its answers kept a while. On
+   * Tangled, where a pull request names its author, one that isn't theirs doesn't count.
+   */
+  const pullOf = d => memo('pull:' + d.uri, () => pullState({ url: d.value?.url, pull: d.value?.pull, subject: d.subject }), 10 * 60e3);
+  const buddingOf = did => memo('buds:' + did, async () => {
+    const [dels, mod, blocked] = await Promise.all([recordsOf(did, DELIVERY), decisions(), myBlocks()]);
+    const items = (await asksBehind(dels.filter(d => !hiddenBy(mod, d.uri, did)), { max: 12, mod, blocked })).filter(it => !it.value?.state || it.value.state === 'open');
+    const asked = [];
+    for (const it of items) {
+      it.deliveries = dels.filter(d => d.value?.seed?.uri === it.uri).map(d => ({ ...d }));
+      const d = it.deliveries.sort((a, b) => String(b.value?.createdAt || '').localeCompare(String(a.value?.createdAt || '')))[0];
+      if (d && onRepo(pullPageOf(d.value || {}, it.value?.subject), it.value?.subject) && asked.length < 6) asked.push({ d, it });
+    }
+    await net.pool(asked, 3, async ({ d, it }) => {
+      d.state = await pullOf({ ...d, subject: it.value?.subject }).catch(() => null);
+      if (d.state === 'merged' && describeSubject(it.value?.subject)?.forge === 'tangled') {
+        const ev = await evidenceFor(d).catch(() => []);
+        if (!ev.some(r => net.parseUri(r.uri)?.collection === TICKET)) d.state = null;
+      }
+    });
+    const buds = budsOf(did, await markShared(items, { also: did }));
+    const names = await whoAre(buds.map(g => g.repo));
+    return buds.map(g => ({ ...g, author: names.get(g.repo) || { did: g.repo } }));
+  }, 10 * 60e3);
+  /**
+   * What they've been doing (./activity.js), ask by ask: what they asked for, took on, turned
+   * in and commented on, and who they vouched for on Tangled. Asks that aren't meant for whoever's
+   * looking are left out, as on the board. Comments on a Tangled or knotless issue are the
+   * forge's, kept with the issue, so they aren't among them.
+   */
+  const activityFor = did => memo('activity:' + did, async () => {
+    const [asks, takes, dels, comms, said, mod, blocked] = await Promise.all([
+      recordsOf(did, SEED), recordsOf(did, TAKE), recordsOf(did, DELIVERY), recordsOf(did, COMMENT),
+      vouchesBy(did, { max: 200 }).catch(() => new Map()), decisions(), myBlocks()
+    ]);
+    if (hiddenBy(mod, null, did)) return [];
+    const ok = r => !hiddenBy(mod, r.uri, did);
+    const own = asks.filter(ok).map(r => ({ uri: r.uri, cid: r.cid, repo: did, rkey: r.rkey, value: r.value, space: null }));
+    const pointing = [...takes, ...dels, ...comms].filter(ok), ownUris = new Set(own.map(r => r.uri));
+    const others = await asksBehind(pointing.filter(r => !ownUris.has(r.value?.seed?.uri)), { max: 60, mod, blocked });
+    const shownAsks = (await markShared([...own, ...others])).filter(it => it.shared);
+    const vouches = [...said].filter(([d, v]) => v.kind === 'vouch' && !blocked.has(d) && !hiddenBy(mod, null, d)).map(([d, v]) => ({ did: d, kind: v.kind, reason: v.reason, at: v.at }));
+    const names = await whoAre([...shownAsks.map(it => it.repo), ...vouches.map(v => v.did), ...shownAsks.flatMap(it => (it.value?.sproutedWith || []).map(r => net.parseUri(r?.uri)?.repo))]);
+    for (const it of shownAsks) it.author = names.get(it.repo) || { did: it.repo };
+    const stories = activityOf(did, { asks: own, takes, deliveries: dels.filter(ok), comments: comms.filter(ok), vouches: vouches.map(v => ({ ...v, person: names.get(v.did) || { did: v.did } })), seeds: new Map(shownAsks.map(it => [it.uri, it])) });
+    for (const s of stories) for (const st of s.steps) if (st.with) st.people = st.with.map(d => names.get(d) || { did: d });
+    return stories;
+  });
+
+  /** Someone's profile: the public copy, made fuller by any group copy you can read. */
   async function profileOf(did, { force } = {}){
     if (force) forget('profile:' + did);
     // `unread`: their server didn't answer, so whether they have a profile isn't known (which
@@ -493,7 +591,7 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     tangledIssues,
     knotlessRepos: () => viewer ? knotlessRepos(viewer) : Promise.resolve([]),
     knotlessIssues,
-    gardenOf,
+    gardenOf, buddingOf, activityOf: activityFor,
     // Posting to knotless or Tangled as you: an issue on a repo, a comment on an issue, or a
     // pull request from a branch that's been pushed (./forgewrite.js).
     forgeIssue: (subject, input) => forgeIssue(agent, subject, input),

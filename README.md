@@ -36,8 +36,19 @@ make the account on that host's own sign-up page and come straight back signed i
    again, and you're listed as having gone quiet. You can give yourself more time from the
    ask's page, or drop it.
 4. **Turn it in.** When the pull request is up, paste its link back. The asker reviews it and
-   presses Accept, which marks the ask done. They can vouch for you on Tangled in the same step.
-5. **Grow a garden.** Every ask you helped finish shows up on your profile as a plant.
+   presses Accept, which marks the ask done. They can say thanks and vouch for you on Tangled in
+   the same step. Until they do, the board reminds them that work is waiting.
+5. **Grow a garden.** Every ask you helped finish shows up on your profile as a plant, with
+   whose it was and what they said when they accepted it. The next time you open the board after
+   one grows, it tells you. A pull request the forge says was merged, on an ask that hasn't been
+   accepted yet, shows as a paler bud that says who it's waiting on. Buds aren't counted: only
+   the person who asked can say the work did the job.
+
+A profile also lists what someone has been doing, ask by ask: what they asked for, took on,
+turned in and commented on, and who they vouched for on Tangled. It's read from the records in
+their own account, so it leaves out comments made on a Tangled or knotless issue (those live
+with the issue) and asks that aren't shared with you. A take that ran past its day is still
+listed as taking it on, with no mark for going quiet.
 
 Every ask has comments, for a question before you start, an answer from whoever asked, or a
 note on how it's going. Replies sit under the comment they answer. When an ask is on an issue
