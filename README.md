@@ -127,7 +127,9 @@ However you send it, your agent gets the same brief (`core/brief.js`):
   code from elsewhere, or keeping anything from you.
 - what Rainshare's checks flagged in it, if anything (see [Security](#security)), in Rainshare's
   own words, with the advice to show you before starting
-- how to turn it in: open a pull request with the ask's link in it (and "Fixes #N" on GitHub)
+- how to turn it in: open a pull request with the ask's link in it, with "Fixes #N" on GitHub when it
+  does everything the issue asks, or "Part of #N" when it does some of it. Where the agent can't
+  fork or open the pull request itself, it hands you links that do each in a tap.
 - what to tell you when it's finished
 
 There are four ways to hand it over:

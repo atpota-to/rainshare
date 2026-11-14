@@ -200,5 +200,26 @@ export function askExcerpt(spec, max = 260){
   return t.slice(0, max).replace(/\s+\S*$/, '') + '…';
 }
 
+/**
+ * How big an ask is, from its own words: { words, sections, checks, long }. Sections are
+ * headings (or lines that are all bold), checks are checklist items ("- [ ]"). A collapsed ask
+ * hides its size, and size is what a helper needs to know before taking it on.
+ */
+export function askSize(spec){
+  const text = String(spec || ''), lines = text.replace(/```[\s\S]*?```/g, '').split('\n');
+  const sections = lines.filter(l => /^\s*(#{1,6}\s+\S|\*\*[^*]+\*\*\s*:?\s*$|__[^_]+__\s*:?\s*$)/.test(l)).length;
+  const checks = lines.filter(l => /^\s*(?:[-*+]|\d+[.)])\s+\[[ xX]\]\s/.test(l)).length;
+  const words = (text.match(/\S+/g) || []).length;
+  return { words, sections, checks, long: words > 450 || sections >= 5 || checks >= 12 };
+}
+/** "Long ask · about 2,400 words · 9 sections · 43 checklist items", or '' for one that isn't long. */
+export function askSizeText(spec){
+  const s = askSize(spec);
+  if (!s.long) return '';
+  const n = (k, one, many = one + 's') => `${k.toLocaleString('en-GB')} ${k === 1 ? one : many}`;
+  return ['Long ask', `about ${n(s.words < 1000 ? Math.round(s.words / 50) * 50 : Math.round(s.words / 100) * 100, 'word')}`,
+    s.sections > 1 ? n(s.sections, 'section') : '', s.checks ? n(s.checks, 'checklist item') : ''].filter(Boolean).join(' · ');
+}
+
 // "sprouted" is the record's word for done; people read "Done", beside a sprouted plant.
 export const stateText = sq => sq?.state === 'sprouted' ? 'Done' : sq?.state === 'closed' ? 'Closed' : '';

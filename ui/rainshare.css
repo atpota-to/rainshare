@@ -337,6 +337,9 @@ span.rs-helper-pull{color:var(--rs-muted)}
 .rs-who b{font-weight:650}
 .rs-who:hover b{text-decoration:underline}
 .rs-spec{overflow-wrap:anywhere;font-size:16px;line-height:1.6}
+.rs-clamp[data-rs-folded]{max-height:13em;overflow:hidden;-webkit-mask-image:linear-gradient(to bottom,#000 55%,transparent);mask-image:linear-gradient(to bottom,#000 55%,transparent)}
+.rs-clamp-row{gap:6px 12px;flex-wrap:wrap}
+@media (max-width:640px){.rs-clamp-row .rs-btn{min-height:44px;flex:1 1 100%}}
 .rs-spec>*+*{margin-top:10px}
 .rs-spec h3,.rs-spec h4,.rs-spec h5,.rs-spec h6{font-size:16px;font-weight:800;margin-top:16px}
 .rs-spec ul,.rs-spec ol{padding-left:22px;margin:8px 0}

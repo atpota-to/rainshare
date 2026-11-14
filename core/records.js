@@ -13,6 +13,21 @@ export function clip(s, max){
   const parts = [...seg.segment(t)];
   return parts.length <= max ? t : parts.slice(0, max).map(p => p.segment).join('').trim();
 }
+/**
+ * An issue's body as the start of an ask. The ask holds up to 10,000 characters (the lexicon's
+ * limit, and the form's). A longer body is cut at a paragraph or line, never silently: a note at
+ * the end says the rest is on the issue, so neither the person posting nor a helper's agent
+ * takes the start for the whole of it.
+ */
+export function specFromIssue(body, url, max = 10000){
+  const t = String(body ?? '').replace(/\r\n?/g, '\n').trim();
+  if (t.length <= max) return t;
+  const note = `\n\n(This is the start of the issue. The rest is on the issue itself${url ? `: ${url}` : ''})`;
+  let cut = t.slice(0, max - note.length);
+  const at = Math.max(cut.lastIndexOf('\n\n'), cut.lastIndexOf('\n'));
+  cut = at > cut.length * 0.5 ? cut.slice(0, at) : cut.replace(/\s+\S*$/, '');
+  return cut.trimEnd() + note;
+}
 const known = (list, v) => list.some(x => x[0] === v) ? v : undefined;
 /** A tag the way it's stored: lower case, words joined by dashes. */
 export const tag = s => clip(String(s || '').toLowerCase().replace(/^#/, '').replace(/[^\p{L}\p{N}+.#-]+/gu, '-').replace(/^-+|-+$/g, ''), 32);
