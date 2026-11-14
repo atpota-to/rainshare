@@ -13,7 +13,7 @@ import { brief, launchers, handBack, readHandBack, readBranchBack, handBackBranc
 import { createDemoSource } from '../core/demo.js';
 import { splitSpaceUri, shown } from '../core/source.js';
 import { lifeOf } from '../ui/bits.js';
-import { sendSummary, dayChoices, splitWays } from '../ui/send.js';
+import { sendSummary, dayChoices, splitWays, pasteWords } from '../ui/send.js';
 import { standing, since, carry } from '../core/status.js';
 import { dueOf, lapsed, activeTakes, untilIn } from '../core/takes.js';
 import { newRepoPlaces, placesFor, repoNameFor } from '../core/forges.js';
@@ -640,6 +640,16 @@ test('the send dialog shows the way picked and the prompt, and folds the rest aw
   assert.deepEqual(ids(splitWays(ways.filter(w => w.id !== 'cloud'), 'codex')), [['codex', 'brief'], ['claude', 'cli', 'mcp']]);
   // On screen it's "the prompt", not "the brief".
   assert.equal(ROUTES.find(r => r[0] === 'brief')[1], 'The prompt, for any agent');
+});
+
+test('once it\'s copied, the dialog says where it goes and what happens next, for the way it went', () => {
+  // The prompt goes into an agent, a command into a terminal (with what it does).
+  assert.match(pasteWords({ id: 'brief' }, 'Kai').lede, /^Paste it into your agent/);
+  assert.equal(pasteWords({ id: 'claude', note: 'Clones the repo and starts Claude Code with the prompt.' }, 'Kai').lede, 'Paste it in a terminal. Clones the repo and starts Claude Code with the prompt.');
+  // Pasted by hand, the agent hands back a link to the ask; the CLI and MCP turn it in themselves.
+  assert.equal(pasteWords({ id: 'codex' }, 'Kai').next, 'When it’s done, your agent gives you a link back to Kai’s ask. Open it to turn the work in.');
+  assert.match(pasteWords({ id: 'cli' }, 'Kai').next, /the CLI offers to turn the work in/);
+  assert.match(pasteWords({ id: 'mcp' }, 'Kai').next, /turns it in itself/);
 });
 
 test('how well an ask suits you is switched off on the site, and still works when it\'s on', () => {
