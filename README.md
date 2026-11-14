@@ -35,19 +35,26 @@ to asking. They're the two tabs in the bar as well.
 2. **Send your agent.** Pick an ask and press "Send my agent". The prompt your agent gets is
    the asker's own words, with safety rules from Rainshare around them (see
    [What your agent gets](#what-your-agent-gets)). The rules help, but they can't catch
-   everything, and the ⓘ beside them says to read the ask first. One short screen asks which
-   agent, as a row of choices: the one your profile says you run (Claude Code or Codex), "Any
-   agent" for the prompt itself, and the cloud, the CLI and MCP under "More". Under them, "Tell
-   Kai I'm on it for a day" is ticked to begin with (three days, a week or two are behind
-   "Change"), and one button copies the command or the prompt. Ticked, everyone sees the ask as
-   "In progress" with your face and handle; unticked, it's copied and nothing is said. Nothing
-   is written until you press it. Ticking "Skip this screen next time" keeps your answers and
-   stops asking. Signed in, that's the one way to copy an ask's prompt; signed out, "Copy the
-   prompt" sits beside "Sign in to take it on".
+   everything, and the ⓘ beside them says to read the ask first. It's a short dialog, and you
+   stay where you are throughout. It asks which agent, as a row of choices: the one your profile
+   says you run (Claude Code or Codex), "Any agent" for the prompt itself, and the cloud, the
+   CLI and MCP under "More". On a phone, where there's no terminal to paste a command into, it
+   starts on "Any agent". Under them, "Tell Kai I'm on it for a day" is ticked to begin with
+   (three days, a week or two are behind "Change"), and one button copies the command or the
+   prompt. Ticked, everyone sees the ask as "In progress" with your face and handle; unticked,
+   it's copied and nothing is said. Nothing is written until you press it. Then the dialog shows
+   what was copied, with its own Copy (a browser can refuse to copy, Safari especially), where
+   to paste it, and what happens when your agent's done. Ticking "Skip this screen next time"
+   keeps your answers and goes straight to that. Signed in, it's the one way to copy an ask's
+   prompt; signed out, "Copy the prompt" sits beside "Sign in to take it on".
 3. **Turn it in by the day you gave.** If nothing's turned in by then, the ask shows as free
    again, and you're listed as having gone quiet. You can give yourself more time from the
    ask's page, or drop it.
-4. **Turn it in.** When the pull request is up, paste its link back. The asker reviews it and
+4. **Turn it in.** When the pull request is up, paste its link back (the field has a paste
+   button at its end): in the dialog that "Turn it in" opens from the board, or on the ask's own
+   page, which also takes what did the work, a session link, and on Tangled and knotless can open
+   the pull request from a pushed branch.
+   Your agent's link back to the ask fills the form in for you. The asker reviews it and
    presses Accept, which marks the ask done. They can say thanks and vouch for you on Tangled in
    the same step. Until they do, the board reminds them that work is waiting.
 5. **Grow a garden.** Every ask you helped finish shows up on your profile as a plant, with
@@ -488,8 +495,9 @@ liability, claims, disputes and arbitration, governing law, copyright notices an
 
 - **Agreeing.** Before someone's first job or first ask, a note (`ui/agree.js`) says what to keep
   in mind and won't go on until its box is ticked. On the site it opens for "Send my agent"
-  (before its own questions about how to send), "Copy as Markdown" on someone else's open ask,
-  copying a command that starts an agent, and "Ask for rain". Agreeing once covers all of them.
+  (before its own questions about how to send), "Copy the prompt" on someone else's open ask
+  (signed out), copying a command that starts an agent, and "Ask for help". Agreeing once covers
+  all of them.
   In the CLI, `login` asks, and so does the first `take`, `run`, `turn-in`, `open-pr` or `ask`;
   `agree` asks by itself. It has to be a person in a terminal: from a script it stops and says
   so, and the MCP tools tell the agent what its user needs to do, and not to do it for them.

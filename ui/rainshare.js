@@ -44,13 +44,14 @@ import { resolveHandle, knownPerson, parseUri, profiles, pool } from '../core/ne
 import { concerns, alarming } from '../core/scan.js';
 import { REASONS, reasonName, isAccount, kindOf as subjectKind } from '../core/moderation.js';
 import { readBoard, groupOf, stateWord, GROUPS as FEEDBACK_GROUPS } from '../core/feedback.js';
-import { esc, lit, unb64url, ago, until, shortDay, nameOf, firstName, ico, forgeIco, skyIco, lifeIco, face, drops, pathOf, plantPic, avatarFallback, tip, tipLink, toggleTip } from './bits.js';
+import { esc, lit, unb64url, ago, until, shortDay, nameOf, firstName, ico, forgeIco, skyIco, lifeIco, face, drops, pathOf, plantPic, avatarFallback, tip, tipLink, toggleTip, pasteField, pasteInto, PASTE_REFUSED } from './bits.js';
 import { createPoster } from './post.js';
 import { openWelcome, shouldWelcome } from './welcome.js';
 import { hasAgreed, agreement, rememberAgreement, openAgree } from './agree.js';
 import { agreedIn, agreementNow, recordAgreement } from '../core/agreement.js';
 import { LEGAL } from '../core/legal.js';
-import { openSend, sendSummary, dayChoices } from './send.js';
+import { openSend, openPasted, pasteWords, sendSummary, dayChoices } from './send.js';
+import { openTurnIn } from './turnin.js';
 import { headSk, boardSk, seedSk, personSk, gardenSk, meSk, listSk, activitySk } from './skeleton.js';
 import { known, reroute } from '../core/route.js';
 import { still as stillNow, snapshot, settle, glide, draw } from './motion.js';
@@ -61,7 +62,7 @@ export function createRainshare({ root, base = '/', host }){
   const S = {
     source: null, view: null, sub: '',
     board: null, boardAt: 0, loading: false, error: null, shown: [], pick: null, sheet: false,
-    mine: null, prefs: null, prefsLocal: false, garden: null, buds: null, seed: null, seedErr: null, unlinked: null, launch: null, pendingLaunch: null, handBack: null, handKind: null, again: null, other: null, form: null, drafts: {},
+    mine: null, prefs: null, prefsLocal: false, garden: null, buds: null, seed: null, seedErr: null, unlinked: null, launch: null, handBack: null, handKind: null, again: null, other: null, form: null, drafts: {},
     pull: null,          // the pull request form for the ask on screen: { uri, loading, choices, error }
     circle: undefined,   // your Tangled vouch circle (../core/vouch.js): undefined until asked for, null if there's none to show
     vouching: null,      // who a vouch is being written for: { did, evidence }
@@ -128,6 +129,18 @@ export function createRainshare({ root, base = '/', host }){
   function copy(text, what = 'Copied', instead = 'Couldn’t copy it. Select it and copy it yourself.', btn = null){
     const done = () => { toast(what); copied(btn); };
     try { navigator.clipboard.writeText(text).then(done, () => toast(instead)); } catch (_) { toast(instead); }
+  }
+  // Copying what's only known once something's been written (saying you're on it changes the
+  // prompt). Safari copies only during the press itself, so the copy starts then, with the text to
+  // come (a ClipboardItem holding a promise); where that can't be done, it's copied once the text
+  // is ready, which may be refused. Gives back whether it was copied.
+  function copyLater(text){
+    const cb = globalThis.navigator?.clipboard, later = () => text.then(t => cb.writeText(t)).then(() => true, () => false);
+    text.catch(() => {});
+    try {
+      if (cb?.write && typeof ClipboardItem === 'function') return cb.write([new ClipboardItem({ 'text/plain': text.then(t => new Blob([t], { type: 'text/plain' })) })]).then(() => true, later);
+    } catch (_) {}
+    return cb?.writeText ? later() : Promise.resolve(false);
   }
   function copied(btn){
     if (!btn?.isConnected || !btn.classList.contains('rs-btn')) return;
@@ -433,10 +446,13 @@ export function createRainshare({ root, base = '/', host }){
     catch (e) { console.warn('rainshare preferences', e); S.prefsLocal = true; return 'local'; }
   }
   // What "Send my agent" starts with on an ask: your settings, where they suit it. Before
-  // there are any, the command for what your profile says you run, and saying you're on it for a day.
+  // there are any, the command for what your profile says you run, and saying you're on it for a
+  // day. On a phone there's no terminal to paste a command into, so it starts on the prompt
+  // ("Any agent"), whatever the settings say; the other ways are still a press away.
+  const phone = () => !!globalThis.matchMedia?.('(hover: none) and (pointer: coarse)').matches;
   function sendStart(it){
     const p = S.prefs?.send || {}, ls = ways(it);
-    const route = ls.some(w => w.id === p.route) ? p.route : pickLauncher(launchers(it, { viewer: viewer() }))?.id || 'brief';
+    const route = phone() ? 'brief' : ls.some(w => w.id === p.route) ? p.route : pickLauncher(launchers(it, { viewer: viewer() }))?.id || 'brief';
     return { route, claim: p.claim ?? true, days: p.days || TAKE_DAYS_DEFAULT, askEachTime: p.askEachTime ?? true, remember: true };
   }
   const daysOf = () => S.prefs?.send?.days || TAKE_DAYS_DEFAULT;
@@ -797,7 +813,9 @@ export function createRainshare({ root, base = '/', host }){
     if (!open) buttons = a(page, sq.state === 'sprouted' ? 'See how it went' : 'Open it', 'rs-btn rs-quiet');
     else if (mine) buttons = a(page, 'Open it', 'rs-btn rs-primary') + shareBtn(it);
     else if (!signedIn()) buttons = (host.signIn ? '<button class="rs-btn rs-primary" type="button" data-rs-act="signin">Sign in to take it on</button>' : '') + mdBtn(it) + shareBtn(it);
-    else if (myTake(it)) buttons = a(page, 'You’re on it: turn it in', 'rs-btn rs-primary');
+    // (On it: turning it in is a short dialog too. Once it's turned in, what's next is on its page.)
+    else if (myTake(it)) buttons = (it.deliveries || []).some(x => x.repo === viewer()) ? a(page, 'See where it stands', 'rs-btn rs-quiet')
+      : `<button class="rs-btn rs-primary" type="button" data-rs-turnin="${esc(it.uri)}">${ico(describeSubject(sq.subject) ? 'pull' : 'link')}Turn it in</button>`;
     else buttons = `<button class="rs-btn rs-primary" type="button" data-rs-take="${esc(it.uri)}">${ico('drop')}Send my agent</button>${shareBtn(it)}`;
     const hint = open && !mine && signedIn() && !myTake(it) ? sendHint(it) : '';
     const st = open && !mine && !myTake(it) ? stand(it) : null;
@@ -895,43 +913,54 @@ export function createRainshare({ root, base = '/', host }){
     root.querySelector('.rs-split')?.classList.remove('rs-open');
     root.querySelector(`.rs-item[data-rs-pick="${CSS.escape(S.pick || '')}"]`)?.focus({ preventScroll: true });
   }
-  // Sending your agent asks first how, and whether to say you're on it (./send.js), unless
-  // your settings say to skip the questions. What Rainshare's checks found that's very likely a
-  // trick is said once more before any of that, since the agent is handed the ask either way.
-  // And before all of it, the first time on this browser: the short safety note, and agreeing
-  // to the terms (./agree.js).
-  async function sendAgent(it, el, { panel = false, ask = false } = {}){
+  // Sending your agent (./send.js) is a short dialog, and you stay where you are: it asks which
+  // agent and whether to say you're on it (unless your settings say to skip that), copies the
+  // prompt or a command, then says what to do with it and what happens next. What Rainshare's
+  // checks found that's very likely a trick is said once more before any of that, since the
+  // agent is handed the ask either way. And before all of it, the first time on this browser:
+  // the short safety note, and agreeing to the terms (./agree.js).
+  async function sendAgent(it, el, { ask = false } = {}){
     if (!it) return;
     if (!await agreeFirst()) return;
     const flags = concerns(it.value);
     if (alarming(flags) && !confirm(`Rainshare’s checks flagged this ask:\n\n${flags.map(f => '• ' + f.said).join('\n')}\n\nYour agent will be told too. Send it anyway?`)) return;
-    const start = sendStart(it);
-    const send = async answers => {
-      if (answers.remember) await savePrefs({ send: { route: answers.route, claim: answers.claim, days: answers.days, askEachTime: answers.askEachTime } });
-      const r = answers.claim ? await claim(it, el, answers) : { fresh: it, launch: copyWay(it, answers.route, false) };
-      if (!r) return;
-      // On the board, it goes on to the ask's own page, with the commands open there.
-      if (panel) { S.seed = r.fresh; S.pendingLaunch = { uri: it.uri, id: r.launch }; S.sheet = false; go(pathOf(it)); return; }
-      S.seed = r.fresh; S.launch = r.launch;
-      render();
-      // (Just said you're on it: the note that says so is in view too, over the commands.)
-      (root.querySelector('.rs-moment-note') || root.querySelector('#rsLaunch'))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const start = sendStart(it), asker = firstName(it.author), skip = !(start.askEachTime || ask);
+    // Within the press: say you're on it, if that's wanted, then copy what goes to the agent (it
+    // says when you said you'd turn it in, so it's only known after). The copying starts before
+    // anything's awaited, so a browser that only copies during a press still does.
+    const send = answers => {
+      const job = (async () => {
+        if (answers.remember) await savePrefs({ send: { route: answers.route, claim: answers.claim, days: answers.days, askEachTime: answers.askEachTime } });
+        const fresh = answers.claim ? (await claim(it, skip ? el : null, answers))?.fresh : it;
+        if (!fresh) return null;
+        return { fresh, w: ways(fresh).find(x => x.id === answers.route) || ways(fresh)[0] };
+      })();
+      const copying = copyLater(job.then(j => { if (!j) throw new Error('Not sent'); return j.w.command; }));
+      return job.then(async j => j && {
+        id: j.w.id, command: j.w.command, ...pasteWords(j.w, asker), copied: await copying, fresh: j.fresh,
+        until: answers.claim ? dayOf(dueOf(myTake(j.fresh))) || 'the day you said' : null
+      });
     };
-    if (start.askEachTime || ask) return openSend({ asker: firstName(it.author), ways: ways(it).map(w => ({ id: w.id, name: WAY_NAME[w.id] || w.label })), answers: start, send, error: plainText });
-    try { await send(start); } catch (e) { console.warn('rainshare send', e); toast(plainText(e)); if (el) el.disabled = false; }
+    // Closed: wherever you are shows what's changed (on the board, the panel says you're on it).
+    const after = r => {
+      if (!r) return;
+      if (S.seed?.uri === it.uri) S.seed = r.fresh;
+      swapIn(r.fresh); render();
+    };
+    const again = (text, btn) => copy(text, 'Copied', undefined, btn);
+    if (!skip) return openSend({ asker, ways: ways(it).map(w => ({ id: w.id, name: WAY_NAME[w.id] || w.label })), answers: start, send, copy: again, done: after, error: plainText });
+    try { const r = await send(start); if (r) openPasted({ r, asker, copy: again, done: after }); else if (el) el.disabled = false; }
+    catch (e) { console.warn('rainshare send', e); toast(plainText(e)); if (el) el.disabled = false; }
   }
-  // The way picked, copied for pasting. `claimed`: whether the take was just written.
-  function copyWay(it, route, claimed){
-    const ls = ways(it), w = ls.find(x => x.id === route) || ls[0];
-    if (claimed) copy(w.command, `You’re on it. ${w.copied}`, `You’re on it. Press Copy beside the ${w.id === 'brief' ? 'prompt' : 'command'} to copy it.`);
-    else copy(w.command, `${w.copied} Nobody’s been told you’re on it.`, `Press Copy beside the ${w.id === 'brief' ? 'prompt' : 'command'} to copy it.`);
-    return w.id;
+  // An ask just written to, in the board's list too, so the panel says so before the board's been read again.
+  function swapIn(fresh){
+    if (S.board && fresh) S.board.items = S.board.items.map(x => x.uri === fresh.uri ? { ...x, value: fresh.value, takes: fresh.takes, deliveries: fresh.deliveries } : x);
   }
   // Saying you're on it looks first: at the seed as it is this minute, and at the forge. If
   // that turns up something the screen wasn't already saying (someone took it a moment ago, a
   // pull request is up, the issue was closed), it asks before writing anything. Null if it
   // didn't go ahead; throws if something went wrong.
-  async function claim(it, el, { route = null, days = daysOf() } = {}){
+  async function claim(it, el, { days = daysOf() } = {}){
     if (el) el.disabled = true;
     try {
       const shown = stand(it).verdict;
@@ -947,7 +976,7 @@ export function createRainshare({ root, base = '/', host }){
       mark(it.uri, 'take');
       const fresh = carry(now, await S.source.seed(it.uri, { force: true }) || now);
       S.boardAt = 0; loadBoard();
-      return { fresh, launch: route ? copyWay(fresh, route, true) : null };
+      return { fresh };
     } catch (e) { if (el) el.disabled = false; throw e; }
   }
   // Under "Send my agent", when the questions are skipped: what it'll do, and the way to change that.
@@ -982,9 +1011,8 @@ export function createRainshare({ root, base = '/', host }){
       S.drafts.pull = { uri, asked: pushed.branch, branch: pushed.branch, from: pushed.from || undefined, ...(pushed.title ? { title: pushed.title } : {}) };
       S.open.pull = true;
     }
-    // Arriving from "Send my agent" on the board: the commands to start one are open.
-    S.launch = S.pendingLaunch?.uri === uri ? S.pendingLaunch.id : null;
-    S.pendingLaunch = null; S.open.ways = false;
+    // (The commands to start an agent open on a page only when asked for: "Show the commands".)
+    S.launch = null; S.open.ways = false;
     if (!uri) { S.seed = null; S.seedErr = { message: 'That link doesn’t lead to anything on Rainshare.' }; return; }
     // What was being written when you went off to connect a forge is waiting where you left it.
     const kept = takeKept();
@@ -1364,7 +1392,7 @@ export function createRainshare({ root, base = '/', host }){
     const showWays = S.launch ? '' : '<button class="rs-link" type="button" data-rs-act="show-launch">Show the commands</button>';
     return `<section class="rs-turn" aria-labelledby="rsTurnH"><h3 id="rsTurnH">${S.launch ? 'Then, turn it in' : 'Turn it in'}</h3>${S.launch ? `<p class="rs-muted">${st.idea ? 'When there’s something to show, paste a link to where it lives.' : 'When your agent opens a pull request, paste its link here.'}</p>` : ''}${modes}
       ${opening ? pullBox(it, { d, page }) + (showWays ? `<div class="rs-row">${showWays}</div>` : '') : `<form class="rs-form rs-turnin" data-rs-form="turnin">
-        <label>${st.idea ? 'Where it lives <small>(a link)</small>' : 'Pull request link'}<input name="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" pattern="\\s*(https?://|at://)\\S+\\s*" title="${st.idea ? 'A link to where it lives' : 'A link to the pull request, or its at:// address'}" placeholder="${st.idea ? 'https://…' : { tangled: 'https://tangled.org/…/pulls/…', knotless: 'at://…/dev.knotless.pull/… or its page' }[d?.forge] || 'https://github.com/…/pull/…'}" value="${esc(v.url || '')}" required></label>
+        <label>${st.idea ? 'Where it lives <small>(a link)</small>' : 'Pull request link'}${pasteField(`<input name="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" pattern="\\s*(https?://|at://)\\S+\\s*" title="${st.idea ? 'A link to where it lives' : 'A link to the pull request, or its at:// address'}" placeholder="${st.idea ? 'https://…' : { tangled: 'https://tangled.org/…/pulls/…', knotless: 'at://…/dev.knotless.pull/… or its page' }[d?.forge] || 'https://github.com/…/pull/…'}" value="${esc(v.url || '')}" required>`)}</label>
         <div class="rs-more-body"${more ? '' : ' hidden'} data-rs-turnin-more>
           <div class="rs-two"><label>What did the work<select name="harness">${HARNESSES.map(([k, l]) => `<option value="${k}"${(v.harness || taken?.value?.setup?.harness || setup?.harness) === k ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
           <label>Model<input name="model" list="rsModels" value="${esc(v.model || taken?.value?.setup?.models?.[0] || setup?.models?.[0] || '')}" placeholder="claude-opus-5-5"></label></div>
@@ -2108,7 +2136,7 @@ export function createRainshare({ root, base = '/', host }){
       if (name === 'stage-seen') { stageDismissed = true; try { localStorage.setItem(STAGE_SEEN, '1'); } catch (_) {} root.querySelector('.rs-stage-note')?.remove(); return; }
       if (name === 'take') return sendAgent(it, el);
       // "Change", beside "Send my agent" when its questions are skipped: they're asked this once.
-      if (name === 'send-ask') { const one = S.view === 'seed' ? it : S.shown.find(i => i.uri === el.dataset.rsUri); return sendAgent(one, null, { ask: true, panel: S.view !== 'seed' }); }
+      if (name === 'send-ask') { const one = S.view === 'seed' ? it : S.shown.find(i => i.uri === el.dataset.rsUri); return sendAgent(one, null, { ask: true }); }
       // Copied without saying so, and now starting on it.
       if (name === 'claim') {
         const r = await claim(it, el); if (!r) return;
@@ -2223,34 +2251,61 @@ export function createRainshare({ root, base = '/', host }){
       toast(FEATURES.fit ? 'Saved. Your board is re-sorted for you.' : 'Saved.'); go(BOARD_AT);
     } catch (e) { err.hidden = false; err.innerHTML = plain(e); btn.disabled = false; btn.textContent = 'Save my profile'; }
   }
+  // Turning work in, from the form on an ask's page or the dialog from the board: the link (a
+  // pull request, or where an idea lives) and, where they're given, what did it, a session link
+  // and a note. Turning in something you hadn't said you were on (an agent handed it back) says
+  // so first, so the two records agree. Gives back the ask, read again.
+  async function turnIn(it, v){
+    const url = String(v.url || '').trim(), taken = myTake(it), pullAt = /^at:\/\//.test(url) ? url : undefined;
+    const model = v.model ?? (taken?.value?.setup?.models?.[0] || mySetup()?.models?.[0] || '');
+    const setup = { harness: v.harness || taken?.value?.setup?.harness || mySetup()?.harness, models: model ? [model] : [] };
+    if (!(pullAt ? parseUri(pullAt) : safeHttp(url))) throw new Error(stand(it).idea ? 'That doesn’t look like a link. Paste the address where it lives.' : 'That doesn’t look like a link to a pull request. Paste its address.');
+    let now = it;
+    if (!taken) { await S.source.take(now, { setup, days: daysOf() }); now = carry(now, await S.source.seed(now.uri, { force: true }) || now); }
+    await S.source.turnIn(now, { url: pullAt ? undefined : url, pull: pullAt, sessionUrl: v.sessionUrl, note: v.note, setup });
+    mark(now.uri, 'turnin');
+    const fresh = await reread(now);
+    S.boardAt = 0; loadBoard();
+    return fresh;
+  }
   async function submitTurnIn(form){
     const v = Object.fromEntries(new FormData(form)), btn = form.querySelector('[type=submit]');
     btn.disabled = true;
     try {
-      v.url = String(v.url || '').trim();
-      const pullAt = /^at:\/\//.test(v.url) ? v.url : undefined, setup = { harness: v.harness, models: v.model ? [v.model] : [] };
-      if (!(pullAt ? parseUri(pullAt) : safeHttp(v.url))) throw new Error(stand(S.seed).idea ? 'That doesn’t look like a link. Paste the address where it lives.' : 'That doesn’t look like a link to a pull request. Paste its address.');
-      // Turning in something you hadn't said you were on (an agent handed it back): say so first, so the two records agree.
-      if (!myTake(S.seed)) { await S.source.take(S.seed, { setup, days: daysOf() }); S.seed = carry(S.seed, await S.source.seed(S.seed.uri, { force: true }) || S.seed); }
-      await S.source.turnIn(S.seed, { url: pullAt ? undefined : v.url, pull: pullAt, sessionUrl: v.sessionUrl, note: v.note, setup });
-      mark(S.seed.uri, 'turnin');
+      S.seed = await turnIn(S.seed, v);
       S.drafts.turnIn = null; S.launch = null; S.again = null;
       if (S.handBack) { S.handBack = null; try { history.replaceState(history.state, '', location.pathname); } catch (_) {} }
-      const who = firstName(S.seed.author);
-      S.seed = await reread(S.seed); S.boardAt = 0; loadBoard();
-      toast(`Turned in. It’s with ${who} now.`); render();
+      toast(`Turned in. It’s with ${firstName(S.seed.author)} now.`); render();
     } catch (e) { toast(plainText(e)); btn.disabled = false; }
+  }
+  // From the board: the link, and a note if you like, in a short dialog (./turnin.js). Opening the
+  // pull request from a pushed branch (Tangled and knotless) is on the ask's own page.
+  function turnInDialog(it){
+    if (!it) return;
+    const sq = it.value || {}, d = describeSubject(sq.subject), forge = d && signedIn() && S.source?.forgePull ? writableForge(sq.subject) : null;
+    openTurnIn({
+      asker: firstName(it.author), idea: !d,
+      placeholder: !d ? 'https://…' : { tangled: 'https://tangled.org/…/pulls/…', knotless: 'at://…/dev.knotless.pull/… or its page' }[d.forge] || 'https://github.com/…/pull/…',
+      branch: forge ? FORGE_SAID[forge] : null,
+      send: async v => { swapIn(await turnIn(it, v)); },
+      toPage: () => { S.open.pull = true; go(pathOf(it)); },
+      done: sent => { if (sent) render(); },
+      error: plainText
+    });
   }
 
   avatarFallback(root);
   root.addEventListener('click', e => {
     const t = e.target, plainClick = !e.metaKey && !e.ctrlKey && !e.shiftKey && e.button === 0;
     const tb = t.closest('[data-rs-tip]'); if (tb) { toggleTip(tb); return; }
+    // The paste button at the end of a link's field (the turn-in form's).
+    const ps = t.closest('[data-rs-paste]'); if (ps) { pasteInto(ps).then(ok => { if (!ok) toast(PASTE_REFUSED); }); return; }
     const goEl = t.closest('[data-rs-go]');
     if (goEl && plainClick) { e.preventDefault(); stash(); S.toTalk = goEl.dataset.rsTo === 'comments' ? goEl.dataset.rsGo : null; go(goEl.dataset.rsGo); return; }
     const pk = t.closest('[data-rs-pick]'); if (pk) { if (plainClick) { e.preventDefault(); pick(pk.dataset.rsPick); } return; }
     if (t.closest('[data-rs-close-sheet]')) { closeSheet(); return; }
-    const tk = t.closest('[data-rs-take]'); if (tk) { sendAgent(S.shown.find(i => i.uri === tk.dataset.rsTake), tk, { panel: true }); return; }
+    const tk = t.closest('[data-rs-take]'); if (tk) { sendAgent(S.shown.find(i => i.uri === tk.dataset.rsTake), tk); return; }
+    const ti = t.closest('[data-rs-turnin]'); if (ti) { turnInDialog(S.shown.find(i => i.uri === ti.dataset.rsTurnin)); return; }
     if (t.closest('.rs-post') && poster.click(t)) return;
     // Sorting and narrowing the board. (The control pressed keeps the focus, or the Filter
     // button does when what was pressed has gone.)

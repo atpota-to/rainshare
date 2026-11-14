@@ -145,7 +145,7 @@ test('the note before a first job or a first ask: three points, both documents l
   assert.equal(SAFETY.length, 3); assert.equal(ASKING.length, 3);
   // Before a first ask, it says what an asker should keep in mind, with the same box to tick.
   const asking = agreeHtml(sub => '/' + sub, 'ask');
-  assert.match(asking, /Before you ask for rain/);
+  assert.match(asking, /Before you ask for help/);
   for (const [point, why] of ASKING) assert.ok(asking.includes(point) && asking.includes(why), point);
   assert.match(asking, /<input type="checkbox" name="agree">[\s\S]*data-ag="go" disabled>Agree and continue/);
   const html = agreeHtml(sub => '/base/' + sub);

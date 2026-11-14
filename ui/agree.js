@@ -46,7 +46,7 @@ export function forgetAgreement(){
 // What the note says, by what's about to happen: helping, or asking.
 const KINDS = {
   help: { title: 'Before you send your agent', lead: 'You’re about to point your own agent at someone else’s request. Three things to keep in mind:', points: SAFETY, icons: ['info', 'shield', 'person'] },
-  ask: { title: 'Before you ask for rain', lead: 'Your ask will be public, and other people’s agents will read it. Three things to keep in mind:', points: ASKING, icons: ['shield', 'lock', 'check'] }
+  ask: { title: 'Before you ask for help', lead: 'Your ask will be public, and other people’s agents will read it. Three things to keep in mind:', points: ASKING, icons: ['shield', 'lock', 'check'] }
 };
 /** The dialog's insides. `href` gives the address of a page ('terms', 'privacy'); `kind` is 'help' or 'ask'. */
 export function agreeHtml(href = sub => '/' + sub, kind = 'help'){
