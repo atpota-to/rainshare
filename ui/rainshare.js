@@ -289,13 +289,13 @@ export function createRainshare({ root, base = '/', host }){
   function grewNote(){
     const g = signedIn() ? S.grew || [] : [];
     if (!g.length) return '';
-    const one = g[0], said = one.thanks ? ` <q class="rs-grew-thanks">${esc(one.thanks)}</q>` : '';
+    const one = g[0], said = one.thanks ? ` ${esc(firstName(one.author))} said: “${esc(one.thanks)}”` : '';
     const names = g.length > 3 ? [...g.slice(0, 2).map(x => `“${x.title}”`), `${g.length - 2} more`] : g.map(x => `“${x.title}”`);
     const text = g.length === 1 ? `<b>${esc(firstName(one.author))} accepted your work on “${esc(one.title)}”.</b> It’s grown in your garden.${said}`
       : `<b>${g.length} things you helped with were accepted:</b> ${esc(join(names))}. They’ve grown in your garden.`;
-    return `<div class="rs-note rs-on rs-grew" role="status"><div class="rs-grew-plants" aria-hidden="true">${g.slice(0, 3).map(x => plantPic(x.picture || x.stage, 52, { key: x.uri, cls: 'rs-grow' })).join('')}</div>
+    return `<div class="rs-note rs-on rs-grew" role="status">${plantPic(one.picture || one.stage, 44, { key: one.uri, cls: 'rs-grow' })}
       <span>${text}</span>
-      <div class="rs-row">${a('profile/' + viewer(), 'See your garden', 'rs-btn rs-primary rs-sm')}<button class="rs-link" type="button" data-rs-act="grew-seen">Got it</button></div></div>`;
+      <div class="rs-row">${a('profile/' + viewer(), 'See your garden', 'rs-link')}<button class="rs-link" type="button" data-rs-act="grew-seen">Got it</button></div></div>`;
   }
   // A garden, drawn: a line saying what's in it, and a plant for each one, named, with whose it
   // was. Picking one says more about it under them: the work, what it was done with, and what
@@ -307,8 +307,8 @@ export function createRainshare({ root, base = '/', host }){
     if (!garden) return gardenSk();
     const yours = whose === 'You', all = [...garden, ...(buds || [])], nb = buds?.length || 0;
     all.forEach(g => plots.set(plotKey(g), g));
-    const said = garden.length ? `${esc(whose)}${yours ? '’ve' : ' has'} helped with ${esc(wateredText(garden))}.${nb ? ` ${nb === 1 ? 'One more is' : `${nb} more are`} merged and waiting to be accepted.` : ''}`
-      : nb ? `Nothing’s been accepted yet. ${nb === 1 ? 'One pull request is' : `${nb} pull requests are`} merged and waiting on whoever asked.`
+    const said = garden.length ? `${esc(whose)}${yours ? '’ve' : ' has'} helped with ${esc(wateredText(garden))}.`
+      : nb ? 'Nothing’s been accepted yet.'
         : yours ? 'Nothing yet. What gets done with your help grows here.' : `${esc(whose)} hasn’t helped with anything yet.`;
     if (!all.length) return `<div class="rs-panel"><p class="rs-muted">${said}</p></div>`;
     const picked = all.find(g => plotKey(g) === S.open['plot:' + id]) || all[0];
@@ -321,10 +321,10 @@ export function createRainshare({ root, base = '/', host }){
   const askerWord = g => g.repo === viewer() ? 'you' : firstName(g.author);
   function plotTile(g, { on, fresh, id }){
     const name = g.shared ? g.title : 'Shared with fewer people';
-    const sub = !g.shared ? '' : g.budding ? `Waiting on ${askerWord(g)}` : `For ${askerWord(g)}`;
-    return `<li><button type="button" class="rs-plot${g.budding ? ' rs-bud' : ''}${fresh ? ' rs-new' : ''}" data-rs-plot="${esc(plotKey(g))}" data-rs-garden-id="${id}" aria-pressed="${on}" aria-controls="rsPlot-${id}">
+    const sub = [!g.shared ? '' : g.budding ? `Waiting on ${askerWord(g)}` : `For ${askerWord(g)}`, fresh ? 'new' : ''].filter(Boolean).join(' · ');
+    return `<li><button type="button" class="rs-plot${g.budding ? ' rs-bud' : ''}" data-rs-plot="${esc(plotKey(g))}" data-rs-garden-id="${id}" aria-pressed="${on}" aria-controls="rsPlot-${id}">
       ${plantPic(g.picture || g.stage, 76, { key: g.uri, cls: fresh ? 'rs-grow' : '' })}
-      <span class="rs-plot-name">${esc(name)}</span>${sub ? `<small>${esc(sub)}</small>` : ''}${fresh ? '<span class="rs-plot-new">New</span>' : ''}
+      <span class="rs-plot-name">${esc(name)}</span>${sub ? `<small>${esc(sub)}</small>` : ''}
     </button></li>`;
   }
   // The one picked, in a few lines. (The example's pull requests are made up, so they aren't links.)
@@ -335,10 +335,10 @@ export function createRainshare({ root, base = '/', host }){
     const label = g.idea ? 'What was built' : 'The pull request', link = !S.source?.demo && safeHttp(g.link);
     const work = !g.link ? '' : link ? `<a class="rs-link" href="${esc(link)}" target="_blank" rel="noopener nofollow">${ico(g.idea ? 'link' : 'pull')}${label}${ico('out')}</a>` : `<span class="rs-plot-work">${ico(g.idea ? 'link' : 'pull')}${label}</span>`;
     const made = setupText(g.setup);
-    const thanks = g.thanks ? `<figure class="rs-thanks"><blockquote>${esc(g.thanks)}</blockquote><figcaption>${g.repo === viewer() ? 'Your thanks' : esc(firstName(g.author)) + '’s thanks'}</figcaption></figure>` : '';
+    const thanks = g.thanks ? `<p class="rs-thanks"><b>${g.repo === viewer() ? 'You' : esc(firstName(g.author))}</b> said: “${esc(g.thanks)}”</p>` : '';
     const bud = !g.budding ? '' : g.repo === viewer()
-      ? `<p class="rs-note rs-heed">${ico('info')}<span>The pull request has been merged, but you haven’t accepted it on Rainshare yet, so it isn’t counted in their garden. If it did the job, accept it.</span>${a(pathOf(g), 'Look it over', 'rs-btn rs-primary rs-sm')}</p>`
-      : `<p class="rs-note rs-heed">${ico('info')}<span>The pull request has been merged, but ${esc(askerWord(g))} hasn’t accepted it on Rainshare yet, so it isn’t counted. Only whoever asked can say it did the job.</span></p>`;
+      ? `<p class="rs-muted">It’s been merged. It counts once you accept it. ${a(pathOf(g), 'Look it over', 'rs-link')}</p>`
+      : `<p class="rs-muted">It’s been merged. It counts once ${esc(askerWord(g))} accepts it on Rainshare.</p>`;
     return `<div class="rs-plot-top">${face(g.author || {}, 'sm')}<span>${a(pathOf(g), `<b>${esc(g.title)}</b>`, 'rs-plot-title')}<small>${esc(whose)} · ${esc(g.budding ? 'turned in' : 'accepted')} ${esc(shortDay(g.at))}</small></span></div>
       ${thanks}${bud}${work || made ? `<div class="rs-row rs-plot-more">${work}${made ? `<small>Done with ${esc(made)}</small>` : ''}</div>` : ''}`;
   }
@@ -538,7 +538,7 @@ export function createRainshare({ root, base = '/', host }){
       const it = all[0], hs = helpers(it), n = (it.deliveries || []).length, idea = !describeSubject(it.value?.subject);
       const who = hs.length > 1 ? `${hs.length} people` : firstName(hs[0]), what = idea ? 'something they built' : n > 1 ? 'pull requests' : 'a pull request';
       body = `<span><b>${esc(who)} turned in ${what} for “${esc(it.value.title)}”${merged(it) ? ', and it’s been merged' : ''}.</b> If it does the job, accept it, and it grows in ${hs.length > 1 ? 'their gardens' : 'their garden'}.</span>
-        <div class="rs-row">${a(pathOf(it), 'Look it over', 'rs-btn rs-primary rs-sm')}<button class="rs-link" type="button" data-rs-act="waiting-later">Not now</button></div>`;
+        <div class="rs-row">${a(pathOf(it), 'Look it over', 'rs-link')}<button class="rs-link" type="button" data-rs-act="waiting-later">Not now</button></div>`;
     } else {
       body = `<span><b>Work is waiting for you on ${all.length} of your asks.</b> Accepting what does the job is how it grows in your helpers’ gardens.</span>
         <ul class="rs-waiting-list">${all.map(it => `<li>${a(pathOf(it), esc(it.value.title), 'rs-link')}<small>${esc(join(helpers(it).map(firstName)))}${merged(it) ? ' · merged' : ''}</small></li>`).join('')}</ul>
@@ -629,7 +629,7 @@ export function createRainshare({ root, base = '/', host }){
     return `<form class="rs-form rs-accept" data-rs-form="accept">
       <input type="hidden" name="uri" value="${esc(pl.uri)}">
       <p><b>Accept ${esc(what)}?</b> Your ${esc(nounOf(sq))} is marked done, and it grows in ${h.mine ? 'your' : esc(first) + '’s'} garden.</p>
-      ${h.mine ? '' : `<label>Say thanks <small>(optional, public: it’s kept with your ${esc(nounOf(sq))}, and shows beside the plant in ${esc(first)}’s garden)</small><input name="thanks" maxlength="300" autocomplete="off" placeholder="Thank you, this was just what I needed." value="${esc(S.drafts.thanks || '')}"></label>`}
+      ${h.mine ? '' : `<label>Say thanks <small>(optional, public, shown in ${esc(first)}’s garden)</small><input name="thanks" maxlength="300" autocomplete="off" placeholder="Thank you, this was just what I needed." value="${esc(S.drafts.thanks || '')}"></label>`}
       ${vouch ? `<label class="rs-check"><input type="checkbox" name="vouch"${on ? ' checked' : ''}> Vouch for ${esc(first)} on Tangled too</label>
         <label class="rs-accept-why"${on ? '' : ' hidden'}>Why you vouch for them <small>(optional, public)</small><input name="reason" maxlength="256" value="${esc(`Helped with “${sq.title}” through Rainshare.`)}"></label>` : ''}
       <div class="rs-row"><button class="rs-btn rs-primary rs-sm" type="submit">${ico('check')}Accept</button><button class="rs-link" type="button" data-rs-act="accept-cancel">Cancel</button></div>
@@ -642,7 +642,7 @@ export function createRainshare({ root, base = '/', host }){
     const others = pr.helpers.filter(x => x.didIt && !x.mine);
     // Thanks kept with the ask, shown beside the plant in their garden: said when accepting, or here after.
     const writing = S.open.thanks === it.uri;
-    if (others.length && !writing) items.push(`<button class="rs-btn rs-quiet rs-sm" type="button" data-rs-act="thanks-open">${sq.thanks ? 'Change your thanks' : 'Say thanks here'}</button>`);
+    if (others.length && !writing && !sq.thanks) items.push(`<button class="rs-btn rs-quiet rs-sm" type="button" data-rs-act="thanks-open">Say thanks</button>`);
     for (const h of others) {
       const first = firstName(h.author), thank = thankUrl(it, h);
       if (thank) items.push(`<a class="rs-btn rs-quiet rs-sm" href="${esc(thank)}" target="_blank" rel="noopener">Thank ${esc(first)} on Bluesky${ico('out')}</a>`);
@@ -653,15 +653,18 @@ export function createRainshare({ root, base = '/', host }){
     const form = vouching ? vouchForm(vouching.did, vouching.author, { evidence: S.vouching.evidence, reason: `Helped with “${sq.title}” through Rainshare.` }) : '';
     const names = join(others.map(h => firstName(h.author) + '’s'));
     const thanksForm = writing && others.length ? `<form class="rs-form rs-thanksform" data-rs-form="thanks">
-        <label>Your thanks <small>(public: it’s kept with your ${esc(nounOf(sq))}, and shows beside the plant in ${esc(names)} garden)</small><input name="thanks" maxlength="300" autocomplete="off" value="${esc(S.drafts.thanks ?? sq.thanks ?? '')}" placeholder="Thank you, this was just what I needed."></label>
+        <label>Your thanks <small>(public, shown in ${esc(names)} garden)</small><input name="thanks" maxlength="300" autocomplete="off" value="${esc(S.drafts.thanks ?? sq.thanks ?? '')}" placeholder="Thank you, this was just what I needed."></label>
         <div class="rs-row"><button class="rs-btn rs-primary rs-sm" type="submit">Save</button><button class="rs-link" type="button" data-rs-act="thanks-cancel">Cancel</button></div>
       </form>` : '';
     return items.length || form || thanksForm ? `<div class="rs-follow">${items.length ? `<div class="rs-row">${items.join('')}</div>` : ''}${thanksForm}${form}</div>` : '';
   }
-  // What whoever asked said when they accepted it, on the ask: under who did it.
-  const thanksQuote = it => {
+  // What whoever asked said when they accepted it, on the ask: under who did it. They can
+  // change it from here (while it's being changed, the form says it instead).
+  const thanksQuote = (it, { own } = {}) => {
     const t = it.value?.state === 'sprouted' && typeof it.value.thanks === 'string' ? it.value.thanks.trim() : '';
-    return t ? `<figure class="rs-thanks"><blockquote>${esc(t)}</blockquote><figcaption>${it.repo === viewer() ? 'Your thanks' : esc(firstName(it.author)) + '’s thanks'}</figcaption></figure>` : '';
+    if (!t || S.open.thanks === it.uri) return '';
+    const change = own ? ` <button class="rs-link" type="button" data-rs-act="thanks-open">Change</button>` : '';
+    return `<p class="rs-thanks"><b>${it.repo === viewer() ? 'You' : esc(firstName(it.author))}</b> said: “${esc(t)}”${change}</p>`;
   };
   // Where it stands and who's helping. On the ask's own page (`full`), it's also where whoever
   // asked does what comes next (`own`, from standing): share it while nobody's on it, accept what
@@ -682,7 +685,7 @@ export function createRainshare({ root, base = '/', host }){
       <p class="rs-progress-head"><span class="rs-pill rs-pill-${pr.key}">${lifeIco(PROGRESS_LIFE[pr.key])}${esc(pr.label)}</span>${note ? `<span class="rs-muted">${esc(note)}</span>` : ''}</p>
       ${share}${next}
       ${pr.helpers.length ? `<ul class="rs-helpers" aria-label="Who’s helping">${pr.helpers.map(h => helperRow(h, ctx)).join('')}</ul>` : ''}
-      ${thanksQuote(it)}
+      ${thanksQuote(it, { own: !!own && pr.helpers.some(h => h.didIt && !h.mine) })}
       ${own && it.value?.state === 'sprouted' ? followUps(it, pr, own) : ''}
     </div>`;
   }
@@ -1529,17 +1532,18 @@ export function createRainshare({ root, base = '/', host }){
     if (!o.activity) return head + activitySk();
     const counts = activityCounts(o.activity), st = S.open.act || { filter: 'all', n: ACT_PAGE }, filter = counts[st.filter] ? st.filter : 'all';
     const list = o.activity.filter(x => x.tags.has(filter)), shown = list.slice(0, st.n);
-    const chips = counts.all > 1 ? `<div class="rs-from rs-act-filter" role="group" aria-label="Which to show">${ACTIVITY_KINDS.filter(([k]) => k === 'all' || counts[k]).map(([k, l]) => `<button type="button" data-rs-actf="${k}" aria-pressed="${filter === k}">${esc(l)}<span class="rs-from-n">${counts[k]}</span></button>`).join('')}</div>` : '';
+    // (Narrowing it only helps once there's more than a page of it.)
+    const chips = counts.all > ACT_PAGE ? `<div class="rs-from rs-act-filter" role="group" aria-label="Which to show">${ACTIVITY_KINDS.filter(([k]) => k === 'all' || counts[k]).map(([k, l]) => `<button type="button" data-rs-actf="${k}" aria-pressed="${filter === k}">${esc(l)}<span class="rs-from-n">${counts[k]}</span></button>`).join('')}</div>` : '';
     const body = !o.activity.length ? `<p class="rs-muted">${o.activityErr ? 'It couldn’t be read just now.' : self ? 'Nothing yet. What you ask for, take on and comment on shows up here.' : `Nothing from ${esc(first)} that you can see yet.`}</p>`
-      : `<ol class="rs-activity">${shown.map(storyLi).join('')}</ol>${list.length > shown.length ? `<div class="rs-row"><button class="rs-btn rs-quiet rs-sm" type="button" data-rs-act="act-more">Show more <span class="rs-from-n">${list.length - shown.length}</span></button></div>` : ''}`;
+      : `<ol class="rs-activity">${shown.map(storyLi).join('')}</ol>${list.length > shown.length ? `<div class="rs-row"><button class="rs-link" type="button" data-rs-act="act-more">Show ${Math.min(ACT_PAGE, list.length - shown.length)} more</button></div>` : ''}`;
     return `${head}<section class="rs-panel rs-act-box" aria-label="${esc(self ? 'What you’ve been doing' : `What ${first}’s been doing`)}">${chips}${body}</section>`;
   }
   function storyLi(s){
     if (s.kind === 'vouched') {
       const q = s.person || {}, who = q.did === viewer() ? 'you' : nameOf(q);
-      return `<li class="rs-act"><span class="rs-act-pic rs-act-hat" aria-hidden="true">${ico('hat')}</span><div class="rs-act-body">
+      return `<li class="rs-act"><span class="rs-act-pic rs-act-face" aria-hidden="true">${face(q)}</span><div class="rs-act-body">
         <p class="rs-act-head">Vouched for ${a('profile/' + q.did, esc(who), 'rs-act-title')} on Tangled</p>
-        <ol class="rs-act-steps"><li>${s.reason ? `<q>${esc(s.reason)}</q>` : 'Vouched'}${dayTag(s.at)}</li></ol></div></li>`;
+        <ol class="rs-act-steps"><li>${s.reason ? `“${esc(s.reason)}”` : 'Vouched'}${dayTag(s.at)}</li></ol></div></li>`;
     }
     const sq = s.seed, v = sq.value || {}, yours = sq.repo === viewer();
     const whose = yours ? 'your' : `${firstName(sq.author)}’s`, them = yours ? 'you' : firstName(sq.author);
