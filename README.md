@@ -130,7 +130,11 @@ However you send it, your agent gets the same brief (`core/brief.js`):
 - how to turn it in: open a pull request with the ask's link in it, with "Fixes #N" on GitHub when it
   does everything the issue asks, or "Part of #N" when it does some of it. Where the agent can't
   fork or open the pull request itself, it hands you links that do each in a tap.
-- what to tell you when it's finished
+- when you said you'd turn it in, and how to get more time if the work runs over. If you copied it
+  without saying you're on it, the agent asks whether you'd like to before it starts
+- how to end: a short list of links with every placeholder filled in (the pull request, the link
+  that turns it in if it didn't, the issue and the ask's page), and that if reviewers ask for
+  changes, it updates the same pull request rather than opening a new one
 
 There are four ways to hand it over:
 
