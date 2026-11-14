@@ -1,14 +1,15 @@
 // "Send my agent": one short screen before anything is written, so pressing it never says
 // you're on something you only meant to look at. As little as it can be:
 //
+//   what    under the heading, one line: your agent gets the ask as its asker wrote it, inside
+//           Rainshare's safety rules (../core/brief.js). The ⓘ says what the rules ask of the
+//           agent, and that they can't catch everything, so read the ask first. Nothing here
+//           claims more than that.
 //   how     a row of chips: the way your profile says you run (or the prompt to paste, if it
-//           doesn't say), the prompt, and "More" for the rest. One short line says what the
-//           picked one does.
-//   what    one line: your agent gets the ask as its asker wrote it, inside Rainshare's safety
-//           rules (../core/brief.js). The ⓘ says what the rules ask of the agent, and that they
-//           can't catch everything, so read the ask first. Nothing here claims more than that.
-//   then    "I’m on it, copy …", which says you’re on it for a day (the other lengths behind
-//           "Change"), or a quieter "Just copy it for now".
+//           doesn't say), the prompt, and "More" for the rest. What each does is said beside
+//           its command once it's sent, so nothing comes between the chips and the button.
+//   then    "I'm on it, copy …", which says you're on it for a day (the other lengths behind
+//           "Change"), or a quieter "Or just copy it for now".
 //
 // Ticking "Skip this screen next time" keeps these answers in your settings (dev.rainshare.preferences)
 // and the button does the same thing from then on; nothing is kept otherwise. Nothing is written
@@ -36,15 +37,13 @@ export function splitWays(ways, route){
 
 /**
  * Open it.
- *   title    the ask's title
  *   asker    what to call whoever asked ("Kai")
- *   ways     [{ id, name, note }]: how it can be sent (`note` says in a few words what it does)
+ *   ways     [{ id, name }]: how it can be sent
  *   answers  what's picked to begin with: { route, claim, days, askEachTime }
  *   send     does it, with the answers; throws to say it didn't. It's only closed once that's done.
- *   setup    opens the page for setting up the CLI and MCP server (the dialog closes first)
  *   error    what a failed send says, in plain words
  */
-export function openSend({ title, asker, ways, answers, send, setup = null, error = e => e?.message || 'Something went wrong. Try again in a moment.' }){
+export function openSend({ asker, ways, answers, send, error = e => e?.message || 'Something went wrong. Try again in a moment.' }){
   if (document.querySelector('.rs-sd')) return;
   const st = { busy: false, moreDays: false, moreWays: false, skip: false, ...answers };
   if (!ways.some(w => w.id === st.route)) st.route = ways[0]?.id;
@@ -71,14 +70,9 @@ export function openSend({ title, asker, ways, answers, send, setup = null, erro
   }
   function paint(){
     const shown = st.moreWays || rest.some(w => w.id === st.route) ? [...first, ...rest] : first;
-    const way = ways.find(w => w.id === st.route);
     box.innerHTML = `<div class="rs-wl-top"><h2 id="rsSdTitle" tabindex="-1">Send your agent</h2><button class="rs-wl-x" type="button" data-sd="cancel" aria-label="Close">${ico('close')}</button></div>
-      <p class="rs-sd-what">${esc(title)}</p>
-      <div class="rs-sd-how">
-        <div class="rs-chips" role="group" aria-label="Send it with" data-rs-glide="way">${shown.map(w => `<button type="button" data-sd-way="${esc(w.id)}" aria-pressed="${w.id === st.route}">${esc(w.name)}</button>`).join('')}${shown === first && rest.length ? '<button type="button" data-sd="more" class="rs-sd-more">More</button>' : ''}</div>
-        <p class="rs-sd-note">${esc(way?.note || '')}${setup && (st.route === 'cli' || st.route === 'mcp') ? ' <button class="rs-link" type="button" data-sd="setup">Set it up</button>' : ''}</p>
-      </div>
-      <p class="rs-sd-intro">Your agent gets ${esc(asker)}’s ask as written, inside Rainshare’s safety rules ${RULES}</p>
+      <p class="rs-sd-intro">It gets ${esc(asker)}’s ask as written, inside Rainshare’s safety rules ${RULES}</p>
+      <div class="rs-chips" role="group" aria-label="Send it with" data-rs-glide="way">${shown.map(w => `<button type="button" data-sd-way="${esc(w.id)}" aria-pressed="${w.id === st.route}">${esc(w.name)}</button>`).join('')}${shown === first && rest.length ? '<button type="button" data-sd="more" class="rs-sd-more">More</button>' : ''}</div>
       <div class="rs-sd-go">
         <button class="rs-btn rs-primary" type="button" data-sd="claim">I’m on it, copy ${what()}</button>
         <p class="rs-sd-days-line">Tells ${esc(asker)} you’re on it for ${esc(daysSaid())}. <button class="rs-link" type="button" data-sd="days" aria-expanded="${st.moreDays}" aria-controls="rsSdDays">Change</button></p>
@@ -118,7 +112,6 @@ export function openSend({ title, asker, ways, answers, send, setup = null, erro
     if (act === 'cancel') closeSoftly(dlg);
     else if (act === 'more') { st.moreWays = true; paint(); box.querySelector(`[data-sd-way="${rest[0]?.id}"]`)?.focus(); }
     else if (act === 'days') { st.moreDays = !st.moreDays; paint(); box.querySelector('[data-sd="days"]')?.focus(); }
-    else if (act === 'setup') { closeSoftly(dlg); setup?.(); }
     else if (act === 'claim') submit(b, true);
     else if (act === 'copy') submit(b, false);
   });
