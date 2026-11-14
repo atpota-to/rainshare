@@ -23,10 +23,27 @@
 .rd-pitch>.rd-new{margin-top:-8px;font-size:16px;line-height:1.5}
 .rd-new button{border:0;background:none;padding:6px 0;margin:-6px 0;font:700 16px/1.5 var(--body);color:var(--accent);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 /* Under the sign-in: the way down to the real board, with the faces of whoever's asking. It's
-   on a pane of frosted glass, like the scene's labels, since it stands in the meadow. Its room
-   is kept while the board loads, and it comes in once there's something to say. */
+   on a pane of frosted glass, like the scene's labels, since it stands in the meadow. It's there
+   from the first paint, so the way down shows at once: while the board loads, soft placeholders
+   stand where the faces and the count go, and the real ones fade in over them (and the pane
+   grows or shrinks to fit). If nothing's open, it fades away. */
 .rd-peek{display:inline-flex;align-items:center;gap:10px;width:fit-content;max-width:100%;min-height:44px;margin-top:2px;padding:6px 7px 6px 8px;border-radius:999px;background:var(--pin);box-shadow:0 0 0 1px var(--pin-edge);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);color:var(--ink);font:700 15px/1.25 var(--body);text-decoration:none;visibility:hidden;opacity:0;translate:0 6px;transition:opacity .6s ease,translate .6s ease,visibility 0s .6s}
-.rd-peek.in{visibility:visible;opacity:1;translate:none;transition:opacity .6s ease,translate .6s ease,background .2s}
+.rd-peek.in{visibility:visible;opacity:1;translate:none;transition:opacity .6s ease,translate .6s ease,background .2s,width .45s cubic-bezier(.3,.7,.2,1)}
+/* (while it grows to the real words, they keep to one line and don't spill out past the arrow) */
+.rd-peek.grow .rd-peek-words{white-space:nowrap;overflow:hidden}
+.rd-peek-skel{display:block;flex:none;background:color-mix(in srgb,var(--ink) 14%,var(--card));animation:rd-skel 1.4s ease-in-out infinite}
+.rd-peek-faces .rd-peek-skel{width:26px;height:26px;border-radius:50%;margin-left:-8px;box-shadow:0 0 0 2px var(--card)}
+.rd-peek-faces .rd-peek-skel:first-child{margin-left:0}
+.rd-peek-faces .rd-peek-skel:nth-child(2){animation-delay:.12s}
+.rd-peek-faces .rd-peek-skel:nth-child(3){animation-delay:.24s}
+.rd-peek-words .rd-peek-skel{width:min(15em,52vw);height:.8em;border-radius:999px;animation-delay:.18s}
+@keyframes rd-skel{0%,100%{opacity:.55}50%{opacity:1}}
+/* the real faces and words, once they're in */
+.rd-peek:not(.wait) .rd-peek-faces>*,.rd-peek:not(.wait) .rd-peek-words{animation:rd-peek-fill .5s ease both}
+.rd-peek:not(.wait) .rd-peek-faces>:nth-child(2){animation-delay:.06s}
+.rd-peek:not(.wait) .rd-peek-faces>:nth-child(3){animation-delay:.12s}
+.rd-peek:not(.wait) .rd-peek-words{animation-delay:.08s}
+@keyframes rd-peek-fill{from{opacity:0;filter:blur(3px)}}
 .rd-peek:hover{background:var(--card)}
 .rd-peek-faces{display:inline-flex;flex:none}
 .rd-peek-faces:empty{display:none}
@@ -223,4 +240,6 @@ body:has(#landing:not([hidden])>.rd-garden:not(.flat)) #circle .rs-head{--rs-mut
   .rd-view canvas,.rd-still,.rd-pins,.rd-peek,.rd-peek.in,.rd-peek-arrow{transition:none}
   .rd-peek{translate:none}
   .rd-peek.in .rd-peek-arrow svg{animation:none}
+  .rd-peek-skel{animation:none;opacity:.8}
+  .rd-peek:not(.wait) .rd-peek-faces>*,.rd-peek:not(.wait) .rd-peek-words{animation:none}
 }
