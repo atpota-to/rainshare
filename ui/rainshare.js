@@ -23,7 +23,7 @@
 // host.landing), shows the board under it there. The board's own address is then 'board', and
 // every way back to the board leads there, to the board on its own.
 import { SEED, PROFILE, STAGE, HANDLE, SITE, FEATURES, TAKE_DAYS, TAKE_DAYS_DEFAULT, ROUTES, PLANS, UNPAID, plansIn, HARNESSES, MODELS, RUNS_ON, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, NOTIFY, labelOf, modelName } from '../core/ns.js';
-import { describeSubject, cloneUrlOf, safeHttp, pullState, FORGE_NAMES } from '../core/subjects.js';
+import { describeSubject, safeHttp, pullState, FORGE_NAMES } from '../core/subjects.js';
 import { look, carry, standing } from '../core/status.js';
 import { newRepoPlaces, placesFor } from '../core/forges.js';
 import { writableForge, pickSource, pullText, FORGE_SAID } from '../core/forgewrite.js';
@@ -36,7 +36,7 @@ import { rank, fit, join, pretty, wantPhrase } from '../core/rank.js';
 import { whereText, jobAndNotes, modelsText, progressOf, progressShort, relationText, askExcerpt, askSizeText, stateText, pictureOf, stageOf, nounOf, aNoun, whatItIs, planText } from '../core/words.js';
 import { renderMarkdown } from '../core/markdown.js';
 import { threads, talksOn } from '../core/comments.js';
-import { brief, launchers, pageOf, readHandBack, readBranchBack, sh, INSTALL, MCP_ADD, CLI_HOME } from '../core/brief.js';
+import { brief, launchers, pageOf, readHandBack, readBranchBack, INSTALL, MCP_ADD, CLI_HOME } from '../core/brief.js';
 import { strongRef, HARNESS_NAMES, preferences as prefsRecord } from '../core/records.js';
 import { activeTakes, lapsed, dueOf } from '../core/takes.js';
 import { resolveHandle, knownPerson, parseUri, profiles, pool } from '../core/net.js';
@@ -159,7 +159,9 @@ export function createRainshare({ root, base = '/', host }){
     return `<span class="rs-rained" style="--rs-since:${m.since}ms;--rs-plant:${px}px">${pic}${was && was !== now ? plantPic(was, px, { key, cls: 'rs-was' }) : ''}<span class="rs-shower" aria-hidden="true">${CLOUD}${fall}</span></span>`;
   }
   // The whole seed as Markdown (the brief an agent gets), for pasting into any agent's session.
-  // (What it copies is the prompt: the asker's words in full, inside Rainshare's rules for an agent.)
+  // (What it copies is the prompt: the asker's words in full, inside Rainshare's rules for an agent.
+  // It's only offered signed out, where there's no "Send my agent": signed in, that's the one way to
+  // get the prompt, so there aren't two buttons that both copy it.)
   const mdBtn = (it, cls = 'rs-quiet') => `<button class="rs-btn ${cls}" type="button" data-rs-md="${esc(it.uri)}">${ico('copy')}Copy the prompt</button>`;
   // A forecast that ran out (its "until" has passed) isn't shown as if it were still true.
   // (Older CLIs saved a bare date as midnight UTC, so that's read as the end of that date.)
@@ -754,10 +756,10 @@ export function createRainshare({ root, base = '/', host }){
     const f = FEATURES.fit && !mine && open && signedIn() ? it.fit || fit(it, me()) : null;
     let buttons;
     if (!open) buttons = a(page, sq.state === 'sprouted' ? 'See how it went' : 'Open it', 'rs-btn rs-quiet');
-    else if (mine) buttons = a(page, 'Open it', 'rs-btn rs-primary') + mdBtn(it) + shareBtn(it);
+    else if (mine) buttons = a(page, 'Open it', 'rs-btn rs-primary') + shareBtn(it);
     else if (!signedIn()) buttons = (host.signIn ? '<button class="rs-btn rs-primary" type="button" data-rs-act="signin">Sign in to take it on</button>' : '') + mdBtn(it) + shareBtn(it);
-    else if (myTake(it)) buttons = a(page, 'You’re on it: turn it in', 'rs-btn rs-primary') + mdBtn(it);
-    else buttons = `<button class="rs-btn rs-primary" type="button" data-rs-take="${esc(it.uri)}">${ico('drop')}Send my agent</button>${mdBtn(it)}${shareBtn(it)}`;
+    else if (myTake(it)) buttons = a(page, 'You’re on it: turn it in', 'rs-btn rs-primary');
+    else buttons = `<button class="rs-btn rs-primary" type="button" data-rs-take="${esc(it.uri)}">${ico('drop')}Send my agent</button>${shareBtn(it)}`;
     const hint = open && !mine && signedIn() && !myTake(it) ? sendHint(it) : '';
     const st = open && !mine && !myTake(it) ? stand(it) : null;
     return `<article class="rs-detail">
@@ -873,7 +875,7 @@ export function createRainshare({ root, base = '/', host }){
       // (Just said you're on it: the note that says so is in view too, over the commands.)
       (root.querySelector('.rs-moment-note') || root.querySelector('#rsLaunch'))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
-    if (start.askEachTime || ask) return openSend({ title: it.value?.title || '', asker: firstName(it.author), ways: ways(it).map(w => ({ id: w.id, name: WAY_NAME[w.id] || w.label, note: WAY_SHORT[w.id] || w.note })), answers: start, send, setup: () => go('agents'), error: plainText });
+    if (start.askEachTime || ask) return openSend({ asker: firstName(it.author), ways: ways(it).map(w => ({ id: w.id, name: WAY_NAME[w.id] || w.label })), answers: start, send, error: plainText });
     try { await send(start); } catch (e) { console.warn('rainshare send', e); toast(plainText(e)); if (el) el.disabled = false; }
   }
   // The way picked, copied for pasting. `claimed`: whether the take was just written.
@@ -999,15 +1001,8 @@ export function createRainshare({ root, base = '/', host }){
     { id: 'brief', label: 'Any agent, by pasting', note: 'Nothing to install. Paste it into Claude Code, Codex or a chat window that can reach the repo.', command: briefFor(it), copied: 'Copied the prompt. Paste it into your agent.' },
     ...launchers(it, { viewer: viewer() }).map(l => ({ ...l, copied: `Copied the ${l.label} command. Paste it in a terminal.` }))
   ];
-  // Each way by a word or two, to pick between, and in a line, for the send dialog (the longer
-  // notes are beside the commands once it's sent).
-  const WAY_SHORT = {
-    brief: 'Paste it into any agent. Nothing to install.',
-    cloud: 'Runs it as a cloud session on your fork, so it keeps going after you close your laptop.',
-    cli: 'Takes it on, starts your agent, and turns it in when it’s done. Needs the CLI.'
-  };
   // Each way by a word or two, to pick between.
-  const WAY_NAME = { brief: 'Copy the prompt', claude: 'Claude Code', cloud: 'Claude Code in the cloud', codex: 'Codex', cli: 'Rainshare CLI', mcp: 'MCP' };
+  const WAY_NAME = { brief: 'Any agent', claude: 'Claude Code', cloud: 'Claude Code in the cloud', codex: 'Codex', cli: 'Rainshare CLI', mcp: 'MCP' };
   // What to do next, once it's been sent: the one way picked (the one just copied), what it does,
   // and the prompt or command to copy. The other ways are a press away, under "Use a different agent".
   function renderLaunch(it){
@@ -1353,7 +1348,7 @@ export function createRainshare({ root, base = '/', host }){
     if (S.seedErr) { title('Nothing here'); return nothingHere(plain(S.seedErr), S.seedErr.who ? a('profile/' + S.seedErr.who, 'See who asked', 'rs-btn rs-quiet') : ''); }
     const it = S.seed;
     if (!it) return newHere() + back() + seedSk();
-    const sq = it.value || {}, p = it.author || {}, mine = it.repo === viewer(), taken = myTake(it), d = describeSubject(sq.subject), clone = cloneUrlOf(sq.subject);
+    const sq = it.value || {}, p = it.author || {}, mine = it.repo === viewer(), taken = myTake(it), d = describeSubject(sq.subject);
     const page = pageOf(it), open = isOpen(it), issue = it.issue, st = stand(it), forge = FORGE_NAMES[d?.forge] || 'the forge';
     // Hidden by Rainshare (../core/moderation.js): only whoever asked, and @rainshare.dev, see what it says.
     const hid = it.hidden || null;
@@ -1369,7 +1364,7 @@ export function createRainshare({ root, base = '/', host }){
         : sq.owner === 'requester' ? `No repo yet. ${mine ? 'You’d' : esc(firstName(p)) + ' would'} like one started${mine ? '' : ' for them'}: ${mine ? 'a helper will ask where it should live' : 'ask where it should live'}.`
           : 'No repo yet. A helper can start one, or suggest where it should live.'}${open ? startOn : ''}`
       : `${esc(whereText(sq))}${issue?.title ? `<br><span class="rs-muted">“${esc(issue.title)}”${issue.state ? `, ${esc(issue.state)}` : ''}</span>` : ''}
-        <span class="rs-row rs-where-links">${d.href && !it.example ? `<a class="rs-link" href="${esc(d.href)}" target="_blank" rel="noopener">Open on ${esc(FORGE_NAMES[d.forge] || 'the forge')}</a>` : ''}${pulls ? `<a class="rs-link" href="${esc(pulls)}" target="_blank" rel="noopener">Its pull requests</a>` : ''}${clone && !S.launch ? `<button class="rs-link" type="button" data-rs-copy-text="${esc('git clone ' + sh(clone))}">Copy the clone command</button>` : ''}</span>`;
+        <span class="rs-row rs-where-links">${d.href && !it.example ? `<a class="rs-link" href="${esc(d.href)}" target="_blank" rel="noopener">Open on ${esc(FORGE_NAMES[d.forge] || 'the forge')}</a>` : ''}${pulls ? `<a class="rs-link" href="${esc(pulls)}" target="_blank" rel="noopener">Its pull requests</a>` : ''}</span>`;
     const facts = [
       ['Where', where],
       ['The job', esc(jobAndNotes(sq))],
@@ -1400,9 +1395,10 @@ export function createRainshare({ root, base = '/', host }){
     } else if (!open) {
       actions = `<p class="rs-muted">${sq.state === 'sprouted' ? 'It’s done, so there’s nothing left to take on.' : 'It’s closed, so there’s nothing to take on.'}</p>`;
     } else if (!taken && !handed) {
-      // Copied without saying you're on it (./send.js): the commands are open, and saying so is a press away.
+      // Copied without saying you're on it (./send.js): the commands are open, and saying so is a
+      // press away, in their place of "Send my agent", which would only copy it again.
       const copied = S.launch ? `<p class="rs-note">${ico('info')}<span>Nobody’s been told you’re on it. If you start, say so, so nobody does it twice.</span><button class="rs-btn rs-primary rs-sm" type="button" data-rs-act="claim">I’m on it</button></p>${renderLaunch(it)}` : '';
-      actions = `${heedNote(it, st)}${copied}<div class="rs-row"><button class="rs-btn ${st.clear && !S.launch ? 'rs-primary rs-big' : 'rs-quiet'}" type="button" data-rs-act="take">${ico('drop')}${st.clear ? 'Send my agent' : 'Send my agent anyway'}</button>${shareBtn(it)}</div>${sendHint(it)}`;
+      actions = `${heedNote(it, st)}${copied}<div class="rs-row">${S.launch ? '' : `<button class="rs-btn ${st.clear ? 'rs-primary rs-big' : 'rs-quiet'}" type="button" data-rs-act="take">${ico('drop')}${st.clear ? 'Send my agent' : 'Send my agent anyway'}</button>`}${shareBtn(it)}</div>${S.launch ? '' : sendHint(it)}`;
     } else {
       const v = S.drafts.turnIn || {};
       // Once it's turned in, the form steps aside: what's left is the planter's to do.
@@ -1432,7 +1428,7 @@ export function createRainshare({ root, base = '/', host }){
             })(moment(it, 'accept'))}
           </div>
           ${progressBlock(it, { full: true, own: mine ? st : null })}
-          <section class="rs-ask-full"><div class="rs-ask-head"><h2>The ask</h2>${hid ? '' : mdBtn(it, 'rs-quiet rs-sm')}</div>
+          <section class="rs-ask-full"><div class="rs-ask-head"><h2>The ask</h2>${hid || signedIn() ? '' : mdBtn(it, 'rs-quiet rs-sm')}</div>
             ${askBody(sq, it.uri)}</section>
           ${f ? fitBox(f) : ''}
           <dl class="rs-facts">${facts.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>

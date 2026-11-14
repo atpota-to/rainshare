@@ -168,7 +168,7 @@ export const AUDIENCES = [
 export const TAKE_DAYS = [[1, 'A day'], [3, '3 days'], [7, 'A week'], [14, '2 weeks']];
 export const TAKE_DAYS_DEFAULT = 1;
 // The ways "Send my agent" can hand an ask over (../core/brief.js has the commands).
-export const ROUTES = [['brief', 'Copy the prompt'], ['claude', 'Claude Code'], ['cloud', 'Claude Code in the cloud'], ['codex', 'Codex'], ['cli', 'Rainshare CLI'], ['mcp', 'MCP']];
+export const ROUTES = [['brief', 'The prompt, for any agent'], ['claude', 'Claude Code'], ['cloud', 'Claude Code in the cloud'], ['codex', 'Codex'], ['cli', 'Rainshare CLI'], ['mcp', 'MCP']];
 export const TESTS = [['required', 'Tests required'], ['welcome', 'Tests welcome'], ['none', 'No tests needed']];
 export const SIZES = [['tiny', 'Tiny'], ['small', 'Small'], ['medium', 'Medium'], ['large', 'Large']];
 // What's being asked about, by how far along it is: an idea (no repo), or a project that
