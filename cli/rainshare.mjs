@@ -452,7 +452,7 @@ const TOOLS = [
     inputSchema: { type: 'object', required: ['ref'], properties: { ref: { type: 'string', description: 'Its at:// URI or its Rainshare link' } } }, annotations: { readOnlyHint: true },
     run: async a => { const r = await doCheck(a.ref); return { text: checkText(r), data: { uri: r.item.uri, title: r.item.value.title, ...r.st } }; } },
   { name: 'rainshare_take', description: 'Tell the requester you’re on it: writes a dev.rainshare.take record to the signed-in account. Do this before starting work. It looks first: if someone else is on it, a pull request is already in, the issue has been closed, or Rainshare’s checks flagged the ask as a likely attempt to misuse an agent, nothing is written and it says why. Ask your user before calling it again with anyway: true. A take holds the ask for the days given; if nothing is turned in by then, others see it as free again, and calling this again gives more time.',
-    inputSchema: { type: 'object', required: ['ref'], properties: { ref: { type: 'string' }, harness: { type: 'string', description: 'What will do the work, e.g. claude-code, codex' }, model: { type: 'string', description: 'The model, e.g. claude-opus-5-5' }, note: { type: 'string' }, days: { type: 'integer', minimum: 1, maximum: 30, description: 'How many days until it’s turned in. After that, with nothing turned in, others see it as free again. Left out: the signed-in person’s setting, else 3.' }, anyway: { type: 'boolean', description: 'Take it on even though someone else is on it, it has been turned in, or it was flagged. Only after your user says so.' } } }, annotations: { destructiveHint: false },
+    inputSchema: { type: 'object', required: ['ref'], properties: { ref: { type: 'string' }, harness: { type: 'string', description: 'What will do the work, e.g. claude-code, codex' }, model: { type: 'string', description: 'The model, e.g. claude-opus-5-5' }, note: { type: 'string' }, days: { type: 'integer', minimum: 1, maximum: 30, description: 'How many days until it’s turned in. After that, with nothing turned in, others see it as free again. Left out: the signed-in person’s setting, else 1.' }, anyway: { type: 'boolean', description: 'Take it on even though someone else is on it, it has been turned in, or it was flagged. Only after your user says so.' } } }, annotations: { destructiveHint: false },
     run: async a => {
       const r = await doTake(a.ref, a), me = (await source()).session?.did;
       if (r.held) return { text: heldText(r, 'Ask your user. To take it on regardless, call this again with anyway: true.'), data: { taken: false, ...r.held } };
@@ -544,7 +544,7 @@ Commands and records may still change.
   brief <link>               the brief an agent gets
   take <link> [--harness h] [--model m] [--note n] [--days n] [--anyway]
                              say you're on it (it looks first, and holds off if someone else is).
-                             --days: how long until it's turned in (your setting, else 3); after
+                             --days: how long until it's turned in (your setting, else 1); after
                              that, with nothing turned in, others see it as free again. Taking one
                              you're already on, once its day has passed, gives you more time
   drop <link>

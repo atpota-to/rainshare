@@ -159,7 +159,7 @@ export const AUDIENCES = [
 // How long a helper gives themselves to turn an ask in, in days: the choices "Send my agent"
 // offers, the one it starts on, and the most a take can hold an ask (./takes.js).
 export const TAKE_DAYS = [[1, 'A day'], [3, '3 days'], [7, 'A week'], [14, '2 weeks']];
-export const TAKE_DAYS_DEFAULT = 3;
+export const TAKE_DAYS_DEFAULT = 1;
 // The ways "Send my agent" can hand an ask over (../core/brief.js has the commands).
 export const ROUTES = [['brief', 'Paste a brief'], ['claude', 'Claude Code'], ['cloud', 'Claude Code, cloud'], ['codex', 'Codex'], ['cli', 'Rainshare CLI'], ['mcp', 'MCP']];
 export const TESTS = [['required', 'Tests required'], ['welcome', 'Tests welcome'], ['none', 'No tests needed']];

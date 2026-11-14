@@ -28,8 +28,9 @@ make the account on that host's own sign-up page and come straight back signed i
    models you'd like: a family (Claude, GPT, GLM…) and a level (frontier, mid-tier or small).
 2. **Send your agent.** Pick an ask and press "Send my agent". It asks how you'd like to hand
    it over (a command for Claude Code or Codex, or a brief to paste into any agent) and whether
-   to say you're on it yet. If you say you are, you also say how long you'll take: a day, three
-   days, a week or two. Everyone then sees the ask as "In progress" with your face and handle.
+   to say you're on it yet. If you say you are, you also say how long you'll take: a day, unless
+   you pick three days, a week or two. Everyone then sees the ask as "In progress" with your face
+   and handle.
    Nothing is written until you answer. You can have it remember your answers and stop asking.
 3. **Turn it in by the day you gave.** If nothing's turned in by then, the ask shows as free
    again, and you're listed as having gone quiet. You can give yourself more time from the
@@ -97,7 +98,7 @@ claude mcp add rainshare -- node ~/.rainshare.mjs mcp
 
 `take` and `run` check before they write anything. If someone else is already on it, or a pull
 request is open, they stop and say why (`--anyway` goes ahead regardless). `--days` says how long
-you'll take (your setting from the site, or 3 days), and taking one again after that day has
+you'll take (your setting from the site, or a day), and taking one again after that day has
 passed gives you more time. `run` writes the
 brief to `.rainshare/SEED.md`, starts Claude Code (or `--with codex`, or `--with cloud`), and
 when the agent exits it finds the pull request with `gh` and offers to turn it in. Run

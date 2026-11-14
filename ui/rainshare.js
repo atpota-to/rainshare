@@ -291,7 +291,7 @@ export function createRainshare({ root, base = '/', host }){
     catch (e) { console.warn('rainshare preferences', e); S.prefsLocal = true; return 'local'; }
   }
   // What "Send my agent" starts with on an ask: your settings, where they suit it. Before
-  // there are any, the command for what your profile says you run, and saying you're on it for 3 days.
+  // there are any, the command for what your profile says you run, and saying you're on it for a day.
   function sendStart(it){
     const p = S.prefs?.send || {}, ls = ways(it);
     const route = ls.some(w => w.id === p.route) ? p.route : pickLauncher(launchers(it, { viewer: viewer() }))?.id || 'brief';
