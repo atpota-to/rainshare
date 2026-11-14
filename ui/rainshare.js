@@ -15,11 +15,13 @@
 //                      with what you've helped with beside it
 //   profile/<did>      someone's profile and their seeds (a handle works in place of the DID)
 //   agents             the CLI and MCP server, for sending agents from a terminal
+//   admin              @rainshare.dev's moderation page: what's hidden, what the checks flagged,
+//                      and hiding something. To anyone else it's as if nothing were there.
 //
 // A host with a landing of its own at its base address, for people signed out (rainshare.dev,
 // host.landing), shows the board under it there. The board's own address is then 'board', and
 // every way back to the board leads there, to the board on its own.
-import { SEED, STAGE, HANDLE, FEATURES, PLANS, UNPAID, plansIn, HARNESSES, MODELS, RUNS_ON, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, labelOf, modelName } from '../core/ns.js';
+import { SEED, PROFILE, STAGE, HANDLE, FEATURES, PLANS, UNPAID, plansIn, HARNESSES, MODELS, RUNS_ON, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, labelOf, modelName } from '../core/ns.js';
 import { describeSubject, cloneUrlOf, safeHttp, pullState, FORGE_NAMES } from '../core/subjects.js';
 import { look, carry, standing } from '../core/status.js';
 import { newRepoPlaces, placesFor } from '../core/forges.js';
@@ -34,7 +36,9 @@ import { renderMarkdown } from '../core/markdown.js';
 import { threads, talksOn } from '../core/comments.js';
 import { brief, launchers, pageOf, readHandBack, readBranchBack, sh, INSTALL, MCP_ADD, CLI_HOME } from '../core/brief.js';
 import { strongRef, HARNESS_NAMES } from '../core/records.js';
-import { resolveHandle, knownPerson, parseUri, profiles } from '../core/net.js';
+import { resolveHandle, knownPerson, parseUri, profiles, pool } from '../core/net.js';
+import { concerns, alarming } from '../core/scan.js';
+import { REASONS, reasonName, isAccount, kindOf as subjectKind } from '../core/moderation.js';
 import { esc, lit, unb64url, ago, until, nameOf, firstName, ico, forgeIco, skyIco, lifeIco, face, drops, pathOf, plantPic, avatarFallback, tip, tipLink, toggleTip } from './bits.js';
 import { createPoster } from './post.js';
 import { openWelcome, shouldWelcome } from './welcome.js';
@@ -57,6 +61,9 @@ export function createRainshare({ root, base = '/', host }){
     show: 'all',         // which open asks the board shows: 'all', or 'free' (nobody's on it yet)
     known: {},           // by DID: which of the people you follow on Bluesky follow them ('loading' while asked)
     reply: null,         // the comment a reply is being written to: its URI, while the reply form is open
+    admin: null,         // the moderation page, for @rainshare.dev: { list, about, error, loading }
+    found: null,         // what was looked up there to hide: { subject, about, error }
+    modding: null,       // what a hide form is open for: { subject, reason, note }
     open: {}   // which optional parts are showing (the turn-in's details, the comment form…), so a redraw leaves them be
   };
   const signedIn = () => !!S.source?.signedIn;
@@ -134,6 +141,46 @@ export function createRainshare({ root, base = '/', host }){
     }[st.verdict] || '';
   }
   const heedNote = (it, st) => st && !st.clear && heed(it, st) ? `<p class="rs-note rs-heed">${ico('person')}<span>${esc(heed(it, st))}</span></p>` : '';
+  // What Rainshare's checks found in an ask (../core/scan.js), said to whoever's deciding whether
+  // to send their agent, with the words that set each one off. Whoever asked sees it too, so an
+  // honest ask that trips one can be reworded.
+  function cautionNote(it){
+    const list = concerns(it?.value);
+    if (!list.length) return '';
+    const mine = it.repo === viewer();
+    const head = mine ? 'Rainshare’s checks flagged something in your ask.' : 'Have a look before you send your agent.';
+    const lead = mine ? 'Helpers see a note like this one, and their agents are told about it in the brief. If it’s a false alarm, rewording what’s quoted usually clears it.'
+      : 'Rainshare’s checks found something in this ask that’s often used to misuse an agent. They’re rough: they miss some tricks, and an honest ask can trip one. Your agent is told about it in its brief as well.';
+    return `<div class="rs-note rs-caution${alarming(list) ? ' rs-alarm' : ''}">${ico('shield')}<div><p><b>${esc(head)}</b> ${esc(lead)}</p>
+      <ul>${list.map(c => `<li>${esc(c.said)}${c.quote ? ` <span class="rs-muted">Found: <code>${esc(c.quote)}</code></span>` : ''}</li>`).join('')}</ul></div></div>`;
+  }
+
+  /* ---------- moderation (../core/moderation.js), for @rainshare.dev ---------- */
+  const moderating = () => !!S.source?.moderation;
+  const reasonLine = d => [reasonName(d.reason), d.note].filter(Boolean).join(': ');
+  // Hiding something: why (a reason, and a note that's public), and a button. It opens where its
+  // button was pressed, and one at a time.
+  function hideForm(subject, what){
+    const m = S.modding?.subject === subject ? S.modding : null;
+    if (!m) return '';
+    const pick = m.reason || (subjectKind(subject) === 'comment' ? 'abuse' : 'unsafe');
+    return `<form class="rs-form rs-hideform" data-rs-form="hide"><input type="hidden" name="subject" value="${esc(subject)}">
+      <p><b>Hide ${esc(what)}</b> for everyone: from the board, its page and comments, the CLI and MCP server, and link previews.${isAccount(subject) ? ' Everything this account writes on Rainshare goes, now and later.' : ''}</p>
+      <fieldset class="rs-reasons"><legend>Why</legend>${REASONS.map(([v, l, d]) => `<label class="rs-reason"><input type="radio" name="reason" value="${v}"${pick === v ? ' checked' : ''}><span><b>${esc(l)}</b><small>${esc(d)}</small></span></label>`).join('')}</fieldset>
+      <label>A note <small>(optional, and public, like the rest of the record)</small><input name="note" maxlength="300" value="${esc(m.note || '')}" autocomplete="off"></label>
+      <div class="rs-row"><button class="rs-btn rs-primary rs-hide-btn" type="submit">${ico('shield')}Hide it</button><button class="rs-link" type="button" data-rs-act="mod-cancel">Cancel</button></div>
+    </form>`;
+  }
+  const hideBtn = (subject, label, reason) => `<button class="rs-btn rs-quiet rs-sm" type="button" data-rs-mod="${esc(subject)}"${reason ? ` data-rs-reason="${esc(reason)}"` : ''}>${ico('shield')}${esc(label)}</button>`;
+  const unhideBtn = subject => `<button class="rs-btn rs-quiet rs-sm" type="button" data-rs-unhide="${esc(subject)}">Unhide</button>`;
+  // What's said where something is hidden: to whoever it's about, to @rainshare.dev, and on an
+  // ask's page that someone else followed a link to.
+  function hiddenNote(d, { whose, what }){
+    const why = esc(reasonLine(d));
+    if (moderating()) return `<div class="rs-note rs-bad rs-hidden-note">${ico('shield')}<span><b>Hidden by Rainshare</b> ${esc(ago(d.createdAt))}. ${why}.</span>${unhideBtn(d.subject)}</div>`;
+    if (whose === 'yours') return `<p class="rs-note rs-bad rs-hidden-note">${ico('shield')}<span><b>Rainshare has hidden ${esc(what)}</b> from everyone else. ${why}. If you think that’s a mistake, say so to @rainshare.dev on Bluesky.</span></p>`;
+    return `<p class="rs-note rs-bad rs-hidden-note">${ico('shield')}<span>Rainshare has hidden ${esc(what)}. ${why}.</span></p>`;
+  }
   const fitBox = f => `<div class="rs-fitbox">${drops(f.level)}<p><b>${esc(f.label)} for you.</b> ${esc(f.why)}</p></div>`;
   function shareUrl(it){
     const page = pageOf(it), sq = it.value || {};
@@ -173,7 +220,7 @@ export function createRainshare({ root, base = '/', host }){
   /* ---------- loading ---------- */
   // A board on screen is redrawn only if what came back differs from what's showing, so a
   // look across the network in the background moves nothing on the page.
-  const boardSig = b => JSON.stringify([b?.notes, (b?.items || []).map(it => [it.uri, it.cid, it.value, it.author, it.profile, it.rel, it.ties, (it.takes || []).map(t => t.uri), (it.deliveries || []).map(d => d.uri)])]);
+  const boardSig = b => JSON.stringify([b?.notes, (b?.items || []).map(it => [it.uri, it.cid, it.value, it.author, it.profile, it.rel, it.ties, it.hidden, (it.takes || []).map(t => t.uri), (it.deliveries || []).map(d => d.uri)])]);
   // (After you write something, the board is marked out of date rather than thrown away, so the
   // names on the page you're on stay known until the new one arrives.)
   async function loadBoard(force){
@@ -185,7 +232,7 @@ export function createRainshare({ root, base = '/', host }){
     S.loading = S.source.board({ force }).then(b => { S.board = b; S.boardAt = Date.now(); }, e => { S.error = e; console.warn('rainshare board', e); })
       .finally(() => {
         S.loading = null;
-        if ((S.view === 'board' || S.view === 'person') && (S.error || erred || boardSig(S.board) !== was)) render();
+        if ((S.view === 'board' || S.view === 'person' || S.view === 'admin') && (S.error || erred || boardSig(S.board) !== was)) render();
         // The host hears what's open on the board (null if it couldn't be read): rainshare.dev's
         // landing points down to it with the faces of whoever's asking.
         host.onBoard?.(S.board ? boardItems() : null);
@@ -244,7 +291,8 @@ export function createRainshare({ root, base = '/', host }){
   const newest = (a, b) => String(b.value?.createdAt).localeCompare(String(a.value?.createdAt));
   const sortBy = () => signedIn() && S.sort !== 'new' ? 'fit' : 'new';
   function boardItems(){
-    const open = (S.board?.items || []).filter(isOpen);
+    // (What Rainshare has hidden is never on the board. Whoever asked sees it on their own page.)
+    const open = (S.board?.items || []).filter(it => isOpen(it) && !it.hidden);
     if (!signedIn()) return open.sort(newest);
     const mine = open.filter(it => it.repo === viewer()).sort(newest), ranked = [...rank(open.filter(it => it.repo !== viewer()), me()), ...mine];
     return sortBy() === 'new' ? ranked.sort(newest) : ranked;
@@ -324,7 +372,8 @@ export function createRainshare({ root, base = '/', host }){
     const sq = it.value || {}, p = it.author || {}, mine = it.repo === viewer(), on = !nav && it.uri === S.pick;
     const rel = mine ? '' : relationText(it, viewer(), { audience: false }), ask = askExcerpt(sq.spec, 180);
     let line = '';
-    if (!isOpen(it)) line = `<span class="rs-state${sq.state === 'sprouted' ? ' rs-ok' : ''}">${sq.state === 'sprouted' ? lifeIco('sprouted') : ''}${esc(stateText(sq))}</span>`;
+    if (it.hidden) line = `<span class="rs-state rs-hidden-state">${ico('shield')}Hidden by Rainshare</span>`;
+    else if (!isOpen(it)) line = `<span class="rs-state${sq.state === 'sprouted' ? ' rs-ok' : ''}">${sq.state === 'sprouted' ? lifeIco('sprouted') : ''}${esc(stateText(sq))}</span>`;
     else if (mine) line = '<span>Yours</span>';
     else if (it.fit) line = `${drops(it.fit.level)}<span class="rs-fit-l">${esc(it.fit.label)}</span>`;
     const pr = progressOf(it, viewer()), short = progressShort(it, viewer());
@@ -487,6 +536,7 @@ export function createRainshare({ root, base = '/', host }){
         signedIn() && !mine ? ['You and them', tiesList(it.repo, it.ties, p)] : null
       ].filter(Boolean))}
       <div class="rs-ask"><span class="rs-label">The ask</span><p>${esc(askExcerpt(sq.spec) || 'No details beyond the title.')}</p>${a(page, 'Read all of it', 'rs-link')}</div>
+      ${open ? cautionNote(it) : ''}
       ${heedNote(it, st)}
       <div class="rs-row rs-detail-actions">${buttons}</div>
     </article>`;
@@ -560,6 +610,9 @@ export function createRainshare({ root, base = '/', host }){
   // up something the screen wasn't already saying (someone took it a moment ago, a pull request
   // is up, the issue was closed), it asks before saying you're on it.
   async function takeIt(it, el){
+    // What Rainshare's checks found that's very likely a trick is said once more, before anything's written.
+    const flags = concerns(it.value);
+    if (alarming(flags) && !confirm(`Rainshare’s checks flagged this ask:\n\n${flags.map(f => '• ' + f.said).join('\n')}\n\nYour agent will be told too. Send it anyway?`)) return null;
     if (el) el.disabled = true;
     try {
       const shown = stand(it).verdict;
@@ -892,7 +945,9 @@ export function createRainshare({ root, base = '/', host }){
     const tools = [
       canReply(c, forge) ? `<button class="rs-link" type="button" data-rs-reply="${esc(c.uri)}">Reply</button>` : '',
       // One on the forge is the forge's to change or delete: the tip says so.
-      mine && !c.forge ? `<button class="rs-link rs-danger" type="button" data-rs-uncomment="${esc(c.uri)}">Delete</button>` : ''
+      mine && !c.forge ? `<button class="rs-link rs-danger" type="button" data-rs-uncomment="${esc(c.uri)}">Delete</button>` : '',
+      // @rainshare.dev can hide anyone else's, here or on the issue.
+      moderating() && !mine && !it.space ? `<button class="rs-link rs-danger" type="button" data-rs-mod="${esc(c.uri)}">Hide</button>` : ''
     ].join('');
     const notes = [ago(v.createdAt), forge && !c.forge ? 'only on Rainshare' : '', !reply && c.lost ? 'in reply to a comment that isn’t here' : ''].filter(Boolean).join(' · ');
     return `<li class="rs-comment" id="${esc(commentKey(c))}">${face(c.author)}<div>
@@ -900,6 +955,7 @@ export function createRainshare({ root, base = '/', host }){
         <small>${esc(notes)}</small>
         <div class="rs-spec rs-comment-text">${renderMarkdown(v.text)}</div>
         ${tools ? `<div class="rs-row">${tools}</div>` : ''}
+        ${moderating() ? hideForm(c.uri, 'this comment') : ''}
       </div></li>`;
   }
   // On an issue, what the old "Comment on the issue" box offered: a note that links here.
@@ -1003,6 +1059,10 @@ export function createRainshare({ root, base = '/', host }){
     if (!it) return newHere() + back() + seedSk();
     const sq = it.value || {}, p = it.author || {}, mine = it.repo === viewer(), taken = myTake(it), d = describeSubject(sq.subject), clone = cloneUrlOf(sq.subject);
     const page = pageOf(it), open = isOpen(it), issue = it.issue, st = stand(it), forge = FORGE_NAMES[d?.forge] || 'the forge';
+    // Hidden by Rainshare (../core/moderation.js): only whoever asked, and @rainshare.dev, see what it says.
+    const hid = it.hidden || null;
+    if (hid && !mine && !moderating()) { title('Hidden'); return nothingHere(`Rainshare has hidden this ${esc(nounOf(sq))}, so it isn’t shown here. ${esc(reasonLine(hid))}.`); }
+    const hidWhat = hid && isAccount(hid.subject) ? (mine ? 'everything you post here' : 'everything this account posts') : `this ${nounOf(sq)}`;
     title(sq.title);
     const f = !mine && open && signedIn() && !taken ? fit(it, me()) : null;
     // An idea has nowhere to live yet. Whose it'll be is said plainly, and whoever picks it up
@@ -1036,6 +1096,8 @@ export function createRainshare({ root, base = '/', host }){
     let actions = '';
     if (mine) {
       // Whoever asked does what's next in the card at the top (progressBlock). The rest is under ⋯.
+    } else if (hid) {
+      // Nothing to take on: it's hidden.
     } else if (!signedIn()) {
       actions = `${handed ? `<p class="rs-note">${lifeIco('up')}<span>${branchBack ? 'A branch is ready. Sign in and the pull request will be waiting, written out for you to look over.' : `${st.idea ? 'It’s' : 'A pull request is'} ready to turn in. Sign in and it’ll be waiting in the form.`}</span></p>` : open ? heedNote(it, st) : ''}
         <div class="rs-row">${host.signIn ? `<button class="rs-btn rs-primary" type="button" data-rs-act="signin">${handed ? (branchBack ? 'Sign in to open the pull request' : 'Sign in to turn it in') : 'Sign in to take it on'}</button>` : ''}${shareBtn(it)}</div>`;
@@ -1058,6 +1120,7 @@ export function createRainshare({ root, base = '/', host }){
     return `${newHere(open && !mine ? `This one is ${firstName(p)}’s.` : '')}${back()}
       <article class="rs-seed">
         <div class="rs-seed-main">
+          ${hid ? hiddenNote(hid, { whose: mine ? 'yours' : null, what: hidWhat }) : ''}
           <div class="rs-seed-head">
             <div class="rs-detail-top">${a('profile/' + it.repo, face(p) + `<b>${esc(mine ? 'You' : nameOf(p))}</b>`, 'rs-who')}${hat(it.repo)}<span class="rs-muted">${mine ? '' : ' · ' + (it.space ? ico('lock') : '') + esc(relationText(it, viewer()) || 'open to everyone')} · ${esc(ago(sq.createdAt))}</span>${mine ? ownerMenu(it, { open, d }) : ''}</div>
             <div class="rs-seed-title"><h1>${esc(sq.title)}</h1>
@@ -1067,13 +1130,17 @@ export function createRainshare({ root, base = '/', host }){
           ${progressBlock(it, { full: true, own: mine ? st : null })}
           ${f ? fitBox(f) : ''}
           <dl class="rs-facts">${facts.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
-          <section class="rs-ask-full"><div class="rs-ask-head"><h2>The ask</h2>${mdBtn(it, 'rs-quiet rs-sm')}</div>
+          <section class="rs-ask-full"><div class="rs-ask-head"><h2>The ask</h2>${hid ? '' : mdBtn(it, 'rs-quiet rs-sm')}</div>
             <div class="rs-spec">${sq.spec ? renderMarkdown(sq.spec) : '<p class="rs-muted">No details beyond the title.</p>'}${safeHttp(sq.specUrl) ? `<p><a href="${esc(safeHttp(sq.specUrl))}" target="_blank" rel="noopener nofollow">The longer spec</a></p>` : ''}</div></section>
+          ${open && !hid ? cautionNote(it) : ''}
           ${actions ? `<div class="rs-actions">${actions}</div>` : ''}
           ${linked ? `<h2>Also on ${esc(forge)}</h2><ul class="rs-people rs-deliveries rs-linked">${linked}</ul>` : ''}
           ${talkBox(it)}
         </div>
         <aside class="rs-seed-side">
+          ${moderating() && !hid && !it.example && !it.space ? `<div class="rs-panel rs-mod-panel"><h2>${ico('shield')}Moderation</h2>
+            <div class="rs-row">${hideBtn(it.uri, 'Hide this ' + nounOf(sq))}${mine ? '' : hideBtn('at://' + it.repo, 'Hide everything from them', 'spam')}</div>
+            ${hideForm(it.uri, 'this ' + nounOf(sq))}${hideForm('at://' + it.repo, 'everything from ' + nameOf(p))}</div>` : ''}
           <div class="rs-panel${mine ? ' rs-own-panel' : ''}"><h2>${esc(mine ? 'Your profile' : 'About ' + firstName(p))}</h2>${mine ? '' : tiesList(it.repo, it.ties, p)}${profileCard(it.profile, p, { compact: true })}${a('profile/' + it.repo, mine ? 'See your profile' : 'See their profile', 'rs-link')}</div>
           <p class="rs-hood">${tipLink('The records behind this', `<span class="rs-tip-p">${it.space ? `It’s a record in ${esc(nameOf(p))}’s repo, inside ${esc(it.group?.name || 'the group')}’s Rainshare space, readable only by members.` : `It’s a record in ${esc(nameOf(p))}’s own repo, on their own server. Anyone can read it; apps show it to the people it’s meant for.`}</span><span class="rs-tip-p"><code>${esc(it.uri)}</code></span><span class="rs-tip-p">Each helper’s take and delivery records, and everyone’s comments, live in their own repo, pointing here.</span>`)}</p>
         </aside>
@@ -1217,9 +1284,18 @@ export function createRainshare({ root, base = '/', host }){
     // What they've said they're on, or turned something in for, that's still open: someone else's asks.
     const helping = (S.board?.items || []).filter(it => isOpen(it) && it.repo !== o.did && [...(it.takes || []), ...(it.deliveries || [])].some(r => r.repo === o.did));
     title(nameOf(p));
+    // Hidden by Rainshare: an account, everything it writes; or just its Rainshare name and bio.
+    const mod = o.moderated, self = o.did === viewer(), whole = !!mod && isAccount(mod.subject);
+    const hidWhat = !mod ? '' : whole ? (self ? 'everything you post here' : 'everything this account posts here') : (self ? 'your Rainshare name and bio' : 'this account’s Rainshare name and bio');
+    if (whole && !self && !moderating()) return `${back()}<section class="rs-person"><header>${face(p, 'lg')}<div><h1>${esc(nameOf(p))}</h1></div></header>${hiddenNote(mod, { what: hidWhat })}</section>`;
+    const modPanel = moderating() && !mod && !self ? `<div class="rs-panel rs-mod-panel"><h2>${ico('shield')}Moderation</h2>
+      <div class="rs-row">${hideBtn('at://' + o.did, 'Hide everything from them', 'spam')}${o.public ? hideBtn(`at://${o.did}/${PROFILE}/self`, 'Hide their Rainshare name and bio', 'abuse') : ''}</div>
+      ${hideForm('at://' + o.did, 'everything from ' + nameOf(p))}${hideForm(`at://${o.did}/${PROFILE}/self`, 'their Rainshare name and bio')}</div>` : '';
     return `${newHere()}${back()}
       <section class="rs-person">
         <header>${face(p, 'lg')}<div><h1>${esc(nameOf(p))}${hat(o.did)}</h1>${p.handle ? `<a class="rs-link" href="https://bsky.app/profile/${esc(p.handle)}" target="_blank" rel="noopener">@${esc(p.handle)}</a>` : ''}</div>${o.did === viewer() ? a('me', 'Edit', 'rs-btn rs-quiet rs-sm') : ''}</header>
+        ${mod && (self || moderating()) ? hiddenNote(mod, { whose: self ? 'yours' : null, what: hidWhat }) : ''}
+        ${modPanel}
         <div class="rs-panel">${profileCard(o.merged, p)}${o.groups?.length && o.did !== viewer() ? `<p class="rs-muted">${ico('lock')} Some of this is shared only with ${esc(o.groups.map(g => g.name).join(' and '))}.</p>` : ''}</div>
         ${signedIn() && o.did !== viewer() ? `<h2>You and ${esc(firstName(p))}</h2><div class="rs-panel">${tiesList(o.did, o.ties, p, { vouch: false })}</div>` : ''}
         ${vouchBlock(o.did, p)}
@@ -1290,6 +1366,115 @@ export function createRainshare({ root, base = '/', host }){
       </div>`;
   }
 
+  /* ---------- moderation: @rainshare.dev's page ---------- */
+  // What's been hidden, read from the account's own repo, and what each decision is about, read
+  // from where that lives (and filled in as it answers).
+  async function loadAdmin(){
+    if (!moderating()) return;
+    const source = S.source, about = S.admin?.about || new Map();
+    S.admin = { ...(S.admin || {}), about, loading: true, error: null };
+    loadBoard();
+    try {
+      const list = await source.moderation.list();
+      if (S.source !== source) return;
+      S.admin = { list, about, loading: false, error: null };
+      if (S.view === 'admin') render();
+      await pool(list.filter(d => !about.has(d.subject)), 6, async d => { about.set(d.subject, await source.moderation.about(d.subject).catch(() => ({ unread: true }))); });
+    } catch (e) { console.warn('rainshare moderation', e); if (S.source === source) S.admin = { list: null, about, loading: false, error: e }; }
+    if (S.view === 'admin') render();
+  }
+  // One thing, as the moderation page shows it: who, and what it says or is called.
+  function aboutLine(subject, ab){
+    const kind = subjectKind(subject), p = ab?.author || { did: parseUri(subject)?.repo || subject.slice(5) }, at = parseUri(subject);
+    const who = a('profile/' + p.did, `${face(p, 'xs')}<b>${esc(nameOf(p))}</b>`, 'rs-who');
+    const word = { account: 'Everything from', ask: 'An ask by', comment: 'A comment by', take: 'A take by', delivery: 'Work turned in by', profile: 'The Rainshare name and bio of' }[kind] || 'A record by';
+    const said = ab?.title || ab?.text ? `<p class="rs-modtext">${ab.title ? `<b>${esc(ab.title)}</b> ` : ''}${esc(askExcerpt(ab.text || '', 220))}</p>` : '';
+    const link = kind === 'ask' && at ? a(`seed/${at.repo}/${at.rkey}`, 'Open it', 'rs-link') : '';
+    return `<div class="rs-modwhat"><span>${esc(word)}</span>${who}${link}</div>${!ab ? '<p class="rs-muted">Looking it up…</p>' : said || (kind === 'account' ? '' : `<p class="rs-muted">${ab.gone ? 'It’s been deleted.' : 'It couldn’t be read just now.'} <code>${esc(subject)}</code></p>`)}`;
+  }
+  function renderAdmin(){
+    if (!moderating()) return renderLost();
+    title('Moderation');
+    const ad = S.admin || {}, f = S.found, decided = new Map((ad.list || []).map(d => [d.subject, d]));
+    // Open asks on the board that the checks flagged, the likeliest tricks first, then the newest.
+    const flagged = (S.board?.items || []).filter(it => isOpen(it) && !it.hidden && !it.space)
+      .map(it => ({ it, flags: concerns(it.value) })).filter(x => x.flags.length)
+      .sort((x, y) => Number(alarming(y.flags)) - Number(alarming(x.flags)) || newest(x.it, y.it));
+    const can = host.canModerate ? host.canModerate() : true;
+    const found = !f ? '' : f.error ? `<p class="rs-err">${plain(f.error)}</p>`
+      : `<div class="rs-moditem">${aboutLine(f.subject, f.about)}${decided.has(f.subject) ? `<div class="rs-row"><span class="rs-muted">Already hidden: ${esc(reasonLine(decided.get(f.subject)))}.</span>${unhideBtn(f.subject)}</div>`
+        : f.about ? hideForm(f.subject, { account: 'everything from ' + nameOf(f.about.author), ask: 'this ask', comment: 'this comment' }[subjectKind(f.subject)] || 'this') : ''}</div>`;
+    return `<div class="rs-admin">
+      <header class="rs-admin-head"><h1>Moderation</h1>
+        <p class="rs-muted">What you hide here is hidden for everyone: on the board, on its page and in its comments, from the CLI and the MCP server, and in link previews. Each decision is a public record in @${esc(HANDLE)}’s own repo, and only that repo’s count. Unhiding deletes the record.</p></header>
+      ${can ? '' : `<p class="rs-note rs-bad">${ico('info')}<span>This sign-in is from before Rainshare asked to write moderation records, so hiding won’t work yet. Sign out and in again.</span></p>`}
+      <section class="rs-panel" aria-labelledby="rsFindH"><h2 id="rsFindH">Hide something</h2>
+        <form class="rs-form rs-hideform rs-findform" data-rs-form="hide-find">
+          <label>A link or an address <small>an ask’s or a person’s page, an at:// address (a comment’s, say), or a handle</small><input name="what" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="https://rainshare.dev/seed/…" value="${esc(f?.input || '')}" required></label>
+          <div class="rs-row"><button class="rs-btn rs-quiet" type="submit">Look it up</button></div>
+        </form>
+        ${found}
+      </section>
+      <section aria-labelledby="rsFlagH"><div class="rs-hrow"><h2 id="rsFlagH">Needs a look${flagged.length ? ` <span class="rs-count">${flagged.length}</span>` : ''}</h2>${tip('Open asks on the board that Rainshare’s checks flagged (core/scan.js), the likeliest tricks first. The checks are rough: they miss some tricks, and an honest ask can trip one, so read each before hiding it. Comments aren’t checked.')}</div>
+        ${!S.board ? listSk(2, 'flagged') : !flagged.length ? '<p class="rs-muted">Nothing open on the board trips the checks right now.</p>'
+          : `<ul class="rs-modlist">${flagged.map(({ it, flags }) => `<li class="rs-panel rs-moditem">
+            <div class="rs-modwhat">${a(pathOf(it), `<b>${esc(it.value?.title)}</b>`, 'rs-link')}<span class="rs-muted">by ${esc(nameOf(it.author))} · ${esc(ago(it.value?.createdAt))}</span></div>
+            <ul class="rs-flags">${flags.map(c => `<li><b>${c.level === 'high' ? 'Likely a trick' : 'Worth a look'}.</b> ${esc(c.said)} <span class="rs-muted">Found: <code>${esc(c.quote)}</code></span></li>`).join('')}</ul>
+            <div class="rs-row">${hideBtn(it.uri, 'Hide this ask', flags.some(c => c.id === 'harmful') && !alarming(flags) ? 'harmful' : 'unsafe')}${hideBtn('at://' + it.repo, 'Hide everything from them', 'unsafe')}</div>
+            ${S.found?.subject === it.uri ? '' : hideForm(it.uri, 'this ask')}${S.found?.subject === 'at://' + it.repo ? '' : hideForm('at://' + it.repo, 'everything from ' + nameOf(it.author))}
+          </li>`).join('')}</ul>`}
+      </section>
+      <section aria-labelledby="rsHiddenH"><h2 id="rsHiddenH">Hidden${ad.list?.length ? ` <span class="rs-count">${ad.list.length}</span>` : ''}</h2>
+        ${ad.error ? `<p class="rs-note rs-bad">${ico('info')}<span>@${esc(HANDLE)}’s server didn’t answer, so what’s hidden can’t be listed. (The board goes on hiding it.) ${plain(ad.error)}</span><button class="rs-link" type="button" data-rs-act="admin-retry">Try again</button></p>`
+          : !ad.list ? listSk(2, 'hidden') : !ad.list.length ? '<p class="rs-muted">Nothing’s hidden.</p>'
+          : `<ul class="rs-modlist">${ad.list.map(d => `<li class="rs-panel rs-moditem">${aboutLine(d.subject, ad.about?.get(d.subject))}
+              <div class="rs-row"><span class="rs-muted">${esc(reasonLine(d))} · ${esc(ago(d.createdAt))}</span>${unhideBtn(d.subject)}</div></li>`).join('')}</ul>`}
+      </section>
+    </div>`;
+  }
+  // Looking up what was pasted, so what's about to be hidden is seen first.
+  async function submitFind(form){
+    const input = String(new FormData(form).get('what') || '').trim(), btn = form.querySelector('[type=submit]');
+    if (!input || !moderating()) return;
+    btn.disabled = true;
+    S.found = { input }; S.modding = null;
+    try {
+      const subject = await S.source.moderation.subjectFrom(input);
+      S.found = { input, subject, about: null };
+      S.modding = { subject };
+      render();
+      const ab = await S.source.moderation.about(subject);
+      if (S.found?.subject === subject) S.found.about = ab;
+    } catch (e) { S.found = { input, error: e }; }
+    render();
+    root.querySelector('.rs-findform ~ .rs-moditem input[name="reason"]:checked')?.focus();
+  }
+  async function submitHide(form){
+    const fd = new FormData(form), subject = String(fd.get('subject') || ''), btn = form.querySelector('[type=submit]');
+    if (!moderating() || !subject) return;
+    btn.disabled = true;
+    try {
+      await S.source.moderation.hide(subject, { reason: String(fd.get('reason') || ''), note: String(fd.get('note') || '') });
+      S.modding = null; if (S.found?.subject === subject) S.found = null;
+      toast('Hidden, for everyone.');
+      await afterModeration();
+    } catch (e) { toast(plainText(e)); btn.disabled = false; }
+  }
+  async function unhide(subject, el){
+    if (!moderating() || !confirm('Unhide it? It shows again for everyone, as it did before.')) return;
+    if (el) el.disabled = true;
+    try { await S.source.moderation.unhide(subject); toast('Unhidden'); await afterModeration(); }
+    catch (e) { toast(plainText(e)); if (el) el.disabled = false; }
+  }
+  // After a decision, everything on screen is read again with it.
+  async function afterModeration(){
+    S.board = null; S.boardAt = 0; loadBoard(true);
+    if (S.view === 'seed' && S.seed) S.seed = await reread(S.seed).catch(() => S.seed);
+    if (S.view === 'person' && S.sub) await loadPerson(S.sub);
+    if (S.view === 'admin') await loadAdmin();
+    render();
+  }
+
   // Plants marked to turn are handed to the host, which draws the 3D model of the same kind over
   // each picture if it can (../src/plants/live.js). Each redraw takes the old ones down first.
   let turning = [];
@@ -1354,7 +1539,7 @@ export function createRainshare({ root, base = '/', host }){
   function render(){
     // (Until a screen has been entered with someone to show it to, the address says what to hold its place with.)
     if (!S.source || !S.view) { paint(`<div class="rs">${ahead(S.sub)}</div>`, viewOf(S.sub)); return; }
-    const body = { board: renderBoard, seed: renderSeed, new: renderNew, me: renderMe, person: renderPerson, agents: renderAgents, lost: renderLost }[S.view]?.() || renderBoard();
+    const body = { board: renderBoard, seed: renderSeed, new: renderNew, me: renderMe, person: renderPerson, agents: renderAgents, admin: renderAdmin, lost: renderLost }[S.view]?.() || renderBoard();
     // Redrawing keeps whichever field had focus, and where its cursor was.
     const focus = document.activeElement && root.contains(document.activeElement) ? document.activeElement : null;
     const keep = focus?.name ? { name: focus.name, pos: focus.selectionStart } : null;
@@ -1382,6 +1567,8 @@ export function createRainshare({ root, base = '/', host }){
     if (vf && S.vouching) S.vouching.reason = String(new FormData(vf).get('reason') || '');
     const m = root.querySelector('[data-rs-form="me"]');
     if (m && S.form?.profile) readMe(m);
+    const hf = root.querySelector('[data-rs-form="hide"]');
+    if (hf && S.modding) { const fd = new FormData(hf); S.modding = { ...S.modding, reason: String(fd.get('reason') || '') || undefined, note: String(fd.get('note') || '') }; }
   }
   const rerender = () => { stash(); render(); };
 
@@ -1413,6 +1600,8 @@ export function createRainshare({ root, base = '/', host }){
       if (name === 'turnin-more') { S.open['turnin-more'] = true; const more = root.querySelector('[data-rs-turnin-more]'); if (more) { more.hidden = false; el.remove(); more.querySelector('select')?.focus(); } return; }
       if (name === 'vouch-cancel') { S.vouching = null; rerender(); return; }
       if (name === 'accept-cancel') { S.accepting = null; rerender(); root.querySelector('[data-rs-accept]')?.focus(); return; }
+      if (name === 'mod-cancel') { S.modding = null; if (S.found && !S.found.error) S.found = null; rerender(); return; }
+      if (name === 'admin-retry') { loadAdmin(); return; }
       if (name === 'reply-cancel') { stash(); S.reply = null; S.drafts.reply = null; render(); return; }
       if (name === 'again') { S.again = it.uri; render(); root.querySelector('[data-rs-form="turnin"] input')?.focus(); return; }
       if (name === 'sprout') { await S.source.update(it, { state: 'sprouted' }); S.seed = await reread(it); S.boardAt = 0; loadBoard(); toast('Marked done'); render(); return; }
@@ -1549,6 +1738,10 @@ export function createRainshare({ root, base = '/', host }){
     const rp = t.closest('[data-rs-reply]');
     if (rp) { stash(); S.reply = rp.dataset.rsReply; render(); root.querySelector('[data-rs-form="reply"] textarea')?.focus(); return; }
     const uc = t.closest('[data-rs-uncomment]'); if (uc) { uncomment(uc.dataset.rsUncomment, uc); return; }
+    // Moderating: a hide form opens where its button was pressed; unhiding asks first.
+    const md2 = t.closest('[data-rs-mod]');
+    if (md2 && moderating()) { stash(); S.modding = { subject: md2.dataset.rsMod, reason: md2.dataset.rsReason || undefined }; render(); root.querySelector('[data-rs-form="hide"] input[name="reason"]:checked')?.focus(); return; }
+    const uh = t.closest('[data-rs-unhide]'); if (uh) { unhide(uh.dataset.rsUnhide, uh); return; }
     const fl = t.closest('[data-rs-fill]');
     if (fl) { const box = fl.closest('form')?.querySelector('textarea'); if (box) { box.value = box.value.trim() ? box.value.trimEnd() + '\n\n' + fl.dataset.rsFill : fl.dataset.rsFill; box.focus(); fl.remove(); } return; }
     const rm = t.closest('[data-rs-remove-setup]'); if (rm) { stash(); S.form.profile.setups.splice(+rm.dataset.rsRemoveSetup, 1); render(); return; }
@@ -1579,6 +1772,8 @@ export function createRainshare({ root, base = '/', host }){
     else if (f.dataset.rsForm === 'vouch') submitVouch(f);
     else if (f.dataset.rsForm === 'accept') submitAccept(f);
     else if (f.dataset.rsForm === 'comment' || f.dataset.rsForm === 'reply') submitComment(f);
+    else if (f.dataset.rsForm === 'hide') submitHide(f);
+    else if (f.dataset.rsForm === 'hide-find') submitFind(f);
   });
   root.addEventListener('input', e => { if (e.target.closest('[data-rs-form="post"]')) poster.typed(e.target); });
   root.addEventListener('change', e => {
@@ -1596,7 +1791,7 @@ export function createRainshare({ root, base = '/', host }){
     sub = sub.replace(/^\/+|\/+$/g, '');
     if (!S.source) { S.sub = sub; render(); return; }
     if (sub !== S.sub && !(S.view === 'me' && sub === 'me')) S.form = null;
-    if (sub !== S.sub) { S.vouching = null; S.accepting = null; S.reply = null; }
+    if (sub !== S.sub) { S.vouching = null; S.accepting = null; S.reply = null; S.modding = null; }
     S.sub = sub;
     // Not an address Rainshare has. If it's clear what was meant (../core/route.js), go there; if not, say so.
     if (!known(sub)) {
@@ -1612,6 +1807,7 @@ export function createRainshare({ root, base = '/', host }){
       if (signedIn() && S.form && S.form.groups === null) { const g = await S.source.groups().catch(() => []); if (S.form) { S.form.groups = g; rerender(); } }
     }
     else if (sub === 'agents') { S.view = 'agents'; render(); }
+    else if (sub === 'admin') { S.view = 'admin'; render(); loadAdmin(); }
     else if (/^profile\//.test(sub)) { S.view = 'person'; render(); loadCircle(); loadPerson(sub); }
     else if (/^seed\//.test(sub)) {
       S.view = 'seed'; render(); loadCircle(); await loadSeed(sub);
@@ -1627,7 +1823,7 @@ export function createRainshare({ root, base = '/', host }){
     show,
     /** Hand in a (new) data source: on sign-in, sign-out, or switching to the example circle. */
     async setSource(source){
-      Object.assign(S, { source, board: null, mine: null, garden: null, unlinked: null, seed: null, form: null, drafts: {}, pick: null, sheet: false, pull: null, circle: undefined, vouching: null, accepting: null, reply: null, from: 'anyone', sort: null, show: 'all', known: {} });
+      Object.assign(S, { source, board: null, mine: null, garden: null, unlinked: null, seed: null, form: null, drafts: {}, pick: null, sheet: false, pull: null, circle: undefined, vouching: null, accepting: null, reply: null, from: 'anyone', sort: null, show: 'all', known: {}, admin: null, found: null, modding: null });
       poster.reset();
       render();
       if (source?.signedIn) { await loadMine(); loadGarden(); welcome(); }

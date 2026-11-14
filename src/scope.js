@@ -2,7 +2,7 @@
 // (plain data) behind it, because the Vercel function behind /oauth-client-metadata.json imports it too
 // (api/oauth-client-metadata.js): a hosted client whose document declares less than the app
 // asks for fails every sign-in, so both come from here.
-import { GROUPS, FORGE_SCOPES, COLLECTIONS } from '../core/ns.js';
+import { GROUPS, FORGE_SCOPES, COLLECTIONS, MODERATION, MODERATOR, HANDLE } from '../core/ns.js';
 
 const env = import.meta.env || {};
 
@@ -70,12 +70,23 @@ export function forgesIn(scope){
 // set, and then with your records by name, so a server that can't look the set up still gets
 // the forges. With groups off that's four steps:
 //   the set and the forges, the names and the forges, the set alone, the names alone
-export const ladder = (forges = FORGES) => [...new Set([[full, forges], [basic, forges], [basic, []]]
-  .flatMap(([scope, f]) => [OWN.set, OWN.named].map(own => withForges(scope(own), f))))];
+//
+// @rainshare.dev's own sign-in asks for one thing more at every step: writing moderation records
+// (../core/moderation.js). Nobody else is asked, so nobody else's sign-in page mentions them.
+export const ladder = (forges = FORGES, { moderator = false } = {}) => [...new Set([[full, forges], [basic, forges], [basic, []]]
+  .flatMap(([scope, f]) => [OWN.set, OWN.named].map(own => withForges(scope(own), f) + (moderator ? ' ' + MODERATE : ''))))];
 
-// Everything the app might ever ask for: every part of every step. A hosted client's document
-// has to declare it all, whatever a particular sign-in ends up asking for.
-export const DECLARED_SCOPE = [...new Set(ladder().flatMap(s => s.split(' ')))].join(' ');
+// Moderating: writing dev.rainshare.moderation records into your own repo. Only the records in
+// MODERATOR's repo count, so this is only asked of that account (`moderates`), by its DID or
+// its handle, whichever the sign-in was started with.
+export const MODERATE = `repo:${MODERATION}`;
+export const moderates = who => who === MODERATOR || String(who || '').trim().replace(/^@/, '').toLowerCase() === HANDLE;
+/** Whether a granted scope lets this sign-in write moderation records. */
+export const canModerate = scope => String(scope || '').split(/\s+/).some(x => x.split('?')[0] === MODERATE);
+
+// Everything the app might ever ask for: every part of every step, the moderator's included. A
+// hosted client's document has to declare it all, whatever a particular sign-in ends up asking for.
+export const DECLARED_SCOPE = [...new Set([...ladder(), ...ladder(FORGES, { moderator: true })].flatMap(s => s.split(' ')))].join(' ');
 
 export const REDIRECT_PATH = '/signed-in';
 

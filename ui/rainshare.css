@@ -660,3 +660,38 @@ span.rs-helper-pull{color:var(--rs-muted)}
   .rs-wl h2{font-size:23px}
 }
 @media (prefers-reduced-motion:reduce){.rs.rs-wl-box{animation:none}}
+
+/* Rainshare's checks on an ask (../core/scan.js), and moderation (../core/moderation.js) */
+.rs-note.rs-caution{background:var(--rs-down-soft)}
+.rs-note.rs-caution .rs-i{color:var(--rs-down)}
+.rs-note.rs-caution.rs-alarm,.rs-note.rs-hidden-note{background:rgba(179,38,30,.1)}
+.rs-note.rs-caution.rs-alarm .rs-i,.rs-note.rs-hidden-note .rs-i{color:var(--rs-bad)}
+.rs-caution>div{flex:1;min-width:180px;display:flex;flex-direction:column;gap:8px}
+.rs-caution ul,.rs-flags{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.rs-caution code,.rs-flags code{white-space:normal;overflow-wrap:anywhere}
+.rs-hidden-note .rs-btn{flex:none}
+.rs-hidden-state .rs-i{color:var(--rs-bad)}
+.rs-mod-panel h2{display:flex;align-items:center;gap:8px;margin:0}
+.rs-mod-panel h2 .rs-i{color:var(--rs-muted)}
+.rs-form.rs-hideform{padding:16px;gap:12px;max-width:none;background:var(--rs-sunk);box-shadow:none;outline:0;-webkit-backdrop-filter:none;backdrop-filter:none;border-radius:var(--rs-radius-sm)}
+.rs-hideform>p{font-size:14px}
+.rs-form fieldset.rs-reasons{padding:0;background:none;display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+.rs-form .rs-reasons legend{font:700 14px var(--rs-font);margin-bottom:0;letter-spacing:0;grid-column:1/-1}
+.rs-form label.rs-reason{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:var(--rs-field);box-shadow:inset 0 0 0 1.5px var(--rs-line);cursor:pointer;font-weight:500;min-width:0}
+.rs-form label.rs-reason:has(input:checked){box-shadow:inset 0 0 0 2px var(--rs-ink)}
+.rs-form label.rs-reason>input[type=radio]{display:inline-block;flex:none;width:16px;height:16px;min-height:0;margin:3px 0 0;padding:0;box-shadow:none;background:none;accent-color:var(--rs-ink)}
+.rs-reason>span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.rs-form .rs-reason small{margin:0;line-height:1.35}
+.rs-btn.rs-hide-btn{background:var(--rs-bad);color:#fff;box-shadow:none}
+.rs-admin{display:flex;flex-direction:column;gap:18px}
+.rs-admin h1{font-size:clamp(26px,3.4vw,34px);font-weight:800}
+.rs-admin-head{display:flex;flex-direction:column;gap:8px}
+.rs-admin-head p{max-width:70ch}
+.rs-admin section{display:flex;flex-direction:column;gap:12px;min-width:0}
+.rs-admin .rs-count{margin-left:2px;font-weight:700;color:var(--rs-muted)}
+.rs-modlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.rs-moditem{display:flex;flex-direction:column;gap:10px;min-width:0}
+.rs-modwhat{display:flex;gap:8px;align-items:center;flex-wrap:wrap;min-width:0}
+.rs-modwhat .rs-who{display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+.rs-modwhat b{overflow-wrap:anywhere}
+.rs-modtext{font-size:14px;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}

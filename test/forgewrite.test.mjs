@@ -339,7 +339,13 @@ test('sign-in asks for the forges up front, and for less only if a server refuse
     assert.ok(tokens(steps[i]).includes(OWN.set) && !tokens(steps[i]).some(t => t.startsWith('repo:dev.rainshare.')), steps[i]);
     assert.equal(steps[i + 1], steps[i].replace(OWN.set, OWN.named));
   }
-  assert.equal(DECLARED_SCOPE, [...new Set(steps.flatMap(tokens))].join(' '));
+  // Declared: every step, and @rainshare.dev's, which asks for moderation records as well.
+  const { MODERATE, moderates, canModerate } = await import('../src/scope.js');
+  const modSteps = ladder(undefined, { moderator: true });
+  assert.equal(DECLARED_SCOPE, [...new Set([...steps, ...modSteps].flatMap(tokens))].join(' '));
+  assert.deepEqual(modSteps, steps.map(s => s + ' ' + MODERATE));
+  assert.ok(steps.every(s => !canModerate(s)) && modSteps.every(canModerate), 'nobody else is asked to write moderation records');
+  assert.ok(moderates('did:plc:cmkittusvczhnei4gjt3asiv') && moderates('@Rainshare.dev') && !moderates('alice.test') && !moderates('did:plc:alice'));
   // The last is what any server grants: Rainshare alone, with nothing of the forges in it.
   assert.equal(steps.at(-1), BASIC_SCOPE);
   assert.ok(steps.length >= 2 && !tokens(steps.at(-1)).some(t => forge.includes(t)));

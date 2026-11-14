@@ -42,6 +42,7 @@ const ICON = {
   sky: '<path d="M7 18h10a4 4 0 0 0 .6-7.96A5.5 5.5 0 0 0 7.1 9.2 4.4 4.4 0 0 0 7 18z"/>',
   info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.2M12 7.9v.1"/>',
   hat: '<path d="M3.5 17h17"/><path d="M6.5 17v-5.5a5.5 5.5 0 0 1 11 0V17"/><path d="M6.5 13.5h11"/>',
+  shield: '<path d="M12 3.5l7 2.6v5.5c0 4.2-3 7.6-7 8.9-4-1.3-7-4.7-7-8.9V6.1z"/><path d="M12 8.5v4M12 15.6v.1"/>',
   pull: '<circle cx="7" cy="6" r="2.2"/><circle cx="7" cy="18" r="2.2"/><circle cx="17" cy="18" r="2.2"/><path d="M7 8.2v7.6M11 6h3a3 3 0 0 1 3 3v6.8M13.2 3.8L11 6l2.2 2.2"/>'
 };
 // The weather and the life of a seed, in the same pictures as the landing's scene: a forecast
