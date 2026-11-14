@@ -19,7 +19,7 @@
 // A host with a landing of its own at its base address, for people signed out (rainshare.dev,
 // host.landing), shows the board under it there. The board's own address is then 'board', and
 // every way back to the board leads there, to the board on its own.
-import { SEED, STAGE, FEATURES, PLANS, UNPAID, plansIn, HARNESSES, MODELS, RUNS_ON, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, labelOf, modelName } from '../core/ns.js';
+import { SEED, STAGE, FEATURES, PLANS, UNPAID, plansIn, HARNESSES, MODELS, RUNS_ON, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, NOTIFY, BRAND_HANDLE, labelOf, modelName } from '../core/ns.js';
 import { describeSubject, cloneUrlOf, safeHttp, pullPageOf, FORGE_NAMES } from '../core/subjects.js';
 import { look, carry, standing } from '../core/status.js';
 import { newRepoPlaces, placesFor } from '../core/forges.js';
@@ -951,6 +951,10 @@ export function createRainshare({ root, base = '/', host }){
             <label>Work you’re happy to take on <small>(comma separated)</small><input name="offering" value="${esc((p.offering || []).join(', '))}" placeholder="rust, css, docs, testing"></label>
           </div>
         ` : `<label>Work you’re happy to take on <small>(comma separated)</small><input name="offering" value="${esc((p.offering || []).join(', '))}" placeholder="rust, css, docs, testing"></label>`}
+        <fieldset><legend>Messages from @${esc(BRAND_HANDLE)} ${tip(`Rainshare’s Bluesky account can send you a direct message, once a day at most, when there’s news. It’s saved in your profile, which anyone can read.`)}</legend>
+          ${toggles('notify', NOTIFY, NOTIFY.map(([k]) => k).filter(k => p.notify?.[k]))}
+          <p class="rs-muted">Bluesky only lets accounts you follow message you, unless you’ve changed that, so <a class="rs-link" href="https://bsky.app/profile/${esc(BRAND_HANDLE)}" target="_blank" rel="noopener">follow @${esc(BRAND_HANDLE)}</a>. To stop them, switch these off, or reply STOP to any message.</p>
+        </fieldset>
         ${priv ? `<fieldset><legend>Your groups</legend>
           ${groups === null ? '<p class="rs-muted">Finding your groups…</p>' : withBoard.length ? `<p class="rs-muted">Your full profile, including anything marked “only my groups”, goes into these groups’ private Rainshare spaces.</p>
             <div class="rs-toggles" data-rs-toggles="share">${withBoard.map(g => `<button type="button" data-v="${esc(g.did)}" aria-pressed="${share.includes(g.did)}">${ico('lock')}${esc(g.name)}</button>`).join('')}</div>`
@@ -984,6 +988,7 @@ export function createRainshare({ root, base = '/', host }){
     if (shows('[data-rs-toggles="values"]')) p.values = [...on('values'), ...String(fd.get('moreValues') || '').split(',').map(s => s.trim()).filter(Boolean)];
     if (shows('[data-rs-toggles="priorities"]')) p.priorities = on('priorities');
     p.offering = String(fd.get('offering') || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (shows('[data-rs-toggles="notify"]')) { const n = on('notify'); p.notify = Object.fromEntries(NOTIFY.map(([k]) => [k, n.includes(k)])); }
     S.form.hidden = [...form.querySelectorAll('[data-rs-vis]')].filter(s => s.value === 'private').map(s => s.dataset.rsVis);
     if (form.querySelector('[data-rs-toggles="share"]')) S.form.share = on('share');
   }

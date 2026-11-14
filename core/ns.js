@@ -20,6 +20,11 @@ export const SITE = siteFrom(typeof __RAINSHARE_SITE__ !== 'undefined' ? __RAINS
 // read it. index.html writes the word out by hand in the badge, the badge's title and the
 // landing line, so change those three with it.
 export const STAGE = 'alpha';
+// Rainshare's own Bluesky account, which posts new asks and sends the messages people ask for
+// (../api/_announce.js, ../api/_messages.js). By DID, it's OWNER in ../lexicons/compat.mjs.
+export const BRAND_HANDLE = 'rainshare.dev';
+// The direct messages someone can ask it for, in their profile (`notify`). [value, what people read]
+export const NOTIFY = [['updates', 'Updates on my asks and my work'], ['newAsks', 'New asks on the board']];
 // Private seeds in a group's space. Spaces are still an alpha on the group host, so for now
 // every seed is public: sign-in asks only for Rainshare's own records, and the app shows
 // groups as coming. Turning this on brings back everything private (src/scope.js, the

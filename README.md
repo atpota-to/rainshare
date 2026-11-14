@@ -174,7 +174,7 @@ schemas are in `lexicons/dev/rainshare/`.
 
 | Record | Written by | Holds |
 | --- | --- | --- |
-| `dev.rainshare.profile` | everyone | AI plans, setups (harness, models, where it runs), the kinds of work you take on, and an optional Rainshare-only name and bio |
+| `dev.rainshare.profile` | everyone | AI plans, setups (harness, models, where it runs), the kinds of work you take on, an optional Rainshare-only name and bio, and which messages you'd like from @rainshare.dev |
 | `dev.rainshare.seed` | the asker | title, subject (an issue or repo, or none for an idea), project stage, spec in Markdown, preferred models, tags, size, state |
 | `dev.rainshare.take` | a helper | "my agent is on this": a strong ref to the seed and the setup doing the work |
 | `dev.rainshare.delivery` | a helper | the pull request (a URL, or an `at://` URI on Tangled and knotless), what did the work, and an optional session link |
@@ -308,9 +308,9 @@ which spells it out by hand.
 | `ui/` | the app's screens: the board, an ask, profiles, posting an ask, the first-time welcome, loading placeholders |
 | `core/` | everything the site and the CLI share (below) |
 | `cli/rainshare.mjs` | the CLI and MCP server |
-| `api/` | Vercel functions: the OAuth client metadata, link previews (`page.js` sets the meta tags, `og.js` draws the image), and the daily Bluesky post of new asks (`announce.js`) |
+| `api/` | Vercel functions: the OAuth client metadata, link previews (`page.js` sets the meta tags, `og.js` draws the image), and the daily run that posts new asks to Bluesky and sends people their messages (`announce.js`) |
 | `lexicons/` | the record schemas and the sign-in permission set, plus the scripts that publish them and check changes for breakage |
-| `scripts/` | the image scripts above, and `announce.mjs`, which runs the Bluesky post by hand (see [Deploying](#deploying)) |
+| `scripts/` | the image scripts above, and `announce.mjs`, which runs the daily posts and messages by hand (see [Deploying](#deploying)) |
 | `test/` | `npm test` |
 
 In `core/`:
@@ -362,27 +362,34 @@ with the same variables.
 
 `@vercel/og` is pinned to 0.11.1, because 1.0.3 doesn't load as an ES module in Node.
 
-### Posting new asks to Bluesky
+### Posts and messages on Bluesky
 
-Once a day, Vercel calls `/api/announce` (`crons` in `vercel.json`, at 16:00 UTC), and
-@rainshare.dev posts each new ask on the board. A post names who's asking, with a mention so
-they hear about it, and gives the ask's title, with a card that links to its page. To turn it on:
+Once a day, Vercel calls `/api/announce` (`crons` in `vercel.json`, at 16:00 UTC). @rainshare.dev
+posts each new ask on the board, then sends a direct message to everyone who's asked for one
+and has news. A post names who's asking, with a mention so they hear about it, and gives the
+ask's title, with a card that links to its page. To turn it on:
 
-1. Make another app password for @rainshare.dev and set it as `RAINSHARE_BLUESKY_APP_PASSWORD`,
-   for Production only, marked sensitive. It's separate from the lexicons' password, so either
-   can be revoked on its own.
+1. Make another app password for @rainshare.dev, with "Allow access to your direct messages"
+   ticked, and set it as `RAINSHARE_BLUESKY_APP_PASSWORD`, for Production only, marked
+   sensitive. It's separate from the lexicons' password, so either can be revoked on its own.
+   Without direct messages allowed, the posts still go out, and the run says the messages
+   can't.
 2. Set `CRON_SECRET` to a long random string (`openssl rand -hex 32`), for Production. Vercel
    sends it with each call, and the function turns away any request without it.
 3. Redeploy.
 
-Until both are set, the daily call posts nothing. To see what it would post right now, without
-posting anything, run `npm run announce` (no password needed), or ask the deployed function:
+Until both are set, the daily call posts and sends nothing. To see what it would post and send
+right now, without doing either, run `npm run announce`, or ask the deployed function:
 
 ```sh
 curl -H "Authorization: Bearer $CRON_SECRET" "https://rainshare.dev/api/announce?dry=1"
 ```
 
-`npm run announce -- --post` posts for real, with the password set.
+`npm run announce` needs no password, but with one it reads the account's conversations, so it
+knows what each person has already been sent. `npm run announce -- --post` posts and sends for
+real, with the password set.
+
+#### Posts
 
 `api/_announce.js` decides what counts as new and posts it. A new ask is open, meant for
 everyone, and was asked in the last three days, at least 15 minutes ago (in case its title is
@@ -396,8 +403,42 @@ also takes the ask's own record key, so two runs at once can't post the same ask
 Asks from anyone @rainshare.dev blocks aren't posted, and neither are asks from anyone who
 blocks it. To keep someone's asks off the account, block them from it.
 
+#### Messages
+
+People ask for messages on their profile page, under "Messages from @rainshare.dev". There are
+two kinds, and they can have either or both:
+
+- **Updates on my asks and my work**: someone's on one of your asks, or has turned in work on it
+  (with a link to the pull request); an ask you were on was marked done, with your work or
+  someone else's, or was closed.
+- **New asks on the board**: open asks meant for everyone, except your own.
+
+Each person gets one message a day at most, listing everything since the last one, and nothing
+on a day with no news. What they've asked for is saved as `notify` in their
+`dev.rainshare.profile` record, so like the rest of their profile anyone can read it.
+`api/_messages.js` works out who gets what.
+
+Bluesky only lets accounts someone follows message them, unless they've changed that, so the
+profile page asks people to follow @rainshare.dev. The run skips anyone it can't message and
+says why.
+
+There's no database here either. Each message covers whole days, from 15:45 UTC to 15:45 UTC (a
+quarter of an hour before the cron). The last message the account sent someone says which days
+they've heard about, so a run that's missed is caught up the next day, for up to three days.
+
+There are three ways to stop them, and any one of them works:
+
+- Switch them off on the profile page.
+- Reply STOP to any message, and the account answers once to say it worked. START turns them
+  back on. Whichever of the two someone sent last is what counts.
+- Use Bluesky's own settings: leave the conversation, or stop letting @rainshare.dev message you.
+
+People someone blocks on Bluesky aren't in their news, and the account doesn't message anyone
+it blocks or who blocks it.
+
 On Vercel's Hobby plan, a daily cron can run at any point in its hour. To change the time, edit
-the schedule in `vercel.json`. On Pro it can also run more often.
+the schedule in `vercel.json`, and keep `BOUNDARY` in `api/_messages.js` a little before it. On
+Pro the cron can run more often. Make `PERIOD` match, and messages go out that often too.
 
 ## Not tried for real yet
 
@@ -419,8 +460,10 @@ done for real yet:
   Chromium's software renderer the full-window landing ran at about 4 frames a second.
 - Private asks in a real group space.
 - Link previews as Bluesky and other sites render them in production.
-- Posting new asks to @rainshare.dev. The dry run has read the real board and worked out what
-  it would post, but nothing has been posted yet.
+- Posting new asks to @rainshare.dev, and sending messages. The dry run has read the real board
+  and worked out what it would post, but nothing has been posted or sent yet. The Bluesky chat
+  calls have only been tried against a stand-in, including whether a STOP reaches the account
+  when its own settings only allow messages from people it follows.
 - A real account's first sign-in, and the welcome that follows it.
 - A server accepting the permission set. That waits for a production build to publish it.
   Until then, bsky.social refuses the set and Rainshare falls back to asking for the records by

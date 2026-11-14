@@ -238,5 +238,5 @@ test('the daily call needs CRON_SECRET, and ?dry=1 posts nothing', async () => {
   assert.equal(asked.length, 0, 'and nothing was read');
 
   const dry = await call(req('Bearer s3cret', { dry: '1' }), env);
-  assert.deepEqual([dry.statusCode, dry.headers['cache-control'], dry.body.dryRun, created.length], [200, 'no-store', true, 0]);
+  assert.deepEqual([dry.statusCode, dry.headers['cache-control'], dry.body.posts.dryRun, dry.body.messages.dryRun, created.length], [200, 'no-store', true, true, 0]);
 });

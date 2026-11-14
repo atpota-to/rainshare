@@ -51,6 +51,8 @@ export function profile(input = {}, prev){
     values: tags(input.values, 12),
     priorities: (input.priorities || []).filter(p => known(PRIORITIES, p)).slice(0, 8),
     offering: tags(input.offering, 12),
+    // Messages from @rainshare.dev (../api/_messages.js): only what's switched on is kept.
+    notify: prune({ updates: input.notify?.updates === true || undefined, newAsks: input.notify?.newAsks === true || undefined }),
     createdAt: prev?.createdAt || now(),
     updatedAt: now()
   });

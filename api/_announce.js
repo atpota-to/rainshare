@@ -32,19 +32,34 @@ const POST = 'app.bsky.feed.post', BLOCK = 'app.bsky.graph.block';
 // What a post may hold (app.bsky.feed.post), and how big a card's picture may be (app.bsky.embed.external).
 const MAX_GRAPHEMES = 300, MAX_BYTES = 3000, MAX_THUMB = 1_000_000;
 const TID = /^[234567abcdefghij][234567abcdefghijklmnopqrstuvwxyz]{12}$/;
+// Bluesky's chat service, which the account's own server passes direct messages on to.
+const CHAT = 'did:web:api.bsky.chat#bsky_chat';
 
-/** Whether an ask is one to post about at `now`: open, for everyone, and asked between WINDOW and SETTLE ago. */
+/** Whether an ask is on the board for everyone: it has a title, it's open, and it's meant for anyone. */
+export const forAll = v => typeof v?.title === 'string' && !!clean(v.title) && (!v.state || v.state === 'open') && audienceOf(v) === 'anyone';
+/** Whether an ask is one to post about at `now`: on the board for everyone, and asked between WINDOW and SETTLE ago. */
 export function isNew(v, now){
   const at = Date.parse(v?.createdAt);
-  return typeof v?.title === 'string' && !!clean(v.title) && (!v.state || v.state === 'open') && audienceOf(v) === 'anyone'
-    && at > now - WINDOW && at <= now - SETTLE;
+  return forAll(v) && at > now - WINDOW && at <= now - SETTLE;
+}
+
+/**
+ * Every public record of a collection, across everyone who has any, read the first time it's
+ * asked for and kept for the rest of the run: the posts and the messages read the same asks.
+ */
+export function reader(){
+  const got = new Map();
+  return collection => {
+    if (!got.has(collection)) got.set(collection, net.reposWith(collection)
+      .then(dids => net.pool(dids, 6, d => net.listRecords(d, collection, { pages: 2 }).catch(() => [])))
+      .then(lists => lists.flat()));
+    return got.get(collection);
+  };
 }
 
 /** The new asks on the board, the earliest asked first. */
-async function newAsks(now){
-  const dids = await net.reposWith(SEED);
-  const lists = await net.pool(dids, 6, d => net.listRecords(d, SEED, { pages: 2 }).catch(() => []));
-  return lists.flat().filter(r => isNew(r.value, now)).sort((a, b) => Date.parse(a.value.createdAt) - Date.parse(b.value.createdAt));
+async function newAsks(now, read){
+  return (await read(SEED)).filter(r => isNew(r.value, now)).sort((a, b) => Date.parse(a.value.createdAt) - Date.parse(b.value.createdAt));
 }
 
 /** Every link in a post: its card's, the links in its text, and any written out in full. */
@@ -68,7 +83,7 @@ async function postedAlready(){
 const posted = (ask, who, done) => done.keys.has(ask.rkey) || done.links.has(`${ask.repo.toLowerCase()} ${ask.rkey}`) || (!!who?.handle && done.links.has(`${who.handle} ${ask.rkey}`));
 
 // Who the account blocks, from its own records, and who among `dids` blocks it, as far as Bluesky says.
-async function blocked(dids){
+export async function blocked(dids){
   const [mine, rel] = await Promise.all([net.listRecords(ACCOUNT, BLOCK, { pages: 10 }), net.relationships(ACCOUNT, dids).catch(() => new Map())]);
   const out = new Set(mine.map(r => r.value?.subject).filter(net.isDid));
   for (const [did, r] of rel) if (r.blocking || r.blockedBy) out.add(did);
@@ -76,7 +91,7 @@ async function blocked(dids){
 }
 
 // Each person as the board names them: their Rainshare name if they gave one, else their Bluesky name.
-async function whoAre(dids){
+export async function whoAre(dids){
   const [bsky, own] = await Promise.all([net.profiles(dids), Promise.all(dids.map(d => net.getRecordOrNull(d, PROFILE, 'self').catch(() => null)))]);
   return new Map(dids.map((did, i) => {
     const b = bsky.get(did) || {};
@@ -93,8 +108,8 @@ async function unposted(asks){
 }
 
 const segmenter = typeof Intl?.Segmenter === 'function' ? new Intl.Segmenter() : null;
-const graphemes = s => segmenter ? Array.from(segmenter.segment(s), x => x.segment) : [...s];
-const bytes = s => new TextEncoder().encode(s).length;
+export const graphemes = s => segmenter ? Array.from(segmenter.segment(s), x => x.segment) : [...s];
+export const bytes = s => new TextEncoder().encode(s).length;
 const fits = s => graphemes(s).length <= MAX_GRAPHEMES && bytes(s) <= MAX_BYTES;
 
 /**
@@ -129,15 +144,36 @@ export function compose(ask, who){
   };
 }
 
-async function call(pds, nsid, body, { token, type } = {}){
-  const r = await fetch(`${pds}/xrpc/${nsid}`, {
-    method: 'POST', signal: AbortSignal.timeout(15000),
-    headers: { 'content-type': type || 'application/json', ...(token ? { authorization: 'Bearer ' + token } : {}) },
-    body: type ? body : JSON.stringify(body)
+// One call to a server: a query with `params`, or a procedure with `body` (JSON, or bytes of `type`).
+async function call(base, nsid, { params, body, type, token, proxy } = {}){
+  const query = params ? '?' + new URLSearchParams(Object.entries(params).flatMap(([k, v]) => (Array.isArray(v) ? v : [v]).map(x => [k, String(x)]))) : '';
+  const r = await fetch(`${base}/xrpc/${nsid}${query}`, {
+    method: body === undefined ? 'GET' : 'POST', signal: AbortSignal.timeout(15000),
+    headers: {
+      ...(body !== undefined ? { 'content-type': type || 'application/json' } : {}),
+      ...(token ? { authorization: 'Bearer ' + token } : {}), ...(proxy ? { 'atproto-proxy': proxy } : {})
+    },
+    body: body === undefined ? undefined : type ? body : JSON.stringify(body)
   });
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new net.NetError(data.error || 'HTTP' + r.status, data.message || `${r.status} from ${new URL(pds).host}`, r.status);
+  if (!r.ok) throw new net.NetError(data.error || 'HTTP' + r.status, data.message || `${r.status} from ${new URL(base).host}`, r.status);
   return data;
+}
+/**
+ * Signed in as the account with its app password, on the first call that needs it, and kept
+ * for the rest of the run: { signIn(), get(nsid, params, { chat }), post(nsid, body, { type, chat }) }.
+ * `chat` sends the call on to Bluesky's chat service, which the app password has to be allowed
+ * (its "direct messages" box ticked).
+ */
+export function session(password){
+  let ready;
+  const signIn = () => ready ||= net.pdsOf(ACCOUNT).then(async pds => ({ pds, token: (await call(pds, 'com.atproto.server.createSession', { body: { identifier: ACCOUNT, password } })).accessJwt }));
+  const as = async (nsid, opts) => { const { pds, token } = await signIn(); return call(pds, nsid, { ...opts, token, proxy: opts.chat ? CHAT : undefined }); };
+  return {
+    signIn: () => signIn().then(() => {}),
+    get: (nsid, params, { chat } = {}) => as(nsid, { params, chat }),
+    post: (nsid, body, { type, chat } = {}) => as(nsid, { body, type, chat })
+  };
 }
 // The page's link preview picture, uploaded for its card. A post goes without one rather than wait or fail.
 async function thumbnail(url, upload){
@@ -158,12 +194,12 @@ async function thumbnail(url, upload){
  * is how many asks were new, `skipped` how many of them were posted already or blocked, and
  * `later` how many are left for the next run.
  */
-export async function announce({ post = true, password = process.env.RAINSHARE_BLUESKY_APP_PASSWORD, now = Date.now(), max = MAX_POSTS, log = console.log } = {}){
+export async function announce({ post = true, password = process.env.RAINSHARE_BLUESKY_APP_PASSWORD, now = Date.now(), max = MAX_POSTS, log = console.log, read = reader(), as = session(password) } = {}){
   if (post && !password) {
     log(`RAINSHARE_BLUESKY_APP_PASSWORD isn't set, so nothing was posted. Set it to an app password for ${ACCOUNT} (@rainshare.dev) to post new asks there.`);
     return { setUp: false, dryRun: false, found: 0, skipped: 0, posts: [], later: 0 };
   }
-  const asks = await newAsks(now), todo = await unposted(asks);
+  const asks = await newAsks(now, read), todo = await unposted(asks);
   const posts = todo.slice(0, max).map(a => ({ ask: a.uri, rkey: a.rkey, ...compose(a, a.who), uri: null, error: null }));
   const result = () => ({ setUp: !!password, dryRun: !post, found: asks.length, skipped: asks.length - todo.length,
     posts: posts.map(({ ask, text, card, uri, error }) => ({ ask, text, link: card.uri, uri, error })), later: todo.length - posts.length });
@@ -174,9 +210,8 @@ export async function announce({ post = true, password = process.env.RAINSHARE_B
   }
   if (!posts.length) return result();
 
-  const pds = await net.pdsOf(ACCOUNT);
-  const { accessJwt: token } = await call(pds, 'com.atproto.server.createSession', { identifier: ACCOUNT, password });
-  const upload = async (body, type) => (await call(pds, 'com.atproto.repo.uploadBlob', body, { token, type })).blob || null;
+  await as.signIn();   // a wrong password stops the run here, before anything is posted
+  const upload = async (body, type) => (await as.post('com.atproto.repo.uploadBlob', body, { type })).blob || null;
   const thumbs = await Promise.all(posts.map(p => thumbnail(p.card.image, upload)));
   for (const [i, p] of posts.entries()) {
     const rkey = TID.test(p.rkey) ? p.rkey : undefined;
@@ -186,7 +221,7 @@ export async function announce({ post = true, password = process.env.RAINSHARE_B
       createdAt: new Date().toISOString()
     };
     try {
-      p.uri = (await call(pds, 'com.atproto.repo.createRecord', { repo: ACCOUNT, collection: POST, ...(rkey ? { rkey } : {}), record }, { token })).uri || null;
+      p.uri = (await as.post('com.atproto.repo.createRecord', { repo: ACCOUNT, collection: POST, ...(rkey ? { rkey } : {}), record })).uri || null;
       log(`Posted ${p.ask} as ${p.uri}.`);
     } catch (e) {
       // Refused because another run has just posted it: that's done, not failed.
