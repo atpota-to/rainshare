@@ -9,7 +9,9 @@ Your AI plan resets whether you use it or not. Rainshare is a board where people
 and projects they'd like help with, and other people point their own coding agents at them,
 signed in as themselves, on their own plans. We call that help rain.
 
-It runs on atproto, so there's no Rainshare database and nobody earns or spends credits. Asks,
+It runs on atproto, so there's no Rainshare database of asks or people, and nobody earns or
+spends credits. (The one thing Rainshare keeps itself is a note of who agreed to its
+[terms](#terms-and-privacy).) Asks,
 claims and finished work are records in people's own accounts, and your board starts with the
 people you follow on Bluesky.
 
@@ -247,7 +249,7 @@ schemas are in `lexicons/dev/rainshare/`.
 | `dev.rainshare.profile` | everyone | AI plans, setups (harness, models, where it runs), the kinds of work you take on, and an optional Rainshare-only name and bio |
 | `dev.rainshare.seed` | the asker | title, subject (an issue or repo, or none for an idea), project stage, spec in Markdown, preferred models, tags, size, state |
 | `dev.rainshare.take` | a helper | "my agent is on this": a strong ref to the seed, the setup doing the work, and `until`, the day they expect to turn it in |
-| `dev.rainshare.preferences` | you | your settings: how "Send my agent" hands an ask over, whether it says you're on it and for how many days, whether to ask each time, and which messages you'd like from @rainshare.dev. Public, like every record in your repo |
+| `dev.rainshare.preferences` | you | your settings: how "Send my agent" hands an ask over, whether it says you're on it and for how many days, whether to ask each time, which messages you'd like from @rainshare.dev, and that you agreed to the terms (which version, and when). Public, like every record in your repo |
 | `dev.rainshare.delivery` | a helper | the pull request (a URL, or an `at://` URI on Tangled and knotless), what did the work, and an optional session link |
 | `dev.rainshare.moderation` | @rainshare.dev only | something Rainshare has hidden: an account, or one record, and why. See [Moderation](#moderation) |
 | `dev.rainshare.comment` | anyone | what they said (Markdown), a strong ref to the seed, and, for a reply, a strong ref to the comment it answers. An ask on a Tangled or knotless issue uses the issue's comments instead (`org.tangled.feed.comment`, `dev.knotless.comment`) |
@@ -482,11 +484,24 @@ atpotato, LLC (`OPERATOR` in that file), and the legal sections follow the ones 
 [Anisota](https://anisota.net), which the same company runs: who may use it, the cap on
 liability, claims, disputes and arbitration, governing law, copyright notices and privacy rights.
 
-- **Agreeing.** The note before someone's first job (`ui/agree.js`) won't go on until its box is
-  ticked. It opens for "Send my agent" (before its own questions about how to send), "Copy as
-  Markdown" on someone else's open ask, and copying a command that starts an agent. Agreeing is remembered in that browser, with the
-  version agreed to, and never sent anywhere. The last step of asking for rain says, in a line
-  under its button, that posting means agreeing to both.
+- **Agreeing.** Before someone's first job or first ask, a note (`ui/agree.js`) says what to keep
+  in mind and won't go on until its box is ticked. On the site it opens for "Send my agent"
+  (before its own questions about how to send), "Copy as Markdown" on someone else's open ask,
+  copying a command that starts an agent, and "Ask for rain". Agreeing once covers all of them.
+  In the CLI, `login` asks, and so does the first `take`, `run`, `turn-in`, `open-pr` or `ask`;
+  `agree` asks by itself. It has to be a person in a terminal: from a script it stops and says
+  so, and the MCP tools tell the agent what its user needs to do, and not to do it for them.
+- **Where it's written down** (`core/agreement.js`). In the browser, or for the CLI in
+  `~/.config/rainshare/agreed.json`. For someone signed in, also in their own settings record
+  (`terms` in `dev.rainshare.preferences`: the version and when), so agreeing on the site counts
+  in the CLI and on another browser. And in a ledger Rainshare keeps: a table at Supabase,
+  `rainshare_terms_acceptance`, written by a small function beside it
+  (`supabase/functions/rainshare-agree`). The function takes nobody's word for it. Told that an
+  account agreed, it reads that account's settings from the account's own host, and notes only
+  what it finds there, with the record as its host signed it. So only the account itself can
+  put itself in the ledger, and the note outlasts the record. It keeps no IP address. If the
+  ledger can't be reached, the agreement still stands and it's told the next time. Only the real
+  site tells it: a preview or a development copy writes the settings and leaves the ledger be.
 - **When they change.** `LEGAL_VERSION` in `core/legal.js` is the date the documents last changed
   in a way people should agree to again. Change it, and the date shown with it, and everyone is
   asked once more before their next job. A typo doesn't need a new one.
@@ -499,6 +514,11 @@ liability, claims, disputes and arbitration, governing law, copyright notices an
   coming back from signing in carries a code.
 
 The example board never shows the note: nothing there is real.
+
+The ledger's table is in `supabase/migrations/`, and its function is deployed with
+`supabase functions deploy rainshare-agree --no-verify-jwt` (it checks what it's told against the
+network itself, so it's called without a key). It follows `anisota_terms_acceptance`, the same
+company's ledger for Anisota, in its names. Only the service role can read or write it.
 
 ## Development
 
@@ -547,6 +567,7 @@ which spells it out by hand.
 | `lexicons/` | the record schemas and the sign-in permission set, plus the scripts that publish them and check changes for breakage |
 | `scripts/` | the image scripts above, `feedback.mjs` for the feedback board, and `announce.mjs`, which runs the daily posts and messages by hand (see [Deploying](#deploying)) |
 | `.claude/skills/feedback/` | the feedback routine's instructions |
+| `supabase/` | Rainshare's ledger of who agreed to its terms: the table (`migrations/`) and the function that writes it (`functions/rainshare-agree/`) |
 | `test/` | `npm test` |
 
 In `core/`:
@@ -564,7 +585,8 @@ In `core/`:
 | `garden.js` | works out gardens from records |
 | `comments.js` | puts an ask's comments into threads, whether they're Rainshare's or an issue's |
 | `scan.js` | Rainshare's checks on an ask, for what's often used to misuse an agent |
-| `legal.js` | the Terms of Service and Privacy Policy, their version, and the three safety points said before a first job |
+| `legal.js` | the Terms of Service and Privacy Policy, their version, and the points said before a first job or a first ask |
+| `agreement.js` | where agreeing to the terms is written down: the person's settings, and Rainshare's ledger |
 | `moderation.js` | what @rainshare.dev has hidden: reading decisions, their keys, and what a pasted link is |
 | `feedback.js` | Rainshare's feedback board on userinput.app: reading it, whose statuses count, and what the routine may hand an agent |
 | `route.js` | URLs, including fixing mistyped ones |

@@ -240,6 +240,9 @@ export function createPoster(ui){
   }
   async function post(){
     for (let s = 1; s <= LAST; s++) { const e = problem(s); if (e) { P.err = e; P.step = s; ui.render(); return; } }
+    // Before a first ask: what to keep in mind, and agreeing to the terms (./agree.js). Closing
+    // that leaves the ask as it was written, unposted.
+    if (ui.agree && !src().demo && !await ui.agree()) return;
     P.busy = true; P.err = ''; ui.render();
     try {
       const g = P.vis === 'group' ? groupNow() : null;

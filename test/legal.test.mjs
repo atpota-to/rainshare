@@ -5,17 +5,18 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { LEGAL, TERMS, PRIVACY, LEGAL_VERSION, SAFETY, OPERATOR, asMarkdown } from '../core/legal.js';
+import { LEGAL, TERMS, PRIVACY, LEGAL_VERSION, SAFETY, ASKING, OPERATOR, asMarkdown } from '../core/legal.js';
 import { renderMarkdown } from '../core/markdown.js';
 import { known, reroute } from '../core/route.js';
 import { APPVIEW, RELAYS, PLC, CONSTELLATION } from '../core/net.js';
 import { COLLECTIONS } from '../core/ns.js';
+import { LEDGER } from '../core/agreement.js';
 
 // This browser's storage (Node has none of its own).
 const kept = new Map();
 const storage = { getItem: k => kept.get(k) ?? null, setItem: (k, v) => kept.set(k, String(v)), removeItem: k => kept.delete(k) };
 globalThis.localStorage = storage;
-const { agreement, hasAgreed, recordAgreement, forgetAgreement, agreeHtml } = await import('../ui/agree.js');
+const { agreement, hasAgreed, rememberAgreement, forgetAgreement, agreeHtml } = await import('../ui/agree.js');
 
 test('both documents are whole: a date, a lead, a summary, and sections that say something', () => {
   assert.match(LEGAL_VERSION, /^\d{4}-\d{2}-\d{2}$/);
@@ -86,6 +87,15 @@ test('the Privacy Policy names every service the code asks, and everything kept 
   assert.ok(existsSync(new URL('../api/_announce.js', import.meta.url)) && existsSync(new URL('../api/_messages.js', import.meta.url)));
   for (const says of [/posted once on Bluesky by @rainshare\.dev, with its title and a mention of whoever asked/, /block it on Bluesky/, /at most once a day and only when there’s news/,
     /reads that conversation to see what it last sent you, and whether you replied STOP or START/, /whether you’ve asked for direct messages from @rainshare\.dev/]) assert.match(all, says);
+  // The one thing Rainshare keeps itself: its note of who agreed (core/agreement.js, supabase/). The
+  // policy says where it is and what's in it, column for column, and what isn't.
+  assert.match(new URL(LEDGER).host, /\.supabase\.co$/);
+  const ledger = readFileSync(new URL('../supabase/migrations/20261114190000_rainshare_terms_acceptance.sql', import.meta.url), 'utf8');
+  const columns = [...ledger.matchAll(/^  ([a-z_]+) (?:uuid|text|timestamptz)/gm)].map(m => m[1]);
+  assert.deepEqual(columns, ['id', 'did', 'policy_version', 'document', 'accepted_at', 'via', 'record_uri', 'record_cid', 'proof', 'logged_at'], 'a new column belongs in the policy, then here');
+  for (const says of [/Supabase, where our note that you agreed to the terms is kept/, /your account’s ID \(its DID\), the version, when you agreed, whether that was on the site or with the CLI, and a copy of the record as your host signed it/,
+    /holds no IP address and nothing about your browser/, /a database at Supabase that only we can read/, /Our own note that you agreed to the terms stays when you delete your record of it/, /that you agreed to Rainshare’s terms, which version, and when/]) assert.match(all, says);
+  assert.match(PRIVACY.lead, /The one thing we keep is a note that you agreed to the terms/);
   // Every key the site keeps in the browser. A new one belongs in the policy's list too, then here.
   const KEYS = ['rs:accept-vouch', 'rs:agreed', 'rs:garden-seen:', 'rs:kept', 'rs:mode', 'rs:prefs:', 'rs:signin', 'rs:signin-skip', 'rs:stage-seen:', 'rs:waiting-later', 'rs:welcomed:'];
   const found = new Set();
@@ -102,10 +112,13 @@ test('the Privacy Policy names every service the code asks, and everything kept 
 test('agreeing is remembered with the version agreed to, and asked again when the terms change', () => {
   kept.clear(); forgetAgreement();
   assert.equal(hasAgreed(), false);
-  const a = recordAgreement();
+  const a = rememberAgreement();
   assert.equal(a.version, LEGAL_VERSION);
   assert.ok(hasAgreed());
   assert.deepEqual(JSON.parse(kept.get('rs:agreed')), a);
+  // When it was agreed to, and which accounts it's since been written down for, are kept with it.
+  assert.deepEqual(rememberAgreement({ at: '2026-11-14T10:00:00Z', logged: ['did:plc:a', 'did:plc:a', 7] }), { version: LEGAL_VERSION, at: '2026-11-14T10:00:00.000Z', logged: ['did:plc:a'] });
+  assert.deepEqual(agreement().logged, ['did:plc:a']);
   // Older terms were agreed to: it's asked again.
   forgetAgreement();
   kept.set('rs:agreed', JSON.stringify({ version: '2020-01-01', at: 'x' }));
@@ -117,16 +130,22 @@ test('agreeing is remembered with the version agreed to, and asked again when th
   globalThis.localStorage = { getItem(){ throw new Error('blocked'); }, setItem(){ throw new Error('blocked'); }, removeItem(){ throw new Error('blocked'); } };
   try {
     assert.equal(hasAgreed(), false);
-    recordAgreement();
+    rememberAgreement();
     assert.ok(hasAgreed());
     forgetAgreement();
     assert.equal(hasAgreed(), false);
   } finally { globalThis.localStorage = storage; }
 });
 
-test('the note before a first job: three points, both documents linked, and nothing to press until the box is ticked', () => {
-  assert.equal(SAFETY.length, 3);
+test('the note before a first job or a first ask: three points, both documents linked, and nothing to press until the box is ticked', () => {
+  assert.equal(SAFETY.length, 3); assert.equal(ASKING.length, 3);
+  // Before a first ask, it says what an asker should keep in mind, with the same box to tick.
+  const asking = agreeHtml(sub => '/' + sub, 'ask');
+  assert.match(asking, /Before you ask for rain/);
+  for (const [point, why] of ASKING) assert.ok(asking.includes(point) && asking.includes(why), point);
+  assert.match(asking, /<input type="checkbox" name="agree">[\s\S]*data-ag="go" disabled>Agree and continue/);
   const html = agreeHtml(sub => '/base/' + sub);
+  assert.match(html, /Before you send your agent/);
   for (const [point, why] of SAFETY) assert.ok(html.includes(point) && html.includes(why), point);
   assert.match(html, /<input type="checkbox" name="agree">/);
   assert.match(html, /<a href="\/base\/terms" target="_blank" rel="noopener">Terms of Service<\/a> and <a href="\/base\/privacy" target="_blank" rel="noopener">Privacy Policy<\/a>/);

@@ -47,7 +47,8 @@ import { readBoard, groupOf, stateWord, GROUPS as FEEDBACK_GROUPS } from '../cor
 import { esc, lit, unb64url, ago, until, shortDay, nameOf, firstName, ico, forgeIco, skyIco, lifeIco, face, drops, pathOf, plantPic, avatarFallback, tip, tipLink, toggleTip } from './bits.js';
 import { createPoster } from './post.js';
 import { openWelcome, shouldWelcome } from './welcome.js';
-import { hasAgreed, openAgree } from './agree.js';
+import { hasAgreed, agreement, rememberAgreement, openAgree } from './agree.js';
+import { agreedIn, agreementNow, recordAgreement } from '../core/agreement.js';
 import { LEGAL } from '../core/legal.js';
 import { openSend, sendSummary, dayChoices } from './send.js';
 import { headSk, boardSk, seedSk, personSk, gardenSk, meSk, listSk, activitySk } from './skeleton.js';
@@ -168,10 +169,39 @@ export function createRainshare({ root, base = '/', host }){
       <ul>${list.map(c => `<li>${esc(c.said)}${c.quote ? ` <span class="rs-muted">Found: <code>${esc(c.quote)}</code></span>` : ''}</li>`).join('')}</ul></div></div>`;
   }
 
-  // Before someone's first job on someone else's ask (./agree.js): a short note on staying
-  // safe, and agreeing to the terms. Resolves true when they may go on: at once if they've
-  // agreed before on this browser, or in the example circle, where nothing is real.
-  const agreeFirst = () => S.source?.demo || hasAgreed() ? Promise.resolve(true) : openAgree({ href });
+  // Before someone's first job on someone else's ask, or their own first ask (./agree.js): a
+  // short note on what to keep in mind, and agreeing to the terms. `kind` is which: 'help' or
+  // 'ask'. Resolves true when they may go on: at once if they've agreed before, on this browser
+  // or anywhere else as this account (their settings say so), or in the example circle, where
+  // nothing is real.
+  const agreed = () => hasAgreed() || !!agreedIn(S.prefs);
+  const agreeFirst = (kind = 'help') => S.source?.demo || agreed() ? Promise.resolve(true)
+    : openAgree({ href, kind }).then(ok => { if (ok) writeDownAgreement(); return ok; });
+  // Writing an agreement down where it lasts (../core/agreement.js): in their own settings, and
+  // in Rainshare's ledger. It's done when someone agrees, and looked at again when someone signs
+  // in: they may have agreed here before signing in, or somewhere else as this account, or the
+  // ledger may not have answered last time. Each account is tried once a visit, in the
+  // background, and nothing waits on it. (The ledger is for the real site: a preview or a
+  // development copy writes the settings and leaves the ledger be.)
+  const onSite = () => typeof location !== 'undefined' && location.origin === SITE;
+  const triedFor = new Set();
+  function writeDownAgreement(){
+    const source = S.source, did = viewer();
+    if (!signedIn() || source.demo || !source.savePreferences) return;
+    const theirs = agreedIn(S.prefs);
+    // Agreed somewhere else as this account: this browser knows now.
+    if (theirs && !hasAgreed()) rememberAgreement({ at: theirs.agreedAt });
+    const mine = agreement();
+    if (!mine || triedFor.has(did)) return;
+    const done = (mine.logged || []).includes(did);
+    if (theirs && (done || !onSite())) return;
+    triedFor.add(did);
+    const at = Date.parse(mine.at) || Date.now();
+    recordAgreement(source, { at, via: 'web', ledger: onSite() }).then(r => {
+      if (r.saved && S.source === source && !agreedIn(S.prefs)) S.prefs = prefsRecord({ terms: agreementNow(at) }, S.prefs);
+      if (r.logged) rememberAgreement({ at: mine.at, logged: [...(agreement()?.logged || []), did] });
+    }, e => console.warn('rainshare agreement', e));
+  }
 
   /* ---------- moderation (../core/moderation.js), for @rainshare.dev ---------- */
   const moderating = () => !!S.source?.moderation;
@@ -340,6 +370,7 @@ export function createRainshare({ root, base = '/', host }){
       S.source.profileOf(viewer(), { force }).then(m => { S.mine = m; }, e => { console.warn('rainshare profile', e); S.mine = { merged: null, hidden: [], groups: [], unread: true }; }),
       loadPrefs()
     ]);
+    writeDownAgreement();
   }
   /* ---------- your settings: how "Send my agent" works for you (./send.js) ---------- */
   // Kept in your account (dev.rainshare.preferences), and in this browser as well: a sign-in
@@ -1934,7 +1965,7 @@ export function createRainshare({ root, base = '/', host }){
 
   /* ---------- asking for help with an idea or a project (./post.js draws the steps) ---------- */
   const poster = createPoster({
-    root, a, go, href, board: BOARD_AT, toast, title, plainText, self, viewer, live: () => livePlants(),
+    root, a, go, href, agree: () => agreeFirst('ask'), board: BOARD_AT, toast, title, plainText, self, viewer, live: () => livePlants(),
     forges: () => host.forges?.() || [], connectForge: host.connectForge ? forge => host.connectForge(forge, S.sub) : null,
     source: () => S.source,
     render: () => render(),
