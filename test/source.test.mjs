@@ -454,3 +454,57 @@ test('if @rainshare.dev’s server doesn’t answer, the board still shows, and 
     await assert.rejects(createSource({ agent: agent(MODERATOR) }).moderation.list());
   } finally { globalThis.fetch = real; }
 });
+
+test('a garden and an activity list, read from the helper’s own account, keep to who each ask is for', async () => {
+  const VOUCH = 'org.tangled.graph.vouch', when = d => `2026-11-${String(d).padStart(2, '0')}T12:00:00.000Z`;
+  const ref = (did, coll, rkey) => ({ uri: `at://${did}/${coll}/${rkey}`, cid: repos[did][coll].get(rkey).cid });
+  const b1 = ref(people.bob, SEED, 'b1'), b2 = ref(people.bob, SEED, 'b2'), d1 = ref(people.dave, SEED, 'd1');
+  // Carol helps with both of Bob's: one is for people he follows (you), the other for his mutuals (not you).
+  put(people.carol, TAKE, 'ct1', { $type: TAKE, seed: b1, createdAt: when(2) });
+  put(people.carol, DELIVERY, 'cd1', { $type: DELIVERY, seed: b1, url: 'https://github.com/bob/r/pull/1', createdAt: when(3) });
+  put(people.carol, DELIVERY, 'cd2', { $type: DELIVERY, seed: b2, url: 'https://github.com/bob/r/pull/2', createdAt: when(4) });
+  put(people.carol, COMMENT, 'cc1', { $type: COMMENT, seed: d1, text: 'Is this still wanted?', createdAt: when(5) });
+  put(people.carol, VOUCH, people.alice, { kind: 'vouch', reason: 'Kind and careful.', createdAt: when(6) });
+  put(people.carol, VOUCH, people.dave, { kind: 'denounce', reason: 'Not listed.', createdAt: when(7) });
+  for (const [rkey, dl, thanks] of [['b1', 'cd1', 'Thank you, Carol!'], ['b2', 'cd2', 'Not for your eyes.']]) {
+    const v = repos[people.bob][SEED].get(rkey).value;
+    put(people.bob, SEED, rkey, { ...v, state: 'sprouted', sproutedWith: [ref(people.carol, DELIVERY, dl)], thanks, updatedAt: when(8) });
+  }
+  const src = createSource({ agent: agent(people.me) });
+  const garden = await src.gardenOf(people.carol);
+  assert.deepEqual(garden.map(g => [g.rkey, g.shared, g.thanks, g.link]).sort(), [
+    ['b1', true, 'Thank you, Carol!', 'https://github.com/bob/r/pull/1'],
+    ['b2', false, 'Not for your eyes.', 'https://github.com/bob/r/pull/2']   // counted, but the screens don't name it
+  ]);
+  assert.equal(garden.find(g => g.rkey === 'b1').author.handle, 'bob.test');
+  // Carol herself sees both as hers to name.
+  assert.ok((await createSource({ agent: agent(people.carol) }).gardenOf(people.carol)).every(g => g.shared));
+  const stories = await src.activityOf(people.carol);
+  assert.deepEqual(stories.map(s => [s.kind, s.seed?.rkey || s.person.handle]).sort(), [
+    ['asked', 'c2'],               // her own ask for her followers (you follow her); c1, for her mutuals, isn't shown to you
+    ['helped', 'b1'],              // b2 isn't for you, so it's left out
+    ['talked', 'd1'],
+    ['vouched', 'alice.test']      // and the denouncement isn't listed
+  ]);
+  assert.deepEqual(stories.find(s => s.kind === 'helped').steps.map(x => x.what), ['took', 'turned-in', 'accepted']);
+});
+
+test('buds: a pull request turned in on an open ask, which GitHub says was merged, on the ask’s own repo', async () => {
+  const subject = { $type: `${SEED}#githubIssue`, url: 'https://github.com/bob/r/issues/1', repo: 'bob/r', number: 1 };
+  put(people.bob, SEED, 'b3', sq('Bob, on GitHub', 'following', { subject, stage: 'young' }));
+  put(people.bob, SEED, 'b4', sq('Bob, elsewhere', 'following', { subject }));
+  const b3 = { uri: `at://${people.bob}/${SEED}/b3`, cid: repos[people.bob][SEED].get('b3').cid }, b4 = { uri: `at://${people.bob}/${SEED}/b4`, cid: repos[people.bob][SEED].get('b4').cid };
+  put(people.carol, DELIVERY, 'cd3', { $type: DELIVERY, seed: b3, url: 'https://github.com/bob/r/pull/7', createdAt: new Date().toISOString() });
+  put(people.carol, DELIVERY, 'cd4', { $type: DELIVERY, seed: b4, url: 'https://github.com/carol/other/pull/1', createdAt: new Date().toISOString() });
+  const real = globalThis.fetch, github = [];
+  globalThis.fetch = async (input, init) => {
+    const u = new URL(typeof input === 'string' ? input : input.url);
+    if (u.host === 'api.github.com') { github.push(u.pathname); return json({ state: 'closed', merged_at: '2026-11-10T00:00:00Z' }); }
+    return real(input, init);
+  };
+  try {
+    const buds = await createSource({ agent: agent(people.me) }).buddingOf(people.carol);
+    assert.deepEqual(buds.map(b => [b.rkey, b.budding, b.author.handle]), [['b3', true, 'bob.test']]);
+    assert.deepEqual(github, ['/repos/bob/r/pulls/7'], 'a pull request on another repo isn’t even asked about');
+  } finally { globalThis.fetch = real; }
+});

@@ -15,6 +15,8 @@ export function lit(text){
 
 const HOUR = 3600e3;
 export const ago = iso => { const d = Date.now() - Date.parse(iso); if (!(d >= 0)) return ''; if (d < 60e3) return 'just now'; if (d < HOUR) return Math.floor(d / 60e3) + 'm ago'; if (d < 24 * HOUR) return Math.floor(d / HOUR) + 'h ago'; if (d < 30 * 24 * HOUR) return Math.floor(d / (24 * HOUR)) + 'd ago'; return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); };
+/** "6 Nov", or "6 Nov 2025" for a day in another year: when something happened, for a list of what someone's done. */
+export const shortDay = iso => { const t = Date.parse(iso); if (!t) return ''; const d = new Date(t); return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(d.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) }); };
 export const until = iso => { const t = Date.parse(iso); return t ? new Date(t).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : ''; };
 const hue = s => { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h % 360; };
 export const nameOf = p => p?.displayName || (p?.handle ? '@' + p.handle : 'Someone');
