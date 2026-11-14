@@ -141,20 +141,51 @@ function sourceNow(){
 
 /* ---------- the way down from the landing to the board ---------- */
 // Under the sign-in: the faces of whoever's asking, how many asks are open, and an arrow down
-// to them. The garden's people are made up; these are real. It comes in once the board has
-// loaded (its room is kept for it until then, so nothing moves), and goes if nothing's open.
+// to them. The garden's people are made up; these are real. It's on the page from the first
+// paint with placeholders (index.html), so the way down shows at once; once the board has
+// loaded, the real faces and count fade in over them, and if nothing's open it goes.
 const peekLink = $('#rdPeek');
 avatarFallback(peekLink);
+let peekGone = 0;
 function peek(items){
   const words = peekWords((items || []).map(it => it.value));
-  peekLink.hidden = !words;
-  if (!words) return;
+  clearTimeout(peekGone);
+  if (!words) {
+    // (it fades, then gives its room back)
+    peekLink.classList.remove('in');
+    peekLink.removeAttribute('aria-busy');
+    peekGone = setTimeout(() => { peekLink.hidden = true; }, 600);
+    return;
+  }
+  const wordsBox = peekLink.querySelector('.rd-peek-words');
+  if (!peekLink.classList.contains('wait') && wordsBox.textContent === words && !peekLink.hidden) {
+    // (the same count as before: only the faces might have changed)
+    peekLink.querySelector('.rd-peek-faces').innerHTML = peekPeople(items).map(p => face(p)).join('');
+    return;
+  }
+  const shown = !peekLink.hidden && peekLink.classList.contains('in');
+  const from = shown ? peekLink.getBoundingClientRect().width : 0;
+  peekLink.hidden = false;
+  peekLink.style.width = '';
   peekLink.querySelector('.rd-peek-faces').innerHTML = peekPeople(items).map(p => face(p)).join('');
-  peekLink.querySelector('.rd-peek-words').textContent = words;
+  wordsBox.textContent = words;
+  peekLink.classList.remove('wait');
+  peekLink.removeAttribute('aria-busy');
   peekLink.classList.add('in');
+  // The pane eases from the placeholders' width to the real words'.
+  const to = peekLink.getBoundingClientRect().width;
+  if (!shown || Math.abs(to - from) < 1 || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  peekLink.classList.add('grow');
+  peekLink.style.width = from + 'px';
+  peekLink.getBoundingClientRect();
+  peekLink.style.width = to + 'px';
+  const done = e => { if (e && e.propertyName !== 'width') return; peekLink.classList.remove('grow'); peekLink.style.width = ''; peekLink.removeEventListener('transitionend', done); };
+  peekLink.addEventListener('transitionend', done);
+  setTimeout(done, 700);
 }
 function toBoard(){
-  const head = $('#circle .rs-head');
+  // (tapped before the board's had a chance to draw its head, it goes to where the board will be)
+  const head = $('#circle .rs-head') || $('#circle');
   if (!head) return;
   head.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   // (and on from there, for whoever's using the keyboard)
