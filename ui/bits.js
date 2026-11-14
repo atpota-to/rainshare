@@ -95,9 +95,10 @@ export function plantKind(key){
 export const plantFile = (stage, kind = 0) => `${stage}${kind ? '-' + kind : ''}.webp`;
 let plantBase = '/plants/';
 export const setPlantBase = base => { plantBase = base; };
-export const plantPic = (stage, px = 40, { live = false, cls = '', key = '' } = {}) => {
+// (`vt` marks a plant that travels between pages, as the same ask's: data-rs-vt, ../src/main.js.)
+export const plantPic = (stage, px = 40, { live = false, cls = '', key = '', vt = '' } = {}) => {
   const kind = plantKind(key);
-  return `<span class="rs-plant${cls ? ' ' + cls : ''}" style="--rs-plant:${px}px">${live ? `<canvas data-rs-plant="${esc(stage)}" data-rs-kind="${kind}" aria-hidden="true"></canvas>` : ''}<img src="${esc(plantBase + plantFile(stage, kind))}" width="${px}" height="${px}" alt="" decoding="async"></span>`;
+  return `<span class="rs-plant${cls ? ' ' + cls : ''}" style="--rs-plant:${px}px"${vt ? ` data-rs-vt="${esc(vt)}"` : ''}>${live ? `<canvas data-rs-plant="${esc(stage)}" data-rs-kind="${kind}" aria-hidden="true"></canvas>` : ''}<img src="${esc(plantBase + plantFile(stage, kind))}" width="${px}" height="${px}" alt="" decoding="async"></span>`;
 };
 export const forgeIco = f => `<svg class="rs-i rs-forge" viewBox="0 0 24 24" aria-hidden="true">${FORGE_ICON[f] || FORGE_ICON.other}</svg>`;
 

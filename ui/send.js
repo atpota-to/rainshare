@@ -11,6 +11,7 @@
 // their profile, or with "Change" beside the button.
 import { TAKE_DAYS } from '../core/ns.js';
 import { esc, ico } from './bits.js';
+import { closeSoftly, swapStep } from './motion.js';
 
 /** The choices of how long, with `days` among them even if it isn't one of the usual ones. */
 export const dayChoices = days => TAKE_DAYS.some(([d]) => d === days) || !(days >= 1) ? TAKE_DAYS
@@ -47,18 +48,19 @@ export function openSend({ title, asker, ways, answers, send, error = e => e?.me
     <h2 id="rsSdTitle" tabindex="-1">${h}</h2>`;
   const choice = (name, value, on, label, note) => `<label class="rs-sd-way"><input type="radio" name="${name}" value="${esc(value)}"${on ? ' checked' : ''}><span><b>${esc(label)}</b><small>${esc(note)}</small></span></label>`;
 
-  function paint(){
+  // (`dir`: 1 going on to the second question, -1 back to the first; the box slides between them.)
+  function paint(dir = 0){
     if (st.step === 'how') {
-      box.innerHTML = `${top(1, 'How do you want to send it?')}
+      swapStep(box, `${top(1, 'How do you want to send it?')}
         <p class="rs-sd-what">${esc(title)}</p>
         <div class="rs-sd-ways" role="radiogroup" aria-label="How to send it">${ways.map(w => choice('sdRoute', w.id, w.id === st.route, w.name, w.note)).join('')}</div>
         <button class="rs-btn rs-primary" type="button" data-sd="next">Next</button>
-        <div class="rs-wl-foot"><span class="rs-muted">Nothing’s been written yet.</span><button class="rs-link" type="button" data-sd="cancel">Cancel</button></div>`;
+        <div class="rs-wl-foot"><span class="rs-muted">Nothing’s been written yet.</span><button class="rs-link" type="button" data-sd="cancel">Cancel</button></div>`, dir);
       (box.querySelector('[name=sdRoute]:checked') || box.querySelector('[name=sdRoute]'))?.focus();
       return;
     }
     const days = dayChoices(st.days);
-    box.innerHTML = `${top(2, `Tell ${esc(asker)} you’re on it?`)}
+    swapStep(box, `${top(2, `Tell ${esc(asker)} you’re on it?`)}
       <div class="rs-sd-ways" role="radiogroup" aria-label="Whether to say you’re on it">
         ${choice('sdClaim', 'yes', st.claim, 'Yes, I’m on it', 'Everyone sees you’re on it, so nobody does it twice.')}
         <div class="rs-sd-days"${st.claim ? '' : ' hidden'}>
@@ -75,7 +77,7 @@ export function openSend({ title, asker, ways, answers, send, error = e => e?.me
       </div>
       <p class="rs-err" role="alert" hidden></p>
       <button class="rs-btn rs-primary" type="button" data-sd="send">${st.claim ? 'Send my agent' : 'Copy it'}</button>
-      <div class="rs-wl-foot"><button class="rs-link" type="button" data-sd="back">${ico('back')}Back</button><button class="rs-link" type="button" data-sd="cancel">Cancel</button></div>`;
+      <div class="rs-wl-foot"><button class="rs-link" type="button" data-sd="back">${ico('back')}Back</button><button class="rs-link" type="button" data-sd="cancel">Cancel</button></div>`, dir);
     (box.querySelector('[name=sdClaim]:checked') || box.querySelector('[name=sdClaim]'))?.focus();
   }
   const say = msg => { const p = box.querySelector('.rs-err'); if (p) { p.textContent = msg; p.hidden = !msg; } };
@@ -86,7 +88,7 @@ export function openSend({ title, asker, ways, answers, send, error = e => e?.me
     try { await send({ route: st.route, claim: st.claim, days: st.days, remember: st.remember, askEachTime: !st.remember || st.askEachTime }); }
     catch (e) { st.busy = false; btn.disabled = false; btn.textContent = st.claim ? 'Send my agent' : 'Copy it'; say(error(e)); return; }
     st.busy = false;
-    dlg.close();
+    closeSoftly(dlg);
   }
 
   dlg.addEventListener('change', e => {
@@ -103,17 +105,18 @@ export function openSend({ title, asker, ways, answers, send, error = e => e?.me
   dlg.addEventListener('click', e => {
     if (st.busy) return;
     // Outside the box is the same as Cancel.
-    if (e.target === dlg) return dlg.close();
+    if (e.target === dlg) return closeSoftly(dlg);
     const d = e.target.closest('[data-sd-days]');
     if (d) { st.days = +d.dataset.sdDays; box.querySelectorAll('[data-sd-days]').forEach(b => b.setAttribute('aria-pressed', String(b === d))); return; }
     const b = e.target.closest('[data-sd]'); if (!b) return;
     const act = b.dataset.sd;
-    if (act === 'cancel') dlg.close();
-    else if (act === 'next') { st.step = 'claim'; paint(); }
-    else if (act === 'back') { st.step = 'how'; paint(); }
+    if (act === 'cancel') closeSoftly(dlg);
+    else if (act === 'next') { st.step = 'claim'; paint(1); }
+    else if (act === 'back') { st.step = 'how'; paint(-1); }
     else if (act === 'send') submit(b);
   });
-  dlg.addEventListener('cancel', e => { if (st.busy) e.preventDefault(); });
+  // Escape closes it as Cancel does, unless it's busy sending. (When the browser won't let it be held open, it closes at once.)
+  dlg.addEventListener('cancel', e => { if (!e.cancelable) return; e.preventDefault(); if (!st.busy) closeSoftly(dlg); });
   dlg.addEventListener('close', () => dlg.remove());
 
   paint();
