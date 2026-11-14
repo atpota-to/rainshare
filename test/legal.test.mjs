@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { LEGAL, TERMS, PRIVACY, LEGAL_VERSION, SAFETY, asMarkdown } from '../core/legal.js';
+import { LEGAL, TERMS, PRIVACY, LEGAL_VERSION, SAFETY, OPERATOR, asMarkdown } from '../core/legal.js';
 import { renderMarkdown } from '../core/markdown.js';
 import { known, reroute } from '../core/route.js';
 import { APPVIEW, RELAYS, PLC, CONSTELLATION } from '../core/net.js';
@@ -44,6 +44,32 @@ test('the terms say what matters here: public records, your own agent, no money,
   const all = asMarkdown(TERMS);
   for (const says of [/public record in your own account/, /You run your own agent, signed in as you/, /at your own risk/, /no credits, tips or payments/,
     /must not try to trick or misuse a helper’s agent/, /We can’t delete or change your records/, /“as is”/, /at least 13/, /MIT License/, /@rainshare\.dev/]) assert.match(all, says);
+});
+
+test('both documents say who runs Rainshare, and the terms say how a dispute goes', () => {
+  assert.deepEqual(OPERATOR, { name: 'atpotato, LLC', kind: 'a Delaware limited liability company', address: '8595 Pelham Road, Suite 400 #747, Greenville, SC 29615, USA', email: 'contact@atpota.to' });
+  const terms = asMarkdown(TERMS), privacy = asMarkdown(PRIVACY);
+  for (const doc of [terms, privacy]) assert.match(doc, /operated by (\*\*)?atpotato, LLC(\*\*)?, a Delaware limited liability company/);
+  // Up front, before the sections: that disputes go to arbitration, and that there's a way out of it.
+  assert.match(TERMS.lead, /disputes are settled one at a time by arbitration, not in court, unless you opt out/);
+  assert.ok(TERMS.short.some(x => /arbitration, unless you opt out within 30 days/.test(x)));
+  const section = name => TERMS.sections.find(([h]) => h === name)[1];
+  // Who may use it.
+  assert.match(section('Who runs Rainshare, and who can use it'), /at least 13 years old[\s\S]*between 13 and 18[\s\S]*parent or guardian[\s\S]*U\.S\. Government embargo/);
+  // The cap, a claim, a dispute, and whose law.
+  assert.match(section('Limits on our responsibility'), /indirect, incidental, special, consequential, punitive or exemplary damages[\s\S]*the greater of what you paid us in the twelve months before the claim, or fifty US dollars \(US\$50\)/);
+  assert.match(section('If something you do leads to a claim'), /defend, indemnify and hold harmless atpotato, LLC/);
+  const disputes = section('Disputes');
+  assert.match(disputes, /write to us at contact@atpota\.to and try to settle it informally for at least thirty \(30\) days/);
+  assert.match(disputes, /binding individual arbitration[\s\S]*small-claims court[\s\S]*Federal Arbitration Act[\s\S]*American Arbitration Association \(AAA\)[\s\S]*Consumer Arbitration Rules/);
+  assert.match(disputes, /opt out of arbitration[\s\S]*by emailing contact@atpota\.to within 30 days of first agreeing to these terms/);
+  assert.match(disputes, /not to bring or join a class, consolidated or representative action/);
+  assert.match(section('Governing law'), /laws of the State of Delaware[\s\S]*state and federal courts located in Delaware[\s\S]*mandatory consumer-protection laws of the place you live/);
+  assert.match(section('Moderation'), /copyright agent: atpotato, LLC, 8595 Pelham Road[\s\S]*under penalty of perjury[\s\S]*counter-notice/);
+  // The Privacy Policy: who to write to, and the rights that depend on where someone lives.
+  assert.match(privacy, /\*\*Data controller:\*\* atpotato, LLC, 8595 Pelham Road, Suite 400 #747, Greenville, SC 29615, USA/);
+  assert.match(privacy, /California and other U\.S\. states[\s\S]*Privacy appeal[\s\S]*Europe, the UK and Switzerland[\s\S]*hasn’t appointed a representative in the EU or the UK under Article 27/);
+  assert.match(privacy, /isn’t directed to children under 13/);
 });
 
 test('the Privacy Policy names every service the code asks, and everything kept in the browser', () => {

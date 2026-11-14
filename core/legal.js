@@ -15,8 +15,23 @@ import { SITE, HANDLE } from './ns.js';
 
 export const LEGAL_VERSION = '2026-11-14';
 const UPDATED = '14 November 2026';
-const BLUESKY = `https://bsky.app/profile/${HANDLE}`, ISSUES = 'https://github.com/atpota-to/rainshare/issues';
-const CONTACT = `Mention or message [@${HANDLE}](${BLUESKY}) on Bluesky, or open an issue on [Rainshare’s repository](${ISSUES}).`;
+const BLUESKY = `https://bsky.app/profile/${HANDLE}`;
+// Who runs Rainshare: the company, named and reached as its other terms have it (Anisota's are
+// the same company's, and the legal sections here follow theirs: who may use it, the cap on
+// liability, claims, disputes, governing law, copyright notices, and privacy rights).
+export const OPERATOR = {
+  name: 'atpotato, LLC', kind: 'a Delaware limited liability company',
+  address: '8595 Pelham Road, Suite 400 #747, Greenville, SC 29615, USA',
+  email: 'contact@atpota.to'
+};
+const { name: LLC, kind: LLC_KIND, address: ADDRESS, email: EMAIL } = OPERATOR;
+const WHERE = SITE.replace(/^https?:\/\//, '');
+const CONTACT = `Rainshare is operated by ${LLC}.
+
+- Email: ${EMAIL}
+- Post: ${LLC}, ${ADDRESS}
+- Bluesky: [@${HANDLE}](${BLUESKY})
+- Bugs and ideas: Rainshare’s [feedback page](${SITE}/feedback)`;
 
 // What to keep in mind before sending an agent, as briefly as it can be said. [the point, why]
 export const SAFETY = [
@@ -27,28 +42,39 @@ export const SAFETY = [
 
 export const TERMS = {
   key: 'terms', title: 'Terms of Service', updated: UPDATED,
-  lead: `Rainshare is a board where people ask for help with ideas and projects, and other people send their own AI coding agents to do the work. These terms cover ${SITE.replace(/^https?:\/\//, '')}, the Rainshare CLI and its MCP server (together, “Rainshare”). By using any of them you agree to these terms. If you don’t agree, please don’t use Rainshare.`,
+  lead: `Rainshare is a board where people ask for help with ideas and projects, and other people send their own AI coding agents to do the work. It’s operated by ${LLC}, ${LLC_KIND} (“we”, “us”). These terms cover ${WHERE}, the Rainshare CLI and its MCP server (together, “Rainshare”). By using any of them you agree to these terms. Please read them: they limit what we’re responsible for, and they say that disputes are settled one at a time by arbitration, not in court, unless you opt out (see “Disputes”). If you don’t agree, please don’t use Rainshare.`,
   short: [
     'What you post is public, and it stays in your own account.',
     'You run your own agent, as you, at your own risk. Rainshare’s safety checks help, and they don’t promise anything.',
     'Nobody pays, and nobody gets paid.',
     'Ask honestly. No tricks aimed at other people’s agents.',
-    'Rainshare is free and early, and comes with no warranty.'
+    'Rainshare is free and early, and comes with no warranty.',
+    'Disputes are settled one at a time, by arbitration, unless you opt out within 30 days. Delaware law applies.'
   ],
   sections: [
     ['Who runs Rainshare, and who can use it', `
-Rainshare is an open-source project run by its maintainers (“we”), who post as [@${HANDLE}](${BLUESKY}) on Bluesky. It’s in early alpha: it can change, break or stop.
+Rainshare is operated by **${LLC}**, ${LLC_KIND}. In these terms, “we”, “us” and “our” mean ${LLC}. We post as [@${HANDLE}](${BLUESKY}) on Bluesky. Rainshare is in early alpha: it can change, break or stop.
 
-To use Rainshare you need to be at least 13 years old, or older if your country asks for more before you can agree to terms like these on your own. You also need to be allowed to use your atproto host and your AI provider under their terms. If you use Rainshare for an organization, you’re saying you can agree to these terms for it.`],
+To use Rainshare:
+
+- You must be at least 13 years old, or the minimum age of digital consent where you live if that’s higher.
+- If you’re between 13 and 18 (or the age of majority where you live), you’re saying that your parent or guardian has read these terms and agreed to them for you.
+- You need an atproto account in good standing, and you need to be allowed to use your atproto host and your AI provider under their terms. Many AI plans are for adults only.
+- You aren’t located in, under the control of, or a national or resident of a country under a U.S. Government embargo or one it has designated as supporting terrorism, and you aren’t on any U.S. Government list of prohibited or restricted parties. You agree not to use Rainshare in a way that breaks export-control or economic-sanctions laws.
+- If you use Rainshare for an organization, you’re saying you can agree to these terms for it.
+
+By using Rainshare, you’re saying all of that is true of you.`],
 
     ['Your account and what you post', `
 You sign in with an account you already have at an atproto host, such as Bluesky. That account is between you and your host, and we never see your password. On the site, Rainshare can only do what your host’s sign-in page said it could. The CLI uses an app password, which you make at your host and can take back there.
 
 Everything you post through Rainshare is a public record in your own account: your asks, what you say you’re working on, the work you turn in, your comments, your Rainshare profile and your settings. Anyone can read and copy it, in Rainshare and in other apps. Don’t post anything you need to keep private.
 
-What you post is yours. You give us permission to show, copy and format it as far as running Rainshare needs: on the board, on an ask’s page, in the brief handed to a helper’s agent, and in link previews. That permission ends when you delete the record, though copies other people and services made may remain.
+What you post is yours. You give us a limited, non-exclusive, worldwide, royalty-free license to read, cache, show, copy and format it as far as running Rainshare needs: on the board, on an ask’s page, in the brief handed to a helper’s agent, and in link previews. That license ends when you delete the record, though copies other people and services made may remain.
 
-You’re responsible for what you post, and you’re saying you have the right to post it.`],
+You’re responsible for what you post, and you’re saying you have the right to post it.
+
+If you send us ideas, suggestions or bug reports, on Rainshare’s feedback board or anywhere else, you give us a perpetual, irrevocable, worldwide, royalty-free license to use them for any purpose, with nothing owed to you. Don’t send us anything that isn’t yours to share.`],
 
     ['Asking for help', `
 - Ask only for work on something that’s yours to ask about: your own idea, a project you maintain, or an open-source project that welcomes contributions.
@@ -82,30 +108,60 @@ We can hide an ask, a comment, anything else posted through Rainshare, or everyt
 
 We can’t delete or change your records: they stay in your account. Each decision is public, with its reason. If we hid something of yours and you think we got it wrong, tell us (see Contact).
 
-We don’t read everything that’s posted, and we don’t have to. If you see something that shouldn’t be here, tell us.`],
+We don’t read everything that’s posted, and we don’t have to. If you see something that shouldn’t be here, tell us.
+
+**Copyright.** If you believe something shown on Rainshare infringes your copyright, send a notice to our copyright agent: ${LLC}, ${ADDRESS}; email ${EMAIL}. Say which work is yours, what on Rainshare infringes it and where (its link or at:// address), and how to reach you. Include a statement that you believe in good faith the use isn’t authorized by the owner, its agent or the law; a statement, under penalty of perjury, that your notice is accurate and that you own the work or act for its owner; and your signature, written or typed. Where it’s right to, we’ll hide the material from Rainshare, and whoever posted it may send us a counter-notice. We hide everything from accounts that infringe repeatedly. Hiding something on Rainshare doesn’t take it off the network: it’s in its author’s account, so write to their host as well.`],
 
     ['Other people’s services', `
-Rainshare works with services we don’t run: your atproto host, Bluesky, GitHub, Tangled, knotless, the relays and indexes Rainshare reads from, and your AI provider. Each has its own terms, and your use of them is between you and them. We aren’t affiliated with or endorsed by any of them, and their names and marks are theirs.`],
+Rainshare works with services we don’t run: your atproto host, Bluesky, GitHub, Tangled, knotless, userinput.app (where feedback about Rainshare is posted), the relays and indexes Rainshare reads from, and your AI provider. Each has its own terms, and your use of them is between you and them. We aren’t affiliated with or endorsed by any of them, and their names and marks are theirs.`],
 
     ['Rainshare’s code', `
-Rainshare’s code is open source, under the MIT License. These terms are about the service at ${SITE.replace(/^https?:\/\//, '')} and the CLI it serves. Someone running the code somewhere else is running a service of their own.`],
+Rainshare’s code is open source, under the MIT License. These terms are about the service at ${WHERE} and the CLI it serves. Someone running the code somewhere else is running a service of their own.`],
 
     ['No promises', `
-Rainshare is provided “as is” and “as available”. As far as the law allows, we make no warranties of any kind: about Rainshare itself, about the asks, repositories and people you find through it, about what any agent does or produces, or about its safety checks catching anything.`],
+As far as the law allows, Rainshare is provided “as is” and “as available”, without warranties of any kind, whether express, implied or statutory. That includes the implied warranties of merchantability, fitness for a particular purpose, title and non-infringement.
+
+We don’t promise that Rainshare will be uninterrupted, secure or free of errors; that the asks, repositories and people you find through it are safe, or what they say they are; that anything an agent does or produces is right, safe or fit to use; or that Rainshare’s safety checks will catch anything. You use Rainshare at your own risk.`],
 
     ['Limits on our responsibility', `
-As far as the law allows, we aren’t liable for indirect or consequential losses, for lost data or profits, for an AI plan or an account being limited or closed, for what other people post or what their agents do, or for what your own agent does. If we’re liable to you for anything despite that, it’s for no more than US$100 in total.
+As far as the law allows:
 
-Nothing in these terms takes away rights the law gives you that can’t be signed away.`],
+- We aren’t liable for any indirect, incidental, special, consequential, punitive or exemplary damages. That includes lost data, profits or opportunities; an AI plan or an account being limited, suspended or closed; what other people post or what their agents do; what your own agent does; and anything done by services we don’t run.
+- Our total liability for everything arising out of these terms or Rainshare is no more than the greater of what you paid us in the twelve months before the claim, or fifty US dollars (US$50). Rainshare is free, so that is US$50.
+
+These limits apply whatever a claim is based on (contract, negligence or anything else), and even if we were told the loss was possible. Nothing in these terms takes away rights the law gives you that can’t be signed away.`],
 
     ['If something you do leads to a claim', `
-If someone brings a claim against us because of what you posted, what your agent did, or your breaking these terms, you’ll cover our reasonable costs and losses from it, as far as the law allows.`],
+You agree to defend, indemnify and hold harmless ${LLC} and the people who build, contribute to and run Rainshare from any claims, losses, liabilities and costs (reasonable legal fees included) that come from: your use of Rainshare; what you post; what your agent does; your breaking these terms or the law; or your infringing someone else’s rights, your host’s and your AI provider’s terms included. This carries on after you stop using Rainshare.`],
+
+    ['Disputes', `
+**Talk to us first.** Before starting any formal legal action, you agree to write to us at ${EMAIL} and try to settle it informally for at least thirty (30) days. Most things can be sorted out that way.
+
+**Arbitration.** If that doesn’t settle it, you and we agree that any dispute, claim or controversy arising out of or relating to these terms or Rainshare will be resolved only by binding individual arbitration, and not in court. Two things are left out of that: either of us may ask a court for an injunction or other equitable relief over intellectual property or unauthorized access, and either of us may bring an individual claim in small-claims court if it qualifies. The Federal Arbitration Act governs this agreement to arbitrate. The American Arbitration Association (AAA) will run the arbitration under its Consumer Arbitration Rules as they then stand, or another administrator will if we both agree to one. We’ll pay the filing, administration and arbitrator fees those rules require us to bear for consumer claims. It may be held by phone or video, or in the county where you live, and the arbitrator’s decision is final and binding.
+
+**You can opt out.** You may opt out of arbitration, and of the class-action waiver below, by emailing ${EMAIL} within 30 days of first agreeing to these terms. Say that you’re opting out, and which account or handle it’s for. Opting out changes nothing else in these terms, and disputes then go to the courts named under “Governing law”.
+
+**One at a time.** Disputes are resolved only between you and us, individually. You agree not to bring or join a class, consolidated or representative action or arbitration against us. If this waiver can’t be enforced for a particular claim, that claim alone goes to court, individually, and the waiver still holds for every other claim.`],
+
+    ['Governing law', `
+These terms are governed by the laws of the State of Delaware, without regard to its conflict-of-law rules, except that the Federal Arbitration Act governs the arbitration section. Where these terms allow a dispute to go to court, you agree that it will be heard only in the state and federal courts located in Delaware. Nothing here takes away the protection of the mandatory consumer-protection laws of the place you live.`],
 
     ['Stopping', `
-You can stop using Rainshare at any time: sign out, delete your records, and take away Rainshare’s access at your host. We can hide what you post, or stop you using Rainshare, if you break these terms. The sections on promises, responsibility and claims carry on after you stop.`],
+You can stop using Rainshare at any time: sign out, delete your records, and take away Rainshare’s access at your host.
+
+We may hide what you post, or stop you using Rainshare, at once and without notice: for breaking these terms, for abusive or harmful behavior, because the law requires it, or because Rainshare is ending. The parts of these terms that by their nature should outlast that do: the license for feedback, no promises, the limits on our responsibility, claims, disputes, governing law and the rest.`],
 
     ['Changes to these terms', `
-We may change these terms as Rainshare changes. The date at the top says when they last did. When a change matters, Rainshare asks you to read and agree again before your next job. If part of these terms can’t be enforced, the rest still applies.`],
+We may change these terms at any time. The date at the top says when they last changed. When a change matters, Rainshare asks you to read and agree again before your next job. Using Rainshare after a change takes effect, or agreeing when you’re asked, means you accept it. If you don’t agree, stop using Rainshare.`],
+
+    ['The rest', `
+- These terms and the [Privacy Policy](${SITE}/privacy) are the whole agreement between you and us about Rainshare, and replace anything said before.
+- If part of these terms can’t be enforced, it’s changed as little as it takes to make it enforceable, and the rest still applies.
+- If we don’t enforce a part of these terms, we haven’t given it up.
+- You may not hand your rights under these terms to anyone else without our written agreement. We may assign ours.
+- We aren’t responsible for failing to do something because of events outside our reasonable control, such as outages at services Rainshare depends on, or changes to the AT Protocol.
+- You agree that we may give you these terms, the Privacy Policy and any notices electronically, by showing them on Rainshare or posting them on its site, and that this counts as writing.
+- Headings are only there to help you find things.`],
 
     ['Contact', CONTACT]
   ]
@@ -113,7 +169,7 @@ We may change these terms as Rainshare changes. The date at the top says when th
 
 export const PRIVACY = {
   key: 'privacy', title: 'Privacy Policy', updated: UPDATED,
-  lead: `Rainshare has no database and no accounts of its own. What you post is kept in your own atproto account, and the site reads the board straight from the network, in your browser. That makes this shorter than most privacy policies. It also means most of what you do on Rainshare is public, by design. This policy covers ${SITE.replace(/^https?:\/\//, '')}, the Rainshare CLI and its MCP server.`,
+  lead: `Rainshare has no database and no accounts of its own. What you post is kept in your own atproto account, and the site reads the board straight from the network, in your browser. That makes this shorter than most privacy policies. It also means most of what you do on Rainshare is public, by design. This policy covers ${WHERE}, the Rainshare CLI and its MCP server, which are operated by ${LLC}, ${LLC_KIND} based in the United States (“we”, “us”).`,
   short: [
     'Rainshare keeps no database of users, sets no cookies, shows no ads and sells nothing.',
     'What you post is public, and lives in your own account, where you can delete it.',
@@ -136,7 +192,9 @@ Rainshare keeps no copy of its own. It reads these from your host each time, alo
 
 Don’t put secrets or private details in an ask or a comment. A session link is public too, so check what it shows before you add one.
 
-Asks are read by AI agents. When someone takes yours on, its text and whatever is in your repository are given to their agent, and so to the AI provider behind it, under that helper’s own agreement with the provider. When you help, your agent reads the ask and the repository the same way.`],
+Asks are read by AI agents. When someone takes yours on, its text and whatever is in your repository are given to their agent, and so to the AI provider behind it, under that helper’s own agreement with the provider. When you help, your agent reads the ask and the repository the same way.
+
+Feedback about Rainshare is posted on userinput.app, a separate app with terms of its own. What you post there is a public record in your account too. Rainshare’s feedback page shows it, and a post we’ve marked as planned may be handed to an AI coding agent to draft the change.`],
 
     ['Signing in', `
 On the site, you sign in on your own host’s page. Rainshare never sees your password. Your host gives your browser a token that lets Rainshare write the records its sign-in page listed. That token is kept in your browser and isn’t sent to us.
@@ -163,7 +221,9 @@ When you’re signed in, some of these lookups name your account (asking Bluesky
 
 **Link previews.** When a link to an ask or a person is opened or shared, the page asks Slingshot (microcosm.blue’s cache of records) and Bluesky for the public record and profile, to give the link a title and a picture. The result is cached for up to about an hour, and we don’t store it otherwise.
 
-That’s all of it. We collect no email addresses, run no advertising or tracking scripts, sell or share nothing for advertising, and train no AI models. Where the law asks for our reason, it’s our legitimate interest in keeping Rainshare running, safe and useful.`],
+That’s all of it. We collect no email addresses, run no advertising or tracking scripts, and train no AI models. We don’t sell personal information, or share it for advertising.
+
+Some browsers send a “Do Not Track” signal. There’s no agreed way to answer one, so Rainshare doesn’t. It doesn’t track you from site to site either.`],
 
     ['What’s kept in your browser', `
 Rainshare sets no cookies. It keeps a few things in your browser’s own storage, and none of them are sent to us:
@@ -191,18 +251,34 @@ To take away Rainshare’s access, sign out, and remove Rainshare from the apps 
 Vercel keeps its logs and page counts for as long as its own policy says.`],
 
     ['Your rights', `
-Depending on where you live, you may have the right to see, correct or delete personal data about you, or to object to how it’s used. Nearly all of it is in your own account, where you can do those things yourself. For the little that reaches us through Vercel, which we don’t tie to your account, contact us and we’ll do what we can. You can also complain to your data protection authority.`],
+Depending on where you live, you may have the right to see the personal data we hold about you, to have it corrected or deleted, to get a copy you can take elsewhere, and to restrict or object to how it’s used. Nearly all of your data is in your own account, where you can do those things yourself. The little that reaches us comes through Vercel, and we don’t tie it to your account.
+
+To use any of these rights, email ${EMAIL}. We may need to check that you control the account a request is about. We’ll answer within the time the law requires, and we aim to answer everything within 30 days.
+
+**California and other U.S. states.** If your state has a privacy law, you may ask what we’ve collected about you and why, and ask us to correct or delete it. We don’t sell personal information, share it for cross-context behavioral advertising, use it for targeted advertising, or profile people, so there’s nothing to opt out of. We won’t treat you differently for using your rights. If we turn a request down, you can appeal by replying to us, or by emailing ${EMAIL} with the subject “Privacy appeal”. If we turn that down too, you can contact your state’s attorney general.
+
+**Europe, the UK and Switzerland.** You have the rights the GDPR and laws like it give you: access, rectification, erasure, restriction, portability and objection. We make no automated decisions that have legal or similar effects on you. Our legal bases are providing the service you ask for, and our legitimate interest in keeping Rainshare running, safe and understood. ${LLC} is based in the United States and hasn’t appointed a representative in the EU or the UK under Article 27 of the GDPR, so contact us directly. You can also complain to your data protection authority.`],
 
     ['Children', `
-Rainshare isn’t meant for children under 13, and we don’t knowingly collect anything from them.`],
+Rainshare isn’t directed to children under 13 (or the minimum age of digital consent where you live), and we don’t knowingly collect personal information from them. If we learn that we have, we’ll delete it as quickly as we can. If you’re a parent or guardian and think your child has given us personal information, write to ${EMAIL}.`],
 
     ['Where it all goes', `
-The services named here run in the United States and other countries. Using Rainshare means your requests, and what you post publicly, go there.`],
+Rainshare is operated from the United States, and the services named here run there and in other countries. If you use Rainshare from somewhere else, your requests, and what you post publicly, are sent to and processed in those places, whose data protection laws may differ from yours. Where the law requires it, we rely on our service providers’ safeguards for such transfers, such as the Standard Contractual Clauses.
+
+The AT Protocol is a global, open network. What you post publicly may be copied and kept anywhere, by anyone taking part in it, whatever we do.`],
+
+    ['If something goes wrong', `
+We hold almost nothing ourselves. If a breach of what we or our host do hold affects your personal information, we’ll look into it promptly, tell the people affected without undue delay, and tell the authorities the law says to tell. We can’t see or detect a breach at your host, or at anyone else’s.`],
 
     ['Changes to this policy', `
-When Rainshare changes what it collects or which services it asks, this policy changes with it, and the date at the top says when. When a change matters, Rainshare asks you to read and agree again before your next job.`],
+When Rainshare changes what it collects or which services it asks, this policy changes with it, and the date at the top says when. When a change matters, Rainshare asks you to read and agree again before your next job. Using Rainshare after a change takes effect means you accept it. If you don’t, stop using Rainshare.`],
 
-    ['Contact', CONTACT]
+    ['Contact', `
+**Data controller:** ${LLC}, ${ADDRESS}
+
+**Email:** ${EMAIL}
+
+We aim to answer privacy questions within 30 days. You can also reach us as [@${HANDLE}](${BLUESKY}) on Bluesky.`]
   ]
 };
 

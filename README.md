@@ -455,7 +455,10 @@ agent so. And a repo you clone can carry its own agent config (`CLAUDE.md`, hook
 
 The [Terms of Service](https://rainshare.dev/terms) and [Privacy Policy](https://rainshare.dev/privacy)
 are written in `core/legal.js`, as Markdown, so there's one copy: the site shows them at `/terms`
-and `/privacy`, the footer links to them, and the CLI prints them.
+and `/privacy`, the footer links to them, and the CLI prints them. Rainshare is operated by
+atpotato, LLC (`OPERATOR` in that file), and the legal sections follow the ones in the terms of
+[Anisota](https://anisota.net), which the same company runs: who may use it, the cap on
+liability, claims, disputes and arbitration, governing law, copyright notices and privacy rights.
 
 - **Agreeing.** The note before someone's first job (`ui/agree.js`) won't go on until its box is
   ticked. It opens for "Send my agent" (before its own questions about how to send), "Copy as
