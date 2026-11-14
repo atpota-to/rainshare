@@ -1,4 +1,4 @@
-// Asking for rain, in short steps with a preview beside them of how it will look: what it is
+// Asking for help, in short steps with a preview beside them of how it will look: what it is
 // (an idea, or a project and where it lives), what you'd like done (with how, folded away
 // under "More options"), and, when it's on (FEATURES.audience in ../core/ns.js), who it's
 // for. Then a confirmation that says who can see it and what happens next.
@@ -373,7 +373,7 @@ export function createPoster(ui){
     // change every few months, and a helper knows which of theirs fit.
     const custom = P.families.filter(f => !FAMILIES.some(([k]) => k === f));
     const lv = LEVELS.find(l => l[0] === P.level);
-    return `<fieldset><legend>Which models would you prefer? ${tip('Frontier is the most capable model a family has, mid-tier a step below, and small is quick and light. Helpers whose plan or setup reaches one of these families see it as a better fit, and their agents get it in the brief.')}</legend>
+    return `<fieldset><legend>Which models would you prefer? ${tip('Frontier is the most capable model a family has, mid-tier a step below, and small is quick and light. ' + (FEATURES.fit ? 'Helpers whose plan or setup reaches one of these families see it as a better fit, and their agents get it in the prompt.' : 'Helpers see it before they start, and their agent’s prompt says it too.'))}</legend>
         <div class="rs-toggles" data-rs-families aria-label="Model family">
           <button type="button" data-rs-family="" aria-pressed="${!P.families.length}">Any model</button>
           ${[...FAMILIES, ...custom.map(f => [f, f])].map(([k, l]) => `<button type="button" data-rs-family="${esc(k)}" aria-pressed="${P.families.includes(k)}">${esc(l)}</button>`).join('')}
@@ -417,7 +417,7 @@ export function createPoster(ui){
     }
     // Groups are coming (GROUPS in ../core/ns.js): until then there's nothing to choose between.
     const vis = GROUPS ? `<div class="rs-tiles rs-tiles-2" role="radiogroup" aria-label="Public or private">
-        ${tile('data-rs-vis', 'public', P.vis === 'public', 'Public, for my circle', 'Uses who you follow on Bluesky')}
+        ${tile('data-rs-vis', 'public', P.vis === 'public', 'Public, for people I know', 'Uses who you follow on Bluesky')}
         ${tile('data-rs-vis', 'group', P.vis === 'group', 'Private, in a group', src().canPrivate ? 'Only its members can read it' : 'Needs groups, which this app can’t reach here', src().canPrivate ? '' : ' disabled')}
       </div>` : '';
     return `<h1 tabindex="-1">Who’s it for?</h1>
@@ -451,7 +451,7 @@ export function createPoster(ui){
       <div class="rs-mini rs-mini-open">
         <div class="rs-mini-top">${face(me, 'xs')}<b>You</b><span>· ${esc(whoFor())} · just now</span></div>
         <b class="rs-mini-title">${esc(sq.title.trim() || 'Your title goes here')}</b>
-        <span class="rs-mini-fit">Each helper sees how well it suits them here, from their own profile and yours.</span>
+        ${FEATURES.fit ? '<span class="rs-mini-fit">Each helper sees how well it suits them here, from their own profile and yours.</span>' : ''}
         <dl class="rs-facts rs-facts-sm"><dt>Where</dt><dd>${esc(whereText(sq))}</dd><dt>The job</dt><dd>${esc(jobAndNotes(sq))}</dd><dt>Models</dt><dd>${esc(modelsText(sq))}</dd></dl>
       </div>
       <p class="rs-muted">${esc(reachText())}</p>`;
@@ -485,7 +485,7 @@ export function createPoster(ui){
       ${pub && P.bsky ? `<div class="rs-bsky">
         <b>Tell people on Bluesky</b>
         <p>${esc(bskyText())} <span class="rs-muted">${esc(d.page || '')}</span></p>
-        ${src().demo ? '<small>This is the example circle, so nothing goes to Bluesky.</small>' : intent ? `<a class="rs-btn rs-primary" href="${esc(intent)}" target="_blank" rel="noopener">${ico('sky')}Post it on Bluesky</a>` : ''}
+        ${src().demo ? '<small>This is the example board, so nothing goes to Bluesky.</small>' : intent ? `<a class="rs-btn rs-primary" href="${esc(intent)}" target="_blank" rel="noopener">${ico('sky')}Post it on Bluesky</a>` : ''}
       </div>` : ''}
       <div class="rs-next"><h2>What happens next</h2><ol>
         <li><b>Someone sends their agent.</b> <span>You’ll see who’s on it, and what they’re running.</span></li>
@@ -498,12 +498,12 @@ export function createPoster(ui){
   }
 
   function view(){
-    ui.title('Ask for rain');
+    ui.title('Ask for help');
     if (P.done) return `<div class="rs-post">${done()}</div>`;
     const body = [, stepWhere, stepWhat, stepWho][P.step]();
-    const next = P.step === LAST ? (P.busy ? 'Asking…' : 'Ask for rain') : { 1: P.stage === 'seed' ? 'Next: the idea' : 'Next: what you’d like done', 2: 'Next: who it’s for' }[P.step];
+    const next = P.step === LAST ? (P.busy ? 'Asking…' : 'Ask for help') : { 1: P.stage === 'seed' ? 'Next: the idea' : 'Next: what you’d like done', 2: 'Next: who it’s for' }[P.step];
     return `<div class="rs-post">
-      <header class="rs-post-head"><span>Ask for rain</span><button class="rs-link" type="button" data-rs-post-cancel>Cancel</button></header>
+      <header class="rs-post-head"><span>Ask for help</span><button class="rs-link" type="button" data-rs-post-cancel>Cancel</button></header>
       <ol class="rs-stepper" aria-label="Steps">${STEPS.map((l, i) => {
         const n = i + 1, state = n < P.step ? 'done' : n === P.step ? 'on' : '';
         return `<li class="${state}"><button type="button" data-rs-step="${n}"${n > P.reached ? ' disabled' : ''}${n === P.step ? ' aria-current="step"' : ''}><span class="rs-step-n" aria-hidden="true">${n < P.step ? ico('check') : n}</span><span>${l}</span></button></li>`;

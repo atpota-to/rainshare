@@ -14,8 +14,8 @@
 //          for it as soon as the account is made), and a button that names the host's site.
 //          The account is made there, and the host sends you back here signed in to it.
 //
-// The landing's handle field is the first step, already on the page; anywhere else the dialog
-// starts with it. Adding a forge to a sign-in you already have ("Connect Tangled") is the
+// The landing's two buttons open the dialog at the first step, saying what signing in is for.
+// Adding a forge to a sign-in you already have ("Connect Tangled") is the
 // second step on its own. The signing in itself is your server's (./oauth.js).
 import './signin.css';
 import * as oauth from './oauth.js';
@@ -45,10 +45,9 @@ const setSkipped = v => { try { v.length ? localStorage.setItem(SKIP, JSON.strin
 
 /* ---------- accounts offered as a handle is typed ---------- */
 let lists = 0;
-// `anchor` is where the list goes. `overlay` says it floats over the page under the field (the
-// landing), so it's put away when the field is left; in the dialog it's part of the layout, and
-// stays, so nothing moves under a pointer on its way to the button.
-function suggest(input, { anchor, overlay = false, pick }){
+// `anchor` is where the list goes. It's part of the dialog's layout, and stays when the field
+// is left, so nothing moves under a pointer on its way to the button.
+function suggest(input, { anchor, pick }){
   const list = document.createElement('ul'), id = 'siList' + (++lists);
   list.className = 'si-list'; list.id = id; list.hidden = true;
   list.setAttribute('role', 'listbox'); list.setAttribute('aria-label', 'Accounts that match');
@@ -89,7 +88,6 @@ function suggest(input, { anchor, overlay = false, pick }){
     } else if (e.key === 'Enter' && on >= 0 && !list.hidden) { e.preventDefault(); choose(on); }
     else if (e.key === 'Escape' && !list.hidden) { e.preventDefault(); e.stopPropagation(); show(false); }
   });
-  if (overlay) input.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== input) show(false); }, 160));
   // The field keeps the focus while an account is picked with a pointer.
   list.addEventListener('mousedown', e => e.preventDefault());
   list.addEventListener('pointermove', e => { const li = e.target.closest('li[data-i]'); if (li && +li.dataset.i !== on) mark(+li.dataset.i); });
@@ -106,10 +104,10 @@ function suggest(input, { anchor, overlay = false, pick }){
 // One handle field, wherever it is: accounts are offered as it's typed, and what's typed is
 // checked before it's taken. `then(who, person)` gets a handle or a DID, and the account itself
 // when it was one of those offered.
-function handleField(form, { err, anchor, overlay, then }){
+function handleField(form, { err, anchor, then }){
   const input = form.elements.handle;
   const say = msg => { err.textContent = msg; err.hidden = !msg; };
-  const offer = suggest(input, { anchor, overlay, pick: p => { say(''); then(p.handle, p); } });
+  const offer = suggest(input, { anchor, pick: p => { say(''); then(p.handle, p); } });
   form.addEventListener('submit', e => {
     e.preventDefault();
     const typed = normalizeHandle(input.value);
@@ -192,11 +190,12 @@ const asks = () => `<fieldset class="si-asks">
  *   forges          which forges start ticked: all of them, less any unticked last time
  *   adding          a forge being added to the sign-in `person` already has
  *   making          for someone with no account: it starts at the hosts to make one with
+ *   why             what signing in is for, said first ("Sign in, then pick something to help with.")
  */
-export function openSignIn({ handle = '', person = null, to = '/', forges = null, adding = null, making = false } = {}){
+export function openSignIn({ handle = '', person = null, to = '/', forges = null, adding = null, making = false, why = '' } = {}){
   ensure();
   const out = skipped();
-  st = { at: null, to, adding, want: new Set(forges || FORGES.filter(f => !out.includes(f))), turn: 0, who: null, person: null, did: null, host: null, blind: false, busy: false, offer: null, making: null, create: false };
+  st = { at: null, to, why, adding, want: new Set(forges || FORGES.filter(f => !out.includes(f))), turn: 0, who: null, person: null, did: null, host: null, blind: false, busy: false, offer: null, making: null, create: false };
   const who = person?.did || normalizeHandle(handle);
   // (Asked to open again while it was closing: it stays.)
   dlg.classList.remove('rs-closing');
@@ -211,6 +210,7 @@ function ask(msg = '', typed = ''){
   Object.assign(st, { turn: st.turn + 1, did: null, host: null, blind: false, busy: false, making: null });
   paintStep('ask', `<form class="si-step" novalidate>
       ${head('Sign in to Rainshare')}
+      ${st.why ? `<p class="si-why">${esc(st.why)}</p>` : ''}
       <p class="si-lede">Use your handle from Bluesky, Tangled or any Atmosphere app.</p>
       <input class="si-input" name="handle" placeholder="you.bsky.social" value="${esc(typed)}" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="url" enterkeyhint="go" aria-label="Your handle">
       <div class="si-offer"></div>
@@ -356,7 +356,3 @@ async function go(){
   }
 }
 
-/** The landing's own handle field: the first step, already on the page. */
-export function landingSignIn(form, err){
-  handleField(form, { err, anchor: form, overlay: true, then: (who, person) => openSignIn({ handle: who, person, to: '/' }) });
-}
