@@ -6,6 +6,7 @@ import { labelOf, SIZES, HARNESSES, PLANS, UNPAID, plansIn, audienceOf, modelNam
 import { describeSubject, kindOf, FORGE_NAMES, pullPageOf, pullNumber, safeHttp } from './subjects.js';
 import { join, modelReach, wantedOf, wantPhrase } from './rank.js';
 import { tieOf, TIE_SHORT } from './ties.js';
+import { dueOf, lapsed } from './takes.js';
 
 const firstName = p => String(p?.displayName || '').trim().split(/\s+/)[0] || (p?.handle ? '@' + p.handle : 'Someone');
 const harnessName = h => labelOf(HARNESSES, h);
@@ -105,17 +106,25 @@ export const wantsShort = sq => { const p = wantPhrase(sq); return p ? 'wants ' 
  *            'open', 'merged', 'closed', or null)
  */
 export const PROGRESS = { open: 'Open', 'on-it': 'In progress', 'turned-in': 'Turned in', done: 'Done', closed: 'Closed' };
-export function progressOf(item, viewer){
+export function progressOf(item, viewer, now = Date.now()){
   const sq = item?.value || {}, takes = item?.takes || [], deliveries = item?.deliveries || [];
-  const key = sq.state === 'closed' ? 'closed' : sq.state === 'sprouted' ? 'done' : deliveries.length ? 'turned-in' : takes.length ? 'on-it' : 'open';
+  // A take that has lapsed (./takes.js) doesn't make it "in progress", but its helper is still listed, as having gone quiet.
+  const holding = takes.filter(t => !lapsed(t, item, now));
+  const key = sq.state === 'closed' ? 'closed' : sq.state === 'sprouted' ? 'done' : deliveries.length ? 'turned-in' : holding.length ? 'on-it' : 'open';
   const accepted = new Set((sq.sproutedWith || []).map(r => r.uri)), by = new Map();
   const of = r => {
-    if (!by.has(r.repo)) by.set(r.repo, { did: r.repo, author: r.author || { did: r.repo }, mine: !!viewer && r.repo === viewer, took: null, turnedIn: null, didIt: false, setup: null, note: '', pulls: [] });
+    if (!by.has(r.repo)) by.set(r.repo, { did: r.repo, author: r.author || { did: r.repo }, mine: !!viewer && r.repo === viewer, took: null, due: null, lapsed: false, turnedIn: null, didIt: false, setup: null, note: '', pulls: [] });
     return by.get(r.repo);
   };
   const earliest = (a, b) => !a ? b : !b ? a : String(a) < String(b) ? a : b;
   const latest = (a, b) => !a ? b : !b ? a : String(a) > String(b) ? a : b;
-  for (const t of takes) { const h = of(t); h.took = earliest(h.took, t.value?.createdAt || null); h.setup ||= t.value?.setup || null; h.note ||= t.value?.note || ''; }
+  for (const t of takes) {
+    const h = of(t), due = dueOf(t);
+    h.took = earliest(h.took, t.value?.createdAt || null); h.setup ||= t.value?.setup || null; h.note ||= t.value?.note || '';
+    // (`due` is the day they gave; a take from before there were days lapses after a week, unsaid.)
+    if (t.value?.until && due === due) h.due = Math.max(h.due || 0, due);
+    h.lapsed = (!sq.state || sq.state === 'open') && !holding.some(x => x.repo === t.repo);
+  }
   const pulls = [];
   // (Oldest first, so the setup said with the latest turn-in is the one shown: it's what did the work.)
   for (const d of [...deliveries].sort((a, b) => String(a.value?.createdAt || '').localeCompare(String(b.value?.createdAt || '')))) {
@@ -124,7 +133,7 @@ export function progressOf(item, viewer){
     h.turnedIn = latest(h.turnedIn, d.value?.createdAt || null); h.setup = d.value?.setup || h.setup; h.didIt ||= pull.didIt;
     h.pulls.unshift(pull); pulls.unshift(pull);
   }
-  const rank = h => h.didIt ? 0 : h.turnedIn ? 1 : 2, when = h => String(h.took || h.turnedIn || '');
+  const rank = h => h.didIt ? 0 : h.turnedIn ? 1 : h.lapsed ? 3 : 2, when = h => String(h.took || h.turnedIn || '');
   const helpers = [...by.values()].sort((a, b) => rank(a) - rank(b) || when(a).localeCompare(when(b)));
   return { key, label: PROGRESS[key], idea: !describeSubject(sq.subject), helpers, pulls };
 }
@@ -133,10 +142,10 @@ export function progressOf(item, viewer){
  * "Kai’s pull request", "Your pull request", "2 pull requests" (for an idea, "Kai turned it
  * in", "Turned in by 2"), "Kai did it", or "" when nobody's helped.
  */
-export function progressShort(item, viewer){
-  const { key, idea, helpers, pulls } = progressOf(item, viewer);
+export function progressShort(item, viewer, now = Date.now()){
+  const { key, idea, helpers, pulls } = progressOf(item, viewer, now);
   const one = h => h.mine ? 'You' : firstName(h.author);
-  if (key === 'on-it') return helpers.length > 1 ? `${helpers.length} helpers on it` : helpers[0].mine ? 'You’re on it' : `${one(helpers[0])}’s on it`;
+  if (key === 'on-it') { const on = helpers.filter(h => !h.lapsed); return on.length > 1 ? `${on.length} helpers on it` : on[0].mine ? 'You’re on it' : `${one(on[0])}’s on it`; }
   if (key === 'turned-in') {
     const t = helpers.filter(h => h.turnedIn);
     if (idea) return t.length > 1 ? `Turned in by ${t.length}` : `${one(t[0])} turned it in`;

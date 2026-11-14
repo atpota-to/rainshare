@@ -13,7 +13,9 @@ import { brief, launchers, handBack, readHandBack, readBranchBack, handBackBranc
 import { createDemoSource } from '../core/demo.js';
 import { splitSpaceUri, shown } from '../core/source.js';
 import { lifeOf } from '../ui/bits.js';
+import { sendSummary, dayChoices } from '../ui/send.js';
 import { standing, since, carry } from '../core/status.js';
+import { dueOf, lapsed, activeTakes, untilIn } from '../core/takes.js';
 import { newRepoPlaces, placesFor, repoNameFor } from '../core/forges.js';
 import { pullsAbout, tangledRepos, tangledIssues, completeTangled, subjectInfo, pullState, linkedPulls, knotlessRepos, knotlessIssues, knotlessIssueSubject, pullPageOf, pullKey, pullNumber } from '../core/subjects.js';
 import { look } from '../core/status.js';
@@ -297,11 +299,18 @@ test('a seed reads as plain lines, not chips', () => {
   const taking = { value: { subject: repo }, takes: [{ repo: 'did:kai', author: kai, value: { createdAt: '2026-11-10T00:00:00Z', setup: { harness: 'claude-code' }, note: 'This weekend' } }] };
   assert.deepEqual(progressOf({ value: {} }), { key: 'open', label: 'Open', idea: true, helpers: [], pulls: [] });
   assert.equal(progressShort({ value: {} }), '');
-  const on = progressOf(taking, 'did:me');
+  // (A take with no day of its own holds the ask for a week: ../core/takes.js.)
+  const NOW = Date.parse('2026-11-11T12:00:00Z'), on = progressOf(taking, 'did:me', NOW);
   assert.equal(on.key, 'on-it'); assert.equal(on.label, 'In progress');
-  assert.deepEqual(on.helpers, [{ did: 'did:kai', author: kai, mine: false, took: '2026-11-10T00:00:00Z', turnedIn: null, didIt: false, setup: { harness: 'claude-code' }, note: 'This weekend', pulls: [] }]);
-  assert.equal(progressShort(taking, 'did:me'), 'Kai’s on it'); assert.equal(progressShort(taking, 'did:kai'), 'You’re on it');
-  assert.equal(progressShort({ ...taking, takes: [...taking.takes, { repo: 'did:ash', author: ash, value: {} }] }, 'did:me'), '2 helpers on it');
+  assert.deepEqual(on.helpers, [{ did: 'did:kai', author: kai, mine: false, took: '2026-11-10T00:00:00Z', due: null, lapsed: false, turnedIn: null, didIt: false, setup: { harness: 'claude-code' }, note: 'This weekend', pulls: [] }]);
+  assert.equal(progressShort(taking, 'did:me', NOW), 'Kai’s on it'); assert.equal(progressShort(taking, 'did:kai', NOW), 'You’re on it');
+  assert.equal(progressShort({ ...taking, takes: [...taking.takes, { repo: 'did:ash', author: ash, value: {} }] }, 'did:me', NOW), '2 helpers on it');
+  // Once its day has passed with nothing turned in, it's open again, and the helper is listed last, as having gone quiet.
+  const quiet = progressOf(taking, 'did:me', Date.parse('2026-11-20T00:00:00Z'));
+  assert.equal(quiet.key, 'open'); assert.equal(quiet.helpers[0].lapsed, true); assert.equal(progressShort(taking, 'did:me', Date.parse('2026-11-20T00:00:00Z')), '');
+  const both = { ...taking, takes: [...taking.takes, { repo: 'did:ash', author: ash, value: { createdAt: '2026-11-19T00:00:00Z', until: '2026-11-22T00:00:00Z' } }] };
+  assert.deepEqual(progressOf(both, 'did:me', Date.parse('2026-11-20T00:00:00Z')).helpers.map(h => [h.did, h.lapsed]), [['did:ash', false], ['did:kai', true]]);
+  assert.equal(progressShort(both, 'did:me', Date.parse('2026-11-20T00:00:00Z')), '@ash.example’s on it');
   // Turning it in is one more thing the same person did, not another person.
   const turned = { ...taking, takes: [...taking.takes, { repo: 'did:ash', author: ash, value: { createdAt: '2026-11-09T00:00:00Z' } }], deliveries: [{ uri: 'at://did:kai/d/1', repo: 'did:kai', author: kai, value: { createdAt: '2026-11-12T00:00:00Z', setup: { harness: 'codex' } } }] };
   const ti = progressOf(turned, 'did:me');
@@ -415,7 +424,7 @@ test('without groups, the example has nothing private and sign-in asks only for 
   const { SCOPE, BASIC_SCOPE } = await import('../src/scope.js');
   const { GROUPS } = await import('../core/ns.js');
   if (!GROUPS) {
-    assert.equal(SCOPE, 'atproto repo:dev.rainshare.profile repo:dev.rainshare.seed repo:dev.rainshare.take repo:dev.rainshare.delivery repo:dev.rainshare.comment');
+    assert.equal(SCOPE, 'atproto repo:dev.rainshare.profile repo:dev.rainshare.seed repo:dev.rainshare.take repo:dev.rainshare.delivery repo:dev.rainshare.comment repo:dev.rainshare.preferences');
     assert.equal(BASIC_SCOPE, SCOPE);
   }
 });
@@ -491,6 +500,93 @@ test('a hand-back link carries the pull request into the turn-in form', () => {
   assert.equal(readHandBack('?model=x'), null);
   assert.equal(readHandBack(''), null);
   assert.equal(handBack({ ...item, space: 'at://g/space/x/y' }, 'https://x/pull/1'), null);
+});
+
+test('a take holds an ask until its day, and a forgotten one stops keeping others away', () => {
+  const seed = { uri: 'at://did:plc:abc/dev.rainshare.seed/3k1', repo: 'did:plc:abc', value: { title: 'Fix it', subject: parseSubject('https://github.com/o/r/issues/5') } };
+  const at = s => Date.parse(s), take = value => ({ repo: 'did:plc:kai', author: { handle: 'kai.example' }, uri: 'at://did:plc:kai/dev.rainshare.take/1', value });
+  // Its day is the one it says, but never more than 30 days from when it was last written.
+  assert.equal(dueOf(take({ createdAt: '2026-11-01T00:00:00Z', until: '2026-11-04T00:00:00Z' })), at('2026-11-04T00:00:00Z'));
+  assert.equal(dueOf(take({ createdAt: '2026-11-01T00:00:00Z', until: '2099-01-01T00:00:00Z' })), at('2026-12-01T00:00:00Z'));
+  assert.equal(dueOf(take({ createdAt: '2026-11-01T00:00:00Z', updatedAt: '2026-11-20T00:00:00Z', until: '2099-01-01T00:00:00Z' })), at('2026-12-20T00:00:00Z'));
+  // A take from before takes had a day lapses a week after it was written; one with no date at all never does.
+  assert.equal(dueOf(take({ createdAt: '2026-11-01T00:00:00Z' })), at('2026-11-08T00:00:00Z'));
+  assert.equal(lapsed(take({}), seed, at('2030-01-01T00:00:00Z')), false);
+  const old = take({ createdAt: '2026-11-01T00:00:00Z', until: '2026-11-04T00:00:00Z' });
+  assert.equal(lapsed(old, seed, at('2026-11-03T00:00:00Z')), false);
+  assert.equal(lapsed(old, seed, at('2026-11-05T00:00:00Z')), true);
+  assert.deepEqual(activeTakes({ ...seed, takes: [old] }, at('2026-11-05T00:00:00Z')), []);
+  // Once its helper has turned something in, the take doesn't lapse.
+  assert.equal(lapsed(old, { ...seed, deliveries: [{ repo: 'did:plc:kai', value: {} }] }, at('2026-11-05T00:00:00Z')), false);
+  // untilIn gives at least a day and at most 30.
+  assert.equal(untilIn(3, at('2026-11-01T00:00:00Z')), '2026-11-04T00:00:00.000Z');
+  assert.equal(untilIn(0, at('2026-11-01T00:00:00Z')), '2026-11-02T00:00:00.000Z');
+  assert.equal(untilIn(400, at('2026-11-01T00:00:00Z')), '2026-12-01T00:00:00.000Z');
+
+  // Where it stands says so, for someone thinking of starting and for the helper themselves.
+  const now = at('2026-11-14T12:00:00Z'), item = { ...seed, takes: [old] };
+  const them = standing(item, { now });
+  assert.equal(them.verdict, 'clear'); assert.equal(them.takes[0].lapsed, true);
+  assert.match(them.lines.join(' '), /@kai\.example took it on 13 days ago, and said it’d be in by 4 Nov\. Nothing’s been turned in, so it’s free again: it can be taken on, though it’s worth checking with them first\./);
+  const me = standing(item, { now, viewer: 'did:plc:kai' });
+  assert.match(me.advice, /The day you gave yourself has passed, so it shows as free again/);
+  assert.match(me.lines.join(' '), /You took it on 13 days ago, and said it’d be in by 4 Nov\. Nothing’s been turned in, so others see it as free again\./);
+  // A take with its day still to come holds it, and says when.
+  const fresh = standing({ ...seed, takes: [take({ createdAt: '2026-11-13T00:00:00Z', until: '2026-11-16T00:00:00Z' })] }, { now });
+  assert.equal(fresh.verdict, 'on-it'); assert.match(fresh.lines.join(' '), /took it on yesterday, and said it’d be in by 16 Nov\./);
+  // One without a day doesn't claim the helper gave one.
+  assert.match(standing({ ...seed, takes: [take({ createdAt: '2026-11-01T00:00:00Z' })] }, { now }).lines.join(' '), /took it on 13 days ago\. Nothing’s been turned in for over a week, so it’s free again/);
+  // The brief an agent gets says the same.
+  // (The brief reads the clock, and 4 Nov 2026 has gone by.)
+  assert.match(brief(item, { viewer: 'did:plc:kai' }), /- Your user took it on [^\n]*, and said it’d be in by 4 Nov\. Nothing’s been turned in, so others see it as free again\./);
+});
+
+test('a take can say its day and be given more, and settings keep only what they know', () => {
+  const sq = { uri: 'at://did:plc:abc/dev.rainshare.seed/3k1', cid: 'bafy' };
+  const t = R.take({ seed: sq, days: 3 });
+  assert.ok(Math.abs(Date.parse(t.until) - Date.now() - 3 * 864e5) < 5e3);
+  assert.equal(R.take({ seed: sq }).until, undefined);
+  const more = R.moreTime({ ...t, createdAt: '2026-11-01T00:00:00Z', until: '2026-11-04T00:00:00Z' }, 7);
+  assert.equal(more.createdAt, '2026-11-01T00:00:00Z'); assert.ok(more.updatedAt); assert.ok(Math.abs(Date.parse(more.until) - Date.now() - 7 * 864e5) < 5e3);
+  // More time adds to a day that's still to come, rather than starting again from now, and stops at 30 days out.
+  const later = R.moreTime({ ...t, until: new Date(Date.now() + 10 * 864e5).toISOString() }, 3);
+  assert.ok(Math.abs(Date.parse(later.until) - Date.now() - 13 * 864e5) < 5e3);
+  const most = R.moreTime({ ...t, until: new Date(Date.now() + 25 * 864e5).toISOString() }, 14);
+  assert.ok(Math.abs(Date.parse(most.until) - Date.now() - 30 * 864e5) < 5e3);
+  assert.deepEqual(R.preferences({ send: { route: 'codex', claim: false, days: 99, askEachTime: false, extra: 1 } }).send, { route: 'codex', claim: false, days: 30, askEachTime: false });
+  assert.deepEqual(R.preferences({ send: { route: 'made-up', days: 0 } }).send, undefined);
+  // Changing one answer keeps the rest, and when they were first saved.
+  const prev = R.preferences({ send: { route: 'claude', days: 3 } });
+  const next = R.preferences({ send: { days: 7 } }, { ...prev, createdAt: '2026-11-01T00:00:00Z' });
+  assert.deepEqual(next.send, { route: 'claude', days: 7 }); assert.equal(next.createdAt, '2026-11-01T00:00:00Z'); assert.ok(next.updatedAt);
+});
+
+test('the example keeps your settings, and a take with its day and more time', async () => {
+  const src = createDemoSource({ groups: false });
+  assert.equal(await src.preferences(), null);
+  await src.savePreferences({ send: { route: 'codex', days: 7, askEachTime: false } });
+  assert.deepEqual((await src.preferences()).send, { route: 'codex', days: 7, askEachTime: false });
+  await src.savePreferences({ send: { claim: false } });
+  assert.deepEqual((await src.preferences()).send, { route: 'codex', claim: false, days: 7, askEachTime: false });
+  const { items } = await src.board(), it = items.find(i => i.repo !== src.viewer && (!i.value.state || i.value.state === 'open') && !(i.takes || []).length);
+  await src.take(it, { days: 1 });
+  let mine = (await src.seed(it.uri)).takes.find(t => t.repo === src.viewer);
+  assert.ok(Math.abs(Date.parse(mine.value.until) - Date.now() - 864e5) < 5e3);
+  await src.moreTime(await src.seed(it.uri), 3);
+  mine = (await src.seed(it.uri)).takes.find(t => t.repo === src.viewer);
+  assert.ok(Math.abs(Date.parse(mine.value.until) - Date.now() - 4 * 864e5) < 5e3); assert.ok(mine.value.updatedAt);
+  // One of the example's asks has a take that went quiet, so it reads as open.
+  const quiet = items.find(i => (i.takes || []).some(t => lapsed(t, i)));
+  assert.ok(quiet); assert.equal(progressOf(quiet).key, 'open'); assert.equal(standing(quiet).verdict, 'clear');
+});
+
+test('the send dialog says what it will do in words', () => {
+  const names = { brief: 'Paste a brief', claude: 'Claude Code' };
+  assert.equal(sendSummary({ route: 'claude', claim: true, days: 3 }, names), 'Claude Code, and says you’re on it for 3 days');
+  assert.equal(sendSummary({ route: 'claude', claim: true, days: 7 }, names), 'Claude Code, and says you’re on it for a week');
+  assert.equal(sendSummary({ route: 'mcp', claim: false, days: 3 }, names), 'Paste a brief, without saying you’re on it');
+  assert.deepEqual(dayChoices(3).map(d => d[0]), [1, 3, 7, 14]);
+  assert.deepEqual(dayChoices(5).map(d => d[0]), [1, 3, 5, 7, 14]);
 });
 
 test('where a seed stands says whether it’s clear to start, and why not', () => {

@@ -102,7 +102,9 @@ const SEEDS = [
     wants: { tests: 'none' }, tags: ['docs'], size: 'tiny', audience: { $type: sq('mutuals') } } }
 ];
 const TAKES = [
-  { id: '3tk-kai-amara', by: 'did:example:kai', on: '3sq-amara', at: 2 * day, value: { setup: { harness: 'claude-code', models: ['claude-opus-5-5'] }, note: 'On it this weekend' } },
+  { id: '3tk-kai-amara', by: 'did:example:kai', on: '3sq-amara', at: 2 * day, value: { setup: { harness: 'claude-code', models: ['claude-opus-5-5'] }, note: 'On it this weekend', until: ago(-day) } },
+  // Priya said she'd be done in three days, and that was yesterday: the ask shows as free again (../core/takes.js).
+  { id: '3tk-priya-kai', by: 'did:example:priya', on: '3sq-kai', at: 4 * day, value: { setup: { harness: 'codex' }, note: 'Should be quick', until: ago(day) } },
   { id: '3tk-kai-sam', by: 'did:example:kai', on: '3sq-sam', at: 7 * day, value: { setup: { harness: 'claude-code', models: ['claude-opus-5-5'] } } },
   { id: '3tk-juniper-you', by: 'did:example:juniper', on: '3sq-you', at: 5 * day, value: { setup: { harness: 'claude-code', models: ['claude-sonnet-5-5'] } } }
 ];
@@ -151,7 +153,7 @@ const MY_PROFILE = {
 // the example has no group seed, no groups to share a profile with, and nothing kept back.
 export function createDemoSource({ store = null, me: meOverride = null, groups = true } = {}){
   const saved = store?.get('rainshare') || {};
-  const state = { profile: saved.profile || MY_PROFILE, hidden: groups ? saved.hidden || ['budget'] : [], share: groups ? saved.share ?? [GROUP.did] : [], mine: saved.mine || [], takes: saved.takes || [], deliveries: saved.deliveries || [], comments: saved.comments || [], removed: saved.removed || [], edits: saved.edits || {}, added: saved.added || [], vouches: saved.vouches || MY_VOUCHES };
+  const state = { preferences: saved.preferences || null, profile: saved.profile || MY_PROFILE, hidden: groups ? saved.hidden || ['budget'] : [], share: groups ? saved.share ?? [GROUP.did] : [], mine: saved.mine || [], takes: saved.takes || [], deliveries: saved.deliveries || [], comments: saved.comments || [], removed: saved.removed || [], edits: saved.edits || {}, added: saved.added || [], vouches: saved.vouches || MY_VOUCHES };
   const save = () => store?.set('rainshare', state);
   const me = { did: ME, handle: meOverride?.handle || 'you.example', displayName: meOverride?.displayName || 'You', avatar: meOverride?.avatar || null };
 
@@ -235,11 +237,18 @@ export function createDemoSource({ store = null, me: meOverride = null, groups =
       save(); return pause(record);
     },
     async remove(item){ state.mine = state.mine.filter(x => x.id !== item.rkey); state.removed.push(item.rkey); save(); return pause(); },
-    async take(item, { setup, note } = {}){
-      const value = R.take({ seed: item, setup, note });
+    async preferences(){ return pause(state.preferences); },
+    async savePreferences(input){ state.preferences = R.preferences(input, state.preferences); save(); return pause(state.preferences); },
+    async take(item, { setup, note, days } = {}){
+      const value = R.take({ seed: item, setup, note, days });
       const id = tid('tk');
       const t = { uri: uriOf(ME, TAKE, id, item.group), cid: cidOf(id), repo: ME, rkey: id, value };
       state.takes.push(t); save(); return pause(t);
+    },
+    async moreTime(item, days){
+      const t = state.takes.find(x => x.value.seed?.uri === item.uri);
+      if (!t) throw new Error('You aren’t on this one.');
+      t.value = R.moreTime(t.value, days); save(); return pause(t);
     },
     async drop(item){ state.takes = state.takes.filter(t => t.value.seed?.uri !== item.uri); save(); return pause(); },
     async turnIn(item, input){
@@ -271,7 +280,7 @@ export function createDemoSource({ store = null, me: meOverride = null, groups =
       state.comments = state.comments.filter(x => x.uri !== c.uri); save(); return pause();
     },
     forget(){},
-    reset(){ store?.set('rainshare', null); Object.assign(state, { profile: MY_PROFILE, hidden: groups ? ['budget'] : [], share: groups ? [GROUP.did] : [], mine: [], takes: [], deliveries: [], comments: [], removed: [], edits: {}, added: [], vouches: MY_VOUCHES }); },
+    reset(){ store?.set('rainshare', null); Object.assign(state, { preferences: null, profile: MY_PROFILE, hidden: groups ? ['budget'] : [], share: groups ? [GROUP.did] : [], mine: [], takes: [], deliveries: [], comments: [], removed: [], edits: {}, added: [], vouches: MY_VOUCHES }); },
     groups: () => Promise.resolve(!groups ? [] : [GROUP, { ...HACKERS, space: state.added.includes(HACKERS.did) ? HACKERS.space : null, canAdd: true }]),
     reach: () => Promise.resolve({ following: 312, followers: 1204, mutuals: 84 }),
     addToGroup: async did => { if (!state.added.includes(did)) state.added.push(did); save(); return pause(GROUPS[did]?.space || `at://${did}/space/dev.rainshare.board/rainshare`); },

@@ -1,4 +1,5 @@
 // Small pieces both of Rainshare's screen modules use: escaping, times, icons and faces.
+import { activeTakes } from '../core/takes.js';
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 export const b64url = s => btoa(String.fromCharCode(...new TextEncoder().encode(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 export const unb64url = s => { try { return new TextDecoder().decode(Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0))); } catch (_) { return ''; } };
@@ -65,7 +66,7 @@ const LIFE = {
   sprouted: GROUND + '<path d="M12 19.5V11"/><path d="M12 16c0-2.3-1.6-3.7-4.1-3.7 0 2.4 1.6 3.7 4.1 3.7zM12 14.5c0-2.3 1.6-3.7 4.1-3.7 0 2.4-1.6 3.7-4.1 3.7z"/><path class="rs-bud" d="M12 2.8l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/>'
 };
 /** Where a seed is in its life: 'seed' (in the ground), 'rain' (someone's on it), 'up' (turned in), 'sprouted'. */
-export const lifeOf = item => item?.value?.state === 'sprouted' ? 'sprouted' : (item?.deliveries || []).length ? 'up' : (item?.takes || []).length ? 'rain' : 'seed';
+export const lifeOf = item => item?.value?.state === 'sprouted' ? 'sprouted' : (item?.deliveries || []).length ? 'up' : activeTakes(item).length ? 'rain' : 'seed';
 export const lifeIco = k => `<svg class="rs-i rs-life rs-life-${k}" viewBox="0 0 24 24" aria-hidden="true">${LIFE[k] || LIFE.seed}</svg>`;
 export const ico = (k, cls = '') => `<svg class="rs-i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg>`;
 const FORGE_ICON = {
