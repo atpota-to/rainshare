@@ -228,7 +228,7 @@ There’s no Rainshare server in the middle, so your browser (or the CLI, from y
 When you’re signed in, some of these lookups name your account (asking Bluesky which of the people on the board you follow, for one), so those services can tell which account is asking. Each of them has a privacy policy of its own.`],
 
     ['What we collect', `
-**Hosting.** The site is hosted by Vercel. Like any web host, Vercel handles each request’s IP address, browser details and the address asked for, and keeps logs of them for a short time. See [Vercel’s privacy policy](https://vercel.com/legal/privacy-policy).
+**Hosting.** The site is hosted by Vercel. Like any web host, Vercel handles each request’s IP address, browser details and the address asked for, and keeps logs of them for a short time. See [Vercel’s privacy policy](https://vercel.com/legal/privacy-policy). @${HANDLE}’s posts and messages come from a small server of ours at DigitalOcean (below). It keeps no copy of the board, and its log of what it posted and whom it messaged stays on it for a short time. See [DigitalOcean’s privacy policy](https://www.digitalocean.com/legal/privacy-policy).
 
 **Page counts.** We use Vercel Web Analytics to see which pages get used. It counts page views: the page’s address (without anything after a \`?\` or \`#\`), the site you came from, your country, and your kind of browser and device. Vercel says it uses no cookies and doesn’t follow you from site to site or from day to day. We don’t connect any of it to your account.
 
@@ -241,11 +241,11 @@ That’s all of it. We collect no email addresses, run no advertising or trackin
 Some browsers send a “Do Not Track” signal. There’s no agreed way to answer one, so Rainshare doesn’t. It doesn’t track you from site to site either.`],
 
     ['What @${HANDLE} posts and sends', `
-Once a day, a job we run on our host reads the board from the network, much as your browser does.
+A small server of ours, at DigitalOcean, listens to Bluesky’s Jetstream for Rainshare’s own records as they’re written. A minute or two after one is, and every quarter of an hour in any case, it reads the board from the network, much as your browser does.
 
-**Posts.** Each new ask that’s open to everyone is posted once on Bluesky by @${HANDLE}, with its title and a mention of whoever asked. To keep your asks off that account, block it on Bluesky. Nothing we’ve hidden is posted, nor an ask our checks find very likely to be a trick.
+**Posts.** Each new ask that’s open to everyone, and that nobody has taken up yet, is posted once on Bluesky by @${HANDLE}, with its title and a mention of whoever asked. To keep your asks off that account, block it on Bluesky. Nothing we’ve hidden is posted, nor an ask our checks find very likely to be a trick.
 
-**Direct messages.** If you switch them on in your settings, @${HANDLE} sends you a direct message on Bluesky, at most once a day and only when there’s news: about your asks and what you’ve helped with, or about new asks, as you chose. The messages go through Bluesky’s chat service, which keeps them under its own privacy policy. The job reads that conversation to see what it last sent you, and whether you replied STOP or START. We keep no list of our own of who gets them: your setting is in your account, and it’s public like the rest. To stop them, switch them off in your settings, reply STOP, or leave the conversation in Bluesky.`],
+**Direct messages.** If you switch them on in your settings, @${HANDLE} sends you a direct message on Bluesky only when there’s news: about your asks and what you’ve helped with, within a minute or two, and about new asks, once a day, as you chose. The messages go through Bluesky’s chat service, which keeps them under its own privacy policy. The server reads that conversation to see what it last sent you, and whether you replied STOP or START. We keep no list of our own of who gets them: your setting is in your account, and it’s public like the rest. To stop them, switch them off in your settings, reply STOP, or leave the conversation in Bluesky.`],
 
     ['What’s kept in your browser', `
 Rainshare sets no cookies. It keeps a few things in your browser’s own storage, and none of them are sent to us:

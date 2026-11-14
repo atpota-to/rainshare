@@ -83,10 +83,14 @@ test('the Privacy Policy names every service the code asks, and everything kept 
   // What a page view counts is its path alone: the page says so, and src/main.js does it.
   assert.match(all, /without anything after a `\?` or `#`/);
   assert.match(readFileSync(new URL('../src/main.js', import.meta.url), 'utf8'), /inject\(\{ beforeSend\(e\)\{[^\n]*u\.origin \+ u\.pathname/);
-  // What @rainshare.dev does once a day on Rainshare's own host (api/announce.js): the policy says both halves.
-  assert.ok(existsSync(new URL('../api/_announce.js', import.meta.url)) && existsSync(new URL('../api/_messages.js', import.meta.url)));
-  for (const says of [/posted once on Bluesky by @rainshare\.dev, with its title and a mention of whoever asked/, /block it on Bluesky/, /at most once a day and only when there’s news/,
-    /reads that conversation to see what it last sent you, and whether you replied STOP or START/, /whether you’ve asked for direct messages from @rainshare\.dev/]) assert.match(all, says);
+  // What @rainshare.dev does (announcer/, a server of ours at DigitalOcean that listens to Jetstream):
+  // the policy says both halves, where it runs, and what it listens to.
+  assert.ok(existsSync(new URL('../announcer/src/posts.js', import.meta.url)) && existsSync(new URL('../announcer/src/messages.js', import.meta.url)));
+  assert.match(readFileSync(new URL('../announcer/src/index.js', import.meta.url), 'utf8'), /wss:\/\/jetstream\.us-east\.bsky\.network/);
+  for (const says of [/posted once on Bluesky by @rainshare\.dev, with its title and a mention of whoever asked/, /nobody has taken up yet/, /block it on Bluesky/,
+    /only when there’s news: about your asks and what you’ve helped with, within a minute or two, and about new asks, once a day/,
+    /reads that conversation to see what it last sent you, and whether you replied STOP or START/, /whether you’ve asked for direct messages from @rainshare\.dev/,
+    /listens to Bluesky’s Jetstream/, /a small server of ours at DigitalOcean/, /its log of what it posted and whom it messaged/]) assert.match(all, says);
   // The one thing Rainshare keeps itself: its note of who agreed (core/agreement.js, supabase/). The
   // policy says where it is and what's in it, column for column, and what isn't.
   assert.match(new URL(LEDGER).host, /\.supabase\.co$/);
