@@ -5,7 +5,7 @@
 //                   signed in, the board
 //   /board          the board on its own, signed in or out (the bar's "Board")
 //   /example/…      the example circle, kept in this browser (linked from the landing)
-//   /seed/…, /new, /me, /profile/…, /agents   Rainshare's own screens (see ../ui/rainshare.js)
+//   /seed/…, /new, /me, /profile/…, /agents, /feedback   Rainshare's own screens (see ../ui/rainshare.js)
 //   /signed-in      where your server sends you back after signing in
 //
 // Signing in is a dialog of its own (./signin.js), opened from here.
@@ -178,7 +178,7 @@ function route(){
   $('[data-tab="example"]').hidden = kind !== 'example';
   landing ? showLanding() : hideLanding();
   // (The landing isn't the board: no tab is the page you're on there.)
-  const tab = kind === 'example' ? 'example' : sub === 'agents' ? 'agents' : landing || sub === 'admin' ? null : 'circle';
+  const tab = kind === 'example' ? 'example' : sub === 'agents' ? 'agents' : landing || sub === 'admin' || sub === 'feedback' ? null : 'circle';
   document.querySelectorAll('[data-tab]').forEach(a => a.setAttribute('aria-current', String(a.dataset.tab === tab)));
   app(kind).show(sub);
 }
@@ -221,6 +221,7 @@ function renderMe(){
     + `<a class="rd-menu-you" href="/me" data-nav>${face(p)}<span class="rd-menu-name"><span class="rd-sr">Your profile: </span><b>${esc(name)}</b>${handle ? `<small>${esc(handle)}</small>` : ''}</span><svg class="rd-menu-go" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>`
     // @rainshare.dev's own sign-in has its moderation page here, and nobody else's mentions it.
     + (session.did === MODERATOR ? `<a href="/admin" data-nav><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l7 2.6v5.5c0 4.2-3 7.6-7 8.9-4-1.3-7-4.7-7-8.9V6.1z"/><path d="M9 12l2 2 4-4"/></svg>Moderation</a>` : '')
+    + `<a href="/feedback" data-nav><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5h14a1.5 1.5 0 0 1 1.5 1.5v8.5A1.5 1.5 0 0 1 19 17h-7l-4.5 3.5V17H5a1.5 1.5 0 0 1-1.5-1.5V7A1.5 1.5 0 0 1 5 5.5z"/></svg>Feedback</a>`
     + `<hr>`
     + `<button type="button" data-signout><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 20H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3M15 16l4-4-4-4M19 12H9"/></svg>Sign out</button>`
     + `</div>`;
