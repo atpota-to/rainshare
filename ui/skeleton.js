@@ -72,6 +72,8 @@ export const personSk = () => `<section class="rs-person" data-rs-sk="person" ar
   <header>${face('lg')}<div class="rs-sk-stack">${line('220px', 'rs-sk-h2')}${line('140px')}</div></header>
   <div class="rs-panel">${line('88%')}${line('62%')}${factsSk(2, 'rs-facts-sm')}</div>
   ${line('200px', 'rs-sk-h3')}
+  ${activitySk()}
+  ${line('140px', 'rs-sk-h3')}
   ${gardenSk()}
   ${line('220px', 'rs-sk-h3')}
   <ul class="rs-list">${cardsSk(2)}</ul>

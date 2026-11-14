@@ -297,50 +297,29 @@ export function createRainshare({ root, base = '/', host }){
       <span>${text}</span>
       <div class="rs-row">${a('profile/' + viewer(), 'See your garden', 'rs-link')}<button class="rs-link" type="button" data-rs-act="grew-seen">Got it</button></div></div>`;
   }
-  // A garden, drawn: a line saying what's in it, and a plant for each one, named, with whose it
-  // was. Picking one says more about it under them: the work, what it was done with, and what
-  // whoever asked said when they accepted it. Buds come after, drawn apart: merged on the forge,
-  // waiting on whoever asked, and not counted.
-  const plots = new Map();
-  const plotKey = g => (g.budding ? 'bud:' : '') + g.uri;
-  function gardenBlock(garden, whose, { buds = null, fresh = null, id = 'g' } = {}){
+  // A garden, drawn: a line counting what's grown, and a plant for each one, named, with whose it
+  // was, each opening its ask. Buds come after, paler, saying who they're waiting on; they aren't
+  // counted. (What happened with each, and what was said, is in the list of what they've been doing.)
+  function gardenBlock(garden, whose, { buds = null, fresh = null } = {}){
     if (!garden) return gardenSk();
-    const yours = whose === 'You', all = [...garden, ...(buds || [])], nb = buds?.length || 0;
-    all.forEach(g => plots.set(plotKey(g), g));
+    const yours = whose === 'You', all = [...garden, ...(buds || [])];
     const said = garden.length ? `${esc(whose)}${yours ? '’ve' : ' has'} helped with ${esc(wateredText(garden))}.`
-      : nb ? 'Nothing’s been accepted yet.'
+      : buds?.length ? 'Nothing’s been accepted yet.'
         : yours ? 'Nothing yet. What gets done with your help grows here.' : `${esc(whose)} hasn’t helped with anything yet.`;
     if (!all.length) return `<div class="rs-panel"><p class="rs-muted">${said}</p></div>`;
-    const picked = all.find(g => plotKey(g) === S.open['plot:' + id]) || all[0];
-    return `<div class="rs-panel rs-gardenbox" data-rs-garden="${id}">
-      <p>${said}</p>
-      <ul class="rs-garden">${all.map(g => plotTile(g, { on: g === picked, fresh: !!fresh?.has(g.uri) && !g.budding, id })).join('')}</ul>
-      <div class="rs-plot-detail" id="rsPlot-${id}">${plotDetail(picked)}</div>
-    </div>`;
+    return `<div class="rs-panel rs-gardenbox"><p>${said}</p>
+      <ul class="rs-garden">${all.map(g => plotTile(g, { fresh: !!fresh?.has(g.uri) && !g.budding })).join('')}</ul></div>`;
   }
   const askerWord = g => g.repo === viewer() ? 'you' : firstName(g.author);
-  function plotTile(g, { on, fresh, id }){
+  function plotTile(g, { fresh }){
     const name = g.shared ? g.title : 'Shared with fewer people';
     const sub = [!g.shared ? '' : g.budding ? `Waiting on ${askerWord(g)}` : `For ${askerWord(g)}`, fresh ? 'new' : ''].filter(Boolean).join(' · ');
-    return `<li><button type="button" class="rs-plot${g.budding ? ' rs-bud' : ''}" data-rs-plot="${esc(plotKey(g))}" data-rs-garden-id="${id}" aria-pressed="${on}" aria-controls="rsPlot-${id}">
-      ${plantPic(g.picture || g.stage, 76, { key: g.uri, cls: fresh ? 'rs-grow' : '' })}
-      <span class="rs-plot-name">${esc(name)}</span>${sub ? `<small>${esc(sub)}</small>` : ''}
-    </button></li>`;
-  }
-  // The one picked, in a few lines. (The example's pull requests are made up, so they aren't links.)
-  function plotDetail(g){
-    if (!g) return '';
-    if (!g.shared) return `<p class="rs-muted">${g.budding ? 'Merged, and waiting to be accepted, on an ask' : 'An ask'} that’s shared with fewer people, so what it was isn’t shown here.</p>`;
-    const noun = g.idea ? 'idea' : 'project', whose = g.repo === viewer() ? `Your ${noun}` : `${firstName(g.author)}’s ${noun}`;
-    const label = g.idea ? 'What was built' : 'The pull request', link = !S.source?.demo && safeHttp(g.link);
-    const work = !g.link ? '' : link ? `<a class="rs-link" href="${esc(link)}" target="_blank" rel="noopener nofollow">${ico(g.idea ? 'link' : 'pull')}${label}${ico('out')}</a>` : `<span class="rs-plot-work">${ico(g.idea ? 'link' : 'pull')}${label}</span>`;
-    const made = setupText(g.setup);
-    const thanks = g.thanks ? `<p class="rs-thanks"><b>${g.repo === viewer() ? 'You' : esc(firstName(g.author))}</b> said: “${esc(g.thanks)}”</p>` : '';
-    const bud = !g.budding ? '' : g.repo === viewer()
-      ? `<p class="rs-muted">It’s been merged. It counts once you accept it. ${a(pathOf(g), 'Look it over', 'rs-link')}</p>`
-      : `<p class="rs-muted">It’s been merged. It counts once ${esc(askerWord(g))} accepts it on Rainshare.</p>`;
-    return `<div class="rs-plot-top">${face(g.author || {}, 'sm')}<span>${a(pathOf(g), `<b>${esc(g.title)}</b>`, 'rs-plot-title')}<small>${esc(whose)} · ${esc(g.budding ? 'turned in' : 'accepted')} ${esc(shortDay(g.at))}</small></span></div>
-      ${thanks}${bud}${work || made ? `<div class="rs-row rs-plot-more">${work}${made ? `<small>Done with ${esc(made)}</small>` : ''}</div>` : ''}`;
+    const inner = `${plantPic(g.picture || g.stage, 76, { key: g.uri, cls: fresh ? 'rs-grow' : '' })}<span class="rs-plot-name">${esc(name)}</span>${sub ? `<small>${esc(sub)}</small>` : ''}`;
+    const cls = 'rs-plot' + (g.budding ? ' rs-bud' : '');
+    // (One that isn't shared with whoever's looking is a plant and nothing more: there's nowhere to go.)
+    if (!g.shared) return `<li><span class="${cls}">${inner}</span></li>`;
+    const label = g.budding ? `${g.title}: merged, waiting on ${askerWord(g)} to accept it` : g.title;
+    return `<li><a class="${cls}" href="${esc(href(pathOf(g)))}" data-rs-go="${esc(pathOf(g))}" title="${esc(label)}">${inner}</a></li>`;
   }
   async function loadMine(force){
     if (!signedIn()) { S.mine = null; S.prefs = null; return; }
@@ -1464,7 +1443,7 @@ export function createRainshare({ root, base = '/', host }){
       </form>
       <aside class="rs-me-side">
         ${sendSettings()}
-        ${S.source.gardenOf ? `<section class="rs-mygarden"><h2>What you’ve helped with</h2>${gardenBlock(S.garden, 'You', { buds: S.buds, fresh: S.fresh, id: 'me' })}</section>` : ''}
+        ${S.source.gardenOf ? `<section class="rs-mygarden"><h2>What you’ve helped with</h2>${gardenBlock(S.garden, 'You', { buds: S.buds, fresh: S.fresh })}</section>` : ''}
         ${a('profile/' + viewer(), 'See your profile as others do', 'rs-link')}
       </aside>
       </div>`;
@@ -1521,8 +1500,9 @@ export function createRainshare({ root, base = '/', host }){
   }
 
   /* ---------- what someone's been doing (../core/activity.js) ---------- */
-  // Ask by ask, newest first, a page at a time, and narrowed to one kind if you like.
-  const ACT_PAGE = 8;
+  // Ask by ask, newest first: the most recent few at the top of their page, more on asking, and
+  // narrowed to one kind once there's enough of it to want that.
+  const ACT_FIRST = 5, ACT_MORE = 10;
   const timesSaid = n => n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`;
   const dayTag = iso => shortDay(iso) ? ` <time datetime="${esc(iso)}">${esc(shortDay(iso))}</time>` : '';
   function activityBlock(o, p){
@@ -1530,15 +1510,17 @@ export function createRainshare({ root, base = '/', host }){
     const self = o.did === viewer(), first = firstName(p);
     const head = `<div class="rs-hrow"><h2>${self ? 'What you’ve been doing' : `What ${esc(first)}’s been doing`}</h2>${tip(`Read from the records in ${self ? 'your' : 'their'} own account: asks, what ${self ? 'you' : 'they'} took on and turned in, comments on Rainshare, and vouches given on Tangled. Comments on a Tangled or knotless issue are kept with the issue, so they aren’t here, and nor are asks that aren’t shared with you.`, 'About this list')}</div>`;
     if (!o.activity) return head + activitySk();
-    const counts = activityCounts(o.activity), st = S.open.act || { filter: 'all', n: ACT_PAGE }, filter = counts[st.filter] ? st.filter : 'all';
+    const counts = activityCounts(o.activity), st = S.open.act || { filter: 'all', n: ACT_FIRST }, filter = counts[st.filter] ? st.filter : 'all';
     const list = o.activity.filter(x => x.tags.has(filter)), shown = list.slice(0, st.n);
-    // (Narrowing it only helps once there's more than a page of it.)
-    const chips = counts.all > ACT_PAGE ? `<div class="rs-from rs-act-filter" role="group" aria-label="Which to show">${ACTIVITY_KINDS.filter(([k]) => k === 'all' || counts[k]).map(([k, l]) => `<button type="button" data-rs-actf="${k}" aria-pressed="${filter === k}">${esc(l)}<span class="rs-from-n">${counts[k]}</span></button>`).join('')}</div>` : '';
+    // A pull request of theirs that was merged on an ask still waiting to be accepted (a bud) says so in its row.
+    const buds = new Map((o.buds || []).map(b => [b.uri, b]));
+    // (Narrowing it only helps once it's been opened out, and there's a good deal of it.)
+    const chips = st.n > ACT_FIRST && counts.all > ACT_MORE ? `<div class="rs-from rs-act-filter" role="group" aria-label="Which to show">${ACTIVITY_KINDS.filter(([k]) => k === 'all' || counts[k]).map(([k, l]) => `<button type="button" data-rs-actf="${k}" aria-pressed="${filter === k}">${esc(l)}<span class="rs-from-n">${counts[k]}</span></button>`).join('')}</div>` : '';
     const body = !o.activity.length ? `<p class="rs-muted">${o.activityErr ? 'It couldn’t be read just now.' : self ? 'Nothing yet. What you ask for, take on and comment on shows up here.' : `Nothing from ${esc(first)} that you can see yet.`}</p>`
-      : `<ol class="rs-activity">${shown.map(storyLi).join('')}</ol>${list.length > shown.length ? `<div class="rs-row"><button class="rs-link" type="button" data-rs-act="act-more">Show ${Math.min(ACT_PAGE, list.length - shown.length)} more</button></div>` : ''}`;
+      : `<ol class="rs-activity">${shown.map(x => storyLi(x, { bud: x.seed && buds.get(x.seed.uri) })).join('')}</ol>${list.length > shown.length ? `<div class="rs-row"><button class="rs-link" type="button" data-rs-act="act-more">Show more</button></div>` : ''}`;
     return `${head}<section class="rs-panel rs-act-box" aria-label="${esc(self ? 'What you’ve been doing' : `What ${first}’s been doing`)}">${chips}${body}</section>`;
   }
-  function storyLi(s){
+  function storyLi(s, { bud } = {}){
     if (s.kind === 'vouched') {
       const q = s.person || {}, who = q.did === viewer() ? 'you' : nameOf(q);
       return `<li class="rs-act"><span class="rs-act-pic rs-act-face" aria-hidden="true">${face(q)}</span><div class="rs-act-body">
@@ -1561,8 +1543,12 @@ export function createRainshare({ root, base = '/', host }){
       }[st.what];
       return text ? `<li${st.what === 'accepted' || st.what === 'done' ? ' class="rs-ok"' : ''}>${text}${dayTag(st.at)}</li>` : '';
     });
+    if (bud && s.kind !== 'helped') steps.push(`<li>Merged, waiting on ${esc(them)} to accept it</li>`);
     if (s.comments) steps.push(`<li>${s.kind === 'talked' ? `${timesSaid(s.comments)[0].toUpperCase()}${timesSaid(s.comments).slice(1)}${dayTag(s.at)}` : `Commented ${timesSaid(s.comments)}`}</li>`);
-    return `<li class="rs-act">${plantPic(s.picture, 40, { key: sq.uri, cls: 'rs-act-pic' })}<div class="rs-act-body"><p class="rs-act-head">${head}</p><ol class="rs-act-steps">${steps.join('')}</ol></div></li>`;
+    // What whoever asked said when they accepted it: under the help it was for, or under their own ask.
+    const t = (s.kind === 'helped' || (s.kind === 'asked' && v.state === 'sprouted')) && typeof v.thanks === 'string' ? v.thanks.trim() : '';
+    const thanks = t ? `<p class="rs-thanks"><b>${yours ? 'You' : esc(firstName(sq.author))}</b> said: “${esc(t)}”</p>` : '';
+    return `<li class="rs-act">${plantPic(s.picture, 40, { key: sq.uri, cls: 'rs-act-pic' })}<div class="rs-act-body"><p class="rs-act-head">${head}</p><ol class="rs-act-steps">${steps.join('')}</ol>${thanks}</div></li>`;
   }
 
   /* ---------- someone's profile ---------- */
@@ -1576,7 +1562,7 @@ export function createRainshare({ root, base = '/', host }){
       // A vouch that was being written when you went off to connect Tangled is waiting where you left it.
       const kept = takeKept(); if (kept?.vouching?.did === did) S.vouching = kept.vouching;
       const person = S.other, redraw = () => { if (S.other === person && S.view === 'person') rerender(); };
-      S.open.act = { filter: 'all', n: ACT_PAGE };
+      S.open.act = { filter: 'all', n: ACT_FIRST };
       // Opening your own garden is seeing what grew in it: it's marked "New" there, and the board stops saying so.
       S.source.gardenOf?.(did).then(g => { person.garden = g; if (did === viewer()) { S.garden = g; noticeGrowth(g); grewSeen(); } redraw(); }, () => { person.garden = []; redraw(); });
       S.source.buddingOf?.(did).then(b => { person.buds = b; redraw(); }, () => { person.buds = []; });
@@ -1596,8 +1582,6 @@ export function createRainshare({ root, base = '/', host }){
     if (o.error) title('Nothing here');
     if (o.error) return nothingHere('We couldn’t find that person. The link may have been cut short, or their handle has changed.');
     const p = o.person || {}, theirs = (S.board?.items || []).filter(it => it.repo === o.did);
-    // What they've said they're on, or turned something in for, that's still open: someone else's asks.
-    const helping = (S.board?.items || []).filter(it => isOpen(it) && it.repo !== o.did && [...activeTakes(it), ...(it.deliveries || [])].some(r => r.repo === o.did));
     title(nameOf(p));
     // Hidden by Rainshare: an account, everything it writes; or just its Rainshare name and bio.
     const mod = o.moderated, self = o.did === viewer(), whole = !!mod && isAccount(mod.subject);
@@ -1612,11 +1596,10 @@ export function createRainshare({ root, base = '/', host }){
         ${mod && (self || moderating()) ? hiddenNote(mod, { whose: self ? 'yours' : null, what: hidWhat }) : ''}
         ${modPanel}
         <div class="rs-panel">${profileCard(o.merged, p)}${o.groups?.length && o.did !== viewer() ? `<p class="rs-muted">${ico('lock')} Some of this is shared only with ${esc(o.groups.map(g => g.name).join(' and '))}.</p>` : ''}</div>
+        ${activityBlock(o, p)}
+        ${S.source.gardenOf ? `<h2>${o.did === viewer() ? 'Your garden' : `${esc(firstName(p))}’s garden`}</h2>${gardenBlock(o.garden, o.did === viewer() ? 'You' : firstName(p), { buds: o.buds, fresh: o.did === viewer() ? S.fresh : null })}` : ''}
         ${signedIn() && o.did !== viewer() ? `<h2>You and ${esc(firstName(p))}</h2><div class="rs-panel">${tiesList(o.did, o.ties, p, { vouch: false })}</div>` : ''}
         ${vouchBlock(o.did, p)}
-        ${helping.length ? `<h2>${o.did === viewer() ? 'What you’re helping with now' : `What ${esc(firstName(p))}’s helping with now`}</h2><ul class="rs-list">${helping.map(it => card(it, { nav: true })).join('')}</ul>` : ''}
-        ${S.source.gardenOf ? `<h2>${o.did === viewer() ? 'What you’ve helped with' : `What ${esc(firstName(p))} has helped with`}</h2>${gardenBlock(o.garden, o.did === viewer() ? 'You' : firstName(p), { buds: o.buds, fresh: o.did === viewer() ? S.fresh : null, id: 'p' })}` : ''}
-        ${activityBlock(o, p)}
         <h2>${o.did === viewer() ? 'Your ideas and projects' : `${esc(firstName(p))}’s ideas and projects`}</h2>
         ${!S.board ? listSk(2, 'theirs') : theirs.length ? `<ul class="rs-list">${theirs.map(it => card(it, { nav: true })).join('')}</ul>` : '<p class="rs-muted">None that you can see.</p>'}
       </section>`;
@@ -1942,7 +1925,7 @@ export function createRainshare({ root, base = '/', host }){
         try { sessionStorage.setItem(LATER, JSON.stringify([...new Set([...laterOn(), ...waitingOn().map(x => x.uri)])])); } catch (_) {}
         el.closest('[data-rs-waiting]')?.remove(); return;
       }
-      if (name === 'act-more') { const st = S.open.act || { filter: 'all', n: ACT_PAGE }; S.open.act = { ...st, n: st.n + ACT_PAGE }; render(); return; }
+      if (name === 'act-more') { const st = S.open.act || { filter: 'all', n: ACT_FIRST }; S.open.act = { ...st, n: st.n + ACT_MORE }; render(); return; }
       if (name === 'mod-cancel') { S.modding = null; if (S.found && !S.found.error) S.found = null; rerender(); return; }
       if (name === 'admin-retry') { loadAdmin(); return; }
       if (name === 'reply-cancel') { stash(); S.reply = null; S.drafts.reply = null; render(); return; }
@@ -2086,17 +2069,8 @@ export function createRainshare({ root, base = '/', host }){
     // A pull request found on the forge, claimed by the person whose agent opened it.
     const cl = t.closest('[data-rs-claim]');
     if (cl && S.seed) { stash(); S.drafts.turnIn = { ...(S.drafts.turnIn || {}), url: cl.dataset.rsClaim }; S.handBack = S.again = S.seed.uri; render(); root.querySelector('[data-rs-form="turnin"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
-    // A plant in a garden: what's said about it, under them, changes without redrawing the page.
-    const pt = t.closest('[data-rs-plot]');
-    if (pt) {
-      const box = pt.closest('[data-rs-garden]'), g = plots.get(pt.dataset.rsPlot);
-      S.open['plot:' + pt.dataset.rsGardenId] = pt.dataset.rsPlot;
-      box?.querySelectorAll('[data-rs-plot]').forEach(b => b.setAttribute('aria-pressed', String(b === pt)));
-      const d = box?.querySelector('.rs-plot-detail'); if (d && g) d.innerHTML = plotDetail(g);
-      return;
-    }
     const af = t.closest('[data-rs-actf]');
-    if (af) { S.open.act = { filter: af.dataset.rsActf, n: ACT_PAGE }; render(); root.querySelector(`[data-rs-actf="${CSS.escape(af.dataset.rsActf)}"]`)?.focus(); return; }
+    if (af) { S.open.act = { filter: af.dataset.rsActf, n: Math.max(S.open.act?.n || 0, ACT_FIRST + ACT_MORE) }; render(); root.querySelector(`[data-rs-actf="${CSS.escape(af.dataset.rsActf)}"]`)?.focus(); return; }
     const acc = t.closest('[data-rs-accept]'); if (acc) { stash(); if (S.accepting !== acc.dataset.rsAccept) S.drafts.thanks = null; S.accepting = acc.dataset.rsAccept; render(); root.querySelector('[data-rs-form="accept"] [type=submit]')?.focus(); return; }
     const vo = t.closest('[data-rs-vouch]'); if (vo) { stash(); S.vouching = { did: vo.dataset.rsVouch, evidence: vo.dataset.rsEvidence || null }; render(); root.querySelector('[data-rs-form="vouch"] [name=reason]')?.focus(); return; }
     const uv = t.closest('[data-rs-unvouch]'); if (uv) { takeBackVouch(uv.dataset.rsUnvouch); return; }
