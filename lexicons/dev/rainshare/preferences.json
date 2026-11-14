@@ -1,0 +1,45 @@
+{
+  "lexicon": 1,
+  "id": "dev.rainshare.preferences",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "How you like Rainshare to work for you. Unlike your profile, this isn't about you for other people to read, but like every record in your repo it is public.",
+      "key": "literal:self",
+      "record": {
+        "type": "object",
+        "required": ["createdAt"],
+        "properties": {
+          "send": { "type": "ref", "ref": "#send" },
+          "notify": { "type": "ref", "ref": "#notify" },
+          "createdAt": { "type": "string", "format": "datetime" },
+          "updatedAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    },
+    "notify": {
+      "type": "object",
+      "description": "The direct messages you'd like from Rainshare's Bluesky account, @rainshare.dev: at most one a day, and only when there's news. Left out, none. Replying STOP to one stops them, whatever this says.",
+      "properties": {
+        "updates": { "type": "boolean", "description": "News about your asks and what you've helped with: someone's on one, work's been turned in, or it's been marked done or closed." },
+        "newAsks": { "type": "boolean", "description": "New asks on the board, from anyone." }
+      }
+    },
+    "send": {
+      "type": "object",
+      "description": "What \"Send my agent\" does: how the ask is handed to your agent, whether it tells whoever asked that you're on it, and for how long.",
+      "properties": {
+        "route": {
+          "type": "string",
+          "maxLength": 320,
+          "maxGraphemes": 32,
+          "knownValues": ["brief", "claude", "cloud", "codex", "cli", "mcp"],
+          "description": "brief: copy the brief, to paste into any agent. claude, cloud, codex: copy a command that clones the repo and starts Claude Code (locally or as a cloud session) or Codex with the brief. cli: the Rainshare CLI's run command. mcp: add Rainshare's MCP server to your agent. Apps fall back to the brief when a route doesn't suit an ask."
+        },
+        "claim": { "type": "boolean", "description": "Whether sending your agent also says you're on it (writes a dev.rainshare.take). Left out, it does." },
+        "days": { "type": "integer", "minimum": 1, "maximum": 30, "description": "How many days you usually give yourself to turn the work in: the until on the takes you write." },
+        "askEachTime": { "type": "boolean", "description": "Whether to ask these questions each time you send your agent, with these answers picked. Left out, apps ask." }
+      }
+    }
+  }
+}

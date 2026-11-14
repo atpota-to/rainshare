@@ -13,15 +13,18 @@
 // recent posts links to is left alone, whoever wrote the post. And each post takes the ask's own
 // record key, so two runs at once can't post the same ask twice: the second is refused.
 //
-// Nothing is posted for anyone the account blocks, or anyone who blocks it. To keep someone's
-// asks off the account, block them from it.
+// Nothing is posted for anyone the account blocks, or anyone who blocks it, nor anything it has
+// hidden (../core/moderation.js), nor an ask Rainshare's checks find very likely a trick on
+// helpers' agents (../core/scan.js). To keep someone's asks off the account, block them from it.
 //
 // A post names who's asking (with a mention, so they hear about it) and gives the ask's title,
 // with a card for its page: the same words as the page's own link preview (./_og/describe.js),
 // and its picture (./og.js).
-import { SEED, PROFILE, SITE, audienceOf } from '../core/ns.js';
+import { SEED, PROFILE, SITE, MODERATION, MODERATOR, audienceOf } from '../core/ns.js';
 import * as net from '../core/net.js';
 import { askExcerpt, aNoun } from '../core/words.js';
+import { decisionsFrom, hiddenBy } from '../core/moderation.js';
+import { concerns, alarming } from '../core/scan.js';
 import { clean } from './_og/describe.js';
 import { OWNER } from '../lexicons/compat.mjs';
 
@@ -37,10 +40,12 @@ const CHAT = 'did:web:api.bsky.chat#bsky_chat';
 
 /** Whether an ask is on the board for everyone: it has a title, it's open, and it's meant for anyone. */
 export const forAll = v => typeof v?.title === 'string' && !!clean(v.title) && (!v.state || v.state === 'open') && audienceOf(v) === 'anyone';
-/** Whether an ask is one to post about at `now`: on the board for everyone, and asked between WINDOW and SETTLE ago. */
+/** Whether the account may pass an ask on: on the board for everyone, and not very likely a trick on helpers' agents. */
+export const passable = v => forAll(v) && !alarming(concerns(v));
+/** Whether an ask is one to post about at `now`: passable, and asked between WINDOW and SETTLE ago. */
 export function isNew(v, now){
   const at = Date.parse(v?.createdAt);
-  return forAll(v) && at > now - WINDOW && at <= now - SETTLE;
+  return passable(v) && at > now - WINDOW && at <= now - SETTLE;
 }
 
 /**
@@ -49,17 +54,25 @@ export function isNew(v, now){
  */
 export function reader(){
   const got = new Map();
-  return collection => {
+  const read = collection => {
     if (!got.has(collection)) got.set(collection, net.reposWith(collection)
       .then(dids => net.pool(dids, 6, d => net.listRecords(d, collection, { pages: 2 }).catch(() => [])))
       .then(lists => lists.flat()));
     return got.get(collection);
   };
+  // What the account has hidden, from its own repo. If that can't be read, nothing goes out,
+  // rather than something it hid.
+  let hidden;
+  read.hidden = () => hidden ||= net.listRecords(MODERATOR, MODERATION, { pages: 10 }).then(decisionsFrom);
+  return read;
 }
+/** Whether a record (or its whole account) is hidden, by the decisions from read.hidden(). */
+export const isHidden = (decisions, rec) => !!hiddenBy(decisions, rec?.uri, rec?.repo);
 
 /** The new asks on the board, the earliest asked first. */
 async function newAsks(now, read){
-  return (await read(SEED)).filter(r => isNew(r.value, now)).sort((a, b) => Date.parse(a.value.createdAt) - Date.parse(b.value.createdAt));
+  const [seeds, hidden] = await Promise.all([read(SEED), read.hidden()]);
+  return seeds.filter(r => isNew(r.value, now) && !isHidden(hidden, r)).sort((a, b) => Date.parse(a.value.createdAt) - Date.parse(b.value.createdAt));
 }
 
 /** Every link in a post: its card's, the links in its text, and any written out in full. */

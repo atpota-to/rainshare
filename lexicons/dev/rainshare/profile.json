@@ -71,18 +71,9 @@
             "items": { "type": "string", "maxLength": 320, "maxGraphemes": 32 },
             "description": "Kinds of work you're happy to take on (languages, frameworks, areas)."
           },
-          "notify": { "type": "ref", "ref": "#notify" },
           "createdAt": { "type": "string", "format": "datetime" },
           "updatedAt": { "type": "string", "format": "datetime" }
         }
-      }
-    },
-    "notify": {
-      "type": "object",
-      "description": "The direct messages you'd like from Rainshare's Bluesky account, @rainshare.dev: at most one a day. Left out, none. Like the rest of this record, anyone can read it. Replying STOP to a message stops them too, whatever this says.",
-      "properties": {
-        "updates": { "type": "boolean", "description": "News about your asks and what you've helped with: someone's on one, work's been turned in, or it's been marked done or closed." },
-        "newAsks": { "type": "boolean", "description": "New asks on the board, from anyone." }
       }
     }
   }

@@ -6,8 +6,10 @@
 // cache of records) has the ask and the asker's Rainshare profile, and Bluesky's AppView has
 // their name and picture. Nobody's own server is contacted, and no DID document is read.
 // What comes back was written by strangers: it's cleaned and cut to length here, and escaped
-// where it's used.
-import { SEED, PROFILE, SITE, audienceOf } from '../../core/ns.js';
+// where it's used. What Rainshare has hidden (core/moderation.js) gets the home card: each
+// decision is looked up in @rainshare.dev's repo by its key, from the same cache.
+import { SEED, PROFILE, SITE, MODERATION, MODERATOR, audienceOf } from '../../core/ns.js';
+import { keyOf } from '../../core/moderation.js';
 import { isDid, isHandle, isRkey, parseUri } from '../../core/net.js';
 import { whatItIs, pictureOf, askExcerpt, planText, nounOf } from '../../core/words.js';
 import { plantKind } from '../../ui/bits.js';
@@ -56,6 +58,14 @@ const valueAt = (rec, collection, rkey, did) => {
   const at = parseUri(rec?.uri), v = rec?.value;
   return at && isDid(at.repo) && at.collection === collection && at.rkey === rkey && (!did || at.repo === did) && v && typeof v === 'object' && !Array.isArray(v) ? { did: at.repo, value: v } : null;
 };
+// Whether Rainshare has hidden `subject` (an at:// address: a record, or an account). Only a
+// record in MODERATOR's repo, under the key made from that subject and naming it, counts.
+async function hidden(subject, signal){
+  const key = keyOf(subject);
+  if (!key) return false;
+  const v = valueAt(await record(MODERATOR, MODERATION, key, signal), MODERATION, key, MODERATOR)?.value;
+  return v?.action === 'hide' && v.subject === subject;
+}
 // Someone as their Bluesky profile names them, unless their Rainshare profile gives a name or bio of its own.
 function person(did, asked, bsky, own){
   const b = bsky && bsky.did === did ? bsky : null, mine = own?.value || null;
@@ -77,7 +87,10 @@ async function seedPage(rawWho, rkey, signal){
   if (!got || typeof sq.title !== 'string' || !clean(sq.title)) return null;
   // An ask that's for some people only is shown only to them in the app, so a preview doesn't say what it is.
   if (audienceOf(sq) !== 'anyone') return null;
-  const p = person(got.did, asked, bsky, valueAt(own, PROFILE, 'self', got.did)), uri = `at://${got.did}/${SEED}/${rkey}`;
+  const uri = `at://${got.did}/${SEED}/${rkey}`, profileUri = `at://${got.did}/${PROFILE}/self`;
+  const [hid, account, bio] = await Promise.all([hidden(uri, signal), hidden('at://' + got.did, signal), hidden(profileUri, signal)]);
+  if (hid || account) return null;
+  const p = person(got.did, asked, bsky, bio ? null : valueAt(own, PROFILE, 'self', got.did));
   const heading = clean(sq.title, 120), what = whatItIs(sq), excerpt = clean(askExcerpt(typeof sq.spec === 'string' ? sq.spec : ''), 200);
   const state = sq.state === 'sprouted' ? 'done' : sq.state === 'closed' ? 'closed' : 'open', stage = pictureOf(sq), kind = plantKind(uri);
   const asks = state === 'open' ? `${p.name} is asking for help with ${an(nounOf(sq))} on Rainshare.` : state === 'done' ? `${an(nounOf(sq)).replace(/^a/, 'A')} of ${p.name}’s on Rainshare, done with help from someone else’s agent.` : `${an(nounOf(sq)).replace(/^a/, 'A')} of ${p.name}’s on Rainshare.`;
@@ -95,7 +108,9 @@ async function personPage(rawWho, signal){
   const [bsky, own] = await Promise.all([getJson(`${APPVIEW}/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(asked)}`, signal), record(asked, PROFILE, 'self', signal)]);
   const did = isDid(bsky?.did) && (!isDid(asked) || bsky.did === asked) ? bsky.did : null;
   if (!did) return null;
-  const p = person(did, asked, bsky, valueAt(own, PROFILE, 'self', did));
+  const [account, bio] = await Promise.all([hidden('at://' + did, signal), hidden(`at://${did}/${PROFILE}/self`, signal)]);
+  if (account) return null;
+  const p = person(did, asked, bsky, bio ? null : valueAt(own, PROFILE, 'self', did));
   const line = p.bio || `${p.name}’s ideas and projects on Rainshare, and what they’ve helped with.`;
   return {
     kind: 'person', path: `/profile/${did}`, title: `${p.name} · Rainshare`, heading: p.name,

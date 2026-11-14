@@ -4,14 +4,14 @@
   "defs": {
     "main": {
       "type": "permission-set",
-      "description": "What signing in to Rainshare asks for in its own namespace: writing the person's own Rainshare records. A server that resolves it shows its title and detail on its sign-in page, in place of the four record types by name.",
+      "description": "What signing in to Rainshare asks for in its own namespace: writing the person's own Rainshare records. A server that resolves it shows its title and detail on its sign-in page, in place of each record type by name.",
       "title": "Your Rainshare records",
-      "detail": "Create, change and delete your asks, what you take on, the work you turn in, and your Rainshare profile, all kept in your own account.",
+      "detail": "Create, change and delete your asks, what you take on, the work you turn in, your comments, your Rainshare profile and your settings, all kept in your own account.",
       "permissions": [
         {
           "type": "permission",
           "resource": "repo",
-          "collection": ["dev.rainshare.profile", "dev.rainshare.seed", "dev.rainshare.take", "dev.rainshare.delivery"]
+          "collection": ["dev.rainshare.profile", "dev.rainshare.seed", "dev.rainshare.take", "dev.rainshare.delivery", "dev.rainshare.comment", "dev.rainshare.preferences"]
         }
       ]
     }

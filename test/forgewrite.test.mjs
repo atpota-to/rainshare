@@ -147,6 +147,25 @@ test('on Tangled, your server vouches for you to the repo’s knot, and your own
   } finally { net.restore(); }
 });
 
+test('a comment can answer another on Tangled, and says where it went; knotless issues take no replies', async () => {
+  const net = network(), agent = agentOf();
+  try {
+    const issue = parseSubject('https://tangled.org/tomas.example/tidepool/issues/27');
+    const first = { uri: 'at://did:plc:tidepool/org.tangled.feed.comment/3kfirst', cid: 'bafyfirst' };
+    const said = await forgeComment(agent, issue, 'Yes, with null.', { replyTo: first });
+    assert.deepEqual(net.knot[0].body.record.replyTo, { $type: 'com.atproto.repo.strongRef', ...first });
+    assert.deepEqual([said.uri, said.cid], ['at://did:plc:tidepool/org.tangled.feed.comment/4750', 'bafyonknot'], 'its address and CID, so it can be answered in turn');
+    // Only a comment on Tangled, named by its address and CID, can be answered.
+    await assert.rejects(forgeComment(agent, issue, 'Hm', { replyTo: { uri: first.uri } }), e => e.name === 'NoReplies');
+    await assert.rejects(forgeComment(agent, issue, 'Hm', { replyTo: { uri: 'at://did:plc:me/dev.rainshare.comment/3k1', cid: 'x' } }), e => e.name === 'NoReplies');
+    // On knotless an issue's comments are one list: nothing is written for a reply.
+    const kissue = parseSubject(`https://knotless.dev/alice.test/proj/issue/${ME}/3kiss`);
+    await assert.rejects(forgeComment(agent, kissue, 'Hm', { replyTo: first }), e => e.name === 'NoReplies' && e.forge === 'knotless');
+    assert.equal(agent.asked.filter(x => x.method === 'com.atproto.repo.createRecord' && x.body.collection === 'dev.knotless.comment').length, 0);
+    assert.equal((await forgeComment(agent, kissue, 'A plain comment')).cid, 'bafynew');
+  } finally { net.restore(); }
+});
+
 test('nothing is posted without your say-so, or where it can’t be', async () => {
   // A sign-in that doesn't allow it is told so by your server, before anything reaches a forge.
   let net = network(); const narrow = agentOf({ refuse: true });
@@ -320,7 +339,13 @@ test('sign-in asks for the forges up front, and for less only if a server refuse
     assert.ok(tokens(steps[i]).includes(OWN.set) && !tokens(steps[i]).some(t => t.startsWith('repo:dev.rainshare.')), steps[i]);
     assert.equal(steps[i + 1], steps[i].replace(OWN.set, OWN.named));
   }
-  assert.equal(DECLARED_SCOPE, [...new Set(steps.flatMap(tokens))].join(' '));
+  // Declared: every step, and @rainshare.dev's, which asks for moderation records as well.
+  const { MODERATE, moderates, canModerate } = await import('../src/scope.js');
+  const modSteps = ladder(undefined, { moderator: true });
+  assert.equal(DECLARED_SCOPE, [...new Set([...steps, ...modSteps].flatMap(tokens))].join(' '));
+  assert.deepEqual(modSteps, steps.map(s => s + ' ' + MODERATE));
+  assert.ok(steps.every(s => !canModerate(s)) && modSteps.every(canModerate), 'nobody else is asked to write moderation records');
+  assert.ok(moderates('did:plc:cmkittusvczhnei4gjt3asiv') && moderates('@Rainshare.dev') && !moderates('alice.test') && !moderates('did:plc:alice'));
   // The last is what any server grants: Rainshare alone, with nothing of the forges in it.
   assert.equal(steps.at(-1), BASIC_SCOPE);
   assert.ok(steps.length >= 2 && !tokens(steps.at(-1)).some(t => forge.includes(t)));

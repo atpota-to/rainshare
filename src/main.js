@@ -15,7 +15,8 @@ import './theme.css';
 import { createRainshare } from '../ui/rainshare.js';
 import { createSource } from '../core/source.js';
 import { createDemoSource } from '../core/demo.js';
-import { BOARD, GROUPS } from '../core/ns.js';
+import { BOARD, GROUPS, MODERATOR } from '../core/ns.js';
+import { canModerate } from './scope.js';
 import { closeTo } from '../core/route.js';
 import { profiles } from '../core/net.js';
 // The spaces alpha's plumbing (credentials, signed reads, writes into a space) and the group
@@ -27,12 +28,15 @@ import { showLanding, hideLanding } from './landing/landing.js';
 import { peekWords, peekPeople } from './landing/peek.js';
 import { face, avatarFallback } from '../ui/bits.js';
 import { mountLogo } from './logo/live.js';
+import { mountMode } from './mode.js';
 // Vercel Web Analytics: page views, including the in-page navigations between screens.
 // In production its script is served from this site (/_vercel/insights/), so the
 // Content-Security-Policy in vercel.json already allows it; nothing is sent in development.
 import { inject } from '@vercel/analytics';
 
 inject();
+// Day or night, from the toggle in the bar.
+mountMode(document.querySelector('#rdMode'));
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -46,6 +50,7 @@ let session = null, me = null, ready = false;
 // landing and the sign-in button show at once, rather than after the sign-in code has loaded.
 const visitor = !oauth.mightBeSignedIn() && !oauth.isCallback();
 let forges = [];   // the forges this sign-in lets Rainshare post to for you (knotless, tangled): see ./scope.js
+let granted = '';  // everything this sign-in was granted, as a scope: whether @rainshare.dev's can moderate
 const EXAMPLE = '/example';
 const isExample = p => p === EXAMPLE || p.startsWith(EXAMPLE + '/');
 const subOf = p => (isExample(p) ? p.slice(EXAMPLE.length) : p).replace(/^\/+/, '');
@@ -86,6 +91,9 @@ const host = kind => ({
   forges: () => kind === 'example' ? ['knotless', 'tangled'] : forges,
   // What's open on your board: the landing's way down to it says who's asking, and how many.
   onBoard: kind === 'real' ? peek : null,
+  // Whether this sign-in can write moderation records (only @rainshare.dev's asks to: ./scope.js).
+  // One from before it asked is told to sign in again, on the moderation page.
+  canModerate: kind === 'real' ? () => canModerate(granted) : null,
   connectForge: kind === 'real' ? (forge, sub) => { if (session) openSignIn({ person: me || { did: session.did }, to: '/' + (sub || '') + location.search, forges: [...new Set([...forges, forge])], adding: forge }); } : null,
   ...(kind === 'example' ? { exitDemo: session ? 'Back to your circle' : 'Sign in for your real circle', onExitDemo: () => navigate('/') } : {})
 });
@@ -156,6 +164,7 @@ function toBoard(){
 
 /* ---------- moving around ---------- */
 function route(){
+  showMenu(false);
   const path = location.pathname, kind = isExample(path) ? 'example' : 'real', sub = subOf(path);
   // A slip of the keys on the way to the example circle still gets there.
   const [head, ...rest] = sub.split('/'), h = head.toLowerCase();
@@ -169,7 +178,7 @@ function route(){
   $('[data-tab="example"]').hidden = kind !== 'example';
   landing ? showLanding() : hideLanding();
   // (The landing isn't the board: no tab is the page you're on there.)
-  const tab = kind === 'example' ? 'example' : sub === 'agents' ? 'agents' : landing ? null : 'circle';
+  const tab = kind === 'example' ? 'example' : sub === 'agents' ? 'agents' : landing || sub === 'admin' ? null : 'circle';
   document.querySelectorAll('[data-tab]').forEach(a => a.setAttribute('aria-current', String(a.dataset.tab === tab)));
   app(kind).show(sub);
 }
@@ -195,16 +204,46 @@ document.addEventListener('click', e => {
 });
 
 /* ---------- you ---------- */
+// Signed in, the bar has only your face, so it keeps to one row on a phone. It opens a little
+// menu under it: who you're signed in as, which is the way to your profile, and "Sign out".
+// It closes when you pick something, tap anywhere else, press Escape or tab away.
+const meBox = $('#rdMe');
+avatarFallback(meBox);
+let menuOpen = false;
 function renderMe(){
-  const box = $('#rdMe');
+  const box = meBox;
   if (!ready && !visitor) { box.innerHTML = ''; return; }
-  if (!session) { box.innerHTML = `<button class="rd-btn" type="button" data-signin>Sign in</button>`; return; }
+  if (!session) { menuOpen = false; box.innerHTML = `<button class="rd-btn" type="button" data-signin title="Sign in"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l4-4-4-4M14 12H4"/></svg><span>Sign in</span></button>`; return; }
   const p = me || { did: session.did };
-  const img = p.avatar ? `<img src="${esc(p.avatar)}" alt="" referrerpolicy="no-referrer">` : esc((p.displayName || p.handle || '?')[0].toUpperCase());
-  box.innerHTML = `<a class="rd-who" href="/me" data-nav title="Your Rainshare profile"><span class="rd-face">${img}</span><span>${esc(p.displayName || (p.handle ? '@' + p.handle : 'You'))}</span></a><button class="rd-link" type="button" data-signout>Sign out</button>`;
+  const name = p.displayName || (p.handle ? '@' + p.handle : 'You'), handle = p.displayName && p.handle ? '@' + p.handle : '';
+  box.innerHTML = `<button class="rd-who" type="button" aria-expanded="false" aria-controls="rdMenu" aria-label="Signed in as ${esc(name)}" title="Signed in as ${esc(name)}">${face(p)}</button>`
+    + `<div class="rd-menu" id="rdMenu" hidden>`
+    + `<a class="rd-menu-you" href="/me" data-nav>${face(p)}<span class="rd-menu-name"><span class="rd-sr">Your profile: </span><b>${esc(name)}</b>${handle ? `<small>${esc(handle)}</small>` : ''}</span><svg class="rd-menu-go" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>`
+    // @rainshare.dev's own sign-in has its moderation page here, and nobody else's mentions it.
+    + (session.did === MODERATOR ? `<a href="/admin" data-nav><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l7 2.6v5.5c0 4.2-3 7.6-7 8.9-4-1.3-7-4.7-7-8.9V6.1z"/><path d="M9 12l2 2 4-4"/></svg>Moderation</a>` : '')
+    + `<hr>`
+    + `<button type="button" data-signout><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 20H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3M15 16l4-4-4-4M19 12H9"/></svg>Sign out</button>`
+    + `</div>`;
+  showMenu(menuOpen);
 }
+function showMenu(open){
+  menuOpen = open;
+  const who = meBox.querySelector('.rd-who'), menu = meBox.querySelector('.rd-menu');
+  if (!who || !menu) return;
+  who.setAttribute('aria-expanded', String(open));
+  menu.hidden = !open;
+}
+document.addEventListener('click', e => {
+  if (e.target.closest('.rd-who')) showMenu(!menuOpen);
+  // (anything picked in it, or anywhere off it)
+  else if (menuOpen && (!e.target.closest('.rd-menu') || e.target.closest('a,button'))) showMenu(false);
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && menuOpen) { showMenu(false); meBox.querySelector('.rd-who')?.focus(); }
+});
+meBox.addEventListener('focusout', e => { if (menuOpen && e.relatedTarget && !meBox.contains(e.relatedTarget)) showMenu(false); });
 async function signOut(){
-  const s = session; session = null; me = null; forges = [];
+  const s = session; session = null; me = null; forges = []; granted = '';
   atp.forgetCredentials();
   await oauth.signOut(s);
   renderMe(); await app('real').setSource(sourceNow()); toast('Signed out'); navigate('/');
@@ -227,7 +266,7 @@ async function boot(){
   catch (e) { console.warn('sign-in', e); toast(/denied|cancel/i.test(String(e?.message)) ? 'Sign-in was cancelled' : 'Sign-in didn’t finish. Try again.'); }
   if (r?.redirecting) return;
   if (r?.session) {
-    session = r.session; forges = r.forges || [];
+    session = r.session; forges = r.forges || []; granted = r.scope || '';
     profiles([session.did]).then(m => { me = m.get(session.did); renderMe(); }, () => {});
   }
   if (oauth.isCallback() || location.pathname === '/signed-in') history.replaceState(null, '', r?.to && r.to !== '/signed-in' ? r.to : '/');

@@ -1,5 +1,5 @@
 // Direct messages from @rainshare.dev, to people who've asked for them in their Rainshare
-// profile (`notify` in dev.rainshare.profile, set on their profile page):
+// settings (`notify` in dev.rainshare.preferences, set beside their profile):
 //
 //   updates   news about their own asks (someone's on one, work's been turned in) and about
 //             asks they've helped with (marked done with their work or someone else's, or closed)
@@ -16,15 +16,18 @@
 // never straddles one, and what's only just been written waits a day rather than going out
 // half done. Running more often (Vercel Pro), make PERIOD shorter to match.
 //
+// Nothing the account has hidden (../core/moderation.js) is in anyone's news, and it doesn't
+// message an account it has hidden.
+//
 // Stopping, three ways, and any one does it:
-//   - switch them off on the profile page
+//   - switch them off in their settings, beside their profile
 //   - reply STOP to any message. Their latest STOP or START in the conversation is what
 //     counts, and a STOP is answered once, to say it worked.
 //   - Bluesky's own settings: leave the conversation, or stop letting @rainshare.dev message them
-import { SEED, TAKE, DELIVERY, PROFILE, SITE } from '../core/ns.js';
+import { SEED, TAKE, DELIVERY, PREFERENCES, SITE } from '../core/ns.js';
 import * as net from '../core/net.js';
 import { aNoun } from '../core/words.js';
-import { ACCOUNT, forAll, reader, session, blocked, whoAre, graphemes, bytes } from './_announce.js';
+import { ACCOUNT, passable, isHidden, reader, session, blocked, whoAre, graphemes, bytes } from './_announce.js';
 import { clean } from './_og/describe.js';
 
 const HOUR = 3600e3, DAY = 24 * HOUR;
@@ -128,9 +131,12 @@ const within = (t, from, to) => { const x = Date.parse(t); return x >= from && x
 /**
  * Someone's news from `from` up to `to`: { updates, fresh }, each oldest first. `theirBlocks` is
  * who they block, whose doings aren't news to them; `ourBlocks` is who the account blocks,
- * whose asks it doesn't pass on.
+ * whose asks it doesn't pass on; `hidden` is what it has hidden (decisions from
+ * ../core/moderation.js), which is nobody's news.
  */
-export function newsFor(r, { seeds, takes, deliveries, from, to, theirBlocks = new Set(), ourBlocks = new Set() }){
+export function newsFor(r, { seeds, takes, deliveries, from, to, theirBlocks = new Set(), ourBlocks = new Set(), hidden = new Map() }){
+  const shown = list => list.filter(x => !isHidden(hidden, x));
+  [seeds, takes, deliveries] = [shown(seeds), shown(takes), shown(deliveries)];
   const updates = [], bySeed = new Map(seeds.map(s => [s.uri, s])), at = x => Date.parse(x.value?.createdAt);
   if (r.updates) {
     const onMine = list => list.filter(x => bySeed.get(x.value?.seed?.uri)?.repo === r.did && x.repo !== r.did && !theirBlocks.has(x.repo) && within(x.value?.createdAt, from, to));
@@ -147,7 +153,7 @@ export function newsFor(r, { seeds, takes, deliveries, from, to, theirBlocks = n
       updates.push({ kind: state === 'closed' ? 'closed' : withTheirs ? 'done-yours' : 'done', seed: sq, by: sq.repo, at: Date.parse(sq.value.updatedAt) });
     }
   }
-  const fresh = !r.newAsks ? [] : seeds.filter(s => s.repo !== r.did && !theirBlocks.has(s.repo) && !ourBlocks.has(s.repo) && forAll(s.value) && within(s.value.createdAt, from, to))
+  const fresh = !r.newAsks ? [] : seeds.filter(s => s.repo !== r.did && !theirBlocks.has(s.repo) && !ourBlocks.has(s.repo) && passable(s.value) && within(s.value.createdAt, from, to))
     .map(s => ({ kind: 'new', seed: s, by: s.repo, at: at(s) }));
   const order = (a, b) => a.at - b.at;
   return { updates: updates.sort(order), fresh: fresh.sort(order) };
@@ -198,14 +204,14 @@ async function send(as, did, convoId, message){
 export async function message({ post = true, password = process.env.RAINSHARE_BLUESKY_APP_PASSWORD, now = Date.now(), log = console.log, read = reader(), as = session(password) } = {}){
   const out = { setUp: !!password, dryRun: !post, asked: 0, sent: [], skipped: [], note: null };
   if (post && !password) { log('No messages were sent: RAINSHARE_BLUESKY_APP_PASSWORD isn\'t set.'); return out; }
-  const people = (await read(PROFILE)).filter(p => p.rkey === 'self' && p.repo !== ACCOUNT).map(p => ({ did: p.repo, ...wants(p.value) })).filter(p => p.updates || p.newAsks);
+  const people = (await read(PREFERENCES)).filter(p => p.rkey === 'self' && p.repo !== ACCOUNT).map(p => ({ did: p.repo, ...wants(p.value) })).filter(p => p.updates || p.newAsks);
   out.asked = people.length;
   if (!people.length) { log('Nobody has asked for messages yet.'); return out; }
 
   const to = boundary(now);
-  const [seeds, takes, deliveries] = await Promise.all([read(SEED), read(TAKE).catch(() => []), read(DELIVERY).catch(() => [])]);
+  const [seeds, takes, deliveries, hidden] = await Promise.all([read(SEED), read(TAKE).catch(() => []), read(DELIVERY).catch(() => []), read.hidden()]);
   // Who the account won't deal with: those it blocks or who block it, among the people asking and anyone whose new ask it could pass on.
-  const askers = seeds.filter(s => forAll(s.value) && within(s.value.createdAt, to - LOOKBACK, to)).map(s => s.repo);
+  const askers = seeds.filter(s => passable(s.value) && within(s.value.createdAt, to - LOOKBACK, to)).map(s => s.repo);
   const ourBlocks = await blocked([...new Set([...people.map(p => p.did), ...askers])]);
   const skip = (p, why) => { out.skipped.push({ to: p.did, why }); log(`Not messaging ${p.did}: ${why}`); };
   if (password) await as.signIn();
@@ -214,6 +220,7 @@ export async function message({ post = true, password = process.env.RAINSHARE_BL
   const ready = [];
   for (const p of people) {
     if (ourBlocks.has(p.did)) { skip(p, 'the account blocks them, or they block it.'); continue; }
+    if (isHidden(hidden, { repo: p.did })) { skip(p, 'the account has hidden them.'); continue; }
     let st = { canChat: true, convoId: null, last: null, said: null, acked: false };
     if (password) {
       try { st = await standing(as, p.did); }
@@ -237,7 +244,7 @@ export async function message({ post = true, password = process.env.RAINSHARE_BL
 
   // What each of them has to hear, and everyone it names.
   const theirBlocks = new Map(await Promise.all(ready.filter(x => !x.stop).map(async x => [x.p.did, await net.blocksOf(x.p.did)])));
-  for (const x of ready) if (!x.stop) x.news = newsFor(x.p, { seeds, takes, deliveries, from: x.from, to, theirBlocks: theirBlocks.get(x.p.did), ourBlocks });
+  for (const x of ready) if (!x.stop) x.news = newsFor(x.p, { seeds, takes, deliveries, from: x.from, to, theirBlocks: theirBlocks.get(x.p.did), ourBlocks, hidden });
   const named = [...new Set(ready.flatMap(x => [x.p.did, ...(x.news ? [...x.news.updates, ...x.news.fresh].flatMap(n => [n.by, n.seed.repo]) : [])]))];
   const who = await whoAre(named);
   for (const x of ready) if (!x.stop) x.message = compose(x.news, who);

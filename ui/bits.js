@@ -1,4 +1,5 @@
 // Small pieces both of Rainshare's screen modules use: escaping, times, icons and faces.
+import { activeTakes } from '../core/takes.js';
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 export const b64url = s => btoa(String.fromCharCode(...new TextEncoder().encode(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 export const unb64url = s => { try { return new TextDecoder().decode(Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0))); } catch (_) { return ''; } };
@@ -27,7 +28,10 @@ const ICON = {
   drop: '<path d="M12 3.2c3.2 4.1 6 7.4 6 10.6a6 6 0 0 1-12 0c0-3.2 2.8-6.5 6-10.6z"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   back: '<path d="M15 5l-7 7 7 7"/>',
+  next: '<path d="M9 5l7 7-7 7"/>',
+  out: '<path d="M13.5 5H19v5.5M19 5l-8 8"/><path d="M17 13.5V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h4.5"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
+  more: '<path d="M5 12h.01M12 12h.01M19 12h.01" stroke-width="3.2"/>',
   lock: '<rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
   link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
   copy: '<rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
@@ -39,6 +43,7 @@ const ICON = {
   sky: '<path d="M7 18h10a4 4 0 0 0 .6-7.96A5.5 5.5 0 0 0 7.1 9.2 4.4 4.4 0 0 0 7 18z"/>',
   info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.2M12 7.9v.1"/>',
   hat: '<path d="M3.5 17h17"/><path d="M6.5 17v-5.5a5.5 5.5 0 0 1 11 0V17"/><path d="M6.5 13.5h11"/>',
+  shield: '<path d="M12 3.5l7 2.6v5.5c0 4.2-3 7.6-7 8.9-4-1.3-7-4.7-7-8.9V6.1z"/><path d="M12 8.5v4M12 15.6v.1"/>',
   pull: '<circle cx="7" cy="6" r="2.2"/><circle cx="7" cy="18" r="2.2"/><circle cx="17" cy="18" r="2.2"/><path d="M7 8.2v7.6M11 6h3a3 3 0 0 1 3 3v6.8M13.2 3.8L11 6l2.2 2.2"/>'
 };
 // The weather and the life of a seed, in the same pictures as the landing's scene: a forecast
@@ -61,7 +66,7 @@ const LIFE = {
   sprouted: GROUND + '<path d="M12 19.5V11"/><path d="M12 16c0-2.3-1.6-3.7-4.1-3.7 0 2.4 1.6 3.7 4.1 3.7zM12 14.5c0-2.3 1.6-3.7 4.1-3.7 0 2.4-1.6 3.7-4.1 3.7z"/><path class="rs-bud" d="M12 2.8l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/>'
 };
 /** Where a seed is in its life: 'seed' (in the ground), 'rain' (someone's on it), 'up' (turned in), 'sprouted'. */
-export const lifeOf = item => item?.value?.state === 'sprouted' ? 'sprouted' : (item?.deliveries || []).length ? 'up' : (item?.takes || []).length ? 'rain' : 'seed';
+export const lifeOf = item => item?.value?.state === 'sprouted' ? 'sprouted' : (item?.deliveries || []).length ? 'up' : activeTakes(item).length ? 'rain' : 'seed';
 export const lifeIco = k => `<svg class="rs-i rs-life rs-life-${k}" viewBox="0 0 24 24" aria-hidden="true">${LIFE[k] || LIFE.seed}</svg>`;
 export const ico = (k, cls = '') => `<svg class="rs-i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg>`;
 const FORGE_ICON = {

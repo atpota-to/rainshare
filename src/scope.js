@@ -2,7 +2,7 @@
 // (plain data) behind it, because the Vercel function behind /oauth-client-metadata.json imports it too
 // (api/oauth-client-metadata.js): a hosted client whose document declares less than the app
 // asks for fails every sign-in, so both come from here.
-import { GROUPS, FORGE_SCOPES } from '../core/ns.js';
+import { GROUPS, FORGE_SCOPES, COLLECTIONS, MODERATION, MODERATOR, HANDLE } from '../core/ns.js';
 
 const env = import.meta.env || {};
 
@@ -13,7 +13,8 @@ export const AUD = HOST_DID + '#opensocial';
 export const NS = 'fyi.opensocial';
 export const PLC = env.VITE_PLC_URL || 'https://plc.directory';
 
-export const RAINSHARE = ['dev.rainshare.profile', 'dev.rainshare.seed', 'dev.rainshare.take', 'dev.rainshare.delivery'];
+// Every Rainshare record type: profiles, seeds, takes, deliveries and comments.
+export const RAINSHARE = COLLECTIONS;
 // The host methods Rainshare calls: your groups, a group's spaces, and adding Rainshare to one.
 export const METHODS = ['getActorGroups', 'getGroup', 'createSpace'];
 
@@ -22,14 +23,14 @@ const rpc = m => `rpc:${NS}.${m}?aud=${A}`;
 
 // Your own Rainshare records, asked for two ways. Rainshare publishes a permission set that
 // grants them (lexicons/dev/rainshare/authFull.json), and a server that can look it up shows
-// its title and a sentence on the page it signs you in on, in place of four record types by
+// its title and a sentence on the page it signs you in on, in place of each record type by
 // name. A server that can't refuses it (invalid_scope), and is asked for the records by name:
 // the same permissions, worded by the server. See `ladder`.
 export const PERMISSION_SET = 'dev.rainshare.authFull';
 export const OWN = { set: `include:${PERMISSION_SET}`, named: RAINSHARE.map(c => `repo:${c}`).join(' ') };
 
 // With groups off (GROUPS in ../core/ns.js), sign-in asks for nothing but your own Rainshare
-// records: your public seeds, takes, deliveries and profile. `own` is one of OWN's two.
+// records: your public seeds, takes, deliveries, comments and profile. `own` is one of OWN's two.
 //
 // Any atproto account: those, and finding your groups.
 const basic = own => ['atproto', own, ...(GROUPS ? METHODS.map(rpc) : [])].join(' ');
@@ -69,12 +70,23 @@ export function forgesIn(scope){
 // set, and then with your records by name, so a server that can't look the set up still gets
 // the forges. With groups off that's four steps:
 //   the set and the forges, the names and the forges, the set alone, the names alone
-export const ladder = (forges = FORGES) => [...new Set([[full, forges], [basic, forges], [basic, []]]
-  .flatMap(([scope, f]) => [OWN.set, OWN.named].map(own => withForges(scope(own), f))))];
+//
+// @rainshare.dev's own sign-in asks for one thing more at every step: writing moderation records
+// (../core/moderation.js). Nobody else is asked, so nobody else's sign-in page mentions them.
+export const ladder = (forges = FORGES, { moderator = false } = {}) => [...new Set([[full, forges], [basic, forges], [basic, []]]
+  .flatMap(([scope, f]) => [OWN.set, OWN.named].map(own => withForges(scope(own), f) + (moderator ? ' ' + MODERATE : ''))))];
 
-// Everything the app might ever ask for: every part of every step. A hosted client's document
-// has to declare it all, whatever a particular sign-in ends up asking for.
-export const DECLARED_SCOPE = [...new Set(ladder().flatMap(s => s.split(' ')))].join(' ');
+// Moderating: writing dev.rainshare.moderation records into your own repo. Only the records in
+// MODERATOR's repo count, so this is only asked of that account (`moderates`), by its DID or
+// its handle, whichever the sign-in was started with.
+export const MODERATE = `repo:${MODERATION}`;
+export const moderates = who => who === MODERATOR || String(who || '').trim().replace(/^@/, '').toLowerCase() === HANDLE;
+/** Whether a granted scope lets this sign-in write moderation records. */
+export const canModerate = scope => String(scope || '').split(/\s+/).some(x => x.split('?')[0] === MODERATE);
+
+// Everything the app might ever ask for: every part of every step, the moderator's included. A
+// hosted client's document has to declare it all, whatever a particular sign-in ends up asking for.
+export const DECLARED_SCOPE = [...new Set([...ladder(), ...ladder(FORGES, { moderator: true })].flatMap(s => s.split(' ')))].join(' ');
 
 export const REDIRECT_PATH = '/signed-in';
 

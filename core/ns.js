@@ -1,8 +1,18 @@
 // The record types, and the words people see for their values. Plain data, so the
 // browser apps and the CLI and MCP server read the same lists.
 export const NS = 'dev.rainshare';
-export const PROFILE = NS + '.profile', SEED = NS + '.seed', TAKE = NS + '.take', DELIVERY = NS + '.delivery';
-export const COLLECTIONS = [PROFILE, SEED, TAKE, DELIVERY];
+export const PROFILE = NS + '.profile', SEED = NS + '.seed', TAKE = NS + '.take', DELIVERY = NS + '.delivery', COMMENT = NS + '.comment';
+// Your settings: how "Send my agent" works for you. One record, kept in your own repo.
+export const PREFERENCES = NS + '.preferences';
+export const COLLECTIONS = [PROFILE, SEED, TAKE, DELIVERY, COMMENT, PREFERENCES];
+// Rainshare's own moderation: what @rainshare.dev has hidden (./moderation.js). Only records in
+// that one account's repo count, so it isn't one of everyone's collections above, and only
+// that account's sign-in asks to write it (../src/scope.js).
+export const MODERATION = NS + '.moderation';
+// The account that moderates, by its DID: the brand account, @rainshare.dev. It's the same
+// account that publishes the lexicons (OWNER in ../lexicons/compat.mjs). Named by its DID, never
+// its handle, so a new handle or a move to another server doesn't change whose word counts.
+export const MODERATOR = 'did:plc:cmkittusvczhnei4gjt3asiv';
 // The space type a group's Rainshare lives in (its private seeds, takes, deliveries and profiles).
 export const BOARD = NS + '.board';
 // Where Rainshare lives: every link it writes starts here (an ask's page in a brief, the link an
@@ -20,10 +30,10 @@ export const SITE = siteFrom(typeof __RAINSHARE_SITE__ !== 'undefined' ? __RAINS
 // read it. index.html writes the word out by hand in the badge, the badge's title and the
 // landing line, so change those three with it.
 export const STAGE = 'alpha';
-// Rainshare's own Bluesky account, which posts new asks and sends the messages people ask for
-// (../api/_announce.js, ../api/_messages.js). By DID, it's OWNER in ../lexicons/compat.mjs.
-export const BRAND_HANDLE = 'rainshare.dev';
-// The direct messages someone can ask it for, in their profile (`notify`). [value, what people read]
+// Rainshare's own account on Bluesky, @-mentioned in what people share from the site.
+export const HANDLE = 'rainshare.dev';
+// The direct messages someone can ask it for (`notify` in their dev.rainshare.preferences,
+// sent by ../api/_messages.js). [value, what people read]
 export const NOTIFY = [['updates', 'Updates on my asks and my work'], ['newAsks', 'New asks on the board']];
 // Private seeds in a group's space. Spaces are still an alpha on the group host, so for now
 // every seed is public: sign-in asks only for Rainshare's own records, and the app shows
@@ -149,6 +159,12 @@ export const AUDIENCES = [
   ['list', 'A list', 'People on one of your Bluesky lists'],
   ['anyone', 'Everyone', 'Anyone who comes across it']
 ];
+// How long a helper gives themselves to turn an ask in, in days: the choices "Send my agent"
+// offers, the one it starts on, and the most a take can hold an ask (./takes.js).
+export const TAKE_DAYS = [[1, 'A day'], [3, '3 days'], [7, 'A week'], [14, '2 weeks']];
+export const TAKE_DAYS_DEFAULT = 1;
+// The ways "Send my agent" can hand an ask over (../core/brief.js has the commands).
+export const ROUTES = [['brief', 'Paste a brief'], ['claude', 'Claude Code'], ['cloud', 'Claude Code, cloud'], ['codex', 'Codex'], ['cli', 'Rainshare CLI'], ['mcp', 'MCP']];
 export const TESTS = [['required', 'Tests required'], ['welcome', 'Tests welcome'], ['none', 'No tests needed']];
 export const SIZES = [['tiny', 'Tiny'], ['small', 'Small'], ['medium', 'Medium'], ['large', 'Large']];
 // What's being asked about, by how far along it is: an idea (no repo), or a project that
