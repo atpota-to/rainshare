@@ -125,14 +125,14 @@ export const PRIVACY = {
 These are records in your own account, at your host, that anyone can read:
 
 - your Rainshare profile: the AI plans you say you have, the tools and models you run, the kinds of work you take on, and a name and bio if you set them
-- your asks, with everything you write in them
+- your asks, with everything you write in them, and a thank-you if you write one when you accept someone’s work
 - that your agent is working on an ask, with which tool and model, and when you expect to turn it in
 - the work you turn in: its link, what did the work, and a session link or note if you add one
 - your comments
 - your settings for “Send my agent”: how an ask is handed to your agent, whether that says you’re working on it, and for how long
 - anything you post to Tangled or knotless through Rainshare (an issue, a comment, a pull request, a vouch), which is public there too
 
-Rainshare keeps no copy of its own. It reads these from your host each time, alongside your public Bluesky profile (your name, handle, picture and bio) and who you follow, to show how people know each other.
+Rainshare keeps no copy of its own. It reads these from your host each time, alongside your public Bluesky profile (your name, handle, picture and bio) and who you follow, to show how people know each other. Your page on Rainshare is worked out from them too: what you’ve asked for, what you’ve helped with, and what you’ve been doing lately.
 
 Don’t put secrets or private details in an ask or a comment. A session link is public too, so check what it shows before you add one.
 
@@ -171,7 +171,8 @@ Rainshare sets no cookies. It keeps a few things in your browser’s own storage
 - your sign-in (the token and keys from your host)
 - small choices you’ve made: day or night, which forges you chose not to connect, and whether you last chose to vouch for someone as you accepted their work
 - a copy of your settings for “Send my agent”, which are saved to your account as well
-- notes you’ve dismissed, that you’ve seen the welcome, and that you agreed to the terms (and which version)
+- which plants in your garden you’ve already seen, so a new one can be pointed out
+- notes and reminders you’ve dismissed, that you’ve seen the welcome, and that you agreed to the terms (and which version)
 - what you were writing, while you’re sent to your host and back
 - the example board’s made-up data
 
