@@ -30,8 +30,8 @@ import { wordOn, wordText } from '../core/vouch.js';
 import { tieOf, tieLines, knownText, TIE_SHORT, FROM, fromMatches } from '../core/ties.js';
 import { wateredText } from '../core/garden.js';
 import { audienceLine } from '../core/circle.js';
-import { rank, fit, join, pretty } from '../core/rank.js';
-import { whereText, jobAndNotes, modelsText, progressOf, progressShort, relationText, askExcerpt, stateText, pictureOf, nounOf, aNoun, whatItIs, planText } from '../core/words.js';
+import { rank, fit, join, pretty, wantPhrase } from '../core/rank.js';
+import { whereText, jobAndNotes, modelsText, progressOf, progressShort, relationText, askExcerpt, askSizeText, stateText, pictureOf, nounOf, aNoun, whatItIs, planText } from '../core/words.js';
 import { renderMarkdown } from '../core/markdown.js';
 import { threads, talksOn } from '../core/comments.js';
 import { brief, launchers, pageOf, readHandBack, readBranchBack, sh, INSTALL, MCP_ADD, CLI_HOME } from '../core/brief.js';
@@ -600,7 +600,7 @@ export function createRainshare({ root, base = '/', host }){
         !mine && planText(it.profile) ? ['Their AI plan', esc(planText(it.profile))] : null,
         signedIn() && !mine ? ['You and them', tiesList(it.repo, it.ties, p)] : null
       ].filter(Boolean))}
-      <div class="rs-ask"><span class="rs-label">The ask</span><p>${esc(askExcerpt(sq.spec) || 'No details beyond the title.')}</p>${a(page, 'Read all of it', 'rs-link')}</div>
+      <div class="rs-ask"><span class="rs-label">The ask</span><p>${esc(askExcerpt(sq.spec) || 'No details beyond the title.')}</p><span class="rs-row">${a(page, 'Read all of it', 'rs-link')}${askSizeText(sq.spec) ? `<small class="rs-muted">${esc(askSizeText(sq.spec))}</small>` : ''}</span></div>
       ${open ? cautionNote(it) : ''}
       ${heedNote(it, st)}
       <div class="rs-row rs-detail-actions">${buttons}</div>${hint}
@@ -821,6 +821,7 @@ export function createRainshare({ root, base = '/', host }){
     const ls = ways(it), on = Math.max(0, ls.findIndex(l => l.id === S.launch)), l = ls[on];
     return `<section class="rs-launch" id="rsLaunch" aria-labelledby="rsLaunchH">
       <div class="rs-hrow"><h3 id="rsLaunchH">Send your agent</h3>${tip(`When the work’s done, your agent hands you a link back to this page, and that turns it in. ${a('agents', 'Set up the CLI or MCP server', 'rs-link')} and it can do that part itself.`)}</div>
+      ${wantPhrase(it.value) ? `<p class="rs-muted rs-l-want">${esc(firstName(it.author || {}))} would prefer ${esc(wantPhrase(it.value))}. Pick the model before you start the session.</p>` : ''}
       <div class="rs-chips" role="group" aria-label="How to send it">${ls.map((x, i) => `<button type="button" data-rs-launch="${i}" aria-pressed="${i === on}">${esc(WAY_NAME[x.id] || x.label)}</button>`).join('')}</div>
       <div class="rs-l-head"><small>${esc(l.note)}</small><button class="rs-btn rs-quiet rs-sm" type="button" data-rs-copy="${on}">${ico('copy')}Copy</button></div>
       <pre class="rs-code${l.id === 'brief' ? ' rs-l-brief' : ''}"><code>${esc(l.id !== 'brief' && l.command.length > 600 ? l.command.slice(0, 600) + '\n…' : l.command)}</code></pre>
@@ -1139,6 +1140,16 @@ export function createRainshare({ root, base = '/', host }){
     </section>`;
   }
 
+  // The ask in full. A long one starts folded to its first few lines, with its size beside the
+  // button that unfolds it: the whole text stays on the page, for screen readers and find-in-page.
+  function askBody(sq, uri){
+    const spec = `<div class="rs-spec">${sq.spec ? renderMarkdown(sq.spec) : '<p class="rs-muted">No details beyond the title.</p>'}${safeHttp(sq.specUrl) ? `<p><a href="${esc(safeHttp(sq.specUrl))}" target="_blank" rel="noopener nofollow">The longer spec</a></p>` : ''}</div>`;
+    const size = askSizeText(sq.spec);
+    if (!size) return spec;
+    const open = S.open.ask === uri;
+    return `<div class="rs-clamp" id="rsAskBody"${open ? '' : ' data-rs-folded'}>${spec}</div>
+      <div class="rs-row rs-clamp-row"><button class="rs-btn rs-quiet rs-sm" type="button" data-rs-act="ask-fold" aria-expanded="${open}" aria-controls="rsAskBody">${open ? 'Show less' : 'Show more'}</button><small class="rs-muted">${esc(size)}</small></div>`;
+  }
   function renderSeed(){
     if (S.seedErr) { title('Nothing here'); return nothingHere(plain(S.seedErr), S.seedErr.who ? a('profile/' + S.seedErr.who, 'See who asked', 'rs-btn rs-quiet') : ''); }
     const it = S.seed;
@@ -1221,7 +1232,7 @@ export function createRainshare({ root, base = '/', host }){
           ${f ? fitBox(f) : ''}
           <dl class="rs-facts">${facts.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
           <section class="rs-ask-full"><div class="rs-ask-head"><h2>The ask</h2>${hid ? '' : mdBtn(it, 'rs-quiet rs-sm')}</div>
-            <div class="rs-spec">${sq.spec ? renderMarkdown(sq.spec) : '<p class="rs-muted">No details beyond the title.</p>'}${safeHttp(sq.specUrl) ? `<p><a href="${esc(safeHttp(sq.specUrl))}" target="_blank" rel="noopener nofollow">The longer spec</a></p>` : ''}</div></section>
+            ${askBody(sq, it.uri)}</section>
           ${open && !hid ? cautionNote(it) : ''}
           ${actions ? `<div class="rs-actions">${actions}</div>` : ''}
           ${linked ? `<h2>Also on ${esc(forge)}</h2><ul class="rs-people rs-deliveries rs-linked">${linked}</ul>` : ''}
@@ -1716,6 +1727,16 @@ export function createRainshare({ root, base = '/', host }){
       }
       if (name === 'pull-retry') { stash(); await loadPull(it, true); return; }
       if (name === 'me-more') { S.open['me-more'] = true; const more = root.querySelector('[data-rs-me-more]'); if (more) { more.hidden = false; el.remove(); } return; }
+      if (name === 'ask-fold') {
+        // Folded and unfolded in place. Folding keeps the button where it was on screen, so a
+        // reader near the end of a long ask isn't thrown back up to its start.
+        const body = root.querySelector('#rsAskBody'); if (!body) return;
+        const before = el.getBoundingClientRect().top, open = body.hasAttribute('data-rs-folded');
+        body.toggleAttribute('data-rs-folded', !open); S.open.ask = open ? it?.uri : null;
+        el.setAttribute('aria-expanded', String(open)); el.textContent = open ? 'Show less' : 'Show more';
+        if (!open) window.scrollBy(0, el.getBoundingClientRect().top - before);
+        return;
+      }
       if (name === 'turnin-more') { S.open['turnin-more'] = true; const more = root.querySelector('[data-rs-turnin-more]'); if (more) { more.hidden = false; el.remove(); more.querySelector('select')?.focus(); } return; }
       if (name === 'vouch-cancel') { S.vouching = null; rerender(); return; }
       if (name === 'accept-cancel') { S.accepting = null; rerender(); root.querySelector('[data-rs-accept]')?.focus(); return; }

@@ -6,7 +6,7 @@ import { parseSubject, describeSubject, cloneUrlOf } from '../core/subjects.js';
 import * as R from '../core/records.js';
 import { meantFor, closeness } from '../core/circle.js';
 import { rank, score, fit } from '../core/rank.js';
-import { whereText, shortWhere, jobText, jobShort, modelsText, wantsShort, notesText, jobAndNotes, progressOf, progressShort, askExcerpt, stageOf, nounOf, aNoun, pictureOf, whatItIs, stateText, planText } from '../core/words.js';
+import { whereText, shortWhere, jobText, jobShort, modelsText, wantsShort, notesText, jobAndNotes, progressOf, progressShort, askExcerpt, askSize, askSizeText, stageOf, nounOf, aNoun, pictureOf, whatItIs, stateText, planText } from '../core/words.js';
 import { wateredBy, wateredText } from '../core/garden.js';
 import { renderMarkdown } from '../core/markdown.js';
 import { brief, launchers, handBack, readHandBack, readBranchBack, handBackBranch } from '../core/brief.js';
@@ -339,6 +339,29 @@ test('a seed reads as plain lines, not chips', () => {
   assert.equal(askExcerpt('It’s broken.\n\n**Done looks like**\n- a\n- b'), 'It’s broken. Done looks like: a. b');
   assert.equal(askExcerpt('Done looks like:\n- a\n- b.\n\nThanks!'), 'Done looks like: a. b. Thanks!');
   assert.ok(askExcerpt('word '.repeat(100), 30).endsWith('…'));
+});
+
+test('a long ask says how long, and an issue too long for an ask is cut where it says so', () => {
+  assert.equal(askSizeText('Fix the typo in the README.'), '');
+  const long = ['## Goal', 'word '.repeat(200), '## Plan', ...Array.from({ length: 6 }, (_, i) => `### Step ${i}\n- [ ] do ${i}a\n- [ ] do ${i}b`), '## Done when', '- [ ] it ships'].join('\n');
+  assert.deepEqual(askSize(long), { words: askSize(long).words, sections: 9, checks: 13, long: true });
+  assert.equal(askSizeText(long), `Long ask · about 300 words · 9 sections · 13 checklist items`);
+  // An issue's body fits whole when it can; past the ask's limit it's cut at a line, with a note pointing at the rest.
+  assert.equal(R.specFromIssue('Short body.\r\n', 'https://github.com/o/r/issues/5'), 'Short body.');
+  const body = Array.from({ length: 400 }, (_, i) => `Paragraph ${i} says something about the plan.`).join('\n\n');
+  const spec = R.specFromIssue(body, 'https://github.com/o/r/issues/5');
+  assert.ok(spec.length <= 10000);
+  assert.match(spec, /\.\n\n\(This is the start of the issue\. The rest is on the issue itself: https:\/\/github\.com\/o\/r\/issues\/5\)$/);
+  // The brief says it's long, points at the issue as the fuller version, and leaves the issue open for a partial fix.
+  const item = { uri: 'at://did:plc:abc/dev.rainshare.seed/3k1', repo: 'did:plc:abc', author: { handle: 'friend.example' }, value: {
+    title: 'A big plan', spec: long, subject: parseSubject('https://github.com/o/r/issues/64'), wants: { level: 'mid' } } };
+  const b = brief(item);
+  assert.match(b, /Read the issue in full before you start: https:\/\/github\.com\/o\/r\/issues\/64/);
+  assert.match(b, /It’s a long ask · about 300 words · 9 sections · 13 checklist items\. Read all of it before you start\./);
+  assert.match(b, /If it does only part, write "Part of #64" instead/);
+  assert.match(b, /If `gh` can’t reach GitHub from here, read the issue’s page instead: https:\/\/github\.com\/o\/r\/issues\/64/);
+  assert.match(b, /https:\/\/github\.com\/o\/r\/fork[\s\S]*https:\/\/github\.com\/o\/r\/compare\/<base branch>\.\.\.<their GitHub username>:<branch>\?expand=1&title=<title>/);
+  assert.match(b, /unless your own rules keep model names out of pull requests/);
 });
 
 test('markdown is escaped, with only safe constructs turned back on', () => {
@@ -759,7 +782,7 @@ test('knotless is read through its API, and its seeds are briefed with its own c
     // The brief names knotless's own commands, and the issue in the words that close it on merge.
     const b = brief({ ...seed, deliveries: [], linked: [] });
     assert.match(b, /`knotless issue show knotless:\/\/alice\.test\/proj at:\/\/did:plc:alice\/dev\.knotless\.issue\/3iss1` and `knotless pull list knotless:\/\/alice\.test\/proj`/);
-    assert.match(b, /`knotless repo fork knotless:\/\/alice\.test\/proj`[\s\S]*`knotless pull create knotless:\/\/alice\.test\/proj <base branch> knotless:\/\/<their handle>\/<repo> <branch> "<title>" -m - < body\.md`[\s\S]*write "Fixes https:\/\/knotless\.dev\/alice\.test\/proj\/issue\/did:plc:alice\/3iss1" so that merging it closes the issue/);
+    assert.match(b, /`knotless repo fork knotless:\/\/alice\.test\/proj`[\s\S]*`knotless pull create knotless:\/\/alice\.test\/proj <base branch> knotless:\/\/<their handle>\/<repo> <branch> "<title>" -m - < body\.md`[\s\S]*write "Fixes https:\/\/knotless\.dev\/alice\.test\/proj\/issue\/did:plc:alice\/3iss1" if it does everything the issue asks, so that merging it closes the issue \(if it does only part, write "Part of https:\/\/knotless\.dev\/alice\.test\/proj\/issue\/did:plc:alice\/3iss1"/);
     assert.match(b, /prints the pull’s `at:\/\/` address[\s\S]*\?pr=<pull request URL>/);
     assert.deepEqual(launchers(seed).map(l => l.id), ['claude', 'codex', 'cli', 'mcp']);
     assert.match(launchers(seed)[0].command, /^git clone 'https:\/\/knotless\.dev\/alice\.test\/proj' rainshare-/);
