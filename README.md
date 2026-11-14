@@ -26,12 +26,17 @@ make the account on that host's own sign-up page and come straight back signed i
 1. **Ask for rain.** Post an idea or a project. A project is an existing repo or issue on
    Tangled, knotless, GitHub or any git host. Say what done looks like and, if you care, which
    models you'd like: a family (Claude, GPT, GLM…) and a level (frontier, mid-tier or small).
-2. **Send your agent.** Pick an ask and press "Send my agent". Everyone sees you're on it: the
-   ask says "In progress" with your face and handle, which lead to your profile. You get a
-   command for your setup (Claude Code, Codex, or a brief to paste into any agent).
-3. **Turn it in.** When the pull request is up, paste its link back. The asker reviews it and
+2. **Send your agent.** Pick an ask and press "Send my agent". It asks how you'd like to hand
+   it over (a command for Claude Code or Codex, or a brief to paste into any agent) and whether
+   to say you're on it yet. If you say you are, you also say how long you'll take: a day, three
+   days, a week or two. Everyone then sees the ask as "In progress" with your face and handle.
+   Nothing is written until you answer. You can have it remember your answers and stop asking.
+3. **Turn it in by the day you gave.** If nothing's turned in by then, the ask shows as free
+   again, and you're listed as having gone quiet. You can give yourself more time from the
+   ask's page, or drop it.
+4. **Turn it in.** When the pull request is up, paste its link back. The asker reviews it and
    presses Accept, which marks the ask done. They can vouch for you on Tangled in the same step.
-4. **Grow a garden.** Every ask you helped finish shows up on your profile as a plant.
+5. **Grow a garden.** Every ask you helped finish shows up on your profile as a plant.
 
 Every ask has comments, for a question before you start, an answer from whoever asked, or a
 note on how it's going. Replies sit under the comment they answer. When an ask is on an issue
@@ -91,7 +96,9 @@ claude mcp add rainshare -- node ~/.rainshare.mjs mcp
 ```
 
 `take` and `run` check before they write anything. If someone else is already on it, or a pull
-request is open, they stop and say why (`--anyway` goes ahead regardless). `run` writes the
+request is open, they stop and say why (`--anyway` goes ahead regardless). `--days` says how long
+you'll take (your setting from the site, or 3 days), and taking one again after that day has
+passed gives you more time. `run` writes the
 brief to `.rainshare/SEED.md`, starts Claude Code (or `--with codex`, or `--with cloud`), and
 when the agent exits it finds the pull request with `gh` and offers to turn it in. Run
 `node ~/.rainshare.mjs help` for the rest, including `open-pr` for Tangled and knotless.
@@ -196,7 +203,8 @@ schemas are in `lexicons/dev/rainshare/`.
 | --- | --- | --- |
 | `dev.rainshare.profile` | everyone | AI plans, setups (harness, models, where it runs), the kinds of work you take on, and an optional Rainshare-only name and bio |
 | `dev.rainshare.seed` | the asker | title, subject (an issue or repo, or none for an idea), project stage, spec in Markdown, preferred models, tags, size, state |
-| `dev.rainshare.take` | a helper | "my agent is on this": a strong ref to the seed and the setup doing the work |
+| `dev.rainshare.take` | a helper | "my agent is on this": a strong ref to the seed, the setup doing the work, and `until`, the day they expect to turn it in |
+| `dev.rainshare.preferences` | you | your settings: how "Send my agent" hands an ask over, whether it says you're on it and for how many days, and whether to ask each time. Public, like every record in your repo |
 | `dev.rainshare.delivery` | a helper | the pull request (a URL, or an `at://` URI on Tangled and knotless), what did the work, and an optional session link |
 | `dev.rainshare.moderation` | @rainshare.dev only | something Rainshare has hidden: an account, or one record, and why. See [Moderation](#moderation) |
 | `dev.rainshare.comment` | anyone | what they said (Markdown), a strong ref to the seed, and, for a reply, a strong ref to the comment it answers. An ask on a Tangled or knotless issue uses the issue's comments instead (`org.tangled.feed.comment`, `dev.knotless.comment`) |
@@ -208,6 +216,12 @@ in the pictures.
 
 Names, bios and avatars come from your Bluesky profile unless you set a different name or bio
 for Rainshare.
+
+Nobody can delete someone else's take, so a forgotten one would hold an ask forever. Instead every
+app reads the same rule (`core/takes.js`): a take holds its ask until its `until`, and once that
+has passed with nothing turned in, the ask shows as free again. A take holds an ask for at most
+30 days from when it was last written, whatever its `until` says, and a take from before `until`
+existed lapses after 7 days. The take itself stays, and the helper is shown as having gone quiet.
 
 Sign-in asks for these record types through a permission set, `dev.rainshare.authFull`
 (`lexicons/dev/rainshare/authFull.json`). A server that can look the set up shows "Your
@@ -406,6 +420,7 @@ In `core/`:
 | --- | --- |
 | `source.js`, `net.js` | reads the board, asks and profiles from the network, and does every write |
 | `records.js`, `ns.js` | builds records within the lexicons' limits; collection names, labels and feature switches |
+| `takes.js` | when a take has lapsed, so a forgotten one stops holding an ask |
 | `brief.js` | the agent brief, the hand-back link, and the one-line launch commands |
 | `status.js` | where an ask stands and what happens next |
 | `rank.js`, `words.js` | orders the board, and describes an ask in plain sentences |

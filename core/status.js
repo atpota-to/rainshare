@@ -10,6 +10,7 @@
 import { HARNESSES, labelOf } from './ns.js';
 import { describeSubject, kindOf, subjectInfo, pullState, linkedPulls, pullPageOf, pullKey, FORGE_NAMES } from './subjects.js';
 import { parseUri } from './net.js';
+import { dueOf, lapsed } from './takes.js';
 
 const DAY = 86400e3;
 /** "today", "yesterday", "6 days ago", "3 weeks ago": how long since a record was written. */
@@ -18,6 +19,9 @@ export function since(iso, now = Date.now()){
   if (!(days >= 0)) return '';
   return days < 1 ? 'today' : days === 1 ? 'yesterday' : days < 14 ? `${days} days ago` : days < 60 ? `${Math.floor(days / 7)} weeks ago` : `${Math.floor(days / 30)} months ago`;
 }
+/** "5 Nov": a day, the same wherever it's read (a brief or the CLI can't know your locale). */
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+export const day = ms => { const d = new Date(ms); return d.getTime() === d.getTime() ? `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}` : ''; };
 const nameOf = rec => rec.author?.handle ? '@' + rec.author.handle : rec.author?.displayName || rec.repo || 'Someone';
 
 /**
@@ -58,7 +62,8 @@ export function carry(from, to, { maxAge = 90e3, now = Date.now() } = {}){
  *
  *   state        'open', 'sprouted' or 'closed'
  *   issue        'open' or 'closed' on the forge, or null if it isn't an issue or isn't known
- *   takes        [{ who, mine, since, with }]
+ *   takes        [{ who, mine, since, with, due, said, lapsed }]   due: when it stops holding the ask (ms); said: whether
+ *                the helper gave that day; lapsed: whether it has passed with nothing turned in (./takes.js)
  *   deliveries   [{ uri, who, mine, link, state, accepted }]   state: 'open', 'merged', 'closed' or null
  *   linked       pull requests on the forge that mention it and weren't turned in here
  *   verdict      'clear', 'on-it', 'turned-in', 'merged', 'issue-closed', 'sprouted' or 'closed'
@@ -75,13 +80,14 @@ export function standing(item, { viewer, now = Date.now(), asker = 'the person w
   const state = sq.state === 'sprouted' || sq.state === 'closed' ? sq.state : 'open', idea = !d;
   const who = rec => viewer && rec.repo === viewer ? 'You' : nameOf(rec);
   const accepted = new Set((sq.sproutedWith || []).map(r => r.uri));
-  const takes = (item?.takes || []).map(t => ({ who: who(t), mine: !!viewer && t.repo === viewer, since: since(t.value?.createdAt, now), with: t.value?.setup?.harness ? labelOf(HARNESSES, t.value.setup.harness) : '' }));
+  const takes = (item?.takes || []).map(t => ({ who: who(t), mine: !!viewer && t.repo === viewer, since: since(t.value?.createdAt, now), with: t.value?.setup?.harness ? labelOf(HARNESSES, t.value.setup.harness) : '', due: dueOf(t), said: Date.parse(t.value?.until) > 0, lapsed: lapsed(t, item, now) }));
   const deliveries = (item?.deliveries || []).map(dl => ({ uri: dl.uri, who: who(dl), mine: !!viewer && dl.repo === viewer, link: pullPageOf(dl.value, sq.subject) || dl.value?.url || dl.value?.pull || '', state: dl.state || null, accepted: accepted.has(dl.uri) }));
   const turnedIn = new Set((item?.deliveries || []).flatMap(dl => [dl.value?.url, dl.value?.pull].filter(Boolean).map(pullKey)));
   const linked = (item?.linked || []).filter(p => !turnedIn.has(pullKey(p.url)));
   const issue = item?.issue?.state === 'open' || item?.issue?.state === 'closed' ? item.issue.state : null;
 
-  const others = takes.filter(t => !t.mine);
+  // A take whose day has passed with nothing turned in doesn't keep anyone away (./takes.js).
+  const others = takes.filter(t => !t.mine && !t.lapsed);
   const merged = [...deliveries, ...linked].some(x => x.state === 'merged');
   const waiting = [...deliveries.filter(x => !x.mine), ...linked].filter(x => x.state !== 'merged' && x.state !== 'closed');
   const verdict = state !== 'open' ? state : merged ? 'merged' : issue === 'closed' ? 'issue-closed' : waiting.length ? 'turned-in' : others.length && !sq.parallel ? 'on-it' : 'clear';
@@ -89,7 +95,12 @@ export function standing(item, { viewer, now = Date.now(), asker = 'the person w
   const lines = [state === 'sprouted' ? 'It’s done.' : state === 'closed' ? `It’s closed: ${asker} isn’t looking for help with it now.` : 'It’s open.'];
   if (issue) lines.push(`The issue is ${issue === 'open' ? 'still open' : 'closed'} on ${forge}.`);
   if (state === 'open' && !takes.length) lines.push('Nobody has taken it on yet.');
-  if (state === 'open') for (const t of takes) lines.push(`${t.who} took it on${t.since ? ' ' + t.since : ''}${t.with ? `, with ${t.with}` : ''}.`);
+  if (state === 'open') for (const t of takes) {
+    // (A take from before takes had a day doesn't say one: it lapses after a week, unsaid.)
+    const by = t.said && t.due === t.due ? day(t.due) : '', none = by ? 'Nothing’s been turned in' : 'Nothing’s been turned in for over a week';
+    lines.push(`${t.who} took it on${t.since ? ' ' + t.since : ''}${t.with ? `, with ${t.with}` : ''}${by ? `, and said it’d be in by ${by}` : ''}.${
+      !t.lapsed ? '' : t.mine ? ` ${none}, so others see it as free again.` : ` ${none}, so it’s free again: it can be taken on, though it’s worth checking with them first.`}`);
+  }
   for (const dl of deliveries) lines.push(`${dl.who} turned in ${dl.link || 'a pull request'}${dl.state ? ` (${dl.state})` : ''}${dl.accepted ? ', and that did it' : ''}.`);
   for (const p of linked) lines.push(`On ${forge}, pull request${p.number ? ' #' + p.number : ''}${p.by ? ` by @${p.by}` : ''} mentions it${p.state ? ` (${p.state})` : ''} and hasn’t been turned in on Rainshare: ${p.url}`);
   if (state === 'open' && sq.parallel && others.length) lines.push('More than one helper is welcome on this one.');
@@ -111,6 +122,7 @@ export function standing(item, { viewer, now = Date.now(), asker = 'the person w
     : own.some(x => x.state === 'merged') ? `Your pull request has been merged. It’s waiting for ${asker} to mark it done: nothing more is needed from you.`
       : own.length && own.every(x => x.state === 'closed') ? 'Your pull request was closed without being merged. Ask what was missing, or drop it so someone else can pick it up.'
         : own.length ? `You’ve turned it in. It’s with ${asker} now: nothing more is needed unless they ask.`
+          : takes.some(t => t.mine && t.lapsed) && verdict === 'clear' ? 'The day you gave yourself has passed, so it shows as free again. If you’re still on it, give yourself more time; if not, drop it.'
           : takes.some(t => t.mine) && verdict === 'clear' ? (idea ? 'You’re on it. When there’s something to show, turn in where it lives.' : 'You’re on it. When the pull request is up, turn it in.') : null;
 
   // An idea has no merge to wait for: once someone turns in what they built, it's the planter's to look at.

@@ -2,7 +2,9 @@
 // browser apps and the CLI and MCP server read the same lists.
 export const NS = 'dev.rainshare';
 export const PROFILE = NS + '.profile', SEED = NS + '.seed', TAKE = NS + '.take', DELIVERY = NS + '.delivery', COMMENT = NS + '.comment';
-export const COLLECTIONS = [PROFILE, SEED, TAKE, DELIVERY, COMMENT];
+// Your settings: how "Send my agent" works for you. One record, kept in your own repo.
+export const PREFERENCES = NS + '.preferences';
+export const COLLECTIONS = [PROFILE, SEED, TAKE, DELIVERY, COMMENT, PREFERENCES];
 // Rainshare's own moderation: what @rainshare.dev has hidden (./moderation.js). Only records in
 // that one account's repo count, so it isn't one of everyone's collections above, and only
 // that account's sign-in asks to write it (../src/scope.js).
@@ -154,6 +156,12 @@ export const AUDIENCES = [
   ['list', 'A list', 'People on one of your Bluesky lists'],
   ['anyone', 'Everyone', 'Anyone who comes across it']
 ];
+// How long a helper gives themselves to turn an ask in, in days: the choices "Send my agent"
+// offers, the one it starts on, and the most a take can hold an ask (./takes.js).
+export const TAKE_DAYS = [[1, 'A day'], [3, '3 days'], [7, 'A week'], [14, '2 weeks']];
+export const TAKE_DAYS_DEFAULT = 3;
+// The ways "Send my agent" can hand an ask over (../core/brief.js has the commands).
+export const ROUTES = [['brief', 'Paste a brief'], ['claude', 'Claude Code'], ['cloud', 'Claude Code, cloud'], ['codex', 'Codex'], ['cli', 'Rainshare CLI'], ['mcp', 'MCP']];
 export const TESTS = [['required', 'Tests required'], ['welcome', 'Tests welcome'], ['none', 'No tests needed']];
 export const SIZES = [['tiny', 'Tiny'], ['small', 'Small'], ['medium', 'Medium'], ['large', 'Large']];
 // What's being asked about, by how far along it is: an idea (no repo), or a project that

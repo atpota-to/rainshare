@@ -381,9 +381,9 @@ span.rs-helper-pull{color:var(--rs-muted)}
 .rs-form label>small{margin-left:4px}
 .rs-field{display:flex;flex-direction:column;gap:6px;font-weight:700;font-size:14px;min-width:0}
 .rs-field>span{font-weight:700;font-size:14px}
-.rs-form input:not([type=checkbox]),.rs-form textarea,.rs-form select{font:500 16px var(--rs-font);color:var(--rs-ink);background:var(--rs-field);border:0;border-radius:12px;padding:11px 13px;min-height:46px;width:100%;box-shadow:inset 0 0 0 1.5px var(--rs-line)}
+.rs-form input:not([type=checkbox]),.rs-form textarea,.rs-form select,.rs-prefs select{font:500 16px var(--rs-font);color:var(--rs-ink);background:var(--rs-field);border:0;border-radius:12px;padding:11px 13px;min-height:46px;width:100%;box-shadow:inset 0 0 0 1.5px var(--rs-line)}
 .rs-form textarea{resize:vertical;line-height:1.5}
-.rs-form input:focus,.rs-form textarea:focus,.rs-form select:focus{outline:none;box-shadow:inset 0 0 0 2px var(--rs-accent)}
+.rs-form input:focus,.rs-form textarea:focus,.rs-form select:focus,.rs-prefs select:focus{outline:none;box-shadow:inset 0 0 0 2px var(--rs-accent)}
 /* A fieldset is a plain block, spaced with margins rather than a flex gap: Safari won't float the
    legend of a flex or grid fieldset, and leaves it sitting across the box's top edge. Floated,
    the legend is a heading inside the box, and everything after it clears it. */
@@ -412,6 +412,12 @@ span.rs-helper-pull{color:var(--rs-muted)}
 .rs-me-wrap>.rs-form{max-width:none}
 .rs-me-side{position:sticky;top:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
 .rs-me-side>.rs-link{align-self:flex-start;margin-left:4px}
+.rs-mysend h2{font-size:18px;margin:0}
+.rs-prefs{display:flex;flex-direction:column;gap:10px}
+.rs-prefs>label:not(.rs-check){display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:14px}
+.rs-prefs .rs-check{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14px}
+.rs-prefs>.rs-btn{align-self:flex-start}
+.rs-send-hint{font-size:13px;margin-top:-4px}
 .rs-sticky{position:sticky;bottom:12px;z-index:2;padding:10px;margin:0 -10px;border-radius:999px;background:color-mix(in srgb,var(--rs-bg-card) 85%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
 
 /* asking for rain: three steps, with a preview beside them */
@@ -660,6 +666,21 @@ span.rs-helper-pull{color:var(--rs-muted)}
 .rs-wl .rs-err{font-size:14px}
 /* the way on, and the ways out */
 .rs-wl .rs-primary{width:100%;min-height:52px;font-size:16px}
+.rs-sd-what{margin:-6px 0 0;color:var(--rs-muted);font-size:15px;line-height:1.4;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.rs-sd-ways{display:flex;flex-direction:column;gap:8px}
+.rs-sd-way{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:var(--rs-radius-sm);background:var(--rs-sunk);cursor:pointer;box-shadow:inset 0 0 0 1.5px transparent}
+.rs-sd-way:has(input:checked){box-shadow:inset 0 0 0 2px var(--rs-accent);background:var(--rs-accent-soft)}
+.rs-sd-way input{margin:3px 0 0;accent-color:var(--rs-accent);flex:none}
+.rs-sd-way>span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.rs-sd-way b{font-size:15px}
+.rs-sd-way small{font-size:13px;line-height:1.4;color:var(--rs-muted)}
+.rs-sd-days{display:flex;flex-direction:column;gap:8px;padding:2px 4px 6px 40px}
+.rs-sd-days p{font-weight:600;font-size:14px;margin:0}
+.rs-sd-days small{font-size:13px;line-height:1.4;color:var(--rs-muted)}
+.rs-sd-keep{display:flex;flex-direction:column;gap:8px}
+.rs-sd-keep .rs-check{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14px}
+.rs-sd-keep .rs-check:has(input:disabled){opacity:.5}
+.rs-sd-keep small{font-size:13px}
 .rs-wl-foot{display:flex;align-items:center;justify-content:space-between;gap:6px 16px;flex-wrap:wrap;padding-top:12px;border-top:1px solid var(--rs-line)}
 .rs-wl-foot .rs-link .rs-i{width:16px;height:16px}
 @media (max-width:420px){

@@ -4,7 +4,7 @@
   "defs": {
     "main": {
       "type": "record",
-      "description": "\"My agent is on this.\" Written by the helper, next to the seed (in their repo, or their repo in the same group space). Deleting it drops the seed.",
+      "description": "\"My agent is on this.\" Written by the helper, next to the seed (in their repo, or their repo in the same group space). Deleting it drops the seed. It can say when the helper expects to turn the work in (until): once that has passed with nothing turned in, apps show the seed as free again, though the take stays until its author deletes it.",
       "key": "tid",
       "record": {
         "type": "object",
@@ -13,7 +13,9 @@
           "seed": { "type": "ref", "ref": "com.atproto.repo.strongRef" },
           "setup": { "type": "ref", "ref": "dev.rainshare.defs#setup" },
           "note": { "type": "string", "maxLength": 3000, "maxGraphemes": 300 },
-          "createdAt": { "type": "string", "format": "datetime" }
+          "until": { "type": "string", "format": "datetime", "description": "When the helper expects to have turned it in. Apps treat a take with nothing turned in as lapsed after this, and give it no more than 30 days from when it was last written however far off this says. A take without it lapses 7 days after it was written. The helper can push it back by writing the record again with a later until and an updatedAt." },
+          "createdAt": { "type": "string", "format": "datetime" },
+          "updatedAt": { "type": "string", "format": "datetime", "description": "When the helper last changed it, for example to give themselves more time." }
         }
       }
     }
