@@ -12,6 +12,7 @@
 // its own page. Saving writes a profile with just what was picked here.
 import { PLANS, UNPAID, HARNESSES } from '../core/ns.js';
 import { esc, lit, ico, skyIco, lifeIco, face, nameOf, avatarFallback } from './bits.js';
+import { closeSoftly, swapStep } from './motion.js';
 
 const SEEN = did => 'rs:welcomed:' + did;
 const seen = did => { try { return localStorage.getItem(SEEN(did)) === '1'; } catch (_) { return false; } };
@@ -63,22 +64,23 @@ export function openWelcome({ person, save, saved = () => {}, error = e => e?.me
     <h2 id="rsWlTitle" tabindex="-1">${title}</h2>`;
   const skip = '<button class="rs-link" type="button" data-wl="skip">Skip for now</button>';
 
-  function paint(){
+  // (`dir`: 1 going on to the profile, -1 back to the story; the box slides between them.)
+  function paint(dir = 0){
     if (st.step === 'story') {
-      box.innerHTML = `${top(1, lit('Welcome to Rainshare'))}
+      swapStep(box, `${top(1, lit('Welcome to Rainshare'))}
         <ol class="rs-wl-story">${STORY.map(([i, line, more]) => `<li><span class="rs-wl-ico">${i}</span><p><b>${lit(line)}</b>${lit(more)}</p></li>`).join('')}</ol>
         <button class="rs-btn rs-primary" type="button" data-wl="next">Set up your profile</button>
-        <div class="rs-wl-foot"><span class="rs-muted">It takes a minute.</span>${skip}</div>`;
+        <div class="rs-wl-foot"><span class="rs-muted">It takes a minute.</span>${skip}</div>`, dir);
       box.querySelector('[data-wl="next"]').focus();
       return;
     }
-    box.innerHTML = `${top(2, 'What do you code with?')}
+    swapStep(box, `${top(2, 'What do you code with?')}
       <div class="rs-wl-you">${face(person)}<span><b>${esc(nameOf(person))}</b><small>Your name and picture come from Bluesky.</small></span></div>
       <fieldset><legend>Your AI plan</legend><p class="rs-muted">Any you pay for to code with. It shows beside your asks.</p>${chips('plans', PLANS, st.plans)}</fieldset>
       <fieldset><legend>What you run</legend><p class="rs-muted">So “Send my agent” copies the right command.</p>${chips('runs', HARNESSES, st.runs)}</fieldset>
       <p class="rs-err" role="alert" hidden></p>
       <button class="rs-btn rs-primary" type="button" data-wl="save">Save my profile</button>
-      <div class="rs-wl-foot"><button class="rs-link" type="button" data-wl="back">${ico('back')}Back</button>${skip}</div>`;
+      <div class="rs-wl-foot"><button class="rs-link" type="button" data-wl="back">${ico('back')}Back</button>${skip}</div>`, dir);
     box.querySelector('[data-rs-wl="plans"] button')?.focus();
   }
   const say = msg => { const p = box.querySelector('.rs-err'); if (p) { p.textContent = msg; p.hidden = !msg; } };
@@ -89,14 +91,14 @@ export function openWelcome({ person, save, saved = () => {}, error = e => e?.me
     st.busy = true; btn.disabled = true; btn.textContent = 'Saving…'; say('');
     try { await save(welcomeProfile(st)); }
     catch (e) { st.busy = false; btn.disabled = false; btn.textContent = 'Save my profile'; say(error(e)); return; }
-    dlg.close();
+    closeSoftly(dlg);
     saved();
   }
 
   dlg.addEventListener('click', e => {
     if (st.busy) return;
     // Outside the box is the same as "Skip for now".
-    if (e.target === dlg) return dlg.close();
+    if (e.target === dlg) return closeSoftly(dlg);
     const b = e.target.closest('button'); if (!b) return;
     const group = b.closest('[data-rs-wl]');
     if (group) {
@@ -113,13 +115,13 @@ export function openWelcome({ person, save, saved = () => {}, error = e => e?.me
       return;
     }
     const act = b.dataset.wl;
-    if (act === 'skip') dlg.close();
-    else if (act === 'next') { st.step = 'basics'; paint(); }
-    else if (act === 'back') { st.step = 'story'; paint(); }
+    if (act === 'skip') closeSoftly(dlg);
+    else if (act === 'next') { st.step = 'basics'; paint(1); }
+    else if (act === 'back') { st.step = 'story'; paint(-1); }
     else if (act === 'save') submit(b);
   });
   // Escape, the ✕, "Skip for now" or a click outside: it's been seen, and won't come back on this browser.
-  dlg.addEventListener('cancel', e => { if (st.busy) e.preventDefault(); });
+  dlg.addEventListener('cancel', e => { if (!e.cancelable) return; e.preventDefault(); if (!st.busy) closeSoftly(dlg); });
   dlg.addEventListener('close', () => { markSeen(did); dlg.remove(); });
 
   paint();

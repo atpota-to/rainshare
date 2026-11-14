@@ -25,6 +25,7 @@ import { HOSTS, hostById, domainOf } from './hosts.js';
 import { GROUPS } from '../core/ns.js';
 import { suggestPeople, profiles, isHandle, isDid, normalizeHandle } from '../core/net.js';
 import { esc, face, ico, avatarFallback } from '../ui/bits.js';
+import { closeSoftly, swapStep } from '../ui/motion.js';
 
 // What's asked for, as it's said beside each tick box. Your server words the same list its own
 // way on the page it shows.
@@ -139,7 +140,7 @@ function ensure(){
   let downOn = null;
   dlg.addEventListener('mousedown', e => { downOn = e.target; });
   dlg.addEventListener('click', e => {
-    if ((e.target === dlg && downOn === dlg) || e.target.closest('[data-si-close]')) return dlg.close();
+    if ((e.target === dlg && downOn === dlg) || e.target.closest('[data-si-close]')) return closeSoftly(dlg);
     if (e.target.closest('[data-si-back]')) return ask();
     if (e.target.closest('[data-si-make]')) return hosts();
     const host = e.target.closest('[data-si-host]');
@@ -148,11 +149,23 @@ function ensure(){
   });
   // What's ticked stays ticked, and what isn't stays out, through "Not you?" and back.
   dlg.addEventListener('change', e => { if (st && e.target.name === 'forge') st.want[e.target.checked ? 'add' : 'delete'](e.target.value); });
-  // Escape puts the list of accounts away first, and closes the dialog the next time.
-  dlg.addEventListener('cancel', e => { if (st?.offer?.open()) { e.preventDefault(); st.offer.close(); } });
+  // Escape puts the list of accounts away first, and closes the dialog the next time, the same
+  // way the ✕ does. (When the browser won't let it be held open, it's closed at once, as before.)
+  dlg.addEventListener('cancel', e => {
+    if (!e.cancelable) return;
+    e.preventDefault();
+    if (st?.offer?.open()) st.offer.close(); else closeSoftly(dlg);
+  });
   dlg.addEventListener('close', () => { st = null; box.innerHTML = ''; });
   // Back from your server with the browser's Back button: the button is yours to press again.
   addEventListener('pageshow', e => { if (e.persisted && st?.busy) { st.busy = false; paintGo(); } });
+}
+// Each step's place in the order, so moving between them slides the way you're going.
+const RANK = { ask: 0, hosts: 1, confirm: 1, make: 2 };
+function paintStep(step, html){
+  const dir = st.at ? Math.sign(RANK[step] - RANK[st.at]) : 0;
+  st.at = step;
+  swapStep(box, html, dir);
 }
 const head = title => `<header class="si-head"><h2 id="siTitle">${esc(title)}</h2><button class="si-x" type="button" data-si-close aria-label="Close">${ico('close')}</button></header>`;
 const say = msg => { const p = box.querySelector('.si-err'); if (p) { p.textContent = msg; p.hidden = !msg; } };
@@ -182,8 +195,10 @@ const asks = () => `<fieldset class="si-asks">
 export function openSignIn({ handle = '', person = null, to = '/', forges = null, adding = null, making = false, why = '' } = {}){
   ensure();
   const out = skipped();
-  st = { to, why, adding, want: new Set(forges || FORGES.filter(f => !out.includes(f))), turn: 0, who: null, person: null, did: null, host: null, blind: false, busy: false, offer: null, making: null, create: false };
+  st = { at: null, to, why, adding, want: new Set(forges || FORGES.filter(f => !out.includes(f))), turn: 0, who: null, person: null, did: null, host: null, blind: false, busy: false, offer: null, making: null, create: false };
   const who = person?.did || normalizeHandle(handle);
+  // (Asked to open again while it was closing: it stays.)
+  dlg.classList.remove('rs-closing');
   if (who) confirm(who, person); else if (making && !adding) hosts(); else ask();
   if (!dlg.open) dlg.showModal();
   focusStep();
@@ -193,7 +208,7 @@ const focusStep = () => (box.querySelector('input[name="handle"]') || box.queryS
 // The first step: who's signing in.
 function ask(msg = '', typed = ''){
   Object.assign(st, { turn: st.turn + 1, did: null, host: null, blind: false, busy: false, making: null });
-  box.innerHTML = `<form class="si-step" novalidate>
+  paintStep('ask', `<form class="si-step" novalidate>
       ${head('Sign in to Rainshare')}
       ${st.why ? `<p class="si-why">${esc(st.why)}</p>` : ''}
       <p class="si-lede">Use your handle from Bluesky, Tangled or any Atmosphere app.</p>
@@ -202,7 +217,7 @@ function ask(msg = '', typed = ''){
       <p class="si-err" role="alert"${msg ? '' : ' hidden'}>${esc(msg)}</p>
       <button class="si-go" type="submit">Continue</button>
       <p class="si-foot"><button class="si-link" type="button" data-si-make>Make an account</button><span>Rainshare never sees your password.</span></p>
-    </form>`;
+    </form>`);
   const form = box.firstElementChild;
   st.offer = handleField(form, { err: form.querySelector('.si-err'), anchor: form.querySelector('.si-offer'), then: confirm });
   focusStep();
@@ -213,7 +228,7 @@ function ask(msg = '', typed = ''){
 function confirm(who, person = null){
   Object.assign(st, { turn: st.turn + 1, who, person, did: null, host: null, blind: false, busy: false, offer: null, making: null });
   const adding = st.adding;
-  box.innerHTML = `<div class="si-step">
+  paintStep('confirm', `<div class="si-step">
       ${head(adding ? `Connect ${ASKS[adding]?.[0] || adding}` : 'Is this you?')}
       <div class="si-card">${card(person || (isDid(who) ? { did: who } : { handle: who }))}</div>
       ${asks()}
@@ -221,7 +236,7 @@ function confirm(who, person = null){
       <button class="si-go" type="button" data-si-go></button>
       <p class="si-next" aria-live="polite"></p>
       <p class="si-foot">${adding ? '<button class="si-link" type="button" data-si-close>Not now</button>' : '<button class="si-link" type="button" data-si-back>Not you?</button>'}<span>Rainshare never sees your password.</span></p>
-    </div>`;
+    </div>`);
   paintGo();
   focusStep();
   find(st.turn);
@@ -229,14 +244,14 @@ function confirm(who, person = null){
 // Making an account, first: where it will live.
 function hosts(){
   Object.assign(st, { turn: st.turn + 1, who: null, person: null, did: null, host: null, blind: false, busy: false, offer: null, making: null });
-  box.innerHTML = `<div class="si-step">
+  paintStep('hosts', `<div class="si-step">
       ${head('Make an account')}
       <p class="si-lede">Your account lives with a host you pick, and works on Bluesky, Tangled and every other Atmosphere app. You’ll make it on the host’s site, then come straight back.</p>
       <ul class="si-hosts" aria-label="Hosts">
         ${HOSTS.map(h => `<li><button class="si-host" type="button" data-si-host="${esc(h.id)}">${hostCard(h, h.usual ? ' <i>· most people start here</i>' : '')}${ON}</button></li>`).join('')}
       </ul>
       <p class="si-foot"><button class="si-link" type="button" data-si-back>I already have an account</button><span>You can move hosts later.</span></p>
-    </div>`;
+    </div>`);
   focusStep();
 }
 
@@ -245,7 +260,7 @@ function hosts(){
 function make(h){
   if (!h) return hosts();
   Object.assign(st, { turn: st.turn + 1, who: null, person: null, did: null, host: domainOf(h), blind: false, busy: false, offer: null, making: h, create: true });
-  box.innerHTML = `<div class="si-step">
+  paintStep('make', `<div class="si-step">
       ${head('Make an account')}
       <div class="si-card">${hostCard(h)}</div>
       ${asks()}
@@ -253,7 +268,7 @@ function make(h){
       <button class="si-go" type="button" data-si-go></button>
       <p class="si-next" aria-live="polite"></p>
       <p class="si-foot"><button class="si-link" type="button" data-si-make>Pick another host</button><span>Rainshare never sees your password.</span></p>
-    </div>`;
+    </div>`);
   paintGo();
   focusStep();
   findMaking(st.turn);
@@ -268,6 +283,8 @@ async function findMaking(turn){
   } catch (e) { console.warn('sign-up: where this host signs people up', e); }
 }
 
+// (While it's on its way there, it rains: ../ui/rainshare.css, .rs-rain.)
+const RAIN = '<span class="rs-rain" aria-hidden="true"></span>';
 // The button says where it leads once that's known, and the line under it says what happens
 // there. If it couldn't be found (`blind`), the button still goes on, without the name: the
 // sign-in finds the way itself, and it's only if that fails too that anything is said.
@@ -277,14 +294,16 @@ function paintGo(){
   if (st.making) {
     const h = esc(st.host);
     b.setAttribute('aria-disabled', String(st.busy));
-    b.innerHTML = st.busy ? `Opening ${h}…` : `<span>Continue at ${h}</span>${OUT}`;
+    b.toggleAttribute('data-busy', st.busy);
+    b.innerHTML = st.busy ? `${RAIN}Opening ${h}…` : `<span>Continue at ${h}</span>${OUT}`;
     next.innerHTML = st.create ? `You’ll make your account at <b>${h}</b>, then say yes to Rainshare and come straight back.`
       : `You’ll go to <b>${h}</b>, where you can make an account, then come straight back.`;
     return;
   }
   const host = st.host, known = host || st.blind, at = host ? ` at <b>${esc(host)}</b>,` : '';
   b.setAttribute('aria-disabled', String(st.busy || !known));
-  b.innerHTML = !known ? 'Finding where you sign in…' : st.busy ? `Opening ${host ? esc(host) : 'where you sign in'}…` : `<span>Continue${host ? ' at ' + esc(host) : ''}</span>${OUT}`;
+  b.toggleAttribute('data-busy', st.busy);
+  b.innerHTML = !known ? 'Finding where you sign in…' : st.busy ? `${RAIN}Opening ${host ? esc(host) : 'where you sign in'}…` : `<span>Continue${host ? ' at ' + esc(host) : ''}</span>${OUT}`;
   next.innerHTML = !known ? '' : st.adding ? `You’ll approve this${at} where your account lives, then come back to what you wrote.`
     : `You’ll sign in${at} where your account lives, then come straight back.`;
 }

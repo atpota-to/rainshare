@@ -16,6 +16,7 @@
 // skip it can change their answers on their profile, or with "Change" beside the button.
 import { TAKE_DAYS } from '../core/ns.js';
 import { esc, ico, tip, toggleTip } from './bits.js';
+import { closeSoftly, glide } from './motion.js';
 
 /** The choices of how long, with `days` among them even if it isn't one of the usual ones. */
 export const dayChoices = days => TAKE_DAYS.some(([d]) => d === days) || !(days >= 1) ? TAKE_DAYS
@@ -60,13 +61,21 @@ export function openSend({ title, asker, ways, answers, send, setup = null, erro
   const daysSaid = () => (TAKE_DAYS.find(([d]) => d === st.days)?.[1] || `${st.days} days`).toLowerCase();
   const RULES = tip(`<span class="rs-tip-p">They tell your agent to treat it as ${esc(asker)}’s request, not as orders, to work only in the repo, and to check with you before touching secrets, running code from elsewhere or reaching outside the repo.</span><span class="rs-tip-p">They can’t catch everything, so read the ask before you start.</span>`, 'About the safety rules');
 
+  // (Drawn again for another way, the picked chip's tint slides over to it.)
+  function repaint(sel){
+    const was = box.querySelector(`${sel}[aria-pressed="true"]`)?.getBoundingClientRect();
+    paint();
+    const now = box.querySelector(`${sel}[aria-pressed="true"]`);
+    glide(now, was);
+    now?.focus();
+  }
   function paint(){
     const shown = st.moreWays || rest.some(w => w.id === st.route) ? [...first, ...rest] : first;
     const way = ways.find(w => w.id === st.route);
     box.innerHTML = `<div class="rs-wl-top"><h2 id="rsSdTitle" tabindex="-1">Send your agent</h2><button class="rs-wl-x" type="button" data-sd="cancel" aria-label="Close">${ico('close')}</button></div>
       <p class="rs-sd-what">${esc(title)}</p>
       <div class="rs-sd-how">
-        <div class="rs-chips" role="group" aria-label="Send it with">${shown.map(w => `<button type="button" data-sd-way="${esc(w.id)}" aria-pressed="${w.id === st.route}">${esc(w.name)}</button>`).join('')}${shown === first && rest.length ? '<button type="button" data-sd="more" class="rs-sd-more">More</button>' : ''}</div>
+        <div class="rs-chips" role="group" aria-label="Send it with" data-rs-glide="way">${shown.map(w => `<button type="button" data-sd-way="${esc(w.id)}" aria-pressed="${w.id === st.route}">${esc(w.name)}</button>`).join('')}${shown === first && rest.length ? '<button type="button" data-sd="more" class="rs-sd-more">More</button>' : ''}</div>
         <p class="rs-sd-note">${esc(way?.note || '')}${setup && (st.route === 'cli' || st.route === 'mcp') ? ' <button class="rs-link" type="button" data-sd="setup">Set it up</button>' : ''}</p>
       </div>
       <p class="rs-sd-intro">Your agent gets ${esc(asker)}’s ask as written, inside Rainshare’s safety rules ${RULES}</p>
@@ -91,29 +100,30 @@ export function openSend({ title, asker, ways, answers, send, setup = null, erro
     try { await send({ route: st.route, claim, days: st.days, remember: st.skip, askEachTime: !st.skip }); }
     catch (e) { st.busy = false; btn.disabled = false; btn.textContent = was; say(error(e)); return; }
     st.busy = false;
-    dlg.close();
+    closeSoftly(dlg);
   }
 
   dlg.addEventListener('change', e => { if (e.target.name === 'sdSkip') st.skip = e.target.checked; });
   dlg.addEventListener('click', e => {
     if (st.busy) return;
     // Outside the box is the same as closing it.
-    if (e.target === dlg) return dlg.close();
+    if (e.target === dlg) return closeSoftly(dlg);
     const t = e.target.closest('[data-rs-tip]'); if (t) return toggleTip(t);
     const w = e.target.closest('[data-sd-way]');
-    if (w) { st.route = w.dataset.sdWay; paint(); box.querySelector(`[data-sd-way="${st.route}"]`)?.focus(); return; }
+    if (w) { st.route = w.dataset.sdWay; repaint('[data-sd-way]'); return; }
     const d = e.target.closest('[data-sd-days]');
     if (d) { st.days = +d.dataset.sdDays; paint(); box.querySelector(`[data-sd-days="${st.days}"]`)?.focus(); return; }
     const b = e.target.closest('[data-sd]'); if (!b) return;
     const act = b.dataset.sd;
-    if (act === 'cancel') dlg.close();
+    if (act === 'cancel') closeSoftly(dlg);
     else if (act === 'more') { st.moreWays = true; paint(); box.querySelector(`[data-sd-way="${rest[0]?.id}"]`)?.focus(); }
     else if (act === 'days') { st.moreDays = !st.moreDays; paint(); box.querySelector('[data-sd="days"]')?.focus(); }
-    else if (act === 'setup') { dlg.close(); setup?.(); }
+    else if (act === 'setup') { closeSoftly(dlg); setup?.(); }
     else if (act === 'claim') submit(b, true);
     else if (act === 'copy') submit(b, false);
   });
-  dlg.addEventListener('cancel', e => { if (st.busy) e.preventDefault(); });
+  // Escape closes it as the ✕ does, unless it's busy sending. (When the browser won't let it be held open, it closes at once.)
+  dlg.addEventListener('cancel', e => { if (!e.cancelable) return; e.preventDefault(); if (!st.busy) closeSoftly(dlg); });
   dlg.addEventListener('close', () => dlg.remove());
 
   paint();
