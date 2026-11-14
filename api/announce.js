@@ -1,6 +1,7 @@
-// /api/announce: the daily run. @rainshare.dev posts the board's new asks (./_announce.js), then
-// sends the direct messages people have asked for (./_messages.js). Vercel's cron calls it once
-// a day (vercel.json), on production only, with CRON_SECRET as its bearer token. Any request
+// /api/announce: @rainshare.dev posts the board's new asks (./_announce.js), then sends the
+// direct messages people have asked for (./_messages.js). Vercel's cron calls it every quarter
+// of an hour, at 2, 17, 32 and 47 past (vercel.json), on production only, with CRON_SECRET as its
+// bearer token. Any request
 // without that token is turned away, so nobody else can set it off.
 //
 // With ?dry=1 it says what it would post and send, as JSON, and posts and sends nothing:
@@ -20,8 +21,8 @@ export function allowed(req, secret = process.env.CRON_SECRET){
  * Post, then message, reading the network and signing in once for both. One going wrong
  * doesn't stop the other: { posts, messages }, either of which may be { error }.
  */
-export async function run({ post = true, password = process.env.RAINSHARE_BLUESKY_APP_PASSWORD, log = console.log } = {}){
-  const shared = { post, password, log, read: reader(), as: session(password) };
+export async function run({ post = true, password = process.env.RAINSHARE_BLUESKY_APP_PASSWORD, now = Date.now(), log = console.log } = {}){
+  const shared = { post, password, now, log, read: reader(), as: session(password) };
   const step = (name, fn) => fn(shared).catch(e => { log(`The ${name} stopped: ${e?.stack || e}`); return { error: e?.message || String(e) }; });
   const posts = await step('posts', announce);
   const messages = await step('messages', message);

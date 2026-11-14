@@ -1,6 +1,6 @@
-// The daily run by hand (api/announce.js): @rainshare.dev posts the board's new asks and sends
-// the direct messages people have asked for. Without --post, it says what it would post and
-// send, and posts and sends nothing.
+// The run every quarter of an hour, by hand (api/announce.js): @rainshare.dev posts the board's
+// new asks and sends the direct messages people have asked for. Without --post, it says what it
+// would post and send, and posts and sends nothing.
 //
 //   npm run announce              what would go out now. Needs no password, though with one
 //                                 it can read the account's conversations, and so knows what

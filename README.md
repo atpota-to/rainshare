@@ -486,9 +486,9 @@ which spells it out by hand.
 | `ui/` | the app's screens: the board, an ask, profiles, posting an ask, the first-time welcome, loading placeholders, the feedback page, and @rainshare.dev's moderation page |
 | `core/` | everything the site and the CLI share (below) |
 | `cli/rainshare.mjs` | the CLI and MCP server |
-| `api/` | Vercel functions: the OAuth client metadata, link previews (`page.js` sets the meta tags, `og.js` draws the image), and the daily run that posts new asks to Bluesky and sends people their messages (`announce.js`) |
+| `api/` | Vercel functions: the OAuth client metadata, link previews (`page.js` sets the meta tags, `og.js` draws the image), and the run every quarter of an hour that posts new asks to Bluesky and sends people their messages (`announce.js`) |
 | `lexicons/` | the record schemas and the sign-in permission set, plus the scripts that publish them and check changes for breakage |
-| `scripts/` | the image scripts above, `feedback.mjs` for the feedback board, and `announce.mjs`, which runs the daily posts and messages by hand (see [Deploying](#deploying)) |
+| `scripts/` | the image scripts above, `feedback.mjs` for the feedback board, and `announce.mjs`, which runs the posts and messages by hand (see [Deploying](#deploying)) |
 | `.claude/skills/feedback/` | the feedback routine's instructions |
 | `test/` | `npm test` |
 
@@ -549,9 +549,9 @@ with the same variables.
 
 ### Posts and messages on Bluesky
 
-Once a day, Vercel calls `/api/announce` (`crons` in `vercel.json`, at 16:00 UTC). @rainshare.dev
-posts each new ask on the board, then sends a direct message to everyone who's asked for one
-and has news. A post names who's asking, with a mention so they hear about it, and gives the
+Every quarter of an hour, at 2, 17, 32 and 47 past, Vercel calls `/api/announce` (`crons` in
+`vercel.json`; more than once a day needs Vercel Pro). @rainshare.dev posts each new ask on the
+board, then sends a direct message to everyone who's asked for one and has news. A post names who's asking, with a mention so they hear about it, and gives the
 ask's title, with a card that links to its page. To turn it on:
 
 1. Make another app password for @rainshare.dev, with "Allow access to your direct messages"
@@ -563,7 +563,7 @@ ask's title, with a card that links to its page. To turn it on:
    sends it with each call, and the function turns away any request without it.
 3. Redeploy.
 
-Until both are set, the daily call posts and sends nothing. To see what it would post and send
+Until both are set, the calls post and send nothing. To see what it would post and send
 right now, without doing either, run `npm run announce`, or ask the deployed function:
 
 ```sh
@@ -578,8 +578,8 @@ real, with the password set.
 
 `api/_announce.js` decides what counts as new and posts it. A new ask is open, meant for
 everyone, and was asked in the last three days, at least 15 minutes ago (in case its title is
-fixed straight after posting). Each run posts at most five asks, the earliest first, and leaves
-the rest for the next day.
+fixed straight after posting), so an ask goes out a quarter to half an hour after it's asked.
+Each run posts at most five, the earliest first, and leaves the rest for the next run.
 
 There's no database, so the account's own posts say what's been posted. An ask that one of its
 last 300 posts links to isn't posted again, even if that post was written by hand. Each post
@@ -601,19 +601,24 @@ People ask for messages in their settings beside their profile, under "Messages 
   someone else's, or was closed.
 - **New asks on the board**: open asks meant for everyone, except your own.
 
-Each person gets one message a day at most, listing everything since the last one, and nothing
-on a day with no news. What they've asked for is saved as `notify` in their
+Updates go out within about a quarter of an hour: each run sends someone one message at most,
+with everything since their last one, and nothing when there's no news. New asks come once a
+day, the day's together, in the first message after 15:45 UTC (the 16:02 run, unless there were
+updates for them a little before). What they've asked for is saved as `notify` in their
 `dev.rainshare.preferences` record, which anyone can read, like every record in their repo. A
-sign-in from before Rainshare had settings can only keep them in the browser, where the daily
-run can't see them, and the panel says so. `api/_messages.js` works out who gets what.
+sign-in from before Rainshare had settings can only keep them in the browser, where the run
+can't see them, and the panel says so. `api/_messages.js` works out who gets what.
 
 Bluesky only lets accounts someone follows message them, unless they've changed that, so the
 settings ask people to follow @rainshare.dev. The run skips anyone it can't message and
 says why.
 
-There's no database here either. Each message covers whole days, from 15:45 UTC to 15:45 UTC (a
-quarter of an hour before the cron). The last message the account sent someone says which days
-they've heard about, so a run that's missed is caught up the next day, for up to three days.
+There's no database here either. Each message covers whole quarters of an hour (on the hour
+and each quarter past) for updates, and whole days from 15:45 UTC for new asks. The last message
+the account sent someone says how far they've heard, so a run that's missed is caught up by the
+next, for up to three days. The runs fall two minutes past each quarter so none straddles a
+boundary, and one that would (run by hand, say) leaves the messages to the next. Someone's
+first message catches up on the day before.
 
 There are three ways to stop them, and any one of them works:
 
@@ -626,9 +631,9 @@ People someone blocks on Bluesky aren't in their news, and the account doesn't m
 it blocks or who blocks it. Nothing it has hidden is in anyone's news, and it doesn't message an
 account it has hidden.
 
-On Vercel's Hobby plan, a daily cron can run at any point in its hour. To change the time, edit
-the schedule in `vercel.json`, and keep `BOUNDARY` in `api/_messages.js` a little before it. On
-Pro the cron can run more often. Make `PERIOD` match, and messages go out that often too.
+To change how often, edit the schedule in `vercel.json` and `EVERY` in `api/_messages.js`
+together, keeping each run a couple of minutes after a boundary. `DAILY` is when the day's new
+asks go out.
 
 ## Not tried for real yet
 

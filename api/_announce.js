@@ -1,6 +1,6 @@
 // Posts each new ask on the board to Rainshare's own Bluesky account, @rainshare.dev, once.
 //
-// Vercel runs it once a day (the cron in vercel.json calls api/announce.js), and
+// Vercel runs it every quarter of an hour (the cron in vercel.json calls api/announce.js), and
 // `npm run announce` runs it by hand. Without RAINSHARE_BLUESKY_APP_PASSWORD, an app password
 // for the account, it posts nothing.
 //

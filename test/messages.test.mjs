@@ -3,13 +3,15 @@
 // service behind the account's PDS. The chat service's clock is the test's.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { message, compose, newsFor, standing, boundary, wants, PERIOD } from '../api/_messages.js';
+import { message, compose, newsFor, standing, boundary, wants } from '../api/_messages.js';
 import { ACCOUNT } from '../api/_announce.js';
 import { run } from '../api/announce.js';
 import * as R from '../core/records.js';
 import { SEED, TAKE, DELIVERY, PROFILE, PREFERENCES, MODERATION, SITE } from '../core/ns.js';
 
-const NOW = Date.parse('2026-11-14T16:05:00Z'), TO = Date.parse('2026-11-14T15:45:00Z');
+// A run at 16:05 UTC: updates up to 16:00, and the day's new asks up to 15:45.
+const NOW = Date.parse('2026-11-14T16:05:00Z'), TODAY = Date.parse('2026-11-14T15:45:00Z'), DAY = 864e5;
+const at = s => Date.parse('2026-11-' + s + ':00Z');
 const PDS = 'https://pds.test', CHAT = 'did:web:api.bsky.chat#bsky_chat';
 const [ALICE, BOB, CAROL, JUN, KAI, DEE, EVE, FAY, GUS, MAL, SPAM, ZED] = ['alice', 'bob', 'carol', 'juniper', 'kai', 'dee', 'eve', 'fay', 'gus', 'mal', 'spam', 'zed'].map(n => 'did:plc:' + n);
 const handleOf = did => did === ACCOUNT ? 'rainshare.dev' : did.slice(8) + '.test';
@@ -20,9 +22,9 @@ const ref = (did, c, rkey) => ({ uri: uri(did, c, rkey), cid: 'bafy' + rkey });
 const me = SITE + '/me', ours = (text, sentAt) => ({ id: 'm' + sentAt, rev: '1', text, sentAt, sender: { did: ACCOUNT }, facets: [{ index: { byteStart: 0, byteEnd: 1 }, features: [{ $type: 'app.bsky.richtext.facet#link', uri: me }] }] });
 const theirs = (did, text, sentAt) => ({ id: 'm' + sentAt + did, rev: '1', text, sentAt, sender: { did } });
 
-let repos, convos, asked, sentMessages, chatError;
+let repos, convos, asked, sentMessages, chatError, clock;
 beforeEach(() => {
-  asked = []; sentMessages = []; chatError = null;
+  asked = []; sentMessages = []; chatError = null; clock = NOW;
   const ask = (title, createdAt, more = {}) => ({ $type: SEED, title, audience: anyone, createdAt, ...more });
   repos = {
     [ALICE]: {
@@ -52,7 +54,7 @@ beforeEach(() => {
     [KAI]: { [TAKE]: { ka1: { seed: ref(ALICE, SEED, 'a1'), createdAt: '2026-11-13T10:00:00Z' } }, [PREFERENCES]: { self: { notify: { newAsks: true } } } },
     [MAL]: { [TAKE]: { ma1: { seed: ref(ALICE, SEED, 'a1'), createdAt: '2026-11-14T08:00:00Z' } } },
     [GUS]: { [TAKE]: { ga1: { seed: ref(ALICE, SEED, 'a1'), createdAt: '2026-11-12T12:00:00Z' } }, [PROFILE]: { self: { displayName: 'Gus' } } },
-    [ZED]: { [TAKE]: { za1: { seed: ref(ALICE, SEED, 'a1'), createdAt: '2026-11-14T15:50:00Z' } } },
+    [ZED]: { [TAKE]: { za1: { seed: ref(ALICE, SEED, 'a1'), createdAt: '2026-11-14T16:01:00Z' } } },
     [SPAM]: { [SEED]: { s1: ask('Buy followers', '2026-11-14T13:30:00Z') } },
     [DEE]: { [PREFERENCES]: { self: { notify: { updates: true } } } },
     [EVE]: { [PREFERENCES]: { self: { notify: { updates: true } } } },
@@ -102,7 +104,7 @@ globalThis.fetch = async (input, init = {}) => {
     if (method === 'chat.bsky.convo.getMessages') return json({ messages: byId(q.get('convoId'))[1].messages });
     if (method === 'chat.bsky.convo.sendMessage') {
       const { convoId, message: m } = JSON.parse(init.body), [to, convo] = byId(convoId);
-      const view = { id: 'new' + sentMessages.length, rev: '1', ...m, sender: { did: ACCOUNT }, sentAt: new Date(NOW + 1000).toISOString() };
+      const view = { id: 'new' + sentMessages.length, rev: '1', ...m, sender: { did: ACCOUNT }, sentAt: new Date(clock + 1000).toISOString() };
       convo.messages.unshift(view); sentMessages.push({ to, ...m });
       return json(view);
     }
@@ -111,10 +113,10 @@ globalThis.fetch = async (input, init = {}) => {
   throw new Error('a call this shouldn’t make: ' + u.href);
 };
 const quiet = () => {};
-const go = opts => message({ password: 'app-pass', now: NOW, log: quiet, ...opts });
+const go = (opts = {}) => { clock = opts.now ?? NOW; return message({ password: 'app-pass', now: clock, log: quiet, ...opts }); };
 const facetText = m => m.facets.map(f => Buffer.from(m.text).subarray(f.index.byteStart, f.index.byteEnd).toString());
 
-test('each person who asked hears their own news, once a day', async () => {
+test('each person who asked hears their own news, in one message', async () => {
   const out = await go();
   assert.equal(out.asked, 6, 'everyone with notify on, and not Gus, who didn’t ask');
   assert.deepEqual(sentMessages.map(m => m.to).sort(), [ALICE, DEE, JUN].sort());
@@ -134,7 +136,7 @@ test('each person who asked hears their own news, once a day', async () => {
     'News from Rainshare:',
     '• Carol (@carol.test) closed “Old tracker”.',
     '• Bob (@bob.test) marked “Weather app” done with your work. It’s in your garden now.',
-    '', 'New asks:',
+    '', 'New on the board:',
     '• “Tiny timer”: an idea from Bob (@bob.test)',
     '', `Reply STOP to stop these, or choose what you get at ${SITE.replace('https://', '')}/me.`
   ].join('\n'), 'not their own ask, one for mutuals, one from someone the account blocks, nor one from before their day');
@@ -175,7 +177,7 @@ test('a dry run sends nothing, and without the password it shows a day’s news 
 
 test('an app password that can’t send messages is said once, and the posts go ahead', async () => {
   chatError = { error: 'InvalidToken', message: 'Bad token scope' };
-  const lines = [], out = await run({ password: 'app-pass', log: s => lines.push(s) });
+  const lines = [], out = await run({ password: 'app-pass', now: NOW, log: s => lines.push(s) });
   assert.match(out.messages.note, /Allow access to your direct messages/);
   assert.deepEqual(out.messages.sent, []);
   assert.equal(asked.filter(m => m === 'chat.bsky.convo.getConvoAvailability').length, 1, 'found out on the first person, not every one');
@@ -195,7 +197,7 @@ test('no messages without the password, and nobody asked, nothing read', async (
 test('a STOP or START is the latest one they sent, whatever came after it', async () => {
   const as = { get: async (nsid, p) => nsid.endsWith('getConvoAvailability') ? { canChat: true, convo: { id: 'c' } } : { messages: p.convoId && msgs } };
   let msgs = [theirs(ALICE, 'thanks!', '3'), theirs(ALICE, 'Stop!', '2'), ours('News', '2026-11-13T16:01:00Z')];
-  assert.deepEqual(await standing(as, ALICE), { canChat: true, convoId: 'c', last: Date.parse('2026-11-13T16:01:00Z'), said: 'stop', acked: false });
+  assert.deepEqual(await standing(as, ALICE), { canChat: true, convoId: 'c', last: Date.parse('2026-11-13T16:01:00Z'), lastNew: null, said: 'stop', acked: false });
   msgs = [ours('Okay', '2026-11-13T16:01:00Z'), theirs(ALICE, 'unsubscribe', '2')];
   assert.equal((await standing(as, ALICE)).acked, true);
   msgs = [theirs(ALICE, 'please stop sending these', '2')];
@@ -222,15 +224,46 @@ test('news is only what happened in its time, to the person it’s about', () =>
   const seeds = [{ uri: uri(ALICE, SEED, 'a'), repo: ALICE, rkey: 'a', value: { title: 'A', audience: anyone, createdAt: '2026-11-01T00:00:00Z' } }];
   const take = (by, createdAt) => ({ uri: uri(by, TAKE, 't' + createdAt), repo: by, value: { seed: { uri: seeds[0].uri }, createdAt } });
   const takes = [take(BOB, '2026-11-14T10:00:00Z'), take(ALICE, '2026-11-14T10:00:00Z'), take(CAROL, '2026-11-14T15:45:00Z')];
-  const n = newsFor({ did: ALICE, updates: true }, { seeds, takes, deliveries: [], from: TO - PERIOD, to: TO });
-  assert.deepEqual(n.updates.map(x => [x.kind, x.by]), [['take', BOB]], 'not her own take, nor one at the boundary, which is the next day’s');
-  assert.deepEqual(newsFor({ did: ALICE, updates: false, newAsks: true }, { seeds, takes, deliveries: [], from: TO - PERIOD, to: TO }), { updates: [], fresh: [] });
+  const n = newsFor({ did: ALICE, updates: true }, { seeds, takes, deliveries: [], from: TODAY - DAY, to: TODAY });
+  assert.deepEqual(n.updates.map(x => [x.kind, x.by]), [['take', BOB]], 'not her own take, nor one at the boundary, which is the next one’s');
+  assert.deepEqual(newsFor({ did: ALICE, updates: false, newAsks: true }, { seeds, takes, deliveries: [], from: TODAY - DAY, to: TODAY }), { updates: [], fresh: [] });
 });
 
-test('the days begin a quarter of an hour before the daily run', () => {
-  assert.equal(boundary(NOW), TO);
-  assert.equal(boundary(TO), TO);
-  assert.equal(boundary(TO - 1), TO - PERIOD);
+test('updates go by quarters of an hour, and new asks by days from 15:45 UTC', () => {
+  assert.equal(boundary(NOW), at('14T16:00'));
+  assert.equal(boundary(at('14T16:15')), at('14T16:15'));
+  assert.equal(boundary(NOW, true), TODAY);
+  assert.equal(boundary(TODAY - 1, true), TODAY - DAY);
+});
+
+test('updates come within a quarter of an hour, and the day’s new asks once', async () => {
+  await go();
+  assert.deepEqual(sentMessages.map(m => m.to).sort(), [ALICE, DEE, JUN].sort());
+  // Bob takes Alice's ask at 16:08, and Carol asks something new at 16:09.
+  repos[BOB][TAKE] = { ba1: { seed: ref(ALICE, SEED, 'a1'), createdAt: '2026-11-14T16:08:00Z' } };
+  repos[CAROL][SEED].f1 = { $type: SEED, title: 'Fresh idea', audience: anyone, createdAt: '2026-11-14T16:09:00Z' };
+
+  sentMessages = [];
+  await go({ now: at('14T16:17') });
+  assert.deepEqual(sentMessages.map(m => m.to), [ALICE], 'the next quarter, Alice hears about Bob, and Juniper has had today’s new asks');
+  assert.match(sentMessages[0].text, /^News from Rainshare:\n• Zed \(@zed\.test\) is on your ask “Fix the flaky test”\.\n• Bob \(@bob\.test\) is on your ask “Fix the flaky test”\.\n\nReply STOP/,
+    'Zed’s take at 16:01, just past the last message’s boundary, comes now with Bob’s: nothing is lost at a boundary');
+
+  sentMessages = [];
+  await go({ now: at('14T16:32') });
+  assert.deepEqual(sentMessages, [], 'nothing new, nothing sent');
+
+  sentMessages = [];
+  await go({ now: at('15T16:02') });
+  assert.deepEqual(sentMessages.map(m => m.to), [JUN], 'the next day’s new asks, the next day');
+  assert.match(sentMessages[0].text, /^New on the board:\n• “Fresh idea”: an idea from Carol/);
+  assert.ok(!/Tiny timer/.test(sentMessages[0].text), 'and not yesterday’s again');
+});
+
+test('a run too near the next quarter of an hour leaves the messages to the next', async () => {
+  const out = await go({ now: at('14T16:13:30') });
+  assert.match(out.note, /next run/);
+  assert.deepEqual([sentMessages.length, asked.filter(m => m.startsWith('chat.')).length], [0, 0]);
 });
 
 test('settings keep the messages someone asked for, and drop what’s switched off', () => {

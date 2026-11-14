@@ -17,7 +17,7 @@
     }
   },
   "crons": [
-    { "path": "/api/announce", "schedule": "0 16 * * *" }
+    { "path": "/api/announce", "schedule": "2,17,32,47 * * * *" }
   ],
   "redirects": [
     { "source": "/favicon.svg", "destination": "/favicon.png", "permanent": true },

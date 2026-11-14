@@ -1471,7 +1471,7 @@ export function createRainshare({ root, base = '/', host }){
   // settings from your account, so a copy kept only in this browser doesn't reach it.
   function messageSettings(){
     const n = S.prefs?.notify || {};
-    return `<section class="rs-panel rs-mynotify"><div class="rs-hrow"><h2>Messages from @${esc(HANDLE)}</h2>${tip('Rainshare’s Bluesky account can send you a direct message, once a day at most, when there’s news. Your settings are saved in your account, where anyone can read them.')}</div>
+    return `<section class="rs-panel rs-mynotify"><div class="rs-hrow"><h2>Messages from @${esc(HANDLE)}</h2>${tip('Rainshare’s Bluesky account can send you a direct message when there’s news: updates within about a quarter of an hour, and new asks once a day. Your settings are saved in your account, where anyone can read them.')}</div>
       <form class="rs-prefs" data-rs-form="notify">
         ${NOTIFY.map(([k, l]) => `<label class="rs-check"><input type="checkbox" name="${k}"${n[k] ? ' checked' : ''}> ${esc(l)}</label>`).join('')}
         <p class="rs-muted">Bluesky only lets accounts you follow message you, unless you’ve changed that, so <a class="rs-link" href="https://bsky.app/profile/${esc(HANDLE)}" target="_blank" rel="noopener">follow @${esc(HANDLE)}</a>. To stop them, untick these, or reply STOP to any message.</p>
