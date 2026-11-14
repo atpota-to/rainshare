@@ -343,9 +343,10 @@ export function createRainshare({ root, base = '/', host }){
   }).join('')}</div>`;
   const showEmpty = () => `<p class="rs-empty">${esc({ free: 'Someone’s on each of these already.', 'on-it': 'Nobody’s in the middle of any of these right now.', 'turned-in': 'Nothing’s been turned in for any of these yet.' }[S.show] || '')} <button class="rs-link" type="button" data-rs-show="all">Show everything open</button></p>`;
   // Once nothing someone else asked for is free (each has someone on it or something turned in,
-  // or there's nothing at all), the end of the list says so and offers to tell your people on
-  // Bluesky that you've got usage to spare, naming the paid plans your profile says you have.
-  const allTaken = all => signedIn() && !!S.board && !S.error && !all.some(it => it.repo !== viewer() && standsAs(it) === 'free');
+  // or there's nothing at all), the top of the list offers to tell people on Bluesky that you've
+  // got usage to spare, naming the paid plans your profile says you have (signed out, or with
+  // none, just "AI"). Under it, a dashed rule, and under that what's already being helped with.
+  const allTaken = all => !!S.board && !S.error && !all.some(it => it.repo !== viewer() && standsAs(it) === 'free');
   // (Bluesky's butterfly, filled, as the footer on rainshare.dev draws it.)
   const BSKY = '<svg class="rs-i rs-bsky-i" viewBox="0 0 600 530" aria-hidden="true"><path d="m135.72 44.03c66.496 49.921 138.02 151.14 164.28 205.46 26.262-54.316 97.782-155.54 164.28-205.46 47.98-36.021 125.72-63.892 125.72 24.795 0 17.712-10.155 148.79-16.111 170.07-20.703 73.984-96.144 92.854-163.25 81.433 117.3 19.964 147.14 86.092 82.697 152.22-122.39 125.59-175.91-31.511-189.63-71.766-2.514-7.3797-3.6904-10.832-3.7077-7.8964-0.0174-2.9357-1.1937 0.51669-3.7077 7.8964-13.714 40.255-67.233 197.36-189.63 71.766-64.444-66.128-34.605-132.26 82.697-152.22-67.108 11.421-142.55-7.4491-163.25-81.433-5.9562-21.282-16.111-152.36-16.111-170.07 0-88.687 77.742-60.816 125.72-24.795z"/></svg>';
   function spareUrl(){
@@ -353,18 +354,17 @@ export function createRainshare({ root, base = '/', host }){
     const which = !paid.length ? 'AI' : paid.length === 1 ? paid[0] : `${paid.slice(0, -1).join(', ')} and ${paid.at(-1)}`;
     return `https://bsky.app/intent/compose?text=${encodeURIComponent(`I’ve got ${which} usage to spare. Post an idea or a project you’d like help with on @${HANDLE} and I’ll send my agent. ${SITE}`)}`;
   }
-  const spareCard = (all, inList) => {
-    const none = !all.some(it => it.repo !== viewer());
+  const spareCard = inList => {
     const body = `<a class="rs-item rs-spare" href="${esc(spareUrl())}" target="_blank" rel="noopener">
         <span class="rs-item-main">
           <span class="rs-item-title">Got rain to spare?</span>
-          <span class="rs-item-ask">Let your people know on Bluesky. What they post here shows up on your board.</span>
+          <span class="rs-item-ask">Let people know on Bluesky, and they can post something here for your agent.</span>
           <span class="rs-item-line"><span class="rs-spare-go">${BSKY}Post on Bluesky${ico('out')}</span></span>
         </span>
         <span class="rs-spare-pic" aria-hidden="true">${ico('drop')}</span>
       </a>`;
-    const rule = `<div class="rs-spare-rule" role="separator"><span>${none ? 'Nothing’s waiting for help' : 'Someone’s on every one of these'}</span></div>`;
-    return inList ? `<li class="rs-spare-li">${rule}${body}</li>` : `<div class="rs-spare-alone">${rule}${body}</div>`;
+    const rule = '<div class="rs-spare-rule" role="separator"><span>Someone’s already on each of these</span></div>';
+    return inList ? `<li class="rs-spare-li">${body}${rule}</li>` : `<div class="rs-spare-alone">${body}</div>`;
   };
   // Over the list: how it's sorted, and a button that folds out what narrows it (who asked,
   // and whether anyone's on it). Whatever is narrowing it shows beside the button while it's
@@ -602,11 +602,11 @@ export function createRainshare({ root, base = '/', host }){
       ${S.error ? `<p class="rs-note rs-bad">${plain(S.error)}</p>` : ''}
       ${!S.board ? boardSk({ fit: signedIn() })
         : items.length ? `<div class="rs-split${S.sheet ? ' rs-open' : ''}">
-            <ul class="rs-list" aria-label="Ideas and projects">${items.map(it => card(it)).join('')}${spare ? spareCard(all, true) : ''}</ul>
+            <ul class="rs-list" aria-label="Ideas and projects">${spare ? spareCard(true) : ''}${items.map(it => card(it)).join('')}</ul>
             <div class="rs-scrim" data-rs-close-sheet aria-hidden="true"></div>
             <aside class="rs-side" aria-label="The one you picked">${sel ? detail(sel) : ''}</aside>
           </div>`
-        : (byFrom.length ? showEmpty() : all.length ? fromEmpty() : `<p class="rs-empty">${empty}</p>`) + (spare ? spareCard(all, false) : '')}
+        : (byFrom.length ? showEmpty() : all.length ? fromEmpty() : `<p class="rs-empty">${empty}</p>`) + (spare ? spareCard(false) : '')}
       ${(S.board?.notes || []).map(n => `<p class="rs-note">${esc(n)}</p>`).join('')}
       ${
         // rainshare.dev has Agents in its own bar, and says where records live in its footer.
