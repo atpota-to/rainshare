@@ -140,4 +140,51 @@ export function rank(items, me, opts){
   return items.map(it => ({ ...it, ...score(it, me, opts), fit: fit(it, me, opts) })).sort((a, b) => b.score - a.score || String(b.value?.createdAt).localeCompare(String(a.value?.createdAt)));
 }
 
+/**
+ * The ways the board can be put in order, each with a few words for when you rest on it. The
+ * first two need someone signed in, since they lean on what suits them.
+ *   suggested  newest first, but what suits you less comes after the rest (lesser)
+ *   fit        best for you first (rank)
+ *   new        newest first, and nothing else
+ *   old        what's been waiting longest first
+ */
+export const SORTS = [
+  ['suggested', 'Suggested', 'Newest first, with the ones that suit you less further down: someone’s already on it, something’s been turned in, or it would like a model you don’t have.', true],
+  ['fit', 'Best for you', 'How well each one suits you, best first: who asked, what they’d like, and what you run.', true],
+  ['new', 'Newest', 'Newest first, and nothing else.', false],
+  ['old', 'Waiting longest', 'The ones that have been open longest first.', false]
+];
+/** The sorts there are for someone signed in or not, and the one used until they pick another. */
+export const sortsFor = signedIn => SORTS.filter(s => signedIn || !s[3]);
+export const defaultSort = signedIn => signedIn ? 'suggested' : 'new';
+const byNewest = (a, b) => String(b.value?.createdAt).localeCompare(String(a.value?.createdAt));
+/**
+ * Whether an ask suits a helper less than the rest, for the suggested order: its fit says to
+ * mind something (someone's on it, or it'd like a model they don't have), or something's been
+ * turned in for it already and it doesn't want more than one helper. `item` is one from rank().
+ */
+export const lesser = item => (item.reasons || []).some(r => r.tone === 'down') || (!item.value?.parallel && (item.deliveries || []).length > 0);
+/**
+ * The open board in order. Signed in (`me.did`), what someone else asked for comes first,
+ * each with its fit, and your own asks after it, newest first. Then, unless it's sorted by
+ * what's waiting longest, whatever `isNew` says is new (what's come in since you last looked)
+ * is moved to the top, in the same order among itself. Returns { items, fresh }, where
+ * `fresh` is how many at the top are new.
+ */
+export function boardOrder(open, me, { sort, isNew = () => false } = {}){
+  const signedIn = !!me?.did, how = sortsFor(signedIn).some(s => s[0] === sort) ? sort : defaultSort(signedIn);
+  let items;
+  if (!signedIn) items = [...open].sort(byNewest);
+  else {
+    const mine = open.filter(it => it.repo === me.did).sort(byNewest), ranked = rank(open.filter(it => it.repo !== me.did), me);
+    items = how === 'fit' ? [...ranked, ...mine]
+      : how === 'suggested' ? [...ranked.filter(it => !lesser(it)).sort(byNewest), ...ranked.filter(lesser).sort(byNewest), ...mine]
+        : [...ranked, ...mine].sort(byNewest);
+  }
+  if (how === 'old') items.reverse();
+  const fresh = how === 'old' ? [] : items.filter(it => it.repo !== me?.did && isNew(it));
+  if (!fresh.length) return { items, fresh: 0, sort: how };
+  return { items: [...fresh, ...items.filter(it => !fresh.includes(it))], fresh: fresh.length, sort: how };
+}
+
 export const budgetLabel = b => labelOf(BUDGETS, b);
