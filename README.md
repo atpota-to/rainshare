@@ -39,7 +39,7 @@ to asking. They're the two tabs in the bar as well.
    "More". Then "I'm on it" copies it and says you're on it, for a day unless you change it to
    three days, a week or two, and everyone sees the ask as "In progress" with your face and
    handle. "Just copy it for now" copies it and says nothing. Nothing is written until you press
-   one. Ticking "Next time, skip this" keeps your answers and stops asking.
+   one. Ticking "Skip this screen next time" keeps your answers and stops asking.
 3. **Turn it in by the day you gave.** If nothing's turned in by then, the ask shows as free
    again, and you're listed as having gone quiet. You can give yourself more time from the
    ask's page, or drop it.

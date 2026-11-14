@@ -770,13 +770,15 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-sd-note .rs-link{font-size:13px}
 .rs-sd-intro{margin:0;font-size:14px;line-height:1.45;text-wrap:pretty}
 .rs-sd-intro .rs-tipwrap{vertical-align:-3px}
-.rs-sd-go{display:flex;flex-direction:column;gap:8px}
-.rs-sd-days-line{margin:0;font-size:13px;line-height:1.45;color:var(--rs-muted);text-align:center}
+/* (everything on the one left edge, the chips' and the button's) */
+.rs-sd-go{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.rs-sd-days-line{margin:0;font-size:13px;line-height:1.45;color:var(--rs-muted)}
 .rs-sd-days-line .rs-link{font-size:13px}
-.rs-sd-days{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.rs-sd-days{display:flex;flex-direction:column;gap:6px}
 .rs-sd-days small{font-size:13px;line-height:1.4;color:var(--rs-muted)}
-.rs-sd-copy{align-self:center;font-size:14px;padding:6px 0}
-.rs-sd-skip{display:flex;align-items:center;gap:10px;font-weight:600;font-size:13px;color:var(--rs-muted);padding-top:12px;border-top:1px solid var(--rs-line)}
+.rs-sd-copy{font-size:15px;padding:4px 0}
+.rs-sd-skip{display:flex;align-items:center;gap:8px;margin-top:-4px;font-size:13px;color:var(--rs-muted);cursor:pointer}
+.rs-sd-skip input{width:16px;height:16px;margin:0;accent-color:var(--rs-accent)}
 .rs-wl-foot{display:flex;align-items:center;justify-content:space-between;gap:6px 16px;flex-wrap:wrap;padding-top:12px;border-top:1px solid var(--rs-line)}
 .rs-wl-foot .rs-link .rs-i{width:16px;height:16px}
 @media (max-width:420px){

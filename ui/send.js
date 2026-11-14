@@ -7,10 +7,10 @@
 //   what    one line: your agent gets the ask as its asker wrote it, inside Rainshare's safety
 //           rules (../core/brief.js). The ⓘ says what the rules ask of the agent, and that they
 //           can't catch everything, so read the ask first. Nothing here claims more than that.
-//   then    "I'm on it, copy …", which says you're on it for a day (the other lengths behind
+//   then    "I’m on it, copy …", which says you’re on it for a day (the other lengths behind
 //           "Change"), or a quieter "Just copy it for now".
 //
-// Ticking "Next time, skip this" keeps these answers in your settings (dev.rainshare.preferences)
+// Ticking "Skip this screen next time" keeps these answers in your settings (dev.rainshare.preferences)
 // and the button does the same thing from then on; nothing is kept otherwise. Nothing is written
 // until a button is pressed, and closing it leaves everything as it was. Someone who said to
 // skip it can change their answers on their profile, or with "Change" beside the button.
@@ -77,10 +77,10 @@ export function openSend({ title, asker, ways, answers, send, setup = null, erro
           <div class="rs-toggles" role="group" aria-label="I’ll turn it in within">${dayChoices(st.days).map(([d, l]) => `<button type="button" data-sd-days="${d}" aria-pressed="${d === st.days}">${esc(l)}</button>`).join('')}</div>
           <small>If nothing’s turned in by then, it shows as free again.</small>
         </div>` : ''}
-        <button class="rs-link rs-sd-copy" type="button" data-sd="copy">Just copy it for now</button>
+        <button class="rs-link rs-sd-copy" type="button" data-sd="copy">Or just copy it for now</button>
       </div>
       <p class="rs-err" role="alert" hidden></p>
-      <label class="rs-check rs-sd-skip"><input type="checkbox" name="sdSkip"${st.skip ? ' checked' : ''}> Next time, skip this</label>`;
+      <label class="rs-sd-skip"><input type="checkbox" name="sdSkip"${st.skip ? ' checked' : ''}> Skip this screen next time</label>`;
   }
   const say = msg => { const p = box.querySelector('.rs-err'); if (p) { p.textContent = msg; p.hidden = !msg; } };
 
