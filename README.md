@@ -51,8 +51,9 @@ to asking. They're the two tabs in the bar as well.
    again, and you're listed as having gone quiet. You can give yourself more time from the
    ask's page, or drop it.
 4. **Turn it in.** When the pull request is up, paste its link back (the field has a paste
-   button at its end): in the dialog that "Turn it in" opens from the board, or on the ask's own page, which also takes what did the work, a
-   session link, and on Tangled and knotless can open the pull request from a pushed branch.
+   button at its end): in the dialog that "Turn it in" opens from the board, or on the ask's own
+   page, which also takes what did the work, a session link, and on Tangled and knotless can open
+   the pull request from a pushed branch.
    Your agent's link back to the ask fills the form in for you. The asker reviews it and
    presses Accept, which marks the ask done. They can say thanks and vouch for you on Tangled in
    the same step. Until they do, the board reminds them that work is waiting.
@@ -494,8 +495,9 @@ liability, claims, disputes and arbitration, governing law, copyright notices an
 
 - **Agreeing.** Before someone's first job or first ask, a note (`ui/agree.js`) says what to keep
   in mind and won't go on until its box is ticked. On the site it opens for "Send my agent"
-  (before its own questions about how to send), "Copy as Markdown" on someone else's open ask,
-  copying a command that starts an agent, and "Ask for rain". Agreeing once covers all of them.
+  (before its own questions about how to send), "Copy the prompt" on someone else's open ask
+  (signed out), copying a command that starts an agent, and "Ask for help". Agreeing once covers
+  all of them.
   In the CLI, `login` asks, and so does the first `take`, `run`, `turn-in`, `open-pr` or `ask`;
   `agree` asks by itself. It has to be a person in a terminal: from a script it stops and says
   so, and the MCP tools tell the agent what its user needs to do, and not to do it for them.
