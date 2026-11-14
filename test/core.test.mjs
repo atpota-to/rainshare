@@ -1,7 +1,7 @@
 // Run with: npm test (node --test, no dependencies)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SEED, SITE, FAMILIES, PLANS, lowBudgetOf } from '../core/ns.js';
+import { SEED, SITE, FAMILIES, PLANS, FEATURES, ROUTES, lowBudgetOf } from '../core/ns.js';
 import { parseSubject, describeSubject, cloneUrlOf } from '../core/subjects.js';
 import * as R from '../core/records.js';
 import { meantFor, closeness } from '../core/circle.js';
@@ -13,7 +13,7 @@ import { brief, launchers, handBack, readHandBack, readBranchBack, handBackBranc
 import { createDemoSource } from '../core/demo.js';
 import { splitSpaceUri, shown } from '../core/source.js';
 import { lifeOf } from '../ui/bits.js';
-import { sendSummary, dayChoices } from '../ui/send.js';
+import { sendSummary, dayChoices, splitWays } from '../ui/send.js';
 import { standing, since, carry } from '../core/status.js';
 import { dueOf, lapsed, activeTakes, untilIn } from '../core/takes.js';
 import { newRepoPlaces, placesFor, repoNameFor } from '../core/forges.js';
@@ -622,12 +622,32 @@ test('the example keeps your settings, and a take with its day and more time', a
 });
 
 test('the send dialog says what it will do in words', () => {
-  const names = { brief: 'Paste a brief', claude: 'Claude Code' };
+  const names = { brief: 'Any agent', claude: 'Claude Code' };
   assert.equal(sendSummary({ route: 'claude', claim: true, days: 3 }, names), 'Claude Code, and says you’re on it for 3 days');
   assert.equal(sendSummary({ route: 'claude', claim: true, days: 7 }, names), 'Claude Code, and says you’re on it for a week');
-  assert.equal(sendSummary({ route: 'mcp', claim: false, days: 3 }, names), 'Paste a brief, without saying you’re on it');
+  assert.equal(sendSummary({ route: 'mcp', claim: false, days: 3 }, names), 'Any agent, without saying you’re on it');
   assert.deepEqual(dayChoices(3).map(d => d[0]), [1, 3, 7, 14]);
   assert.deepEqual(dayChoices(5).map(d => d[0]), [1, 3, 5, 7, 14]);
+});
+
+test('the send dialog shows the way picked and the prompt, and folds the rest away', () => {
+  const ways = ['brief', 'claude', 'cloud', 'codex', 'cli', 'mcp'].map(id => ({ id }));
+  const ids = ({ first, rest }) => [first.map(w => w.id), rest.map(w => w.id)];
+  assert.deepEqual(ids(splitWays(ways, 'claude')), [['claude', 'brief'], ['cloud', 'codex', 'cli', 'mcp']]);
+  // Picking the prompt, it's the only one showing.
+  assert.deepEqual(ids(splitWays(ways, 'brief')), [['brief'], ['claude', 'cloud', 'codex', 'cli', 'mcp']]);
+  // An idea has no cloud: whatever isn't on offer isn't shown.
+  assert.deepEqual(ids(splitWays(ways.filter(w => w.id !== 'cloud'), 'codex')), [['codex', 'brief'], ['claude', 'cli', 'mcp']]);
+  // On screen it's "the prompt", not "the brief".
+  assert.equal(ROUTES.find(r => r[0] === 'brief')[1], 'The prompt, for any agent');
+});
+
+test('how well an ask suits you is switched off on the site, and still works when it\'s on', () => {
+  // (Turning it back on is FEATURES.fit in core/ns.js. rank() and fit() don't read the switch:
+  // the CLI and MCP server use them either way.)
+  assert.equal(FEATURES.fit, false);
+  const me = { did: 'did:me', profile: { setups: [{ harness: 'claude-code', models: ['claude-sonnet-5-5'] }] } };
+  assert.ok(fit({ closeness: 'mutual', author: { displayName: 'Mo' }, value: {} }, me).label);
 });
 
 test('where a seed stands says whether it’s clear to start, and why not', () => {

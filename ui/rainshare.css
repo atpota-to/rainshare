@@ -1,5 +1,8 @@
 /* Rainshare's screens. Everything is drawn from the --rs-* variables below, so a host can
    dress it: rainshare.dev sets its own brand in ../src/theme.css. */
+/* How things move: arriving eases out, a press or a tick springs, and leaving eases in, a little
+   faster than arriving. (./motion.js uses the same three for what's moved from script.) */
+:root{--rs-ease:cubic-bezier(.2,.8,.2,1);--rs-spring:cubic-bezier(.3,1.45,.5,1);--rs-ease-in:cubic-bezier(.4,0,1,1)}
 .rs{
   --rs-ink:#12203A; --rs-muted:#56627A; --rs-line:rgba(18,32,58,.1);
   --rs-bg-card:#fff; --rs-card-edge:rgba(18,32,58,.08); --rs-shadow:0 1px 2px rgba(18,32,58,.06),0 12px 28px -18px rgba(18,32,58,.35); --rs-blur:none;
@@ -36,10 +39,33 @@
 .rs-err{color:var(--rs-bad);font-weight:600}
 
 /* buttons and links */
-.rs-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:999px;min-height:46px;padding:10px 20px;font:600 15px var(--rs-font);text-decoration:none;cursor:pointer;white-space:nowrap;transition:transform .2s cubic-bezier(.3,1.45,.5,1),box-shadow .2s,background .2s}
+.rs-btn{--rs-btn-ink:var(--rs-ink);position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:999px;min-height:46px;padding:10px 20px;font:600 15px var(--rs-font);text-decoration:none;cursor:pointer;white-space:nowrap;transition:transform .2s var(--rs-spring),box-shadow .2s,background .2s,color .2s}
 .rs-btn:active{transform:scale(.96)}
-.rs-btn:disabled{opacity:.6;cursor:progress}
-.rs-primary{background:var(--rs-accent);color:var(--rs-accent-ink);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 10px 22px -12px var(--rs-accent)}
+/* A button that's writing to someone's account rains while it waits, in place of its words:
+   three drops falling through a small window, one after another (and pulsing in place, for
+   anyone who's asked for less motion). Every disabled button here is one that's waiting. */
+.rs-btn:disabled{cursor:progress;color:transparent}
+.rs-btn:disabled::after{content:"";position:absolute;left:50%;top:50%;margin:-9px 0 0 -16px;background:var(--rs-btn-ink)}
+.rs-btn:disabled::after,.rs-rain{width:32px;height:18px;
+  -webkit-mask:var(--rs-drop) 2px -11px/7px 10px no-repeat,var(--rs-drop) 12.5px -1.33px/7px 10px no-repeat,var(--rs-drop) 23px 8.33px/7px 10px no-repeat;
+  mask:var(--rs-drop) 2px -11px/7px 10px no-repeat,var(--rs-drop) 12.5px -1.33px/7px 10px no-repeat,var(--rs-drop) 23px 8.33px/7px 10px no-repeat;
+  animation:rs-rain .9s linear infinite}
+.rs-rain{display:inline-block;flex:none;background:currentColor}
+:root{--rs-drop:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 11'%3E%3Cpath d='M4 0C5.6 2.8 8 4.8 8 7a4 4 0 0 1-8 0C0 4.8 2.4 2.8 4 0z'/%3E%3C/svg%3E")}
+@keyframes rs-rain{
+  0%{-webkit-mask-position:2px -11px,12.5px -1.33px,23px 8.33px;mask-position:2px -11px,12.5px -1.33px,23px 8.33px}
+  33.33%{-webkit-mask-position:2px -1.33px,12.5px 8.33px,23px 18px;mask-position:2px -1.33px,12.5px 8.33px,23px 18px}
+  33.34%{-webkit-mask-position:2px -1.33px,12.5px 8.33px,23px -11px;mask-position:2px -1.33px,12.5px 8.33px,23px -11px}
+  66.66%{-webkit-mask-position:2px 8.33px,12.5px 18px,23px -1.33px;mask-position:2px 8.33px,12.5px 18px,23px -1.33px}
+  66.67%{-webkit-mask-position:2px 8.33px,12.5px -11px,23px -1.33px;mask-position:2px 8.33px,12.5px -11px,23px -1.33px}
+  100%{-webkit-mask-position:2px 18px,12.5px -1.33px,23px 8.33px;mask-position:2px 18px,12.5px -1.33px,23px 8.33px}
+}
+@keyframes rs-rain-still{0%,100%{opacity:.45}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){
+  .rs-btn:disabled::after,.rs-rain{-webkit-mask-position:2px 4px,12.5px 4px,23px 4px;mask-position:2px 4px,12.5px 4px,23px 4px;animation:rs-rain-still 1.4s ease-in-out infinite}
+}
+@media (forced-colors:active){.rs-btn:disabled{color:GrayText}.rs-btn:disabled::after{display:none}}
+.rs-primary{--rs-btn-ink:var(--rs-accent-ink);background:var(--rs-accent);color:var(--rs-accent-ink);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 10px 22px -12px var(--rs-accent)}
 .rs-primary:hover{transform:translateY(-1px)}
 .rs-quiet{background:var(--rs-bg-card);color:var(--rs-ink);box-shadow:inset 0 0 0 1px var(--rs-card-edge),0 4px 12px -10px rgba(0,0,0,.4)}
 .rs-sm{min-height:36px;padding:6px 14px;font-size:13px}
@@ -281,13 +307,13 @@ span.rs-helper-pull{color:var(--rs-muted)}
 [data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side)>:nth-child(6){--rs-i:.25s}
 [data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side)>:nth-child(n+7){--rs-i:.3s}
 [data-rs-in] :is(.rs-side>.rs-detail,.rs-seed-side>*,.rs-me-side){--rs-i:.08s}
-[data-rs-in~="board"] :is(.rs-split>.rs-list>li,.rs-side>.rs-detail){animation:rs-in .5s cubic-bezier(.2,.8,.2,1) calc(var(--rs-at-board,0s) + var(--rs-i)) backwards}
-[data-rs-in~="seed"] :is(.rs-seed-main,.rs-seed-side>*){animation:rs-in .5s cubic-bezier(.2,.8,.2,1) calc(var(--rs-at-seed,0s) + var(--rs-i)) backwards}
-[data-rs-in~="person"] .rs-person>*{animation:rs-in .5s cubic-bezier(.2,.8,.2,1) calc(var(--rs-at-person,0s) + var(--rs-i)) backwards}
-[data-rs-in~="theirs"] .rs-person>.rs-list>li{animation:rs-in .5s cubic-bezier(.2,.8,.2,1) calc(var(--rs-at-theirs,0s) + var(--rs-i)) backwards}
-[data-rs-in~="garden"] .rs-garden>li{animation:rs-in .5s cubic-bezier(.2,.8,.2,1) calc(var(--rs-at-garden,0s) + var(--rs-i)) backwards}
-[data-rs-in~="activity"] .rs-activity>li{animation:rs-in .5s cubic-bezier(.2,.8,.2,1) calc(var(--rs-at-activity,0s) + var(--rs-i)) backwards}
-[data-rs-in~="me"] .rs-me-wrap>*{animation:rs-in .5s cubic-bezier(.2,.8,.2,1) calc(var(--rs-at-me,0s) + var(--rs-i)) backwards}
+[data-rs-in~="board"] :is(.rs-split>.rs-list>li,.rs-side>.rs-detail){animation:rs-in .5s var(--rs-ease) calc(var(--rs-at-board,0s) + var(--rs-i)) backwards}
+[data-rs-in~="seed"] :is(.rs-seed-main,.rs-seed-side>*){animation:rs-in .5s var(--rs-ease) calc(var(--rs-at-seed,0s) + var(--rs-i)) backwards}
+[data-rs-in~="person"] .rs-person>*{animation:rs-in .5s var(--rs-ease) calc(var(--rs-at-person,0s) + var(--rs-i)) backwards}
+[data-rs-in~="theirs"] .rs-person>.rs-list>li{animation:rs-in .5s var(--rs-ease) calc(var(--rs-at-theirs,0s) + var(--rs-i)) backwards}
+[data-rs-in~="garden"] .rs-garden>li{animation:rs-in .5s var(--rs-ease) calc(var(--rs-at-garden,0s) + var(--rs-i)) backwards}
+[data-rs-in~="activity"] .rs-activity>li{animation:rs-in .5s var(--rs-ease) calc(var(--rs-at-activity,0s) + var(--rs-i)) backwards}
+[data-rs-in~="me"] .rs-me-wrap>*{animation:rs-in .5s var(--rs-ease) calc(var(--rs-at-me,0s) + var(--rs-i)) backwards}
 @media (prefers-reduced-motion:reduce){.rs-sk{animation:none}.rs-sk-out{display:none}[data-rs-in] *{animation:none!important}}
 /* A word for someone who came by a link, signed out */
 .rs-newhere{align-items:center}
@@ -299,9 +325,9 @@ span.rs-helper-pull{color:var(--rs-muted)}
 @media (max-width:899px){
   .rs-split{grid-template-columns:minmax(0,1fr)}
   .rs-split:not(.rs-open) .rs-item.on{background:var(--rs-item);box-shadow:inset 0 0 0 1px var(--rs-card-edge)}
-  .rs-side{position:fixed;left:0;right:0;bottom:0;top:auto;z-index:var(--rs-sheet-z);max-height:min(86vh,calc(100dvh - 48px));padding:10px 20px calc(20px + env(safe-area-inset-bottom,0px));border-radius:24px 24px 0 0;background:var(--rs-solid);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);box-shadow:0 -18px 40px -20px rgba(12,18,32,.45);transform:translateY(105%);visibility:hidden;transition:transform .32s cubic-bezier(.2,.8,.2,1),visibility 0s .32s}
+  .rs-side{position:fixed;left:0;right:0;bottom:0;top:auto;z-index:var(--rs-sheet-z);max-height:min(86vh,calc(100dvh - 48px));padding:10px 20px calc(20px + env(safe-area-inset-bottom,0px));border-radius:24px 24px 0 0;background:var(--rs-solid);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);box-shadow:0 -18px 40px -20px rgba(12,18,32,.45);transform:translateY(105%);visibility:hidden;transition:transform .32s var(--rs-ease),visibility 0s .32s}
   .rs-side::before{content:'';display:block;width:40px;height:5px;border-radius:3px;background:var(--rs-line);margin:0 auto 12px}
-  .rs-split.rs-open .rs-side{transform:none;visibility:visible;transition:transform .32s cubic-bezier(.2,.8,.2,1),visibility 0s}
+  .rs-split.rs-open .rs-side{transform:none;visibility:visible;transition:transform .32s var(--rs-ease),visibility 0s}
   .rs-sk-side{display:none}
   .rs-scrim{display:block;position:fixed;inset:0;z-index:var(--rs-sheet-z);background:rgba(12,18,32,.32);opacity:0;pointer-events:none;transition:opacity .25s}
   .rs-split.rs-open .rs-scrim{opacity:1;pointer-events:auto}
@@ -327,7 +353,7 @@ span.rs-helper-pull{color:var(--rs-muted)}
 /* the top of a seed's or a plant's page: who and what on the left, the plant itself on the right */
 .rs-seed-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 16px;align-items:center}
 .rs-seed-title{display:flex;flex-direction:column;gap:8px;min-width:0}
-.rs-seed-head>.rs-plant{--rs-plant:clamp(88px,16vw,136px)!important}
+.rs-seed-head>.rs-plant,.rs-seed-head>.rs-rained,.rs-seed-head>.rs-rained>.rs-plant{--rs-plant:clamp(88px,16vw,136px)!important}
 .rs-detail .rs-seed-head>.rs-plant{--rs-plant:88px!important}
 /* who asked, and when, run the full width, so a narrow screen doesn't push them onto two lines */
 .rs-seed-head>.rs-detail-top{grid-column:1/-1}
@@ -352,7 +378,7 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 /* on the board: what grew since you last looked, and your asks waiting on you */
 .rs-grew,.rs-waiting{align-items:center}
 .rs-note.rs-grew>.rs-plant{flex:none;min-width:0;margin:-8px 0}
-.rs-grow{transform-origin:50% 92%;animation:rs-grow .9s cubic-bezier(.2,.8,.2,1) .15s backwards}
+.rs-grow{transform-origin:50% 92%;animation:rs-grow .9s var(--rs-ease) .15s backwards}
 @keyframes rs-grow{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
 .rs-waiting>.rs-i{align-self:flex-start;margin-top:2px}
 .rs-waiting-list{flex:1 1 100%;list-style:none;margin:0;padding:0 0 0 28px;display:flex;flex-direction:column;gap:2px}
@@ -418,6 +444,9 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-launch+.rs-turn{margin-top:10px}
 .rs-l-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .rs-l-head small{color:var(--rs-muted)}
+.rs-l-head b{font-size:14px}
+.rs-launch>p{margin:0}
+.rs-launch .rs-l-other{align-self:flex-start;font-size:14px}
 .rs-code,.rs-cmd pre{margin:0;padding:10px 12px;border-radius:10px;background:#0F1A2E;color:#E2E9F7;font:12.5px/1.5 var(--rs-mono);overflow:auto;max-height:180px;white-space:pre-wrap;word-break:break-all}
 .rs-code code,.rs-cmd pre code{background:none;padding:0;color:inherit}
 /* the brief is prose, so it wraps like prose */
@@ -648,7 +677,11 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-comments{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
 .rs-thread{display:flex;flex-direction:column;gap:8px;min-width:0}
 .rs-replies,.rs-replyform{margin-left:24px;padding-left:14px;border-left:2px solid var(--rs-line)}
-.rs-comment{scroll-margin-top:16px}
+.rs-comment{position:relative;scroll-margin-top:16px}
+/* one you've just posted rises in, lit for a moment so it's clear which it is (--rs-since: as for .rs-moment) */
+.rs-comment.rs-fresh{animation:rs-in .45s var(--rs-ease) var(--rs-since,0ms) backwards}
+.rs-comment.rs-fresh::after{content:"";position:absolute;inset:-6px -10px;border-radius:16px;background:var(--rs-accent-soft);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--rs-accent) 30%,transparent);pointer-events:none;opacity:0;animation:rs-wash 2.2s ease-out calc(var(--rs-since,0ms) + 300ms) backwards}
+@keyframes rs-wash{from{opacity:1}to{opacity:0}}
 .rs-comment .rs-who{display:inline}
 .rs-comment-text,.rs-people .rs-comment-text p{font-size:15px;line-height:1.55}
 .rs-comment-text>*+*{margin-top:8px}
@@ -706,7 +739,7 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-from button:hover,.rs-chips button:hover{color:var(--rs-ink)}
 .rs-from button[aria-pressed="true"],.rs-chips button[aria-pressed="true"]{background:var(--rs-ink);color:var(--rs-on-ink);box-shadow:none}
 .rs-from button.rs-from-none{opacity:.6}
-.rs-from-n{font-weight:500;opacity:.75;font-variant-numeric:tabular-nums}
+.rs-from-n{display:inline-block;font-weight:500;opacity:.75;font-variant-numeric:tabular-nums}
 /* on a phone the choices keep to one line, which slides sideways, fading out where there's more */
 @media (max-width:599px){
   .rs-from,.rs-chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-right:28px;-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent)}
@@ -725,6 +758,15 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-wl{position:fixed;inset:0;width:100%;height:100%;max-width:none;max-height:none;margin:0;border:0;padding:clamp(12px,10vh,100px) 12px 12px;background:none;overflow:auto;overscroll-behavior:contain}
 .rs-wl[open]{display:grid;place-items:start center}
 .rs-wl::backdrop{background:rgba(11,18,32,.5);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+/* The page dims as the box rises, and closing plays both backwards (closeSoftly in ./motion.js).
+   (The page behind is a ::backdrop, which may not see the variables: its curves are written out.) */
+.rs-wl[open]::backdrop{animation:rs-dim .26s ease-out}
+.rs-wl.rs-closing{pointer-events:none}
+.rs-wl.rs-closing::backdrop{animation:rs-undim .2s cubic-bezier(.4,0,1,1) forwards}
+.rs-wl.rs-closing .rs-wl-box{animation:rs-wl-out .18s var(--rs-ease-in) forwards}
+@keyframes rs-dim{from{opacity:0}}
+@keyframes rs-undim{to{opacity:0}}
+@keyframes rs-wl-out{to{opacity:0;transform:translateY(8px) scale(.98)}}
 .rs.rs-wl-box{width:min(460px,100%);margin:0;gap:16px;padding:20px 22px 18px;border-radius:26px;background:var(--rs-bg-card);box-shadow:0 0 0 1px var(--rs-line),0 40px 80px -30px rgba(11,18,32,.6);animation:rs-wl-in .28s cubic-bezier(.2,.9,.3,1.1)}
 @keyframes rs-wl-in{from{opacity:0;transform:translateY(10px) scale(.98)}}
 .rs-wl-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:-10px}
@@ -755,21 +797,22 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-wl .rs-err{font-size:14px}
 /* the way on, and the ways out */
 .rs-wl .rs-primary{width:100%;min-height:52px;font-size:16px}
-.rs-sd-what{margin:-6px 0 0;color:var(--rs-muted);font-size:15px;line-height:1.4;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.rs-sd-ways{display:flex;flex-direction:column;gap:8px}
-.rs-sd-way{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:var(--rs-radius-sm);background:var(--rs-sunk);cursor:pointer;box-shadow:inset 0 0 0 1.5px transparent}
-.rs-sd-way:has(input:checked){box-shadow:inset 0 0 0 2px var(--rs-accent);background:var(--rs-accent-soft)}
-.rs-sd-way input{margin:3px 0 0;accent-color:var(--rs-accent);flex:none}
-.rs-sd-way>span{display:flex;flex-direction:column;gap:2px;min-width:0}
-.rs-sd-way b{font-size:15px}
-.rs-sd-way small{font-size:13px;line-height:1.4;color:var(--rs-muted)}
-.rs-sd-days{display:flex;flex-direction:column;gap:8px;padding:2px 4px 6px 40px}
-.rs-sd-days p{font-weight:600;font-size:14px;margin:0}
+/* "Send my agent" (./send.js): a line on what the agent gets under the heading, the agents as
+   chips, whether to say you're on it (and for how long), the one button, and the box that skips
+   it next time, all on one left edge */
+.rs-sd .rs-chips{flex-wrap:wrap;overflow:visible;padding-right:0;-webkit-mask-image:none;mask-image:none}
+.rs-sd .rs-chips button{min-height:36px;font-size:14px}
+.rs-sd .rs-chips .rs-sd-more{box-shadow:none;text-decoration:underline;text-underline-offset:3px;padding:0 6px}
+.rs-sd-intro{margin:-6px 0 2px;font-size:14px;line-height:1.45;color:var(--rs-muted);text-wrap:pretty}
+.rs-sd-intro .rs-tipwrap{vertical-align:-3px}
+.rs-sd-claim{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px}
+.rs-sd-check{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;cursor:pointer}
+.rs-sd-check input{width:18px;height:18px;margin:0;accent-color:var(--rs-accent)}
+.rs-sd-claim .rs-link{font-size:14px}
+.rs-sd-days{display:flex;flex-direction:column;gap:6px;margin-top:-6px}
 .rs-sd-days small{font-size:13px;line-height:1.4;color:var(--rs-muted)}
-.rs-sd-keep{display:flex;flex-direction:column;gap:8px}
-.rs-sd-keep .rs-check{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14px}
-.rs-sd-keep .rs-check:has(input:disabled){opacity:.5}
-.rs-sd-keep small{font-size:13px}
+.rs-sd-skip{display:flex;align-items:center;gap:8px;margin-top:-4px;font-size:13px;color:var(--rs-muted);cursor:pointer}
+.rs-sd-skip input{width:16px;height:16px;margin:0;accent-color:var(--rs-accent)}
 .rs-wl-foot{display:flex;align-items:center;justify-content:space-between;gap:6px 16px;flex-wrap:wrap;padding-top:12px;border-top:1px solid var(--rs-line)}
 .rs-wl-foot .rs-link .rs-i{width:16px;height:16px}
 @media (max-width:420px){
@@ -777,7 +820,7 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
   .rs.rs-wl-box{padding:16px 16px 14px}
   .rs-wl h2{font-size:23px}
 }
-@media (prefers-reduced-motion:reduce){.rs.rs-wl-box{animation:none}}
+@media (prefers-reduced-motion:reduce){.rs.rs-wl-box,.rs-wl::backdrop{animation:none}}
 
 /* Rainshare's checks on an ask (../core/scan.js), and moderation (../core/moderation.js) */
 .rs-note.rs-caution{background:var(--rs-down-soft)}
@@ -815,3 +858,45 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-modwhat .rs-who{display:inline-flex;align-items:center;gap:6px;text-decoration:none}
 .rs-modwhat b{overflow-wrap:anywhere}
 .rs-modtext{font-size:14px;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+
+/* ---------- motion that's moved from script (./motion.js) ---------- */
+/* A dialog's step on its way out, laid over the box as the box was, while the next one comes in */
+.rs-step-out{position:absolute;left:0;right:0;top:0;display:inherit;flex-direction:inherit;gap:inherit;padding:inherit;pointer-events:none}
+/* The picked one's look, moving from the last one picked to this one, under the words of both */
+[data-rs-glide]{position:relative;isolation:isolate}
+.rs-glide{position:absolute;z-index:-1;pointer-events:none}
+.rs-glide-to{background:none!important;box-shadow:none!important}
+/* A card that's gone from the list, still for a moment where it stood, fading */
+.rs-flip-out{position:absolute!important;margin:0!important;z-index:2;pointer-events:none}
+/* A button that's just copied something says so where it was pressed */
+.rs-btn.rs-copied{background:var(--rs-ok-soft);color:var(--rs-ok);box-shadow:none}
+
+/* A moment in an ask's life, just now (see moment() in ./rainshare.js): where it stands pops, your
+   row rises in with your face, and a check draws itself. --rs-since is how long ago it happened
+   (zero or less), so a redraw part-way through carries on rather than starting over. */
+.rs-moment .rs-pill{animation:rs-pop .55s var(--rs-spring) var(--rs-since,0ms) backwards}
+.rs-moment .rs-helper.rs-me{animation:rs-in .5s var(--rs-ease) calc(var(--rs-since,0ms) + 120ms) backwards}
+.rs-moment .rs-helper.rs-me .rs-face{animation:rs-face-pop .6s ease-out calc(var(--rs-since,0ms) + 240ms) backwards}
+.rs-moment-note{scroll-margin-top:16px;animation:rs-in .5s var(--rs-ease) calc(var(--rs-since,0ms) + 160ms) backwards}
+.rs-draw{stroke-dasharray:1;animation:rs-draw .4s var(--rs-ease) calc(var(--rs-since,0ms) + 380ms) backwards}
+@keyframes rs-pop{0%{transform:scale(.82);opacity:.4}60%{transform:scale(1.06);opacity:1}100%{transform:none}}
+@keyframes rs-face-pop{0%{transform:scale(.3);opacity:0}60%{transform:scale(1.15);opacity:1}100%{transform:none}}
+@keyframes rs-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+/* Accepted: a small cloud rains on the plant, the plant it was fades, and the one it's grown into
+   comes up in its place. */
+.rs-rained{position:relative;display:inline-block;flex:none;width:var(--rs-plant);height:var(--rs-plant)}
+.rs-rained>.rs-plant{position:absolute;left:0;top:0}
+.rs-rained>.rs-plant:not(.rs-was){transform-origin:50% 92%;animation:rs-grown .8s var(--rs-ease) calc(var(--rs-since,0ms) + 900ms) backwards}
+.rs-rained>.rs-was{animation:rs-was 1.2s linear var(--rs-since,0ms) forwards}
+.rs-shower{position:absolute;left:10%;right:10%;top:-22%;height:90%;z-index:2;pointer-events:none}
+.rs-shower svg{position:absolute;left:50%;top:0;width:64%;height:auto;translate:-50% 0;fill:color-mix(in srgb,var(--rs-accent) 24%,var(--rs-bg-card));opacity:0;animation:rs-cloud 2s ease var(--rs-since,0ms) forwards}
+.rs-shower i{position:absolute;top:26%;width:6px;height:6px;margin-left:-3px;border-radius:0 50% 50% 50%;background:var(--rs-showers);opacity:0;animation:rs-fall .6s cubic-bezier(.55,0,.9,.7) calc(var(--rs-since,0ms) + var(--rs-d,0ms)) both}
+@keyframes rs-grown{0%{transform:scale(.62);opacity:0}55%{transform:scale(1.07);opacity:1}80%{transform:scale(.98)}100%{transform:none}}
+@keyframes rs-was{0%,75%{opacity:1}100%{opacity:0}}
+@keyframes rs-cloud{0%{opacity:0;transform:translateY(-8px) scale(.9)}14%{opacity:1;transform:none}76%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-6px)}}
+@keyframes rs-fall{0%{transform:translateY(0) rotate(45deg);opacity:0}15%{opacity:1}88%{opacity:.9;transform:translateY(calc(var(--rs-plant,128px) * .62)) rotate(45deg)}100%{transform:translateY(calc(var(--rs-plant,128px) * .62 + 4px)) rotate(45deg) scale(.3);opacity:0}}
+@media (prefers-reduced-motion:reduce){
+  .rs-moment .rs-pill,.rs-moment .rs-helper.rs-me,.rs-moment .rs-helper.rs-me .rs-face,.rs-moment-note,.rs-draw,.rs-comment.rs-fresh,.rs-rained>.rs-plant{animation:none}
+  .rs-shower,.rs-rained>.rs-was{display:none}
+  .rs-comment.rs-fresh::after{animation-duration:1.2s}
+}

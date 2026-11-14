@@ -51,7 +51,11 @@ export const GROUPS = false;
 //                Rainshare sticks to the facts of a job for now: where, how big, which models.
 //   circumstances  "About them" (a student, between jobs, a maintainer…): on profiles, and its
 //                say in a board's order
-export const FEATURES = { audience: false, seedValues: false, priorities: false, forecast: false, values: false, circumstances: false };
+//   fit          how well an ask suits you (./rank.js), on the site: the drops and "Good fit" on
+//                a card, the box that says why on an ask, and the board's "Best for you" order.
+//                Off, the board is newest first, and how you know whoever asked is what's shown.
+//                The CLI and MCP server still rank by it, since an agent picking work uses the reasons.
+export const FEATURES = { audience: false, seedValues: false, priorities: false, forecast: false, values: false, circumstances: false, fit: false };
 
 export const HARNESSES = [
   ['claude-code', 'Claude Code'], ['codex', 'Codex'], ['cursor', 'Cursor'], ['gemini-cli', 'Gemini CLI'],
@@ -164,7 +168,7 @@ export const AUDIENCES = [
 export const TAKE_DAYS = [[1, 'A day'], [3, '3 days'], [7, 'A week'], [14, '2 weeks']];
 export const TAKE_DAYS_DEFAULT = 1;
 // The ways "Send my agent" can hand an ask over (../core/brief.js has the commands).
-export const ROUTES = [['brief', 'Paste a brief'], ['claude', 'Claude Code'], ['cloud', 'Claude Code, cloud'], ['codex', 'Codex'], ['cli', 'Rainshare CLI'], ['mcp', 'MCP']];
+export const ROUTES = [['brief', 'The prompt, for any agent'], ['claude', 'Claude Code'], ['cloud', 'Claude Code in the cloud'], ['codex', 'Codex'], ['cli', 'Rainshare CLI'], ['mcp', 'MCP']];
 export const TESTS = [['required', 'Tests required'], ['welcome', 'Tests welcome'], ['none', 'No tests needed']];
 export const SIZES = [['tiny', 'Tiny'], ['small', 'Small'], ['medium', 'Medium'], ['large', 'Large']];
 // What's being asked about, by how far along it is: an idea (no repo), or a project that
