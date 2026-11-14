@@ -30,7 +30,7 @@ export const printable = s => String(s ?? '').replace(CONTROL, '').replace(INVIS
 // The markers either side of the asker's words in a brief. They can't be forged: the tag is
 // one that appears nowhere in the words themselves (after anything invisible is taken out, so a
 // hidden character can't split one up and vanish later), so nothing inside can close it early.
-function fenceFor(text){
+export function fenceFor(text){
   const low = text.toLowerCase();
   let tag = 'their-words';
   for (let n = 2; low.includes(tag); n++) tag = 'their-words-' + n;
