@@ -2,7 +2,8 @@
 // without signing in (rainshare.dev/example, linked from the landing).
 // It answers the same calls as the real source (source.js); what you do is kept in this
 // browser through `store`, and nothing is written anywhere.
-import { wateredBy } from './garden.js';
+import { wateredBy, budsOf } from './garden.js';
+import { activityOf } from './activity.js';
 import { writableForge } from './forgewrite.js';
 import { repoPageOf, knotlessIssueSubject, knotlessPage } from './subjects.js';
 import { PROFILE, SEED, TAKE, DELIVERY, COMMENT } from './ns.js';
@@ -87,12 +88,14 @@ const SEEDS = [
   { id: '3sq-priya-done', by: 'did:example:priya', at: 21 * day, state: 'sprouted', value: {
     title: 'A carbon label for recipes',
     spec: 'Paste in a recipe and get a rough footprint per serving, with the biggest ingredient called out. I’d use it on my blog.',
-    owner: 'helper', parallel: true, tags: ['climate'], values: ['climate'], size: 'small', audience: { $type: sq('mutuals') } } },
+    owner: 'helper', parallel: true, tags: ['climate'], values: ['climate'], size: 'small', audience: { $type: sq('mutuals') },
+    thanks: 'It’s on my blog now and people actually read the labels. Thank you!' } },
   { id: '3sq-tomas-done', by: 'did:example:tomas', at: 30 * day, state: 'sprouted', forge: { issue: { title: 'Sync gives up on the first dropped connection', state: 'closed' } }, value: {
     title: 'Retry sync when the network drops', stage: 'established',
     subject: { $type: sq('tangledIssue'), url: 'https://tangled.org/tomas.example/tidepool/issues/27', repoUrl: 'https://tangled.org/tomas.example/tidepool' },
     spec: 'A dropped connection ends the whole sync. Three tries with a short wait between them would cover almost every case.',
-    wants: { tests: 'required' }, tags: ['rust'], values: ['local-first'], size: 'small', audience: { $type: sq('following') } } },
+    wants: { tests: 'required' }, tags: ['rust'], values: ['local-first'], size: 'small', audience: { $type: sq('following') },
+    thanks: 'This was the bug people hit most. Thank you for the careful tests.' } },
   // One of your own, most of the way round: a friend's pull request has been merged, and it's
   // waiting for you to mark it sprouted.
   { id: '3sq-you', by: ME, at: 6 * day, forge: { issue: { title: 'README screenshots are out of date', state: 'open' } }, value: {
@@ -199,7 +202,11 @@ export function createDemoSource({ store = null, me: meOverride = null, groups =
       };
     }).map(it => {
       // One that sprouted before you arrived names the work that did it, as a real one would.
-      if (it.value.state === 'sprouted' && !it.value.sproutedWith && it.deliveries.length) it.value = { ...it.value, sproutedWith: it.deliveries.map(d => ({ uri: d.uri, cid: d.cid })) };
+      // (It was accepted the day after the work came in, as near as the pretence says.)
+      if (it.value.state === 'sprouted' && !it.value.sproutedWith && it.deliveries.length) {
+        const last = Math.max(...it.deliveries.map(d => Date.parse(d.value.createdAt)));
+        it.value = { ...it.value, sproutedWith: it.deliveries.map(d => ({ uri: d.uri, cid: d.cid })), updatedAt: it.value.updatedAt || new Date(Math.min(Date.now(), last + 20 * 3600e3)).toISOString() };
+      }
       return it;
     }).sort((a, b) => String(b.value.createdAt).localeCompare(String(a.value.createdAt)));
   }
@@ -291,6 +298,18 @@ export function createDemoSource({ store = null, me: meOverride = null, groups =
       { uri: 'at://did:example:garden/org.tangled.track.ticket/3iss2', cid: 'bafyexampleiss2', title: 'Add a sitemap.xml', body: '' }
     ]),
     gardenOf: did => pause(wateredBy(did, items())),
+    // What the forge says about each pull request is part of the pretence (`state` above).
+    buddingOf: did => pause(budsOf(did, items())),
+    // What someone's been doing, from the same records the real one reads from their account.
+    // (Comments on a Tangled or knotless issue are the forge's, so they aren't among them.)
+    activityOf(did){
+      const all = items(), of = k => all.flatMap(it => (it[k] || []).filter(r => r.repo === did && !r.forge));
+      const said = did === ME ? state.vouches || {} : VOUCHED[did] || {};
+      const vouches = Object.entries(said).filter(([, v]) => v.kind === 'vouch').map(([d, v]) => ({ did: d, kind: v.kind, reason: v.reason, at: v.at, person: person(d) }));
+      const stories = activityOf(did, { asks: all.filter(it => it.repo === did), takes: of('takes'), deliveries: of('deliveries'), comments: of('comments'), vouches, seeds: new Map(all.map(it => [it.uri, it])) });
+      for (const s of stories) for (const st of s.steps) if (st.with) st.people = st.with.map(person);
+      return pause(stories);
+    },
     // Posting to a forge is pretended here: nothing leaves this browser. An issue gets a
     // made-up address on the repo it was opened on, and a comment just says where it would show.
     async forgeIssue(subject){

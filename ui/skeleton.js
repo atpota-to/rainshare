@@ -72,6 +72,8 @@ export const personSk = () => `<section class="rs-person" data-rs-sk="person" ar
   <header>${face('lg')}<div class="rs-sk-stack">${line('220px', 'rs-sk-h2')}${line('140px')}</div></header>
   <div class="rs-panel">${line('88%')}${line('62%')}${factsSk(2, 'rs-facts-sm')}</div>
   ${line('200px', 'rs-sk-h3')}
+  ${activitySk()}
+  ${line('140px', 'rs-sk-h3')}
   ${gardenSk()}
   ${line('220px', 'rs-sk-h3')}
   <ul class="rs-list">${cardsSk(2)}</ul>
@@ -79,6 +81,9 @@ export const personSk = () => `<section class="rs-person" data-rs-sk="person" ar
 
 /** A garden: a line saying what's in it, and a plant for each. */
 export const gardenSk = () => `<div class="rs-panel" data-rs-sk="garden" aria-hidden="true">${line('58%')}<div class="rs-sk-row">${plant(76)}${plant(76)}${plant(76)}</div>${line('74%')}</div>`;
+
+/** What someone's been doing: a few rows, each a plant beside a line and the steps under it. */
+export const activitySk = () => `<div class="rs-panel" data-rs-sk="activity" aria-hidden="true">${[['62%', '40%'], ['48%', '56%'], ['70%', '34%']].map(([a, b]) => `<div class="rs-sk-row rs-sk-act">${plant(40)}<div class="rs-sk-stack">${line(a)}${line(b)}</div></div>`).join('')}</div>`;
 
 /** Your profile: the form's sections, and your garden beside it. */
 export const meSk = () => `<div class="rs-me-wrap" data-rs-sk="me" aria-hidden="true">

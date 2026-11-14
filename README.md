@@ -36,8 +36,20 @@ make the account on that host's own sign-up page and come straight back signed i
    again, and you're listed as having gone quiet. You can give yourself more time from the
    ask's page, or drop it.
 4. **Turn it in.** When the pull request is up, paste its link back. The asker reviews it and
-   presses Accept, which marks the ask done. They can vouch for you on Tangled in the same step.
-5. **Grow a garden.** Every ask you helped finish shows up on your profile as a plant.
+   presses Accept, which marks the ask done. They can say thanks and vouch for you on Tangled in
+   the same step. Until they do, the board reminds them that work is waiting.
+5. **Grow a garden.** Every ask you helped finish shows up on your profile as a plant, with
+   whose it was. The next time you open the board after one grows, it tells you, with what the
+   person who asked said. A pull request the forge says was merged, on an ask that hasn't been
+   accepted yet, shows as a paler bud that says who it's waiting on. Buds aren't counted: only
+   the person who asked can say the work did the job.
+
+A profile starts with what someone has been doing lately, ask by ask, and more on request: what
+they asked for, took on, turned in and commented on, what was said when their work was accepted,
+and who they vouched for on Tangled. Their garden comes after it. The list is read from the
+records in their own account, so it leaves out comments made on a Tangled or knotless issue
+(those live with the issue) and asks that aren't shared with you. A take that ran past its day
+is still listed as taking it on, with no mark for going quiet.
 
 Every ask has comments, for a question before you start, an answer from whoever asked, or a
 note on how it's going. Replies sit under the comment they answer. When an ask is on an issue
@@ -127,8 +139,14 @@ However you send it, your agent gets the same brief (`core/brief.js`):
   code from elsewhere, or keeping anything from you.
 - what Rainshare's checks flagged in it, if anything (see [Security](#security)), in Rainshare's
   own words, with the advice to show you before starting
-- how to turn it in: open a pull request with the ask's link in it (and "Fixes #N" on GitHub)
-- what to tell you when it's finished
+- how to turn it in: open a pull request with the ask's link in it, with "Fixes #N" on GitHub when it
+  does everything the issue asks, or "Part of #N" when it does some of it. Where the agent can't
+  fork or open the pull request itself, it hands you links that do each in a tap.
+- when you said you'd turn it in, and how to get more time if the work runs over. If you copied it
+  without saying you're on it, the agent asks whether you'd like to before it starts
+- how to end: a short list of links with every placeholder filled in (the pull request, the link
+  that turns it in if it didn't, the issue and the ask's page), and that if reviewers ask for
+  changes, it updates the same pull request rather than opening a new one
 
 There are four ways to hand it over:
 
@@ -301,6 +319,64 @@ The records are public, like everything on atproto, so a note says why in words 
 for anyone to read. If @rainshare.dev's server doesn't answer, nothing is hidden for that minute
 rather than the board going dark; the moderation page says so.
 
+### Feedback
+
+Bugs, requests and ideas about Rainshare itself go on its board on
+[userinput.app](https://userinput.app). The footer and the menu under your face link to it as
+**Feedback** (`/feedback`). userinput.app is an atproto app too (`app.userinput.*`): the board is
+a record in @rainshare.dev's repo, each post is a record in its author's repo, and only statuses
+from the board's owner and the moderators it appoints count. People post and vote on
+userinput.app itself, so signing in to Rainshare doesn't ask for anything more. The `/feedback`
+page reads the board through Constellation, the same way the board here reads asks, and groups
+the posts by status (`core/feedback.js`).
+
+Until @rainshare.dev makes a board, the page says so and points to issues on GitHub and Tangled.
+It uses the first board that account made. To pin a different one, set `SPACE_KEY` in
+`core/feedback.js` to its record key.
+
+The maintainers run a Claude Code routine on their own plan that turns planned posts into draft
+pull requests (`.claude/skills/feedback/SKILL.md`). Each run, it:
+
+1. marks a post `implemented` once its pull request has merged
+2. takes the most-voted post marked `planned` that has no pull request yet, and opens one as a draft
+3. marks that post `in-progress`, with the pull request's link in the note
+
+Rainshare doesn't work through people's asks unattended (see "Is this allowed by my AI plan?").
+This routine differs in three ways: it runs on the maintainers' own plan, it changes only
+Rainshare's own repo, and it takes only what a maintainer has read and marked planned. A person
+reviews every pull request it opens before anything is merged.
+
+Anyone can post, and the routine's agent can push to the repo, so `forAgents` in
+`core/feedback.js` limits what it hands over:
+
+- Only a status from @rainshare.dev, or from a moderator it appointed, counts.
+- A status pins the version of the post it was set on (its CID). A post rewritten after it was
+  planned is skipped until someone plans it again.
+- The agent gets the post as it was first written, plus the maintainers' note, and never the
+  edits. An edit is a separate record whose date its author sets, so an edit made after planning
+  could claim to be older. If an edit matters, the note is where to say what's to be done.
+- The checks in `core/scan.js` run on the post. What they find goes in the brief in Rainshare's
+  own words, and a likely trick isn't handed over at all. Characters a person can't see are
+  taken out.
+- The brief (`feedbackBrief`) puts the poster's words between markers they can't forge, under
+  rules that keep the agent inside the repo and away from secrets, CI, what signing in asks for,
+  moderation, and the routine's own files.
+
+From a terminal:
+
+```sh
+node scripts/feedback.mjs board          # what's on the board, by status
+node scripts/feedback.mjs planned        # the briefs the routine would work from
+node scripts/feedback.mjs status <post> planned --note "Just the footer links."
+```
+
+Writing a status signs in with `RAINSHARE_HANDLE` and `RAINSHARE_APP_PASSWORD`, like the CLI.
+The routine can use @rainshare.dev's own app password, or a separate account that @rainshare.dev
+makes a moderator of the board on userinput.app. The second is the smaller risk: the most a
+moderator account can change on Rainshare's side is the board (statuses, hidden posts and bans),
+while an app password for @rainshare.dev can write anything to that account's repo, including
+Rainshare's moderation decisions and Bluesky posts.
+
 ### Switched off for now
 
 Some features are built but turned off to keep the alpha simple. The switches are in
@@ -407,12 +483,13 @@ which spells it out by hand.
 | `src/mode.js`, `public/mode.js` | day and night: the toggle in the bar, and the small script that picks one before the page is first drawn |
 | `src/hosts.js` | the hosts offered for making an account, for someone who hasn't got one |
 | `src/spaces.js` | group spaces for private asks (switched off) |
-| `ui/` | the app's screens: the board, an ask, profiles, posting an ask, the first-time welcome, loading placeholders, and @rainshare.dev's moderation page |
+| `ui/` | the app's screens: the board, an ask, profiles, posting an ask, the first-time welcome, loading placeholders, the feedback page, and @rainshare.dev's moderation page |
 | `core/` | everything the site and the CLI share (below) |
 | `cli/rainshare.mjs` | the CLI and MCP server |
 | `api/` | Vercel functions: the OAuth client metadata, link previews (`page.js` sets the meta tags, `og.js` draws the image), and the daily run that posts new asks to Bluesky and sends people their messages (`announce.js`) |
 | `lexicons/` | the record schemas and the sign-in permission set, plus the scripts that publish them and check changes for breakage |
-| `scripts/` | the image scripts above, and `announce.mjs`, which runs the daily posts and messages by hand (see [Deploying](#deploying)) |
+| `scripts/` | the image scripts above, `feedback.mjs` for the feedback board, and `announce.mjs`, which runs the daily posts and messages by hand (see [Deploying](#deploying)) |
+| `.claude/skills/feedback/` | the feedback routine's instructions |
 | `test/` | `npm test` |
 
 In `core/`:
@@ -431,6 +508,7 @@ In `core/`:
 | `comments.js` | puts an ask's comments into threads, whether they're Rainshare's or an issue's |
 | `scan.js` | Rainshare's checks on an ask, for what's often used to misuse an agent |
 | `moderation.js` | what @rainshare.dev has hidden: reading decisions, their keys, and what a pasted link is |
+| `feedback.js` | Rainshare's feedback board on userinput.app: reading it, whose statuses count, and what the routine may hand an agent |
 | `route.js` | URLs, including fixing mistyped ones |
 | `mode.js` | day or night (the system's setting, or the toggle's choice), and the fade between them |
 | `markdown.js` | a small, safe Markdown renderer for specs |
@@ -585,6 +663,10 @@ done for real yet:
 - A server accepting the permission set. That waits for a production build to publish it.
   Until then, bsky.social refuses the set and Rainshare falls back to asking for the records by
   name, which works.
+- The feedback page against Rainshare's own board, which hasn't been made yet. It has been
+  checked in headless Chromium against userinput.app's own board, and `scripts/feedback.mjs` has
+  read that board. Neither has written a status to a real board.
+- The feedback routine end to end in a scheduled cloud session.
 
 ## Similar ideas
 
