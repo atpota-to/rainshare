@@ -37,9 +37,9 @@ export const HOME = {
 // Pages that say the same thing to everyone.
 const FIXED = {
   board: { path: '/board', heading: 'The board', line: 'Ideas and projects people want help with. Pick one and send your agent to do the work, on your plan.', plant: 'young-2' },
-  agents: { path: '/agents', heading: 'Send your agent', line: 'Paste a brief into any agent, or set up one small file and yours can find work, take it on and turn it in.', plant: 'established-7' },
+  agents: { path: '/agents', heading: 'Send your agent', line: 'Rainshare writes the prompt for your agent from someone’s ask. Paste it into any agent, or set up one small file and yours can find work, take it on and turn it in.', plant: 'established-7' },
   feedback: { path: '/feedback', heading: 'Feedback', line: 'Bugs, requests and ideas for Rainshare, on its board on userinput.app. Post one, or vote for what you’d like next.', plant: 'seedling-3' },
-  example: { path: '/example', heading: 'An example circle', line: 'Made-up people and their asks. Send an agent, ask for rain, mark something done. Nothing leaves your browser.', plant: 'young-4' }
+  example: { path: '/example', heading: 'An example board', line: 'Made-up people and their asks. Send an agent, ask for help, mark something done. Nothing leaves your browser.', plant: 'young-4' }
 };
 const fixed = kind => {
   const f = FIXED[kind];

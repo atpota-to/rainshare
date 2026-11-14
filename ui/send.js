@@ -1,14 +1,17 @@
-// "Send my agent": two short questions before anything is written, so pressing it never says
+// "Send my agent": one short screen before anything is written, so pressing it never says
 // you're on something you only meant to look at.
 //
-//   how     how the ask goes to your agent: the brief to paste, or a command that starts one
-//   claim   whether to tell whoever asked that you're on it, and for how long; and whether to
-//           remember these answers (your settings, dev.rainshare.preferences) and skip the
-//           questions next time
+//   how     how the ask goes to your agent: the one your profile says you run (or the prompt to
+//           paste, if it doesn't say), with the prompt beside it and every other way folded away
+//   then    one of two buttons: say you're on it and copy it, or just copy it for now. Saying
+//           you're on it is for a day, with the other lengths a press away.
 //
-// Nothing is written until the last button is pressed. Closing it, at either step, leaves
-// everything as it was. Someone who said to skip the questions can change their answers on
-// their profile, or with "Change" beside the button.
+// It says up front that Rainshare writes the prompt from what was asked, so nobody wonders
+// whether they're meant to write it themselves. Ticking "Next time, skip this" keeps these
+// answers in your settings (dev.rainshare.preferences) and the button does the same thing
+// from then on; nothing is kept otherwise. Nothing is written until a button is pressed, and
+// closing it leaves everything as it was. Someone who said to skip it can change their answers
+// on their profile, or with "Change" beside the button.
 import { TAKE_DAYS } from '../core/ns.js';
 import { esc, ico } from './bits.js';
 
@@ -22,20 +25,27 @@ export function sendSummary({ route, claim, days }, names){
   const span = (TAKE_DAYS.find(([d]) => d === days)?.[1] || `${days} days`).toLowerCase();
   return `${how}, and says you’re on it for ${span}`;
 }
+/** The ways shown at first (the one picked to begin with, and the prompt), and the rest, folded away. */
+export function splitWays(ways, route){
+  const first = [...new Set([route, 'brief'])].map(id => ways.find(w => w.id === id)).filter(Boolean);
+  return { first, rest: ways.filter(w => !first.includes(w)) };
+}
 
 /**
  * Open it.
  *   title    the ask's title
  *   asker    what to call whoever asked ("Kai")
  *   ways     [{ id, name, note }]: how it can be sent
- *   answers  what's picked to begin with: { route, claim, days, remember, askEachTime }
+ *   answers  what's picked to begin with: { route, claim, days, askEachTime }
  *   send     does it, with the answers; throws to say it didn't. It's only closed once that's done.
+ *   setup    opens the page for setting up the CLI and MCP server (the dialog closes first)
  *   error    what a failed send says, in plain words
  */
-export function openSend({ title, asker, ways, answers, send, error = e => e?.message || 'Something went wrong. Try again in a moment.' }){
+export function openSend({ title, asker, ways, answers, send, setup = null, error = e => e?.message || 'Something went wrong. Try again in a moment.' }){
   if (document.querySelector('.rs-sd')) return;
-  const st = { step: 'how', busy: false, ...answers };
+  const st = { busy: false, moreDays: false, moreWays: false, skip: false, ...answers };
   if (!ways.some(w => w.id === st.route)) st.route = ways[0]?.id;
+  const { first, rest } = splitWays(ways, st.route);
   const dlg = document.createElement('dialog');
   dlg.className = 'rs-wl rs-sd';
   dlg.setAttribute('aria-labelledby', 'rsSdTitle');
@@ -43,80 +53,75 @@ export function openSend({ title, asker, ways, answers, send, error = e => e?.me
   const box = dlg.firstChild;
   document.body.append(dlg);
 
-  const top = (n, h) => `<div class="rs-wl-top"><p class="rs-wl-n">${n} of 2</p><button class="rs-wl-x" type="button" data-sd="cancel" aria-label="Close">${ico('close')}</button></div>
-    <h2 id="rsSdTitle" tabindex="-1">${h}</h2>`;
-  const choice = (name, value, on, label, note) => `<label class="rs-sd-way"><input type="radio" name="${name}" value="${esc(value)}"${on ? ' checked' : ''}><span><b>${esc(label)}</b><small>${esc(note)}</small></span></label>`;
+  const choice = w => `<label class="rs-sd-way"><input type="radio" name="sdRoute" value="${esc(w.id)}"${w.id === st.route ? ' checked' : ''}><span><b>${esc(w.name)}</b><small>${esc(w.note)}</small></span></label>`;
+  // What the first button copies: the prompt itself, or a command that starts an agent with it.
+  const what = () => st.route === 'brief' ? 'the prompt' : 'the command';
+  const daysSaid = () => (TAKE_DAYS.find(([d]) => d === st.days)?.[1] || `${st.days} days`).toLowerCase();
 
   function paint(){
-    if (st.step === 'how') {
-      box.innerHTML = `${top(1, 'How do you want to send it?')}
-        <p class="rs-sd-what">${esc(title)}</p>
-        <div class="rs-sd-ways" role="radiogroup" aria-label="How to send it">${ways.map(w => choice('sdRoute', w.id, w.id === st.route, w.name, w.note)).join('')}</div>
-        <button class="rs-btn rs-primary" type="button" data-sd="next">Next</button>
-        <div class="rs-wl-foot"><span class="rs-muted">Nothing’s been written yet.</span><button class="rs-link" type="button" data-sd="cancel">Cancel</button></div>`;
-      (box.querySelector('[name=sdRoute]:checked') || box.querySelector('[name=sdRoute]'))?.focus();
-      return;
-    }
     const days = dayChoices(st.days);
-    box.innerHTML = `${top(2, `Tell ${esc(asker)} you’re on it?`)}
-      <div class="rs-sd-ways" role="radiogroup" aria-label="Whether to say you’re on it">
-        ${choice('sdClaim', 'yes', st.claim, 'Yes, I’m on it', 'Everyone sees you’re on it, so nobody does it twice.')}
-        <div class="rs-sd-days"${st.claim ? '' : ' hidden'}>
-          <p id="rsSdDays">I’ll turn it in within</p>
-          <div class="rs-toggles" role="group" aria-labelledby="rsSdDays">${days.map(([d, l]) => `<button type="button" data-sd-days="${d}" aria-pressed="${d === st.days}">${esc(l)}</button>`).join('')}</div>
+    box.innerHTML = `<div class="rs-wl-top"><h2 id="rsSdTitle" tabindex="-1">Send your agent</h2><button class="rs-wl-x" type="button" data-sd="cancel" aria-label="Close">${ico('close')}</button></div>
+      <p class="rs-sd-what">${esc(title)}</p>
+      <p class="rs-sd-intro">Rainshare writes the prompt for your agent from what ${esc(asker)} asked: where the code is, what they’d like done, and how to hand the work back. You don’t need to write anything.</p>
+      <fieldset class="rs-sd-how"><legend>Send it with</legend>
+        <div class="rs-sd-ways">${first.map(choice).join('')}</div>
+        ${rest.length ? `<details class="rs-sd-more"${st.moreWays || rest.some(w => w.id === st.route) ? ' open' : ''}><summary>Other ways: ${esc(rest.map(w => w.name).join(', '))}</summary>
+          <div class="rs-sd-ways">${rest.map(choice).join('')}</div>
+          ${setup ? '<button class="rs-link" type="button" data-sd="setup">Set up the CLI or MCP server</button>' : ''}
+        </details>` : ''}
+      </fieldset>
+      <div class="rs-sd-go">
+        <button class="rs-btn rs-primary" type="button" data-sd="claim">I’m on it, copy ${what()}</button>
+        <p class="rs-sd-days-line">Tells ${esc(asker)} and everyone else, so nobody does it twice. You’ll have ${esc(daysSaid())} to turn it in. <button class="rs-link" type="button" data-sd="days" aria-expanded="${st.moreDays}" aria-controls="rsSdDays">Change</button></p>
+        <div class="rs-sd-days" id="rsSdDays"${st.moreDays ? '' : ' hidden'}>
+          <div class="rs-toggles" role="group" aria-label="I’ll turn it in within">${days.map(([d, l]) => `<button type="button" data-sd-days="${d}" aria-pressed="${d === st.days}">${esc(l)}</button>`).join('')}</div>
           <small>If nothing’s turned in by then, it shows as free again for someone else. You can give yourself more time from its page.</small>
         </div>
-        ${choice('sdClaim', 'no', !st.claim, 'Not yet, just copy it', 'Nothing’s written. If you start on it, say so from its page.')}
-      </div>
-      <div class="rs-sd-keep">
-        <label class="rs-check"><input type="checkbox" name="sdRemember"${st.remember ? ' checked' : ''}> Remember these answers</label>
-        <label class="rs-check"><input type="checkbox" name="sdSkip"${!st.askEachTime ? ' checked' : ''}${st.remember ? '' : ' disabled'}> Next time, skip these questions</label>
-        <small class="rs-muted">You can change them on your profile.</small>
+        <button class="rs-btn rs-quiet" type="button" data-sd="copy">Just copy it for now</button>
       </div>
       <p class="rs-err" role="alert" hidden></p>
-      <button class="rs-btn rs-primary" type="button" data-sd="send">${st.claim ? 'Send my agent' : 'Copy it'}</button>
-      <div class="rs-wl-foot"><button class="rs-link" type="button" data-sd="back">${ico('back')}Back</button><button class="rs-link" type="button" data-sd="cancel">Cancel</button></div>`;
-    (box.querySelector('[name=sdClaim]:checked') || box.querySelector('[name=sdClaim]'))?.focus();
+      <div class="rs-wl-foot">
+        <label class="rs-check"><input type="checkbox" name="sdSkip"${st.skip ? ' checked' : ''}> Next time, skip this and do the same</label>
+        <button class="rs-link" type="button" data-sd="cancel">Cancel</button>
+      </div>`;
   }
   const say = msg => { const p = box.querySelector('.rs-err'); if (p) { p.textContent = msg; p.hidden = !msg; } };
 
-  async function submit(btn){
+  async function submit(btn, claim){
     if (st.busy) return;
-    st.busy = true; btn.disabled = true; btn.textContent = st.claim ? 'Sending…' : 'Copying…'; say('');
-    try { await send({ route: st.route, claim: st.claim, days: st.days, remember: st.remember, askEachTime: !st.remember || st.askEachTime }); }
-    catch (e) { st.busy = false; btn.disabled = false; btn.textContent = st.claim ? 'Send my agent' : 'Copy it'; say(error(e)); return; }
+    const was = btn.textContent;
+    st.busy = true; btn.disabled = true; btn.textContent = claim ? 'Sending…' : 'Copying…'; say('');
+    try { await send({ route: st.route, claim, days: st.days, remember: st.skip, askEachTime: !st.skip }); }
+    catch (e) { st.busy = false; btn.disabled = false; btn.textContent = was; say(error(e)); return; }
     st.busy = false;
     dlg.close();
   }
 
   dlg.addEventListener('change', e => {
     const t = e.target;
-    if (t.name === 'sdRoute') st.route = t.value;
-    if (t.name === 'sdClaim') {
-      st.claim = t.value === 'yes';
-      box.querySelector('.rs-sd-days').hidden = !st.claim;
-      box.querySelector('[data-sd="send"]').textContent = st.claim ? 'Send my agent' : 'Copy it';
-    }
-    if (t.name === 'sdRemember') { st.remember = t.checked; const skip = box.querySelector('[name=sdSkip]'); skip.disabled = !t.checked; if (!t.checked) { skip.checked = false; st.askEachTime = true; } }
-    if (t.name === 'sdSkip') st.askEachTime = !t.checked;
+    if (t.name === 'sdRoute') { st.route = t.value; box.querySelector('[data-sd="claim"]').textContent = `I’m on it, copy ${what()}`; }
+    if (t.name === 'sdSkip') st.skip = t.checked;
   });
   dlg.addEventListener('click', e => {
     if (st.busy) return;
     // Outside the box is the same as Cancel.
     if (e.target === dlg) return dlg.close();
     const d = e.target.closest('[data-sd-days]');
-    if (d) { st.days = +d.dataset.sdDays; box.querySelectorAll('[data-sd-days]').forEach(b => b.setAttribute('aria-pressed', String(b === d))); return; }
+    if (d) { st.days = +d.dataset.sdDays; paint(); box.querySelector(`[data-sd-days="${st.days}"]`)?.focus(); return; }
     const b = e.target.closest('[data-sd]'); if (!b) return;
     const act = b.dataset.sd;
     if (act === 'cancel') dlg.close();
-    else if (act === 'next') { st.step = 'claim'; paint(); }
-    else if (act === 'back') { st.step = 'how'; paint(); }
-    else if (act === 'send') submit(b);
+    else if (act === 'days') { st.moreDays = !st.moreDays; paint(); box.querySelector('[data-sd="days"]')?.focus(); }
+    else if (act === 'setup') { dlg.close(); setup?.(); }
+    else if (act === 'claim') submit(b, true);
+    else if (act === 'copy') submit(b, false);
   });
+  // (Other ways stay unfolded through a redraw, once they've been opened.)
+  dlg.addEventListener('toggle', e => { if (e.target.classList?.contains('rs-sd-more')) st.moreWays = e.target.open; }, true);
   dlg.addEventListener('cancel', e => { if (st.busy) e.preventDefault(); });
   dlg.addEventListener('close', () => dlg.remove());
 
   paint();
   dlg.showModal();
-  (box.querySelector('[name=sdRoute]:checked') || box.querySelector('[name=sdRoute]'))?.focus();
+  box.querySelector('[data-sd="claim"]')?.focus();
 }

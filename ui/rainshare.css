@@ -418,6 +418,9 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-launch+.rs-turn{margin-top:10px}
 .rs-l-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .rs-l-head small{color:var(--rs-muted)}
+.rs-l-head b{font-size:14px}
+.rs-launch>p{margin:0}
+.rs-launch .rs-l-other{align-self:flex-start;font-size:14px}
 .rs-code,.rs-cmd pre{margin:0;padding:10px 12px;border-radius:10px;background:#0F1A2E;color:#E2E9F7;font:12.5px/1.5 var(--rs-mono);overflow:auto;max-height:180px;white-space:pre-wrap;word-break:break-all}
 .rs-code code,.rs-cmd pre code{background:none;padding:0;color:inherit}
 /* the brief is prose, so it wraps like prose */
@@ -763,13 +766,22 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-sd-way>span{display:flex;flex-direction:column;gap:2px;min-width:0}
 .rs-sd-way b{font-size:15px}
 .rs-sd-way small{font-size:13px;line-height:1.4;color:var(--rs-muted)}
-.rs-sd-days{display:flex;flex-direction:column;gap:8px;padding:2px 4px 6px 40px}
-.rs-sd-days p{font-weight:600;font-size:14px;margin:0}
+/* "Send my agent" (./send.js): who writes the prompt, which way to send it (the rest folded
+   away), and the two buttons, with how long saying you're on it lasts between them */
+.rs-sd-intro{font-size:15px;line-height:1.45;margin:0;text-wrap:pretty}
+.rs-wl fieldset.rs-sd-how{padding:0;background:none}
+.rs-sd-how legend{font-size:15px;margin-bottom:8px}
+.rs-sd-more summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--rs-muted);padding:4px 0;list-style-position:inside}
+.rs-sd-more summary:hover{color:var(--rs-ink)}
+.rs-sd-more[open] summary{margin-bottom:8px}
+.rs-sd-more>.rs-link{display:inline-block;margin-top:10px;font-size:14px}
+.rs-sd-go{display:flex;flex-direction:column;gap:10px}
+.rs-sd-go .rs-quiet{width:100%;min-height:46px}
+.rs-sd-days-line{margin:-2px 0 0;font-size:13px;line-height:1.45;color:var(--rs-muted)}
+.rs-sd-days-line .rs-link{font-size:13px}
+.rs-sd-days{display:flex;flex-direction:column;gap:8px;padding:2px 0 4px}
 .rs-sd-days small{font-size:13px;line-height:1.4;color:var(--rs-muted)}
-.rs-sd-keep{display:flex;flex-direction:column;gap:8px}
-.rs-sd-keep .rs-check{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14px}
-.rs-sd-keep .rs-check:has(input:disabled){opacity:.5}
-.rs-sd-keep small{font-size:13px}
+.rs-wl-foot .rs-check{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14px}
 .rs-wl-foot{display:flex;align-items:center;justify-content:space-between;gap:6px 16px;flex-wrap:wrap;padding-top:12px;border-top:1px solid var(--rs-line)}
 .rs-wl-foot .rs-link .rs-i{width:16px;height:16px}
 @media (max-width:420px){

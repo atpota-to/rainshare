@@ -1,7 +1,7 @@
 // The welcome: two short steps for someone signing in for the first time, over whatever page
 // they came back to.
 //
-//   story   what Rainshare is, in three lines
+//   story   what Rainshare is, in three plain steps
 //   basics  your AI plan, and what you run: the two things the board sorts by and "Send my
 //           agent" reads. Your name and picture are already there, from Bluesky.
 //
@@ -30,11 +30,12 @@ export function shouldWelcome({ source, mine, sub = '' }){
 /** The profile the welcome saves: the plans picked, and a setup for each thing they run. */
 export const welcomeProfile = ({ plans = [], runs = [] } = {}) => ({ plans: [...plans], setups: runs.map(harness => ({ harness, models: [] })) });
 
-// What Rainshare is, as briefly as it can be said. [icon, the line, what it means for you]
+// What Rainshare is, as briefly as it can be said, in the same three steps as the landing.
+// [icon, the step, what it means for you]
 const STORY = [
-  [skyIco('showers'), 'Your AI plan resets whether you use it or not.', 'What’s left before it does is rain to spare.'],
-  [lifeIco('up'), 'People post ideas and projects they’d like help with.', 'That’s asking for rain, and you can too.'],
-  [lifeIco('sprouted'), 'Pick one and send your agent to do the work, on your own plan.', 'When it’s done, it grows in your garden.']
+  [lifeIco('up'), 'People post ideas and projects they’d like help with.', 'You can post your own with “Ask for help”.'],
+  [skyIco('showers'), 'Pick one, and Rainshare writes the prompt for your agent.', 'Paste it into Claude Code, Codex or any agent, on your own plan.'],
+  [lifeIco('sprouted'), 'Your agent opens a pull request. Paste its link back here.', 'If it does the job, they accept it, and it grows in your garden.']
 ];
 
 const chips = (name, opts, on) => `<div class="rs-toggles" data-rs-wl="${name}">${opts.map(([v, l]) => `<button type="button" data-v="${esc(v)}" aria-pressed="${on.includes(v)}">${esc(l)}</button>`).join('')}</div>`;

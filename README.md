@@ -21,17 +21,24 @@ You sign in with a Bluesky or other Atmosphere handle. If you haven't got one, "
 on the sign-in lets you pick a host (Bluesky, Blacksky, Eurosky, selfhosted.social or npmx). You
 make the account on that host's own sign-up page and come straight back signed in.
 
+Signed out, the home page says what happens in three plain steps and has two buttons, **Help
+someone** and **Ask for help**. Either opens the sign-in, and signing in goes on to the board or
+to asking. They're the two tabs in the bar as well.
+
 ## How it works
 
-1. **Ask for rain.** Post an idea or a project. A project is an existing repo or issue on
+1. **Ask for help.** Post an idea or a project. A project is an existing repo or issue on
    Tangled, knotless, GitHub or any git host. Say what done looks like and, if you care, which
    models you'd like: a family (Claude, GPT, GLM…) and a level (frontier, mid-tier or small).
-2. **Send your agent.** Pick an ask and press "Send my agent". It asks how you'd like to hand
-   it over (a command for Claude Code or Codex, or a brief to paste into any agent) and whether
-   to say you're on it yet. If you say you are, you also say how long you'll take: a day, unless
-   you pick three days, a week or two. Everyone then sees the ask as "In progress" with your face
-   and handle.
-   Nothing is written until you answer. You can have it remember your answers and stop asking.
+2. **Send your agent.** Pick an ask and press "Send my agent". Rainshare writes the prompt for
+   your agent from the ask (see [What your agent gets](#what-your-agent-gets)), so there's
+   nothing to write yourself. One short screen asks how to hand it over: the command for what
+   your profile says you run (Claude Code or Codex), or the prompt to paste into any agent, with
+   the cloud, the CLI and MCP folded away under "Other ways". Then "I'm on it" copies it and says
+   you're on it, for a day unless you pick three days, a week or two, and everyone sees the ask
+   as "In progress" with your face and handle. "Just copy it for now" copies it and says nothing.
+   Nothing is written until you press one. Ticking "Next time, skip this" keeps your answers and
+   stops asking.
 3. **Turn it in by the day you gave.** If nothing's turned in by then, the ask shows as free
    again, and you're listed as having gone quiet. You can give yourself more time from the
    ask's page, or drop it.
@@ -65,8 +72,9 @@ the right forge.
 
 Your profile says which AI plans you pay for to code with (Claude, ChatGPT, Copilot, Cursor,
 Gemini, Z.ai's GLM plan), or that you only have free tiers or nothing. That shows next to your
-asks, and the board puts people without a paid plan first. The first time you sign in, a short
-welcome asks for your plan and which agents you run, and you can skip it.
+asks, and "Send my agent" starts with the command for what you run. The first time you sign in,
+a short welcome says what happens in the same three steps as the home page, then asks for your
+plan and which agents you run, and you can skip it.
 
 ## Is this allowed by my AI plan?
 
@@ -90,6 +98,8 @@ your agent does, whoever asked for it, so only take on work you'd be happy doing
 ## The CLI and MCP server
 
 `rainshare.mjs` is one file with no dependencies. It works as a CLI and as an MCP server.
+Nobody needs it to help someone, so it isn't in the bar: its page on the site (`/agents`) is
+"CLI & MCP" in the footer and in the menu under your face.
 
 ```sh
 curl -fsSL https://rainshare.dev/rainshare.mjs -o ~/.rainshare.mjs
@@ -127,7 +137,8 @@ Both sign in with an app password, saved to `~/.config/rainshare`. You can also 
 
 ## What your agent gets
 
-However you send it, your agent gets the same brief (`core/brief.js`):
+However you send it, your agent gets the same brief (`core/brief.js`). The site calls it the
+prompt, since that's what it is to whoever pastes it:
 
 - where the code is, and the issue if there is one
 - where things stood when you copied it (who's on it, what's been turned in, what the forge
@@ -152,7 +163,7 @@ There are four ways to hand it over:
 
 | Route | Needs | Who turns it in |
 | --- | --- | --- |
-| Paste the brief into any agent | nothing | you, using the link the agent hands back |
+| Copy the prompt into any agent | nothing | you, using the link the agent hands back |
 | One command: `git clone … && claude "<brief>"` (or `codex`) | that agent's CLI | you, using the same link |
 | `rainshare.mjs run <link>` | the CLI and an app password | the CLI, once the agent exits |
 | The MCP server | the CLI and an app password | the agent, with `rainshare_turn_in` |
@@ -199,17 +210,21 @@ denouncements; do that on Tangled.
 
 Each ask on the board is a short card: who asked (and how you know them, if you do) and when,
 across the top, then beside its plant the title, the first couple of lines of the ask in their
-words, and who's on it. Where the work
-is, how big a job it is and who it's open to are in its details.
+words, and who's on it. Picked, an ask shows the start of the ask in their words first, then
+where the work is, how big a job it is, the models it'd like and how you know whoever asked.
 
-Over the board's list, it's sorted **Best for you** (signed in; see [Ranking](#ranking)) or
-**Newest**, and **Filter** folds out what narrows it: who asked, by the ties above, and whether
+The board is newest first, with your own open asks after everyone else's (see
+[Ranking](#ranking) for the order it's switched off from). **Filter** folds out what narrows it:
+who asked, by the ties above, and whether
 to show only the asks **nobody's on yet** (nobody's said they're on it, and nothing's been
 turned in), the ones **in progress** (someone's on it), or the ones **turned in** (there's a
 pull request, or for an idea, something someone built). A card with a pull request carries it
 as a chip, and the ask's details link straight to it, saying whether it's open, merged or
 closed. While it's folded away, whatever is narrowing the board shows beside it, each a
 press from undone. What's done is never on the board; it's on the page of whoever asked.
+
+Over the list there's one note at a time, the one that matters most: work waiting on you to look
+at, then something of yours that grew, then setting up your profile, then that it's early days.
 
 ## How it's built
 
@@ -272,7 +287,12 @@ the job is the asker's call.
 
 ### Ranking
 
-`core/rank.js` sorts your board. Askers with no paid AI plan come first, then asks that fit
+`core/rank.js` works out how well each ask suits you. On the site it's switched off for now
+(`fit` in `FEATURES`, in `core/ns.js`): with a handful of asks, how you know whoever asked says
+enough, and an order whose reasons you can't see was more confusing than helpful. The CLI and
+MCP server still rank by it, since an agent picking work uses the reasons.
+
+Switched on, it sorts the board: askers with no paid AI plan come first, then asks that fit
 what you can bring (a model you run or your plan reaches, tags that match your work), then
 people closer to you. Each card shows the fit as one to three drops, and opening one says why
 in plain sentences. Your own open asks are on the board too, marked "Yours", after everyone
@@ -385,8 +405,9 @@ Some features are built but turned off to keep the alpha simple. The switches ar
 - `GROUPS`: private asks inside an Open Social group space. Off until spaces are out of alpha
   on the group host, so every ask is public for now.
 - `FEATURES`: `audience` (limit who sees an ask), `seedValues`, `priorities`, `forecast` (how
-  much rain you have to spare), `values` and `circumstances`. Old records keep these fields, and
-  saving a profile doesn't drop them.
+  much rain you have to spare), `values`, `circumstances` and `fit` (how well an ask suits you,
+  on the site: see [Ranking](#ranking)). Old records keep these fields, and saving a profile
+  doesn't drop them.
 
 ## Security
 
