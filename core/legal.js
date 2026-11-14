@@ -13,8 +13,8 @@
 // something new kept in the browser), the Privacy Policy changes with it.
 import { SITE, HANDLE } from './ns.js';
 
-export const LEGAL_VERSION = '2026-11-14';
-const UPDATED = '14 November 2026';
+export const LEGAL_VERSION = '2026-11-15';
+const UPDATED = '15 November 2026';
 const BLUESKY = `https://bsky.app/profile/${HANDLE}`;
 // Who runs Rainshare: the company, named and reached as its other terms have it (Anisota's are
 // the same company's, and the legal sections here follow theirs: who may use it, the cap on
