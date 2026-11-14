@@ -6,7 +6,7 @@
 //   /board          the board on its own, signed in or out (the bar's "Help someone")
 //   /new            asking for help (the bar's "Ask for help")
 //   /example/…      the example circle, kept in this browser (linked from the landing)
-//   /seed/…, /new, /me, /profile/…, /agents, /feedback   Rainshare's own screens (see ../ui/rainshare.js)
+//   /seed/…, /new, /me, /profile/…, /agents, /feedback, /terms, /privacy   Rainshare's own screens (see ../ui/rainshare.js)
 //   /signed-in      where your server sends you back after signing in
 //
 // Signing in is a dialog of its own (./signin.js), opened from here.
@@ -36,7 +36,10 @@ import { mountMode } from './mode.js';
 // Content-Security-Policy in vercel.json already allows it; nothing is sent in development.
 import { inject } from '@vercel/analytics';
 
-inject();
+// A page view is counted by its path alone. What follows a ? or a # is left out: a link an
+// agent hands back carries a pull request there, and coming back from signing in, a code.
+// (The Privacy Policy says so: ../core/legal.js.)
+inject({ beforeSend(e){ try { const u = new URL(e.url); return { ...e, url: u.origin + u.pathname }; } catch (_) { return e; } } });
 // Day or night, from the toggle in the bar.
 mountMode(document.querySelector('#rdMode'));
 
