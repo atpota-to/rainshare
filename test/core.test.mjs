@@ -622,10 +622,10 @@ test('the example keeps your settings, and a take with its day and more time', a
 });
 
 test('the send dialog says what it will do in words', () => {
-  const names = { brief: 'Copy the prompt', claude: 'Claude Code' };
+  const names = { brief: 'Any agent', claude: 'Claude Code' };
   assert.equal(sendSummary({ route: 'claude', claim: true, days: 3 }, names), 'Claude Code, and says you’re on it for 3 days');
   assert.equal(sendSummary({ route: 'claude', claim: true, days: 7 }, names), 'Claude Code, and says you’re on it for a week');
-  assert.equal(sendSummary({ route: 'mcp', claim: false, days: 3 }, names), 'Copy the prompt, without saying you’re on it');
+  assert.equal(sendSummary({ route: 'mcp', claim: false, days: 3 }, names), 'Any agent, without saying you’re on it');
   assert.deepEqual(dayChoices(3).map(d => d[0]), [1, 3, 7, 14]);
   assert.deepEqual(dayChoices(5).map(d => d[0]), [1, 3, 5, 7, 14]);
 });
@@ -639,7 +639,7 @@ test('the send dialog shows the way picked and the prompt, and folds the rest aw
   // An idea has no cloud: whatever isn't on offer isn't shown.
   assert.deepEqual(ids(splitWays(ways.filter(w => w.id !== 'cloud'), 'codex')), [['codex', 'brief'], ['claude', 'cli', 'mcp']]);
   // On screen it's "the prompt", not "the brief".
-  assert.equal(ROUTES.find(r => r[0] === 'brief')[1], 'Copy the prompt');
+  assert.equal(ROUTES.find(r => r[0] === 'brief')[1], 'The prompt, for any agent');
 });
 
 test('how well an ask suits you is switched off on the site, and still works when it\'s on', () => {

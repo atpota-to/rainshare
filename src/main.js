@@ -28,6 +28,7 @@ import { openSignIn } from './signin.js';
 import { showLanding, hideLanding } from './landing/landing.js';
 import { peekWords, peekPeople } from './landing/peek.js';
 import { face, avatarFallback } from '../ui/bits.js';
+import { still, glide, SPRING } from '../ui/motion.js';
 import { mountLogo } from './logo/live.js';
 import { mountMode } from './mode.js';
 // Vercel Web Analytics: page views, including the in-page navigations between screens.
@@ -62,7 +63,10 @@ const subOf = p => (isExample(p) ? p.slice(EXAMPLE.length) : p).replace(/^\/+/, 
 /* ---------- toasts ---------- */
 let toastTimer;
 function toast(msg){
-  const t = $('#toast'); t.textContent = msg; t.hidden = false; t.classList.remove('out');
+  const t = $('#toast'), showing = !t.hidden && !t.classList.contains('out');
+  t.textContent = msg; t.hidden = false; t.classList.remove('out');
+  // It springs up from the foot of the window (and sinks and fades on the way out, as it always has).
+  if (!showing && !still()) t.animate([{ opacity: 0, transform: 'translate(-50%,16px) scale(.95)' }, { opacity: 1, transform: 'translate(-50%,0)' }], { duration: 420, easing: SPRING });
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.classList.add('out'); toastTimer = setTimeout(() => { t.hidden = true; }, 300); }, 3200);
 }
 
@@ -217,13 +221,51 @@ function route(){
   // in the footer.)
   const top = sub.split('/')[0];
   const tab = kind === 'example' ? 'example' : landing ? null : top === 'new' ? 'new' : !top || top === 'board' || top === 'seed' ? 'circle' : null;
+  // (The tab's tint slides over from the one you were on.)
+  const was = document.querySelector('.rd-nav [aria-current="true"]');
   document.querySelectorAll('[data-tab]').forEach(a => a.setAttribute('aria-current', String(a.dataset.tab === tab)));
+  const now = document.querySelector('.rd-nav [aria-current="true"]');
+  if (was && now && was !== now) glide(now, was);
   app(kind).show(sub);
 }
+// Going to another page fades from one to the other, and what the two share travels between
+// them: an ask's title and plant, from its card or the panel beside the board to its own page,
+// and back. The screens mark those with data-rs-vt (../ui/rainshare.js). Where the browser can't
+// (or someone's asked for less motion), the page changes at once, as it always did. The
+// browser's own Back and Forward aren't faded: it puts the page back where it was scrolled to
+// as it lands, and a transition would get in the way of that.
 function navigate(path, o = {}){
-  if (location.pathname !== path) history[o.replace ? 'replaceState' : 'pushState'](null, '', path);
-  route();
-  scrollTo({ top: 0 });
+  const go = () => {
+    if (location.pathname !== path) history[o.replace ? 'replaceState' : 'pushState'](null, '', path);
+    route();
+    scrollTo({ top: 0 });
+  };
+  if (o.replace || !document.startViewTransition || still() || document.hidden) return go();
+  const from = travellers(), names = new Map([...from.keys()].map((k, i) => [k, 'rs-vt-' + i]));
+  let to = new Map();
+  name(from, names);
+  const t = document.startViewTransition(() => { name(from, null); go(); to = travellers(names); name(to, names); });
+  t.finished.finally(() => name(to, null));
+}
+// What's marked to travel and on screen now, one of each (the panel's first, where it's showing),
+// `only` the ones that were on the page before, if that's asked.
+function travellers(only = null){
+  const got = new Map(), vh = innerHeight;
+  for (const el of [...document.querySelectorAll('.rs-side [data-rs-vt]'), ...document.querySelectorAll('[data-rs-vt]')]) {
+    const k = el.dataset.rsVt;
+    if (got.has(k) || (only && !only.has(k))) continue;
+    const r = el.getBoundingClientRect();
+    if (!r.width || r.bottom < 0 || r.top > vh || getComputedStyle(el).visibility === 'hidden') continue;
+    got.set(k, el);
+    if (got.size >= 16) break;
+  }
+  return got;
+}
+function name(els, names){
+  for (const [k, el] of els) {
+    el.style.viewTransitionName = names ? names.get(k) : '';
+    el.classList.toggle('rd-vt-title', !!names && k.startsWith('title:'));
+  }
 }
 addEventListener('popstate', route);
 document.addEventListener('click', e => {
@@ -272,7 +314,19 @@ function showMenu(open){
   const who = meBox.querySelector('.rd-who'), menu = meBox.querySelector('.rd-menu');
   if (!who || !menu) return;
   who.setAttribute('aria-expanded', String(open));
-  menu.hidden = !open;
+  if (open) { menu.classList.remove('rd-closing'); menu.hidden = false; return; }
+  if (menu.hidden || menu.classList.contains('rd-closing')) return;
+  if (still()) { menu.hidden = true; return; }
+  // It shrinks back into your face, the way it came out of it.
+  let wait = 0;
+  const end = e => { if (e.target === menu) done(); };
+  const done = () => {
+    clearTimeout(wait); menu.removeEventListener('animationend', end);
+    if (menu.classList.contains('rd-closing')) { menu.classList.remove('rd-closing'); menu.hidden = true; }
+  };
+  menu.addEventListener('animationend', end);
+  wait = setTimeout(done, 300);
+  menu.classList.add('rd-closing');
 }
 document.addEventListener('click', e => {
   if (e.target.closest('.rd-who')) showMenu(!menuOpen);
