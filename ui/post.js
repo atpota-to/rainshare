@@ -240,6 +240,9 @@ export function createPoster(ui){
   }
   async function post(){
     for (let s = 1; s <= LAST; s++) { const e = problem(s); if (e) { P.err = e; P.step = s; ui.render(); return; } }
+    // Before a first ask: what to keep in mind, and agreeing to the terms (./agree.js). Closing
+    // that leaves the ask as it was written, unposted.
+    if (ui.agree && !src().demo && !await ui.agree()) return;
     P.busy = true; P.err = ''; ui.render();
     try {
       const g = P.vis === 'group' ? groupNow() : null;
@@ -513,6 +516,9 @@ export function createPoster(ui){
           ${body}
           <p class="rs-err" role="alert"${P.err ? '' : ' hidden'}>${esc(P.err)}</p>
           <div class="rs-post-nav">${P.step > 1 ? '<button class="rs-btn rs-quiet" type="button" data-rs-back>Back</button>' : ''}<button class="rs-btn rs-primary" type="submit"${P.busy ? ' disabled' : ''}>${next}</button></div>
+          ${
+            // What an ask may and mustn't be is in the terms (../core/legal.js): said where it's posted, and opened beside what's been written.
+            P.step === LAST && !src().demo && ui.href ? `<p class="rs-muted rs-post-terms">Asking for rain means you agree to Rainshare’s <a class="rs-link" href="${esc(ui.href('terms'))}" target="_blank" rel="noopener">Terms of Service</a> and <a class="rs-link" href="${esc(ui.href('privacy'))}" target="_blank" rel="noopener">Privacy Policy</a>. It’s public, and other people’s agents will read it.</p>` : ''}
         </form>
         <aside class="rs-post-side" aria-label="Preview">${side()}</aside>
       </div>

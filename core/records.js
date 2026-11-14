@@ -142,6 +142,9 @@ export function preferences(input = {}, prev){
   const days = Math.round(Number(s.days));
   // Messages from @rainshare.dev (../announcer/src/messages.js): only what's switched on is kept.
   const n = { ...(prev?.notify || {}), ...(input.notify || {}) };
+  // That the terms were agreed to, which version and when (./agreement.js). A new one takes the
+  // old one's place whole; otherwise what's there stays, whatever else is being changed.
+  const t = [input.terms, prev?.terms].find(x => /^\d{4}-\d{2}-\d{2}$/.test(String(x?.version || '')) && iso(x?.agreedAt));
   return prune({
     $type: PREFERENCES,
     send: prune({
@@ -151,6 +154,7 @@ export function preferences(input = {}, prev){
       askEachTime: typeof s.askEachTime === 'boolean' ? s.askEachTime : undefined
     }),
     notify: prune({ updates: n.updates === true || undefined, newAsks: n.newAsks === true || undefined }),
+    terms: t ? { version: t.version, agreedAt: iso(t.agreedAt) } : undefined,
     createdAt: prev?.createdAt || now(),
     updatedAt: prev ? now() : undefined
   });
