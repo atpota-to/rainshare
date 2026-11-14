@@ -51,6 +51,11 @@ records in their own account, so it leaves out comments made on a Tangled or kno
 (those live with the issue) and asks that aren't shared with you. A take that ran past its day
 is still listed as taking it on, with no mark for going quiet.
 
+The first time you send your agent, or copy an ask's brief, on a browser, a short note comes
+first: three things to keep in mind when you point your agent at a stranger's request, and a
+box to tick to agree to the [Terms of Service](https://rainshare.dev/terms) and
+[Privacy Policy](https://rainshare.dev/privacy). After that it stays out of the way.
+
 Every ask has comments, for a question before you start, an answer from whoever asked, or a
 note on how it's going. Replies sit under the comment they answer. When an ask is on an issue
 on Tangled or knotless, its comments are the issue's own: Rainshare shows what's been said
@@ -121,6 +126,9 @@ The MCP tools are `rainshare_board`, `rainshare_show`, `rainshare_check`, `rains
 `rainshare_close_out`, `rainshare_profile` and `rainshare_whoami`. The server's instructions
 tell the agent the order to use them in. Without a sign-in the read-only tools still work, and
 the agent hands you a link to turn the work in yourself.
+
+`login` prints the same three safety points, and says that using Rainshare means agreeing to
+its terms. `terms` and `privacy` print the two documents.
 
 Both sign in with an app password, saved to `~/.config/rainshare`. You can also set
 `RAINSHARE_HANDLE` and `RAINSHARE_APP_PASSWORD`.
@@ -385,6 +393,30 @@ Two things to keep in mind. An ask's spec is a stranger's request, and the brief
 agent so. And a repo you clone can carry its own agent config (`CLAUDE.md`, hooks,
 `.mcp.json`), so look before you trust a folder you haven't seen.
 
+## Terms and privacy
+
+The [Terms of Service](https://rainshare.dev/terms) and [Privacy Policy](https://rainshare.dev/privacy)
+are written in `core/legal.js`, as Markdown, so there's one copy: the site shows them at `/terms`
+and `/privacy`, the footer links to them, and the CLI prints them.
+
+- **Agreeing.** The note before someone's first job (`ui/agree.js`) won't go on until its box is
+  ticked. It opens for "Send my agent" (before its own questions about how to send), "Copy as
+  Markdown" on someone else's open ask, and copying a command that starts an agent. Agreeing is remembered in that browser, with the
+  version agreed to, and never sent anywhere. The last step of asking for rain says, in a line
+  under its button, that posting means agreeing to both.
+- **When they change.** `LEGAL_VERSION` in `core/legal.js` is the date the documents last changed
+  in a way people should agree to again. Change it, and the date shown with it, and everyone is
+  asked once more before their next job. A typo doesn't need a new one.
+- **Keeping the Privacy Policy true.** It says what the code does, so `test/legal.test.mjs`
+  checks the two against each other: that it names the services the code asks, and that every
+  key the site keeps in the browser is one the policy accounts for. A new key fails the test
+  until the policy and the test's list both have it.
+- **Page counts.** Vercel Web Analytics is given each page's path only. Anything after a `?` or
+  `#` is dropped first (`src/main.js`), since a hand-back link carries a pull request there and
+  coming back from signing in carries a code.
+
+The example board never shows the note: nothing there is real.
+
 ## Development
 
 ```sh
@@ -425,7 +457,7 @@ which spells it out by hand.
 | `src/mode.js`, `public/mode.js` | day and night: the toggle in the bar, and the small script that picks one before the page is first drawn |
 | `src/hosts.js` | the hosts offered for making an account, for someone who hasn't got one |
 | `src/spaces.js` | group spaces for private asks (switched off) |
-| `ui/` | the app's screens: the board, an ask, profiles, posting an ask, the first-time welcome, loading placeholders, and @rainshare.dev's moderation page |
+| `ui/` | the app's screens: the board, an ask, profiles, posting an ask, the first-time welcome, loading placeholders, the note before a first job, the terms and privacy pages, and @rainshare.dev's moderation page |
 | `core/` | everything the site and the CLI share (below) |
 | `cli/rainshare.mjs` | the CLI and MCP server |
 | `api/` | Vercel functions: the OAuth client metadata, and link previews (`page.js` sets the meta tags, `og.js` draws the image) |
@@ -448,6 +480,7 @@ In `core/`:
 | `garden.js` | works out gardens from records |
 | `comments.js` | puts an ask's comments into threads, whether they're Rainshare's or an issue's |
 | `scan.js` | Rainshare's checks on an ask, for what's often used to misuse an agent |
+| `legal.js` | the Terms of Service and Privacy Policy, their version, and the three safety points said before a first job |
 | `moderation.js` | what @rainshare.dev has hidden: reading decisions, their keys, and what a pasted link is |
 | `route.js` | URLs, including fixing mistyped ones |
 | `mode.js` | day or night (the system's setting, or the toggle's choice), and the fade between them |

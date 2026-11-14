@@ -513,6 +513,9 @@ export function createPoster(ui){
           ${body}
           <p class="rs-err" role="alert"${P.err ? '' : ' hidden'}>${esc(P.err)}</p>
           <div class="rs-post-nav">${P.step > 1 ? '<button class="rs-btn rs-quiet" type="button" data-rs-back>Back</button>' : ''}<button class="rs-btn rs-primary" type="submit"${P.busy ? ' disabled' : ''}>${next}</button></div>
+          ${
+            // What an ask may and mustn't be is in the terms (../core/legal.js): said where it's posted, and opened beside what's been written.
+            P.step === LAST && !src().demo && ui.href ? `<p class="rs-muted rs-post-terms">Asking for rain means you agree to Rainshare’s <a class="rs-link" href="${esc(ui.href('terms'))}" target="_blank" rel="noopener">Terms of Service</a> and <a class="rs-link" href="${esc(ui.href('privacy'))}" target="_blank" rel="noopener">Privacy Policy</a>. It’s public, and other people’s agents will read it.</p>` : ''}
         </form>
         <aside class="rs-post-side" aria-label="Preview">${side()}</aside>
       </div>

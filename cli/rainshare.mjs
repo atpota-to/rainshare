@@ -19,7 +19,7 @@ import { rank, wantPhrase } from '../core/rank.js';
 import { parseSubject, describeSubject, cloneUrlOf, FORGE_NAMES } from '../core/subjects.js';
 import { writableForge, pickSource, matchSource, pullText, FORGE_SAID } from '../core/forgewrite.js';
 import { audienceLine, CLOSENESS } from '../core/circle.js';
-import { SEED, STAGE, FEATURES, FAMILIES, LEVELS, FORECAST, TESTS, HARNESSES, TAKE_DAYS_DEFAULT, labelOf, audienceOf, modelName } from '../core/ns.js';
+import { SEED, SITE, STAGE, FEATURES, FAMILIES, LEVELS, FORECAST, TESTS, HARNESSES, TAKE_DAYS_DEFAULT, labelOf, audienceOf, modelName } from '../core/ns.js';
 import { strongRef } from '../core/records.js';
 import { stateText, planText, wantsShort } from '../core/words.js';
 import { threads } from '../core/comments.js';
@@ -28,6 +28,7 @@ import { wordOn } from '../core/vouch.js';
 import * as net from '../core/net.js';
 import { concerns, alarming } from '../core/scan.js';
 import { reasonName } from '../core/moderation.js';
+import { SAFETY, LEGAL, asMarkdown } from '../core/legal.js';
 import { readFile, writeFile, mkdir, appendFile, rm, chmod } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -567,6 +568,7 @@ Commands and records may still change.
   close | reopen <link>      done <link> [--delivery <uri>]
   profile [--json]           your Rainshare profile
 ${FEATURES.forecast ? '  forecast <dry|drizzle|showers|downpour> [--until date] [--models a,b] [--note n]\n' : ''}  doctor                     what's set up here, and so which of these will work
+  terms | privacy            Rainshare's Terms of Service and Privacy Policy (using Rainshare means agreeing to them)
   mcp                        run as an MCP server over stdio (claude mcp add rainshare -- ${SELF} mcp)
 
 <link> is its at:// URI, its rainshare.dev link, or <handle>/<rkey>.`;
@@ -584,9 +586,14 @@ async function main(){
       const password = process.env.RAINSHARE_APP_PASSWORD || await ask('An app password (Bluesky: Settings → Privacy and security → App passwords): ', { hidden: true });
       const s = await createSession(handle, password);
       await writeSession(s);
-      return out(`Signed in as @${s.handle}. Saved to ${SESSION_FILE}.`);
+      // What the site says before someone's first job (../ui/agree.js), said once here too.
+      return out([`Signed in as @${s.handle}. Saved to ${SESSION_FILE}.`, '',
+        'Before you send your agent to work on someone else’s ask:', ...SAFETY.map(([point, why]) => `  - ${point} ${why}`), '',
+        `Using Rainshare means you agree to its Terms of Service (${SITE}/terms) and Privacy Policy (${SITE}/privacy).`,
+        `To read them here: ${SELF} terms, ${SELF} privacy`].join('\n'));
     }
     case 'logout': await rm(SESSION_FILE, { force: true }); return out('Signed out.');
+    case 'terms': case 'privacy': return out(asMarkdown(LEGAL[cmd]));
     case 'whoami': { const s = await loadSession(); return out(s ? `@${s.handle} (${s.did}) on ${s.pds}` : 'Not signed in.'); }
     case 'board': {
       const r = await boardItems({ tab: opts.everyone ? 'everyone' : opts.yours ? 'yours' : 'foryou', tag: opts.tag, from: typeof opts.from === 'string' ? opts.from : 'anyone', limit: +opts.limit || 20 });

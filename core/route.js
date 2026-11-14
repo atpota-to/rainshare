@@ -9,7 +9,8 @@
 import { isHandle, isRkey } from './net.js';
 
 // ('admin' is @rainshare.dev's moderation page: to anyone else, it's as if nothing were there.)
-const PAGES = ['board', 'new', 'me', 'agents', 'admin'];
+// ('terms' and 'privacy' are the Terms of Service and the Privacy Policy: ./legal.js.)
+const PAGES = ['board', 'new', 'me', 'agents', 'admin', 'terms', 'privacy'];
 // Other words people reach for.
 const ALIAS = {
   ask: 'new', post: 'new', plant: 'new', create: 'new', add: 'new',
@@ -17,6 +18,7 @@ const ALIAS = {
   agent: 'agents', cli: 'agents', mcp: 'agents', terminal: 'agents', install: 'agents', setup: 'agents', docs: 'agents', help: 'agents', faq: 'agents',
   circle: 'board', feed: 'board', all: 'board', browse: 'board', explore: 'board',
   moderation: 'admin', moderate: 'admin', mod: 'admin',
+  tos: 'terms', legal: 'terms', 'terms-of-service': 'terms', 'terms-of-use': 'terms', 'privacy-policy': 'privacy',
   home: '', index: '', 'index.html': ''
 };
 const SEED_WORDS = ['seed', 'seeds', 's', 'idea', 'ideas', 'project', 'projects', 'plant', 'plants', 'ask', 'asks'];

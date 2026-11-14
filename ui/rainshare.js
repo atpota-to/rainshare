@@ -15,6 +15,7 @@
 //                      with what you've helped with beside it
 //   profile/<did>      someone's profile and their seeds (a handle works in place of the DID)
 //   agents             the CLI and MCP server, for sending agents from a terminal
+//   terms, privacy     the Terms of Service and the Privacy Policy (../core/legal.js)
 //   admin              @rainshare.dev's moderation page: what's hidden, what the checks flagged,
 //                      and hiding something. To anyone else it's as if nothing were there.
 //
@@ -44,6 +45,8 @@ import { REASONS, reasonName, isAccount, kindOf as subjectKind } from '../core/m
 import { esc, lit, unb64url, ago, until, shortDay, nameOf, firstName, ico, forgeIco, skyIco, lifeIco, face, drops, pathOf, plantPic, avatarFallback, tip, tipLink, toggleTip } from './bits.js';
 import { createPoster } from './post.js';
 import { openWelcome, shouldWelcome } from './welcome.js';
+import { hasAgreed, openAgree } from './agree.js';
+import { LEGAL } from '../core/legal.js';
 import { openSend, sendSummary, dayChoices } from './send.js';
 import { headSk, boardSk, seedSk, personSk, gardenSk, meSk, listSk, activitySk } from './skeleton.js';
 import { known, reroute } from '../core/route.js';
@@ -159,6 +162,11 @@ export function createRainshare({ root, base = '/', host }){
     return `<div class="rs-note rs-caution${alarming(list) ? ' rs-alarm' : ''}">${ico('shield')}<div><p><b>${esc(head)}</b> ${esc(lead)}</p>
       <ul>${list.map(c => `<li>${esc(c.said)}${c.quote ? ` <span class="rs-muted">Found: <code>${esc(c.quote)}</code></span>` : ''}</li>`).join('')}</ul></div></div>`;
   }
+
+  // Before someone's first job on someone else's ask (./agree.js): a short note on staying
+  // safe, and agreeing to the terms. Resolves true when they may go on: at once if they've
+  // agreed before on this browser, or in the example circle, where nothing is real.
+  const agreeFirst = () => S.source?.demo || hasAgreed() ? Promise.resolve(true) : openAgree({ href });
 
   /* ---------- moderation (../core/moderation.js), for @rainshare.dev ---------- */
   const moderating = () => !!S.source?.moderation;
@@ -795,8 +803,11 @@ export function createRainshare({ root, base = '/', host }){
   // Sending your agent asks first how, and whether to say you're on it (./send.js), unless
   // your settings say to skip the questions. What Rainshare's checks found that's very likely a
   // trick is said once more before any of that, since the agent is handed the ask either way.
+  // And before all of it, the first time on this browser: the short safety note, and agreeing
+  // to the terms (./agree.js).
   async function sendAgent(it, el, { panel = false, ask = false } = {}){
     if (!it) return;
+    if (!await agreeFirst()) return;
     const flags = concerns(it.value);
     if (alarming(flags) && !confirm(`Rainshare’s checks flagged this ask:\n\n${flags.map(f => '• ' + f.said).join('\n')}\n\nYour agent will be told too. Send it anyway?`)) return;
     const start = sendStart(it);
@@ -1665,6 +1676,18 @@ export function createRainshare({ root, base = '/', host }){
       </div>`;
   }
 
+  /* ---------- the Terms of Service and the Privacy Policy (../core/legal.js) ---------- */
+  function renderLegal(){
+    const doc = LEGAL[S.view], other = doc.key === 'terms' ? LEGAL.privacy : LEGAL.terms;
+    title(doc.title);
+    return `${back()}<article class="rs-panel rs-legal">
+      <header class="rs-legal-head"><h1>${esc(doc.title)}</h1><p class="rs-muted">Last changed ${esc(doc.updated)} · ${a(other.key, `Read the ${esc(other.title)}`, 'rs-link')}</p></header>
+      <p class="rs-legal-lead">${esc(doc.lead)}</p>
+      <section class="rs-legal-short" aria-labelledby="rsLegalShort"><h2 id="rsLegalShort">In short</h2><ul>${doc.short.map(x => `<li>${esc(x)}</li>`).join('')}</ul><p class="rs-muted">The full text below is what counts.</p></section>
+      ${doc.sections.map(([h, md], i) => `<section><h2>${i + 1}. ${esc(h)}</h2><div class="rs-spec">${renderMarkdown(md.trim())}</div></section>`).join('')}
+    </article>`;
+  }
+
   /* ---------- moderation: @rainshare.dev's page ---------- */
   // What's been hidden, read from the account's own repo, and what each decision is about, read
   // from where that lives (and filled in as it answers).
@@ -1785,7 +1808,7 @@ export function createRainshare({ root, base = '/', host }){
 
   /* ---------- asking for rain on a seed or a plant (./post.js draws the steps) ---------- */
   const poster = createPoster({
-    root, a, go, board: BOARD_AT, toast, title, plainText, self, viewer, live: () => livePlants(),
+    root, a, go, href, board: BOARD_AT, toast, title, plainText, self, viewer, live: () => livePlants(),
     forges: () => host.forges?.() || [], connectForge: host.connectForge ? forge => host.connectForge(forge, S.sub) : null,
     source: () => S.source,
     render: () => render(),
@@ -1838,7 +1861,7 @@ export function createRainshare({ root, base = '/', host }){
   function render(){
     // (Until a screen has been entered with someone to show it to, the address says what to hold its place with.)
     if (!S.source || !S.view) { paint(`<div class="rs">${ahead(S.sub)}</div>`, viewOf(S.sub)); return; }
-    const body = { board: renderBoard, seed: renderSeed, new: renderNew, me: renderMe, person: renderPerson, agents: renderAgents, admin: renderAdmin, lost: renderLost }[S.view]?.() || renderBoard();
+    const body = { board: renderBoard, seed: renderSeed, new: renderNew, me: renderMe, person: renderPerson, agents: renderAgents, admin: renderAdmin, terms: renderLegal, privacy: renderLegal, lost: renderLost }[S.view]?.() || renderBoard();
     // Redrawing keeps whichever field had focus, and where its cursor was.
     const focus = document.activeElement && root.contains(document.activeElement) ? document.activeElement : null;
     const keep = focus?.name ? { name: focus.name, pos: focus.selectionStart } : null;
@@ -2056,13 +2079,22 @@ export function createRainshare({ root, base = '/', host }){
     // Another way to send it: only its part of the page is redrawn.
     const pl = t.closest('[data-rs-launch]');
     if (pl) { const l = ways(S.seed)[+pl.dataset.rsLaunch], box = root.querySelector('#rsLaunch'); if (l && box) { S.launch = l.id; box.outerHTML = renderLaunch(S.seed); root.querySelector(`#rsLaunch [data-rs-launch="${pl.dataset.rsLaunch}"]`)?.focus(); } return; }
-    const cp = t.closest('[data-rs-copy]'); if (cp) { const l = ways(S.seed)[+cp.dataset.rsCopy]; if (l) { S.launch = l.id; copy(l.command, l.copied); } return; }
+    const cp = t.closest('[data-rs-copy]');
+    if (cp) {
+      const l = ways(S.seed)[+cp.dataset.rsCopy];
+      // (Someone on it since before the note existed reads it here, the first time they copy a command.)
+      if (l) agreeFirst().then(ok => { if (ok) { S.launch = l.id; copy(l.command, l.copied); } });
+      return;
+    }
     const md = t.closest('[data-rs-md]');
     if (md) {
       const it = S.seed?.uri === md.dataset.rsMd ? S.seed : S.shown.find(i => i.uri === md.dataset.rsMd) || S.board?.items.find(i => i.uri === md.dataset.rsMd);
       // Copying is free; starting on it is worth saying, so two people don't do the same work.
       const free = it && signedIn() && isOpen(it) && it.repo !== viewer() && !myTake(it);
-      if (it) copy(briefFor(it), free ? 'Copied. Paste it into your agent. If you start on it, press “Send my agent” so nobody doubles up.' : 'Copied as Markdown. Paste it into your agent.');
+      if (!it) return;
+      const send = () => copy(briefFor(it), free ? 'Copied. Paste it into your agent. If you start on it, press “Send my agent” so nobody doubles up.' : 'Copied as Markdown. Paste it into your agent.');
+      // Someone else's open ask, on its way to an agent: the first time, the safety note comes first.
+      if (it.repo !== viewer() && isOpen(it)) agreeFirst().then(ok => { if (ok) send(); }); else send();
       return;
     }
     const ct = t.closest('[data-rs-copy-text]'); if (ct) { copy(ct.dataset.rsCopyText, ct.dataset.rsCopied || (ct.dataset.rsCopyText.startsWith('git ') ? 'Copied the clone command' : 'Copied the link')); return; }
@@ -2150,6 +2182,7 @@ export function createRainshare({ root, base = '/', host }){
     }
     else if (sub === 'agents') { S.view = 'agents'; render(); }
     else if (sub === 'admin') { S.view = 'admin'; render(); loadAdmin(); }
+    else if (sub === 'terms' || sub === 'privacy') { S.view = sub; render(); }
     else if (/^profile\//.test(sub)) { S.view = 'person'; render(); loadCircle(); loadPerson(sub); }
     else if (/^seed\//.test(sub)) {
       S.view = 'seed'; render(); loadCircle(); await loadSeed(sub);
