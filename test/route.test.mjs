@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { known, reroute, closeTo, editDistance } from '../core/route.js';
 
 test('the addresses the app has', () => {
-  for (const sub of ['', 'board', 'new', 'me', 'agents', 'profile/did:plc:abc', 'profile/someone.example', 'seed/someone.example/3k1', 'seed/did:plc:abc/3k1', 'seed/s/YXQ6Ly9z']) assert.ok(known(sub), sub);
+  for (const sub of ['', 'board', 'new', 'me', 'agents', 'feedback', 'profile/did:plc:abc', 'profile/someone.example', 'seed/someone.example/3k1', 'seed/did:plc:abc/3k1', 'seed/s/YXQ6Ly9z']) assert.ok(known(sub), sub);
   for (const sub of ['nope', 'seed', 'seed/someone.example', 'profile/a/b', 'u', 'u/did:plc:abc', 'u/a/b', 'seed/a/b/c', 'New', 'Board', 'board/x', 'agents/x', 'seed/s/not valid!']) assert.ok(!known(sub), sub);
 });
 
@@ -42,6 +42,8 @@ test('a link that was cut short, or picked something up on the way, still arrive
     // the board has an address of its own, and the other words for it lead there
     'Board': 'board', 'board/': 'board', 'board.': 'board', 'feed': 'board', 'circle': 'board', 'boards': 'board',
     // a slip of the keys
+    // feedback about Rainshare itself, by the words people reach for
+    'bugs': 'feedback', 'roadmap': 'feedback', 'Feedback': 'feedback', 'feedbak': 'feedback',
     'agnets': 'agents', 'agent': 'agents', 'agentss': 'agents', 'nwe': 'new', 'baord': 'board', 'bord': 'board', 'sede/someone.example/3k1': 'seed/someone.example/3k1'
   };
   for (const [typed, meant] of Object.entries(cases)) assert.equal(reroute(typed), meant, typed);
@@ -52,7 +54,7 @@ test('where there’s no telling, it says so instead of guessing', () => {
   // what comes back is only ever a word from the lists or a DID, a handle or a record key: nothing typed is passed along
   for (const typed of ['<script>alert(1)</script>', 'javascript:alert(1)', '//evil.example/x', 'seed/"><img src=x>/3k1', '%00', '%E0%A4%A']) {
     const to = reroute(typed);
-    assert.ok(to === null || /^(profile\/[a-z0-9.:%_-]+|seed\/[a-z0-9.:%_-]+\/[A-Za-z0-9._:~-]+|board|new|me|agents|)$/.test(to), `${typed} -> ${to}`);
+    assert.ok(to === null || /^(profile\/[a-z0-9.:%_-]+|seed\/[a-z0-9.:%_-]+\/[A-Za-z0-9._:~-]+|board|new|me|agents|feedback|)$/.test(to), `${typed} -> ${to}`);
   }
 });
 

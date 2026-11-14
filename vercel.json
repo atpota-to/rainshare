@@ -43,6 +43,10 @@
       "destination": "/api/page?kind=agents"
     },
     {
+      "source": "/feedback",
+      "destination": "/api/page?kind=feedback"
+    },
+    {
       "source": "/example",
       "destination": "/api/page?kind=example"
     },

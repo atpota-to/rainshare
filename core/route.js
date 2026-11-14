@@ -4,12 +4,12 @@
 //
 // A sub-path is the part after the app's base: '' (home: the board, or on rainshare.dev the
 // landing for someone signed out), 'board' (the board on its own), 'new', 'me', 'agents',
-// 'profile/<who>', 'seed/<who>/<rkey>', 'seed/s/<code>' (see ../ui/rainshare.js). A profile's
+// 'feedback', 'profile/<who>', 'seed/<who>/<rkey>', 'seed/s/<code>' (see ../ui/rainshare.js). A profile's
 // address is by DID; a handle works in its place, and the old 'u/<who>' leads there too.
 import { isHandle, isRkey } from './net.js';
 
 // ('admin' is @rainshare.dev's moderation page: to anyone else, it's as if nothing were there.)
-const PAGES = ['board', 'new', 'me', 'agents', 'admin'];
+const PAGES = ['board', 'new', 'me', 'agents', 'feedback', 'admin'];
 // Other words people reach for.
 const ALIAS = {
   ask: 'new', post: 'new', plant: 'new', create: 'new', add: 'new',
@@ -17,6 +17,7 @@ const ALIAS = {
   agent: 'agents', cli: 'agents', mcp: 'agents', terminal: 'agents', install: 'agents', setup: 'agents', docs: 'agents', help: 'agents', faq: 'agents',
   circle: 'board', feed: 'board', all: 'board', browse: 'board', explore: 'board',
   moderation: 'admin', moderate: 'admin', mod: 'admin',
+  bug: 'feedback', bugs: 'feedback', report: 'feedback', roadmap: 'feedback', suggestions: 'feedback', requests: 'feedback', support: 'feedback', contact: 'feedback',
   home: '', index: '', 'index.html': ''
 };
 const SEED_WORDS = ['seed', 'seeds', 's', 'idea', 'ideas', 'project', 'projects', 'plant', 'plants', 'ask', 'asks'];

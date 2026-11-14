@@ -15,6 +15,7 @@
 //                      with what you've helped with beside it
 //   profile/<did>      someone's profile and their seeds (a handle works in place of the DID)
 //   agents             the CLI and MCP server, for sending agents from a terminal
+//   feedback           bugs, requests and ideas about Rainshare itself: its board on userinput.app
 //   admin              @rainshare.dev's moderation page: what's hidden, what the checks flagged,
 //                      and hiding something. To anyone else it's as if nothing were there.
 //
@@ -40,6 +41,7 @@ import { activeTakes, lapsed, dueOf } from '../core/takes.js';
 import { resolveHandle, knownPerson, parseUri, profiles, pool } from '../core/net.js';
 import { concerns, alarming } from '../core/scan.js';
 import { REASONS, reasonName, isAccount, kindOf as subjectKind } from '../core/moderation.js';
+import { readBoard, groupOf, stateWord, GROUPS as FEEDBACK_GROUPS } from '../core/feedback.js';
 import { esc, lit, unb64url, ago, until, nameOf, firstName, ico, forgeIco, skyIco, lifeIco, face, drops, pathOf, plantPic, avatarFallback, tip, tipLink, toggleTip } from './bits.js';
 import { createPoster } from './post.js';
 import { openWelcome, shouldWelcome } from './welcome.js';
@@ -66,6 +68,7 @@ export function createRainshare({ root, base = '/', host }){
     admin: null,         // the moderation page, for @rainshare.dev: { list, about, error, loading }
     found: null,         // what was looked up there to hide: { subject, about, error }
     modding: null,       // what a hide form is open for: { subject, reason, note }
+    feedback: null,      // Rainshare's feedback board (../core/feedback.js): { board, at, loading, error }
     open: {}   // which optional parts are showing (the turn-in's details, the comment form…), so a redraw leaves them be
   };
   const signedIn = () => !!S.source?.signedIn;
@@ -1490,6 +1493,76 @@ export function createRainshare({ root, base = '/', host }){
       </div>`;
   }
 
+  /* ---------- feedback: Rainshare's own board, on userinput.app ---------- */
+  // Bugs, requests and ideas about Rainshare itself (../core/feedback.js). People post and vote
+  // on userinput.app, so this page reads the board and links there: signing in here isn't
+  // needed for it, and asks for nothing more. The board is read again after a minute away.
+  async function loadFeedback(again){
+    const f = S.feedback;
+    if (f?.loading || (!again && f && !f.error && Date.now() - f.at < 60e3)) return;
+    S.feedback = { ...(f || {}), loading: true, error: null };
+    if (S.view === 'feedback') render();
+    try {
+      const board = await readBoard();
+      S.feedback = { board, at: Date.now(), loading: false, error: null };
+      if (S.view === 'feedback') render();
+      // Who posted each, once their names come in.
+      if (board?.items.length) { await profiles(board.items.map(i => i.repo)).catch(() => null); if (S.view === 'feedback') render(); }
+    } catch (e) {
+      console.warn('rainshare feedback', e);
+      S.feedback = { ...S.feedback, loading: false, error: e };
+      if (S.view === 'feedback') render();
+    }
+  }
+  const UP = '<svg class="rs-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 14.5l6-6 6 6"/></svg>';
+  function feedbackItem(it, { tagNames, states }){
+    const p = knownPerson(it.repo) || { did: it.repo }, live = it.live, ex = askExcerpt(live.body, 180);
+    // A group with more than one state in it (new and under review; declined, duplicate, closed) says which.
+    const state = states > 1 && it.status ? `<span class="rs-state">${esc(stateWord(it.status.state))}</span>` : '';
+    const tags = live.tags.map(t => `<span class="rs-fb-tag">${esc(tagNames.get(t) || t)}</span>`).join('');
+    const replies = it.replies ? `<span>${it.replies === 1 ? '1 reply' : `${it.replies} replies`}</span>` : '';
+    const note = it.status?.note ? `<span class="rs-fb-note">${ico('drop')}<span>${esc(askExcerpt(it.status.note, 240))}</span></span>` : '';
+    return `<li><a class="rs-item rs-fb-item" href="${esc(it.link)}" target="_blank" rel="noopener" title="Open it on userinput.app">
+      <span class="rs-item-top">${face(p, 'xs')}<span class="rs-item-who"><b>${esc(nameOf(p))}</b></span><time>${esc(ago(it.createdAt))}</time>${ico('out', 'rs-fb-out')}</span>
+      <span class="rs-item-main">
+        <span class="rs-item-title">${esc(live.title)}</span>
+        ${ex ? `<span class="rs-item-ask">${esc(ex)}</span>` : ''}
+        ${note}
+        ${state || tags || replies ? `<span class="rs-item-line">${state}${tags}${replies}</span>` : ''}
+      </span>
+      <span class="rs-fb-votes"><span class="rs-sr">${it.votes === 1 ? '1 vote' : `${it.votes} votes`}</span><span aria-hidden="true">${UP}${it.votes}</span></span>
+    </a></li>`;
+  }
+  function renderFeedback(){
+    title('Feedback');
+    const f = S.feedback || {}, board = f.board;
+    const post = board ? `<a class="rs-btn rs-primary" href="${esc(board.space.link)}" target="_blank" rel="noopener">${ico('plus')}Post feedback</a>` : '';
+    const how = tip('@rainshare.dev marks each post as it moves along: planned, in progress, done or closed. Posts marked planned can be handed to a Claude Code routine that drafts the change as a pull request on GitHub, and a person reads every one before it’s merged.', 'What happens to a post');
+    // (Until there's a board, the box under this says what to do instead.)
+    const open = board || !S.feedback || f.loading;
+    const head = `<header class="rs-agents-head">
+        <h1>Feedback</h1>
+        <p>Found a bug, or want Rainshare to do something it doesn’t yet?${open ? ' Post it on Rainshare’s board on userinput.app, and vote for what you’d like next. You sign in there with the same handle, and what you post is a record in your own account, like an ask here.' : ''}</p>
+        ${board ? `<div class="rs-row">${post}${how}</div>` : ''}
+      </header>`;
+    let body;
+    if (!board && (f.loading || !S.feedback)) body = listSk(4, 'feedback');
+    else if (!board && f.error) body = `<div class="rs-empty rs-need"><p>The board couldn’t be read just now.</p><div class="rs-row"><button class="rs-btn rs-quiet" type="button" data-rs-act="feedback-again">${ico('refresh')}Try again</button></div></div>`;
+    else if (!board) body = `<div class="rs-empty rs-need"><p>Rainshare’s feedback board isn’t open yet. Until it is, open an issue where its code lives.</p><div class="rs-row"><a class="rs-btn rs-quiet" href="https://github.com/atpota-to/rainshare/issues" target="_blank" rel="noopener">${forgeIco('github')}GitHub</a><a class="rs-btn rs-quiet" href="https://tangled.org/atpota.to/rainshare/issues" target="_blank" rel="noopener">${forgeIco('tangled')}Tangled</a></div></div>`;
+    else if (!board.items.length) body = `<div class="rs-empty"><p>Nothing’s been posted yet.</p></div>`;
+    else {
+      const tagNames = new Map(board.space.tags.map(t => [t.value, t.label]));
+      // Done and closed are folded away, so what's still to come is what's in front of you.
+      body = `<div class="rs-fb-groups">${FEEDBACK_GROUPS.map(([key, heading, states]) => {
+        const items = board.items.filter(it => groupOf(it) === key);
+        if (!items.length) return '';
+        const h = `<h2>${esc(heading)} <span>${items.length}</span></h2>`, list = `<ul class="rs-list">${items.map(it => feedbackItem(it, { tagNames, states: states.length })).join('')}</ul>`;
+        return key === 'done' || key === 'closed' ? `<details class="rs-fb-group"${S.open['fb-' + key] ? ' open' : ''} data-rs-fold="fb-${key}"><summary>${h}</summary>${list}</details>` : `<section class="rs-fb-group">${h}${list}</section>`;
+      }).join('')}</div>`;
+    }
+    return `${host.brand === 'rainshare' ? '' : back()}<div class="rs-agents rs-fb">${head}${body}</div>`;
+  }
+
   /* ---------- moderation: @rainshare.dev's page ---------- */
   // What's been hidden, read from the account's own repo, and what each decision is about, read
   // from where that lives (and filled in as it answers).
@@ -1658,12 +1731,12 @@ export function createRainshare({ root, base = '/', host }){
   }
   // Before it's known who's looking, the address already says which screen is coming.
   const viewOf = sub => isBoard(sub) ? 'board' : /^seed\//.test(sub) ? 'seed' : /^profile\//.test(sub) ? 'person' : sub;
-  const ahead = sub => ({ board: () => headSk() + boardSk(), seed: () => newHere() + back() + seedSk(), person: () => newHere() + back() + personSk() })[viewOf(sub)]?.() || '';
+  const ahead = sub => ({ board: () => headSk() + boardSk(), seed: () => newHere() + back() + seedSk(), person: () => newHere() + back() + personSk(), feedback: () => headSk() + listSk(4, 'feedback') })[viewOf(sub)]?.() || '';
   const renderLost = () => { title('Nothing here'); return nothingHere('There’s nothing at this address. The link may have been cut short, or what it led to has been deleted.'); };
   function render(){
     // (Until a screen has been entered with someone to show it to, the address says what to hold its place with.)
     if (!S.source || !S.view) { paint(`<div class="rs">${ahead(S.sub)}</div>`, viewOf(S.sub)); return; }
-    const body = { board: renderBoard, seed: renderSeed, new: renderNew, me: renderMe, person: renderPerson, agents: renderAgents, admin: renderAdmin, lost: renderLost }[S.view]?.() || renderBoard();
+    const body = { board: renderBoard, seed: renderSeed, new: renderNew, me: renderMe, person: renderPerson, agents: renderAgents, feedback: renderFeedback, admin: renderAdmin, lost: renderLost }[S.view]?.() || renderBoard();
     // Redrawing keeps whichever field had focus, and where its cursor was.
     const focus = document.activeElement && root.contains(document.activeElement) ? document.activeElement : null;
     const keep = focus?.name ? { name: focus.name, pos: focus.selectionStart } : null;
@@ -1704,6 +1777,7 @@ export function createRainshare({ root, base = '/', host }){
       if (name === 'signin') { host.signIn?.(S.sub); return; }
       if (name === 'filters') { S.open.filters = !S.open.filters; render(); root.querySelector('[data-rs-act="filters"]')?.focus(); return; }
       if (name === 'exit-demo') return host.onExitDemo?.();
+      if (name === 'feedback-again') return loadFeedback(true);
       if (name === 'stage-seen') { stageDismissed = true; try { localStorage.setItem(STAGE_SEEN, '1'); } catch (_) {} root.querySelector('.rs-stage-note')?.remove(); return; }
       if (name === 'take') return sendAgent(it, el);
       // "Change", beside "Send my agent" when its questions are skipped: they're asked this once.
@@ -1917,6 +1991,8 @@ export function createRainshare({ root, base = '/', host }){
     else if (f.dataset.rsForm === 'hide-find') submitFind(f);
   });
   root.addEventListener('input', e => { if (e.target.closest('[data-rs-form="post"]')) poster.typed(e.target); });
+  // A folded section (the feedback page's done and closed posts) stays as it was left when the page is drawn again.
+  root.addEventListener('toggle', e => { const d = e.target; if (d?.dataset?.rsFold) S.open[d.dataset.rsFold] = d.open; }, true);
   root.addEventListener('change', e => {
     if (e.target.closest('[data-rs-form="post"]')) poster.changed(e.target);
     // Choosing where a branch was pushed changes which branches there are to choose from.
@@ -1948,6 +2024,7 @@ export function createRainshare({ root, base = '/', host }){
       if (signedIn() && S.form && S.form.groups === null) { const g = await S.source.groups().catch(() => []); if (S.form) { S.form.groups = g; rerender(); } }
     }
     else if (sub === 'agents') { S.view = 'agents'; render(); }
+    else if (sub === 'feedback') { S.view = 'feedback'; render(); loadFeedback(); }
     else if (sub === 'admin') { S.view = 'admin'; render(); loadAdmin(); }
     else if (/^profile\//.test(sub)) { S.view = 'person'; render(); loadCircle(); loadPerson(sub); }
     else if (/^seed\//.test(sub)) {
