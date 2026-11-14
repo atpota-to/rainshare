@@ -683,8 +683,10 @@ span.rs-helper-pull{color:var(--rs-muted)}
 .rs-mod-panel h2 .rs-i{color:var(--rs-muted)}
 .rs-form.rs-hideform{padding:16px;gap:12px;max-width:none;background:var(--rs-sunk);box-shadow:none;outline:0;-webkit-backdrop-filter:none;backdrop-filter:none;border-radius:var(--rs-radius-sm)}
 .rs-hideform>p{font-size:14px}
-.rs-form fieldset.rs-reasons{padding:0;background:none;display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
-.rs-form .rs-reasons legend{font:700 14px var(--rs-font);margin-bottom:0;letter-spacing:0;grid-column:1/-1}
+/* (A plain block like every form's fieldset, so Safari floats its legend: the grid is inside.) */
+.rs-form fieldset.rs-reasons{padding:0;background:none}
+.rs-form .rs-reasons legend{font:700 14px var(--rs-font);letter-spacing:0}
+.rs-reason-list{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
 .rs-form label.rs-reason{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:var(--rs-field);box-shadow:inset 0 0 0 1.5px var(--rs-line);cursor:pointer;font-weight:500;min-width:0}
 .rs-form label.rs-reason:has(input:checked){box-shadow:inset 0 0 0 2px var(--rs-ink)}
 .rs-form label.rs-reason>input[type=radio]{display:inline-block;flex:none;width:16px;height:16px;min-height:0;margin:3px 0 0;padding:0;box-shadow:none;background:none;accent-color:var(--rs-ink)}

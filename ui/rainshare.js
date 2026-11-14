@@ -166,7 +166,7 @@ export function createRainshare({ root, base = '/', host }){
     const pick = m.reason || (subjectKind(subject) === 'comment' ? 'abuse' : 'unsafe');
     return `<form class="rs-form rs-hideform" data-rs-form="hide"><input type="hidden" name="subject" value="${esc(subject)}">
       <p><b>Hide ${esc(what)}</b> for everyone: from the board, its page and comments, the CLI and MCP server, and link previews.${isAccount(subject) ? ' Everything this account writes on Rainshare goes, now and later.' : ''}</p>
-      <fieldset class="rs-reasons"><legend>Why</legend>${REASONS.map(([v, l, d]) => `<label class="rs-reason"><input type="radio" name="reason" value="${v}"${pick === v ? ' checked' : ''}><span><b>${esc(l)}</b><small>${esc(d)}</small></span></label>`).join('')}</fieldset>
+      <fieldset class="rs-reasons"><legend>Why</legend><div class="rs-reason-list">${REASONS.map(([v, l, d]) => `<label class="rs-reason"><input type="radio" name="reason" value="${v}"${pick === v ? ' checked' : ''}><span><b>${esc(l)}</b><small>${esc(d)}</small></span></label>`).join('')}</div></fieldset>
       <label>A note <small>(optional, and public, like the rest of the record)</small><input name="note" maxlength="300" value="${esc(m.note || '')}" autocomplete="off"></label>
       <div class="rs-row"><button class="rs-btn rs-primary rs-hide-btn" type="submit">${ico('shield')}Hide it</button><button class="rs-link" type="button" data-rs-act="mod-cancel">Cancel</button></div>
     </form>`;
