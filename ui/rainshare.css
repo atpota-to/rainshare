@@ -123,6 +123,22 @@
 .rs-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px 3px 7px;border-radius:999px;background:var(--rs-ok-soft);line-height:1.2}
 .rs-chip .rs-i{width:15px;height:15px}
 .rs-item-taken .rs-faces{padding-left:0}
+/* the top of the list once someone's on everything: a card in dashed outline that opens a Bluesky
+   post saying you've got usage to spare, then a dashed rule over what's already being helped with */
+.rs-spare-li,.rs-spare-alone{display:flex;flex-direction:column;gap:10px}
+.rs-spare-alone{margin-top:16px}
+.rs-spare-rule{display:flex;align-items:center;gap:10px;margin:4px 0 2px;font-size:13px;font-weight:500;color:var(--rs-muted)}
+.rs-spare-rule::before,.rs-spare-rule::after{content:"";flex:1;border-top:2px dashed var(--rs-line)}
+.rs-spare-rule span{flex:none;max-width:70%;text-align:center}
+.rs-item.rs-spare{background:transparent;box-shadow:none;border:2px dashed color-mix(in srgb,var(--rs-accent) 45%,transparent);padding:12px 14px}
+.rs-item.rs-spare:hover,.rs-item.rs-spare:focus-visible{background:var(--rs-accent-soft);border-style:solid}
+.rs-item.rs-spare .rs-item-ask{-webkit-line-clamp:3;line-clamp:3}
+.rs-spare-go{display:inline-flex;align-items:center;gap:6px;color:var(--rs-accent-text);font-weight:650;font-size:14px}
+.rs-spare-go .rs-i{width:16px;height:16px}
+.rs-spare-go .rs-bsky-i{fill:currentColor;stroke:none;width:16px;height:14px;vertical-align:-2px}
+.rs-spare-pic{grid-column:2;grid-row:1;display:grid;place-items:center;width:52px;height:52px;border-radius:50%;background:var(--rs-accent-soft);color:var(--rs-accent-text)}
+.rs-item>span.rs-spare-pic{grid-column:2}
+.rs-spare-pic .rs-i{width:26px;height:26px}
 .rs-item-taken .rs-face.sm{width:20px;height:20px;font-size:9px;box-shadow:0 0 0 2px var(--rs-bg-card)}
 /* the glyphs the app shares with the landing's scene: a forecast's sky, and where a seed is in its life */
 .rs-sky,.rs-life{width:20px;height:20px}

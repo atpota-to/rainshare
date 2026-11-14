@@ -21,7 +21,7 @@
 // A host with a landing of its own at its base address, for people signed out (rainshare.dev,
 // host.landing), shows the board under it there. The board's own address is then 'board', and
 // every way back to the board leads there, to the board on its own.
-import { SEED, PROFILE, STAGE, HANDLE, FEATURES, PLANS, UNPAID, plansIn, HARNESSES, MODELS, RUNS_ON, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, labelOf, modelName } from '../core/ns.js';
+import { SEED, PROFILE, STAGE, HANDLE, SITE, FEATURES, PLANS, UNPAID, plansIn, HARNESSES, MODELS, RUNS_ON, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, labelOf, modelName } from '../core/ns.js';
 import { describeSubject, cloneUrlOf, safeHttp, pullState, FORGE_NAMES } from '../core/subjects.js';
 import { look, carry, standing } from '../core/status.js';
 import { newRepoPlaces, placesFor } from '../core/forges.js';
@@ -342,6 +342,30 @@ export function createRainshare({ root, base = '/', host }){
     return `<button type="button" data-rs-show="${k}" aria-pressed="${S.show === k}"${SHOW_HINT[k] ? ` title="${esc(SHOW_HINT[k])}"` : ''}${n === 0 && S.show !== k ? ' class="rs-from-none"' : ''}>${esc(l)}<span class="rs-from-n">${n}</span></button>`;
   }).join('')}</div>`;
   const showEmpty = () => `<p class="rs-empty">${esc({ free: 'Someone’s on each of these already.', 'on-it': 'Nobody’s in the middle of any of these right now.', 'turned-in': 'Nothing’s been turned in for any of these yet.' }[S.show] || '')} <button class="rs-link" type="button" data-rs-show="all">Show everything open</button></p>`;
+  // Once nothing someone else asked for is free (each has someone on it or something turned in,
+  // or there's nothing at all), the top of the list offers to tell people on Bluesky that you've
+  // got usage to spare, naming the paid plans your profile says you have (signed out, or with
+  // none, just "AI"). Under it, a dashed rule, and under that what's already being helped with.
+  const allTaken = all => !!S.board && !S.error && !all.some(it => it.repo !== viewer() && standsAs(it) === 'free');
+  // (Bluesky's butterfly, filled, as the footer on rainshare.dev draws it.)
+  const BSKY = '<svg class="rs-i rs-bsky-i" viewBox="0 0 600 530" aria-hidden="true"><path d="m135.72 44.03c66.496 49.921 138.02 151.14 164.28 205.46 26.262-54.316 97.782-155.54 164.28-205.46 47.98-36.021 125.72-63.892 125.72 24.795 0 17.712-10.155 148.79-16.111 170.07-20.703 73.984-96.144 92.854-163.25 81.433 117.3 19.964 147.14 86.092 82.697 152.22-122.39 125.59-175.91-31.511-189.63-71.766-2.514-7.3797-3.6904-10.832-3.7077-7.8964-0.0174-2.9357-1.1937 0.51669-3.7077 7.8964-13.714 40.255-67.233 197.36-189.63 71.766-64.444-66.128-34.605-132.26 82.697-152.22-67.108 11.421-142.55-7.4491-163.25-81.433-5.9562-21.282-16.111-152.36-16.111-170.07 0-88.687 77.742-60.816 125.72-24.795z"/></svg>';
+  function spareUrl(){
+    const paid = plansIn(S.mine?.merged).filter(p => !UNPAID.includes(p)).map(p => labelOf(PLANS, p));
+    const which = !paid.length ? 'AI' : paid.length === 1 ? paid[0] : `${paid.slice(0, -1).join(', ')} and ${paid.at(-1)}`;
+    return `https://bsky.app/intent/compose?text=${encodeURIComponent(`I’ve got ${which} usage to spare. Post an idea or a project you’d like help with on @${HANDLE} and I’ll send my agent. ${SITE}`)}`;
+  }
+  const spareCard = inList => {
+    const body = `<a class="rs-item rs-spare" href="${esc(spareUrl())}" target="_blank" rel="noopener">
+        <span class="rs-item-main">
+          <span class="rs-item-title">Got rain to spare?</span>
+          <span class="rs-item-ask">Let people know on Bluesky, and they can post something here for your agent.</span>
+          <span class="rs-item-line"><span class="rs-spare-go">${BSKY}Post on Bluesky${ico('out')}</span></span>
+        </span>
+        <span class="rs-spare-pic" aria-hidden="true">${ico('drop')}</span>
+      </a>`;
+    const rule = '<div class="rs-spare-rule" role="separator"><span>Someone’s already on each of these</span></div>';
+    return inList ? `<li class="rs-spare-li">${body}${rule}</li>` : `<div class="rs-spare-alone">${body}</div>`;
+  };
   // Over the list: how it's sorted, and a button that folds out what narrows it (who asked,
   // and whether anyone's on it). Whatever is narrowing it shows beside the button while it's
   // folded away, each a press from undone.
@@ -545,7 +569,7 @@ export function createRainshare({ root, base = '/', host }){
     const all = S.board ? boardItems() : [], byFrom = narrowFrom(all), items = narrowShow(byFrom);
     S.shown = items;
     if (items.length && !items.some(i => i.uri === S.pick)) { S.pick = items[0].uri; S.sheet = false; }
-    const sel = items.find(i => i.uri === S.pick);
+    const sel = items.find(i => i.uri === S.pick), spare = allTaken(all);
     const fc = forecastOf(S.mine?.merged);
     const empty = signedIn() ? 'Nothing here yet. When someone in your circle asks for rain, it shows up here.' : 'Nothing’s open to everyone yet. Sign in and ask for rain to post the first one.';
     // Beside "Ask for rain", the way to your own page: led by your garden once there's one,
@@ -578,11 +602,11 @@ export function createRainshare({ root, base = '/', host }){
       ${S.error ? `<p class="rs-note rs-bad">${plain(S.error)}</p>` : ''}
       ${!S.board ? boardSk({ fit: signedIn() })
         : items.length ? `<div class="rs-split${S.sheet ? ' rs-open' : ''}">
-            <ul class="rs-list" aria-label="Ideas and projects">${items.map(it => card(it)).join('')}</ul>
+            <ul class="rs-list" aria-label="Ideas and projects">${spare ? spareCard(true) : ''}${items.map(it => card(it)).join('')}</ul>
             <div class="rs-scrim" data-rs-close-sheet aria-hidden="true"></div>
             <aside class="rs-side" aria-label="The one you picked">${sel ? detail(sel) : ''}</aside>
           </div>`
-        : byFrom.length ? showEmpty() : all.length ? fromEmpty() : `<p class="rs-empty">${empty}</p>`}
+        : (byFrom.length ? showEmpty() : all.length ? fromEmpty() : `<p class="rs-empty">${empty}</p>`) + (spare ? spareCard(false) : '')}
       ${(S.board?.notes || []).map(n => `<p class="rs-note">${esc(n)}</p>`).join('')}
       ${
         // rainshare.dev has Agents in its own bar, and says where records live in its footer.
