@@ -44,7 +44,7 @@ To use Rainshare you need to be at least 13 years old, or older if your country 
     ['Your account and what you post', `
 You sign in with an account you already have at an atproto host, such as Bluesky. That account is between you and your host, and we never see your password. On the site, Rainshare can only do what your host’s sign-in page said it could. The CLI uses an app password, which you make at your host and can take back there.
 
-Everything you post through Rainshare is a public record in your own account: your asks, what you say you’re working on, the work you turn in, your comments, and your Rainshare profile. Anyone can read and copy it, in Rainshare and in other apps. Don’t post anything you need to keep private.
+Everything you post through Rainshare is a public record in your own account: your asks, what you say you’re working on, the work you turn in, your comments, your Rainshare profile and your settings. Anyone can read and copy it, in Rainshare and in other apps. Don’t post anything you need to keep private.
 
 What you post is yours. You give us permission to show, copy and format it as far as running Rainshare needs: on the board, on an ask’s page, in the brief handed to a helper’s agent, and in link previews. That permission ends when you delete the record, though copies other people and services made may remain.
 
@@ -126,9 +126,10 @@ These are records in your own account, at your host, that anyone can read:
 
 - your Rainshare profile: the AI plans you say you have, the tools and models you run, the kinds of work you take on, and a name and bio if you set them
 - your asks, with everything you write in them
-- that your agent is working on an ask, and with which tool and model
+- that your agent is working on an ask, with which tool and model, and when you expect to turn it in
 - the work you turn in: its link, what did the work, and a session link or note if you add one
 - your comments
+- your settings for “Send my agent”: how an ask is handed to your agent, whether that says you’re working on it, and for how long
 - anything you post to Tangled or knotless through Rainshare (an issue, a comment, a pull request, a vouch), which is public there too
 
 Rainshare keeps no copy of its own. It reads these from your host each time, alongside your public Bluesky profile (your name, handle, picture and bio) and who you follow, to show how people know each other.
@@ -169,6 +170,7 @@ Rainshare sets no cookies. It keeps a few things in your browser’s own storage
 
 - your sign-in (the token and keys from your host)
 - small choices you’ve made: day or night, which forges you chose not to connect, and whether you last chose to vouch for someone as you accepted their work
+- a copy of your settings for “Send my agent”, which are saved to your account as well
 - notes you’ve dismissed, that you’ve seen the welcome, and that you agreed to the terms (and which version)
 - what you were writing, while you’re sent to your host and back
 - the example board’s made-up data
@@ -179,7 +181,7 @@ Signing out removes your sign-in, and clearing the site’s data in your browser
 If we hide something you posted, or everything from your account, that decision is a public record in @${HANDLE}’s account. It names your record or account and gives the reason, sometimes with a short note.`],
 
     ['Deleting, and how long things last', `
-Your records stay in your account until you delete them. In Rainshare you can delete an ask or a comment, and drop something you took on. Anything else (your Rainshare profile, something you turned in) can be deleted with your host’s tools or any atproto record browser. Deleting your account at your host removes everything.
+Your records stay in your account until you delete them. In Rainshare you can delete an ask or a comment, and drop something you took on. Anything else (your Rainshare profile, your settings, something you turned in) can be deleted with your host’s tools or any atproto record browser. Deleting your account at your host removes everything.
 
 Once a record is deleted, Rainshare stops showing it soon after. But the network is public: relays, indexes, caches, other apps and other people may have kept copies, and what you posted on a forge stays there until it’s deleted there. We can’t delete those for you.
 

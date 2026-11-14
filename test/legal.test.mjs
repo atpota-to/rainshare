@@ -9,6 +9,7 @@ import { LEGAL, TERMS, PRIVACY, LEGAL_VERSION, SAFETY, asMarkdown } from '../cor
 import { renderMarkdown } from '../core/markdown.js';
 import { known, reroute } from '../core/route.js';
 import { APPVIEW, RELAYS, PLC, CONSTELLATION } from '../core/net.js';
+import { COLLECTIONS } from '../core/ns.js';
 
 // This browser's storage (Node has none of its own).
 const kept = new Map();
@@ -56,12 +57,16 @@ test('the Privacy Policy names every service the code asks, and everything kept 
   assert.match(all, /without anything after a `\?` or `#`/);
   assert.match(readFileSync(new URL('../src/main.js', import.meta.url), 'utf8'), /inject\(\{ beforeSend\(e\)\{[^\n]*u\.origin \+ u\.pathname/);
   // Every key the site keeps in the browser. A new one belongs in the policy's list too, then here.
-  const KEYS = ['rs:accept-vouch', 'rs:agreed', 'rs:kept', 'rs:mode', 'rs:signin', 'rs:signin-skip', 'rs:stage-seen:', 'rs:welcomed:'];
+  const KEYS = ['rs:accept-vouch', 'rs:agreed', 'rs:kept', 'rs:mode', 'rs:prefs:', 'rs:signin', 'rs:signin-skip', 'rs:stage-seen:', 'rs:welcomed:'];
   const found = new Set();
   for (const dir of ['../ui/', '../src/', '../core/', '../public/']) for (const f of readdirSync(new URL(dir, import.meta.url)).filter(f => f.endsWith('.js')))
     for (const [, k] of readFileSync(new URL(dir + f, import.meta.url), 'utf8').matchAll(/['"`](rs:[a-z:-]+)['"`]/g)) if (k !== 'rs:') found.add(k);
   assert.deepEqual([...found].sort(), KEYS);
-  for (const says of [/sets no cookies/, /day or night/, /agreed to the terms/, /forges you chose not to connect/, /vouch for someone/, /example board/]) assert.match(all, says);
+  for (const says of [/sets no cookies/, /day or night/, /agreed to the terms/, /forges you chose not to connect/, /vouch for someone/, /example board/, /a copy of your settings for “Send my agent”/]) assert.match(all, says);
+  // Every kind of record Rainshare writes to someone's account is one the policy says is public.
+  const said = { profile: /your Rainshare profile/, seed: /your asks/, take: /your agent is working on an ask/, delivery: /the work you turn in/, comment: /your comments/, preferences: /your settings for “Send my agent”/ };
+  assert.deepEqual(COLLECTIONS.map(c => c.split('.').pop()).sort(), Object.keys(said).sort(), 'a new kind of record belongs in the policy’s list, then here');
+  for (const [kind, says] of Object.entries(said)) assert.match(all, says, kind);
 });
 
 test('agreeing is remembered with the version agreed to, and asked again when the terms change', () => {
