@@ -1,14 +1,15 @@
 // "Turn it in", from the board, as a short dialog: the link to what your agent made, and a note
 // if you'd like, without going to the ask's own page. Two steps:
 //
-//   link   the pull request's link (or, for an idea, where it lives), and "Add a note" for a
+//   link   the pull request's link (or, for an idea, where it lives), with a paste button at
+//          the field's end, and "Add a note" for a
 //          line to whoever asked. Where the pull request can be opened from a pushed branch
 //          instead (Tangled and knotless), a line says that's on the ask's page, and goes there.
 //   done   that it's with them now, and what happens next.
 //
 // The ask's own page keeps its form, with the rest (what did the work, a session link, opening
 // the pull request from here).
-import { esc, ico } from './bits.js';
+import { esc, ico, pasteField, pasteInto, PASTE_REFUSED } from './bits.js';
 import { closeSoftly, swapStep } from './motion.js';
 
 /**
@@ -37,7 +38,7 @@ export function openTurnIn({ asker, idea, placeholder, branch = null, send, toPa
     box.innerHTML = `${top('Turn it in')}
       <form class="rs-form rs-ti-form" novalidate>
         <label>${idea ? `A link to where it lives, so ${esc(asker)} can look` : 'The link to the pull request your agent opened'}
-          <input name="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="${esc(placeholder)}" required></label>
+          ${pasteField(`<input name="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="${esc(placeholder)}" required>`)}</label>
         ${st.note ? `<label>A note for ${esc(asker)} <small>(optional)</small><input name="note" maxlength="300" autocomplete="off"></label>`
           : '<button class="rs-link rs-ti-more" type="button" data-ti="note">Add a note</button>'}
         <p class="rs-err" role="alert" hidden></p>
@@ -65,6 +66,8 @@ export function openTurnIn({ asker, idea, placeholder, branch = null, send, toPa
   dlg.addEventListener('click', e => {
     if (st.busy) return;
     if (e.target === dlg) return closeSoftly(dlg);
+    const ps = e.target.closest('[data-rs-paste]');
+    if (ps) { pasteInto(ps).then(ok => say(ok ? '' : PASTE_REFUSED)); return; }
     const b = e.target.closest('[data-ti]'); if (!b) return;
     const act = b.dataset.ti;
     if (act === 'close') closeSoftly(dlg);

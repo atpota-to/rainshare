@@ -44,7 +44,7 @@ import { resolveHandle, knownPerson, parseUri, profiles, pool } from '../core/ne
 import { concerns, alarming } from '../core/scan.js';
 import { REASONS, reasonName, isAccount, kindOf as subjectKind } from '../core/moderation.js';
 import { readBoard, groupOf, stateWord, GROUPS as FEEDBACK_GROUPS } from '../core/feedback.js';
-import { esc, lit, unb64url, ago, until, shortDay, nameOf, firstName, ico, forgeIco, skyIco, lifeIco, face, drops, pathOf, plantPic, avatarFallback, tip, tipLink, toggleTip } from './bits.js';
+import { esc, lit, unb64url, ago, until, shortDay, nameOf, firstName, ico, forgeIco, skyIco, lifeIco, face, drops, pathOf, plantPic, avatarFallback, tip, tipLink, toggleTip, pasteField, pasteInto, PASTE_REFUSED } from './bits.js';
 import { createPoster } from './post.js';
 import { openWelcome, shouldWelcome } from './welcome.js';
 import { hasAgreed, agreement, rememberAgreement, openAgree } from './agree.js';
@@ -1392,7 +1392,7 @@ export function createRainshare({ root, base = '/', host }){
     const showWays = S.launch ? '' : '<button class="rs-link" type="button" data-rs-act="show-launch">Show the commands</button>';
     return `<section class="rs-turn" aria-labelledby="rsTurnH"><h3 id="rsTurnH">${S.launch ? 'Then, turn it in' : 'Turn it in'}</h3>${S.launch ? `<p class="rs-muted">${st.idea ? 'When there’s something to show, paste a link to where it lives.' : 'When your agent opens a pull request, paste its link here.'}</p>` : ''}${modes}
       ${opening ? pullBox(it, { d, page }) + (showWays ? `<div class="rs-row">${showWays}</div>` : '') : `<form class="rs-form rs-turnin" data-rs-form="turnin">
-        <label>${st.idea ? 'Where it lives <small>(a link)</small>' : 'Pull request link'}<input name="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" pattern="\\s*(https?://|at://)\\S+\\s*" title="${st.idea ? 'A link to where it lives' : 'A link to the pull request, or its at:// address'}" placeholder="${st.idea ? 'https://…' : { tangled: 'https://tangled.org/…/pulls/…', knotless: 'at://…/dev.knotless.pull/… or its page' }[d?.forge] || 'https://github.com/…/pull/…'}" value="${esc(v.url || '')}" required></label>
+        <label>${st.idea ? 'Where it lives <small>(a link)</small>' : 'Pull request link'}${pasteField(`<input name="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" pattern="\\s*(https?://|at://)\\S+\\s*" title="${st.idea ? 'A link to where it lives' : 'A link to the pull request, or its at:// address'}" placeholder="${st.idea ? 'https://…' : { tangled: 'https://tangled.org/…/pulls/…', knotless: 'at://…/dev.knotless.pull/… or its page' }[d?.forge] || 'https://github.com/…/pull/…'}" value="${esc(v.url || '')}" required>`)}</label>
         <div class="rs-more-body"${more ? '' : ' hidden'} data-rs-turnin-more>
           <div class="rs-two"><label>What did the work<select name="harness">${HARNESSES.map(([k, l]) => `<option value="${k}"${(v.harness || taken?.value?.setup?.harness || setup?.harness) === k ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
           <label>Model<input name="model" list="rsModels" value="${esc(v.model || taken?.value?.setup?.models?.[0] || setup?.models?.[0] || '')}" placeholder="claude-opus-5-5"></label></div>
@@ -2298,6 +2298,8 @@ export function createRainshare({ root, base = '/', host }){
   root.addEventListener('click', e => {
     const t = e.target, plainClick = !e.metaKey && !e.ctrlKey && !e.shiftKey && e.button === 0;
     const tb = t.closest('[data-rs-tip]'); if (tb) { toggleTip(tb); return; }
+    // The paste button at the end of a link's field (the turn-in form's).
+    const ps = t.closest('[data-rs-paste]'); if (ps) { pasteInto(ps).then(ok => { if (!ok) toast(PASTE_REFUSED); }); return; }
     const goEl = t.closest('[data-rs-go]');
     if (goEl && plainClick) { e.preventDefault(); stash(); S.toTalk = goEl.dataset.rsTo === 'comments' ? goEl.dataset.rsGo : null; go(goEl.dataset.rsGo); return; }
     const pk = t.closest('[data-rs-pick]'); if (pk) { if (plainClick) { e.preventDefault(); pick(pk.dataset.rsPick); } return; }

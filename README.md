@@ -50,8 +50,8 @@ to asking. They're the two tabs in the bar as well.
 3. **Turn it in by the day you gave.** If nothing's turned in by then, the ask shows as free
    again, and you're listed as having gone quiet. You can give yourself more time from the
    ask's page, or drop it.
-4. **Turn it in.** When the pull request is up, paste its link back: in the dialog that "Turn it
-   in" opens from the board, or on the ask's own page, which also takes what did the work, a
+4. **Turn it in.** When the pull request is up, paste its link back (the field has a paste
+   button at its end): in the dialog that "Turn it in" opens from the board, or on the ask's own page, which also takes what did the work, a
    session link, and on Tangled and knotless can open the pull request from a pushed branch.
    Your agent's link back to the ask fills the form in for you. The asker reviews it and
    presses Accept, which marks the ask done. They can say thanks and vouch for you on Tangled in
