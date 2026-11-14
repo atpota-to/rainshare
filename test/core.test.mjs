@@ -453,7 +453,7 @@ test('a space record URI splits into its space and record', () => {
   assert.equal(splitSpaceUri('at://did:plc:me/dev.rainshare.seed/3k1'), null);
 });
 
-test('without groups, the example has nothing private and sign-in asks only for Rainshare’s records', async () => {
+test('without groups, the example has nothing private and sign-in asks only for Rainshare’s records, and to follow @rainshare.dev', async () => {
   const src = createDemoSource({ groups: false });
   assert.equal(src.canPrivate, false);
   assert.deepEqual(await src.groups(), []);
@@ -465,9 +465,40 @@ test('without groups, the example has nothing private and sign-in asks only for 
   const { SCOPE, BASIC_SCOPE } = await import('../src/scope.js');
   const { GROUPS } = await import('../core/ns.js');
   if (!GROUPS) {
-    assert.equal(SCOPE, 'atproto repo:dev.rainshare.profile repo:dev.rainshare.seed repo:dev.rainshare.take repo:dev.rainshare.delivery repo:dev.rainshare.comment repo:dev.rainshare.preferences');
+    assert.equal(SCOPE, 'atproto repo:dev.rainshare.profile repo:dev.rainshare.seed repo:dev.rainshare.take repo:dev.rainshare.delivery repo:dev.rainshare.comment repo:dev.rainshare.preferences repo:app.bsky.graph.follow?action=create');
     assert.equal(BASIC_SCOPE, SCOPE);
   }
+});
+
+test('every sign-in asks to follow @rainshare.dev (to create a follow, never to delete one), and an older one is known not to have it', async () => {
+  const { ladder, DECLARED_SCOPE, canFollow, BASIC_SCOPE } = await import('../src/scope.js');
+  const { FOLLOW_SCOPE } = await import('../core/ns.js');
+  assert.equal(FOLLOW_SCOPE, 'repo:app.bsky.graph.follow?action=create');
+  for (const step of [...ladder(), ...ladder(undefined, { moderator: true })]) assert.ok(step.split(' ').includes(FOLLOW_SCOPE), step);
+  assert.ok(DECLARED_SCOPE.split(' ').includes(FOLLOW_SCOPE));
+  assert.ok(!/app\.bsky\.graph\.follow\?action=delete/.test(DECLARED_SCOPE));
+  assert.ok(canFollow(BASIC_SCOPE) && canFollow('atproto repo:app.bsky.graph.follow') && canFollow('atproto repo:app.bsky.graph.follow?action=create&action=delete'));
+  // A sign-in from before Rainshare asked, or one that may only delete follows, can't.
+  assert.ok(!canFollow(BASIC_SCOPE.replace(' ' + FOLLOW_SCOPE, '')) && !canFollow('repo:app.bsky.graph.follow?action=delete') && !canFollow('repo:app.bsky.graph.followx') && !canFollow(''));
+});
+
+test('the example keeps whether you follow @rainshare.dev, and following twice writes once', async () => {
+  const mem = new Map(), store = { get: k => mem.get(k) ?? null, set: (k, v) => mem.set(k, v) };
+  const src = createDemoSource({ store });
+  assert.equal(await src.followsRainshare(), false);
+  assert.deepEqual(await src.followRainshare(), { followed: true });
+  assert.deepEqual(await src.followRainshare(), { followed: false });
+  assert.equal(await createDemoSource({ store }).followsRainshare(), true, 'kept in this browser');
+  src.reset();
+  assert.equal(await src.followsRainshare(), false);
+});
+
+test('following @rainshare.dev is a Bluesky follow of its DID', async () => {
+  const { FOLLOW, MODERATOR } = await import('../core/ns.js');
+  const rec = R.followRainshare();
+  assert.deepEqual(Object.keys(rec).sort(), ['$type', 'createdAt', 'subject']);
+  assert.equal(rec.$type, FOLLOW); assert.equal(rec.subject, MODERATOR);
+  assert.ok(Date.parse(rec.createdAt));
 });
 
 test('the example circle answers like the real source', async () => {

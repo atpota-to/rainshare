@@ -2,7 +2,7 @@
 // sure of first, that someone really has no profile (and not that their server didn't answer).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { shouldWelcome, welcomeProfile } from '../ui/welcome.js';
+import { shouldWelcome, welcomeProfile, welcomeMessages, anyMessages } from '../ui/welcome.js';
 import * as R from '../core/records.js';
 import { createSource } from '../core/source.js';
 
@@ -49,6 +49,19 @@ test('the welcome saves a profile with the plans picked and a setup for each thi
   const picked = { plans: ['gemini'], runs: [] }, p = welcomeProfile(picked);
   picked.plans.push('zai');
   assert.deepEqual(p.plans, ['gemini']);
+});
+
+test('the welcome starts with every kind of message from @rainshare.dev ticked, and only a ticked one switches them on', () => {
+  assert.deepEqual(welcomeMessages(), { updates: true, newAsks: true });
+  // A fresh choice each time: unticking one in one welcome leaves the next as it was.
+  const a = welcomeMessages(); a.updates = false;
+  assert.equal(welcomeMessages().updates, true);
+  assert.equal(anyMessages(a), true);
+  assert.equal(anyMessages({ updates: false, newAsks: false }), false);
+  assert.equal(anyMessages({}), false); assert.equal(anyMessages(null), false);
+  assert.equal(anyMessages({ newAsks: 'yes' }), false, 'only a real tick counts');
+  // What it saves is what the settings keep.
+  assert.deepEqual(R.preferences({ notify: welcomeMessages() }).notify, { updates: true, newAsks: true });
 });
 
 test('a profile that isn’t there and one that couldn’t be read are told apart', async () => {

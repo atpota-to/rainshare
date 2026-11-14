@@ -156,7 +156,7 @@ const MY_PROFILE = {
 // the example has no group seed, no groups to share a profile with, and nothing kept back.
 export function createDemoSource({ store = null, me: meOverride = null, groups = true } = {}){
   const saved = store?.get('rainshare') || {};
-  const state = { preferences: saved.preferences || null, profile: saved.profile || MY_PROFILE, hidden: groups ? saved.hidden || ['budget'] : [], share: groups ? saved.share ?? [GROUP.did] : [], mine: saved.mine || [], takes: saved.takes || [], deliveries: saved.deliveries || [], comments: saved.comments || [], removed: saved.removed || [], edits: saved.edits || {}, added: saved.added || [], vouches: saved.vouches || MY_VOUCHES };
+  const state = { preferences: saved.preferences || null, follows: !!saved.follows, profile: saved.profile || MY_PROFILE, hidden: groups ? saved.hidden || ['budget'] : [], share: groups ? saved.share ?? [GROUP.did] : [], mine: saved.mine || [], takes: saved.takes || [], deliveries: saved.deliveries || [], comments: saved.comments || [], removed: saved.removed || [], edits: saved.edits || {}, added: saved.added || [], vouches: saved.vouches || MY_VOUCHES };
   const save = () => store?.set('rainshare', state);
   const me = { did: ME, handle: meOverride?.handle || 'you.example', displayName: meOverride?.displayName || 'You', avatar: meOverride?.avatar || null };
 
@@ -246,6 +246,9 @@ export function createDemoSource({ store = null, me: meOverride = null, groups =
     async remove(item){ state.mine = state.mine.filter(x => x.id !== item.rkey); state.removed.push(item.rkey); save(); return pause(); },
     async preferences(){ return pause(state.preferences); },
     async savePreferences(input){ state.preferences = R.preferences(input, state.preferences); save(); return pause(state.preferences); },
+    // Following @rainshare.dev, for its messages: here it's only a note in this browser.
+    async followsRainshare(){ return pause(state.follows); },
+    async followRainshare(){ const was = state.follows; state.follows = true; save(); return pause({ followed: !was }); },
     async take(item, { setup, note, days } = {}){
       const value = R.take({ seed: item, setup, note, days });
       const id = tid('tk');
@@ -287,7 +290,7 @@ export function createDemoSource({ store = null, me: meOverride = null, groups =
       state.comments = state.comments.filter(x => x.uri !== c.uri); save(); return pause();
     },
     forget(){},
-    reset(){ store?.set('rainshare', null); Object.assign(state, { preferences: null, profile: MY_PROFILE, hidden: groups ? ['budget'] : [], share: groups ? [GROUP.did] : [], mine: [], takes: [], deliveries: [], comments: [], removed: [], edits: {}, added: [], vouches: MY_VOUCHES }); },
+    reset(){ store?.set('rainshare', null); Object.assign(state, { preferences: null, follows: false, profile: MY_PROFILE, hidden: groups ? ['budget'] : [], share: groups ? [GROUP.did] : [], mine: [], takes: [], deliveries: [], comments: [], removed: [], edits: {}, added: [], vouches: MY_VOUCHES }); },
     groups: () => Promise.resolve(!groups ? [] : [GROUP, { ...HACKERS, space: state.added.includes(HACKERS.did) ? HACKERS.space : null, canAdd: true }]),
     reach: () => Promise.resolve({ following: 312, followers: 1204, mutuals: 84 }),
     addToGroup: async did => { if (!state.added.includes(did)) state.added.push(did); save(); return pause(GROUPS[did]?.space || `at://${did}/space/dev.rainshare.board/rainshare`); },

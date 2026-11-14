@@ -6,7 +6,7 @@
 //   /board          the board on its own, signed in or out (the bar's "Help someone")
 //   /new            asking for help (the bar's "Ask for help")
 //   /example/…      the example circle, kept in this browser (linked from the landing)
-//   /seed/…, /new, /me, /profile/…, /agents, /feedback, /terms, /privacy   Rainshare's own screens (see ../ui/rainshare.js)
+//   /seed/…, /new, /me, /settings, /profile/…, /agents, /feedback, /terms, /privacy   Rainshare's own screens (see ../ui/rainshare.js)
 //   /signed-in      where your server sends you back after signing in
 //
 // Signing in is a dialog of its own (./signin.js), opened from here.
@@ -17,7 +17,7 @@ import { createRainshare } from '../ui/rainshare.js';
 import { createSource } from '../core/source.js';
 import { createDemoSource } from '../core/demo.js';
 import { BOARD, GROUPS, MODERATOR } from '../core/ns.js';
-import { canModerate } from './scope.js';
+import { canModerate, canFollow } from './scope.js';
 import { closeTo } from '../core/route.js';
 import { profiles } from '../core/net.js';
 // The spaces alpha's plumbing (credentials, signed reads, writes into a space) and the group
@@ -102,6 +102,9 @@ const host = kind => ({
   // Whether this sign-in can write moderation records (only @rainshare.dev's asks to: ./scope.js).
   // One from before it asked is told to sign in again, on the moderation page.
   canModerate: kind === 'real' ? () => canModerate(granted) : null,
+  // Whether this sign-in can follow @rainshare.dev for you, when you switch its messages on. One
+  // from before it asked is pointed to Bluesky instead. (A server that won't say what it granted is tried.)
+  canFollow: kind === 'real' ? () => !granted || canFollow(granted) : null,
   connectForge: kind === 'real' ? (forge, sub) => { if (session) openSignIn({ person: me || { did: session.did }, to: '/' + (sub || '') + location.search, forges: [...new Set([...forges, forge])], adding: forge }); } : null,
   ...(kind === 'example' ? { exitDemo: session ? 'Back to the real board' : 'Sign in for the real board', onExitDemo: () => navigate('/') } : {})
 });
@@ -285,7 +288,7 @@ document.addEventListener('click', e => {
 
 /* ---------- you ---------- */
 // Signed in, the bar has only your face, so it keeps to one row on a phone. It opens a little
-// menu under it: who you're signed in as, which is the way to your profile, and "Sign out".
+// menu under it: who you're signed in as, which is the way to your profile, your settings, and "Sign out".
 // It closes when you pick something, tap anywhere else, press Escape or tab away.
 const meBox = $('#rdMe');
 avatarFallback(meBox);
@@ -299,6 +302,8 @@ function renderMe(){
   box.innerHTML = `<button class="rd-who" type="button" aria-expanded="false" aria-controls="rdMenu" aria-label="Signed in as ${esc(name)}" title="Signed in as ${esc(name)}">${face(p)}</button>`
     + `<div class="rd-menu" id="rdMenu" hidden>`
     + `<a class="rd-menu-you" href="/me" data-nav>${face(p)}<span class="rd-menu-name"><span class="rd-sr">Your profile: </span><b>${esc(name)}</b>${handle ? `<small>${esc(handle)}</small>` : ''}</span><svg class="rd-menu-go" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>`
+    // How "Send my agent" works for you, and messages from @rainshare.dev: a page of their own, apart from your profile.
+    + `<a href="/settings" data-nav><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h8.5M17.5 7H20M4 17h2.5M11.5 17H20"/><circle cx="15" cy="7" r="2.5"/><circle cx="9" cy="17" r="2.5"/></svg>Settings</a>`
     // @rainshare.dev's own sign-in has its moderation page here, and nobody else's mentions it.
     + (session.did === MODERATOR ? `<a href="/admin" data-nav><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l7 2.6v5.5c0 4.2-3 7.6-7 8.9-4-1.3-7-4.7-7-8.9V6.1z"/><path d="M9 12l2 2 4-4"/></svg>Moderation</a>` : '')
     // Sending your agent from a terminal, or letting it do the Rainshare side itself: setup, so it's here rather than in the bar.
