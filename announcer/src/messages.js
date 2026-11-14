@@ -5,18 +5,20 @@
 //             asks they've helped with (marked done with their work or someone else's, or closed)
 //   newAsks   new asks on the board, from anyone
 //
-// The run every quarter of an hour (api/announce.js, vercel.json) sends each person one message
-// at most, and only when there's something to say: their updates since the last one, so they
-// hear within about a quarter of an hour, and once a day, after DAILY, the day's new asks. It's
-// sent with the same app password as the posts, which has to be allowed to send direct messages.
+// The announcer service (./index.js) runs this a minute or two after anything happens on the
+// board. Each run sends each person one message at most, and only when there's something to
+// say: their updates since the last one, so they hear within a couple of minutes, and once a
+// day, after DAILY, the day's new asks. It's sent with the same app password as the posts, which
+// has to be allowed to send direct messages.
 //
 // What's been sent, with no database: each message covers whole periods, from one boundary to
 // the next, so what the account last sent someone says how far they've heard. Updates go by
-// quarters of an hour (EVERY, on the hour and each quarter past), and new asks by days (from
-// DAILY to DAILY). The next message starts at the boundary before the last one and stops at the
-// boundary before now. The runs fall two minutes past each quarter, so one never straddles a
-// boundary; one that would (run by hand, say) leaves the messages to the next. A first message
-// catches up on the day before.
+// minutes (EVERY), and new asks by days (from DAILY to DAILY). The next message starts at the
+// boundary before the last one and stops at the boundary before now. The service runs this half
+// a minute past a boundary, and a run stops sending before the next boundary (GUARD), so no
+// message is sent in the period after the one its run began in; whoever it didn't reach hears
+// next run. A run that starts too near a boundary (one run by hand, say) leaves the messages to
+// the next. A first message catches up on the day before.
 //
 // Nothing the account has hidden (../core/moderation.js) is in anyone's news, and it doesn't
 // message an account it has hidden.
@@ -26,18 +28,17 @@
 //   - reply STOP to any message. Their latest STOP or START in the conversation is what
 //     counts, and a STOP is answered once, to say it worked.
 //   - Bluesky's own settings: leave the conversation, or stop letting @rainshare.dev message them
-import { SEED, TAKE, DELIVERY, PREFERENCES, SITE } from '../core/ns.js';
-import * as net from '../core/net.js';
-import { aNoun } from '../core/words.js';
-import { ACCOUNT, passable, free, isHidden, reader, session, blocked, whoAre, graphemes, bytes } from './_announce.js';
-import { clean } from './_og/describe.js';
+import { SEED, TAKE, DELIVERY, PREFERENCES, SITE } from '../../core/ns.js';
+import * as net from '../../core/net.js';
+import { aNoun } from '../../core/words.js';
+import { ACCOUNT, passable, free, isHidden, reader, session, blocked, whoAre, graphemes, bytes } from './posts.js';
+import { clean } from '../../api/_og/describe.js';
 
 const MINUTE = 60e3, HOUR = 60 * MINUTE, DAY = 24 * HOUR;
-// Updates by the quarter hour; new asks by the day, from 15:45 UTC; nothing older than LOOKBACK.
-// GUARD: how near the next boundary a run can start and still send, finishing (maxDuration in
-// vercel.json is a minute) before it.
-export const EVERY = 15 * MINUTE, DAILY = 15.75 * HOUR, LOOKBACK = 3 * DAY, GUARD = 2 * MINUTE;
-/** The latest boundary at or before `t`: by quarters of an hour, or with `day`, by days from DAILY. */
+// Updates by the minute; new asks by the day, from 15:45 UTC; nothing older than LOOKBACK.
+// GUARD: how near the next boundary a run stops sending, so that nothing it sends lands after it.
+export const EVERY = MINUTE, DAILY = 15.75 * HOUR, LOOKBACK = 3 * DAY, GUARD = 15e3;
+/** The latest boundary at or before `t`: by minutes, or with `day`, by days from DAILY. */
 export const boundary = (t, day = false) => day ? Math.floor((t - DAILY) / DAY) * DAY + DAILY : Math.floor(t / EVERY) * EVERY;
 // What a message may hold (chat.bsky.convo.defs#messageInput), and how many of each kind of news it lists.
 const MAX_GRAPHEMES = 1000, MAX_BYTES = 10000, MAX_UPDATES = 10, MAX_NEW = 5;
@@ -141,7 +142,7 @@ const within = (t, from, to) => { const x = Date.parse(t); return x >= from && x
  * who they block, whose doings aren't news to them; `ourBlocks` is who the account blocks,
  * whose asks it doesn't pass on; `hidden` is what it has hidden (decisions from
  * ../core/moderation.js), which is nobody's news. A new ask is only news while nobody's on it
- * (`free`, ./_announce.js), as of `now`.
+ * (`free`, ./posts.js), as of `now`.
  */
 export function newsFor(r, { seeds, takes, deliveries, from, to, theirBlocks = new Set(), ourBlocks = new Set(), hidden = new Map(), now = Date.now() }){
   const shown = list => list.filter(x => !isHidden(hidden, x));
@@ -219,8 +220,8 @@ export async function message({ post = true, password = process.env.RAINSHARE_BL
   if (!people.length) { log('Nobody has asked for messages yet.'); return out; }
 
   // A run this near the next boundary could still be sending after it, and the next run would
-  // take that message for one that covered its quarter. It leaves the messages to that run.
-  if (boundary(now + GUARD) !== boundary(now)) { out.note = 'Too near the next quarter of an hour to send messages: the next run will.'; log(out.note); return out; }
+  // take that message for one that covered its minute. It leaves the messages to that run.
+  if (boundary(now + GUARD) !== boundary(now)) { out.note = 'Too near the next minute to send messages: the next run will.'; log(out.note); return out; }
   const to = boundary(now), today = boundary(now, true);
   // All of these are needed to know what's news and what's free: if any can't be read, nothing is sent this run.
   const [seeds, takes, deliveries, hidden] = await Promise.all([read(SEED), read(TAKE), read(DELIVERY), read.hidden()]);
@@ -250,8 +251,8 @@ export async function message({ post = true, password = process.env.RAINSHARE_BL
       else skip(p, 'they replied STOP.');
       continue;
     }
-    if (st.last != null && st.last >= to) { skip(p, 'they’ve had this quarter of an hour’s message.'); continue; }
-    // Updates since the quarter their last message went out in; the day's new asks if they haven't had them.
+    if (st.last != null && st.last >= to) { skip(p, 'they’ve had this minute’s message.'); continue; }
+    // Updates since the minute their last message went out in; the day's new asks if they haven't had them.
     const from = st.last == null ? to - DAY : Math.max(boundary(st.last), to - LOOKBACK);
     const daily = p.newAsks && (st.lastNew == null || st.lastNew < today) ? { from: st.lastNew == null ? today - DAY : Math.max(boundary(st.lastNew, true), today - LOOKBACK), to: today } : null;
     ready.push({ p, st, from, daily });
@@ -272,9 +273,13 @@ export async function message({ post = true, password = process.env.RAINSHARE_BL
   const who = await whoAre(named);
   for (const x of ready) if (!x.stop) x.message = compose(x.news, who);
 
+  // Nothing is sent after the boundary that ends this run's period (less GUARD): the next run
+  // would take it for one sent in its own. Whoever isn't reached by then hears from that run.
+  const started = Date.now(), budget = to + EVERY - GUARD - now;
   for (const x of ready) {
     const at = who.get(x.p.did)?.handle ? '@' + who.get(x.p.did).handle : x.p.did;
     if (!x.message) { log(`Nothing new for ${at}.`); continue; }
+    if (post && Date.now() - started > budget) { out.note = 'Out of time for this minute: the rest go next run.'; log(out.note); break; }
     const sent = { to: x.p.did, text: x.message.text, error: null };
     out.sent.push(sent);
     if (!post) { log(`\nWould message ${at}:\n  ${x.message.text.replace(/\n/g, '\n  ')}`); continue; }

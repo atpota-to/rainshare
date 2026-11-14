@@ -1,8 +1,8 @@
 // Posts each new ask on the board to Rainshare's own Bluesky account, @rainshare.dev, once.
 //
-// Vercel runs it every quarter of an hour (the cron in vercel.json calls api/announce.js), and
-// `npm run announce` runs it by hand. Without RAINSHARE_BLUESKY_APP_PASSWORD, an app password
-// for the account, it posts nothing.
+// The announcer service runs it (./index.js, on the droplet: see ../README.md) whenever something
+// happens on the board, and `npm run announce` runs it by hand. Without
+// RAINSHARE_BLUESKY_APP_PASSWORD, an app password for the account, it posts nothing.
 //
 // Which asks are new: open ones meant for everyone, asked in the last three days (WINDOW) and
 // at least a quarter of an hour ago (SETTLE), so a title that's fixed straight after posting is
@@ -21,15 +21,15 @@
 // block them from it.
 //
 // A post names who's asking (with a mention, so they hear about it) and gives the ask's title,
-// with a card for its page: the same words as the page's own link preview (./_og/describe.js),
-// and its picture (./og.js).
-import { SEED, TAKE, DELIVERY, PROFILE, SITE, MODERATION, MODERATOR, audienceOf } from '../core/ns.js';
-import * as net from '../core/net.js';
-import { askExcerpt, aNoun, progressOf } from '../core/words.js';
-import { decisionsFrom, hiddenBy } from '../core/moderation.js';
-import { concerns, alarming } from '../core/scan.js';
-import { clean } from './_og/describe.js';
-import { OWNER } from '../lexicons/compat.mjs';
+// with a card for its page: the same words as the page's own link preview
+// (../../api/_og/describe.js), and its picture (../../api/og.js).
+import { SEED, TAKE, DELIVERY, PROFILE, SITE, MODERATION, MODERATOR, audienceOf } from '../../core/ns.js';
+import * as net from '../../core/net.js';
+import { askExcerpt, aNoun, progressOf } from '../../core/words.js';
+import { decisionsFrom, hiddenBy } from '../../core/moderation.js';
+import { concerns, alarming } from '../../core/scan.js';
+import { clean } from '../../api/_og/describe.js';
+import { OWNER } from '../../lexicons/compat.mjs';
 
 // The brand account, which the lexicons belong to as well. Named by its DID, as there.
 export const ACCOUNT = OWNER;
@@ -187,16 +187,49 @@ async function call(base, nsid, { params, body, type, token, proxy } = {}){
   if (!r.ok) throw new net.NetError(data.error || 'HTTP' + r.status, data.message || `${r.status} from ${new URL(base).host}`, r.status);
   return data;
 }
+// Bluesky lets an account sign in 30 times in 5 minutes and 300 times a day, and past that
+// nobody can sign in to it until the day is out, its owner included. So a session is kept and
+// renewed, and a sign-in that fails isn't tried again for SIGN_IN_PAUSE: a wrong password tried
+// on every run would use them all up.
+export const SIGN_IN_PAUSE = 30 * 60e3;
+const expired = e => e?.name === 'ExpiredToken' || (e?.name === 'InvalidToken' && !/scope/i.test(e?.message || ''));
 /**
- * Signed in as the account with its app password, on the first call that needs it, and kept
- * for the rest of the run: { signIn(), get(nsid, params, { chat }), post(nsid, body, { type, chat }) }.
- * `chat` sends the call on to Bluesky's chat service, which the app password has to be allowed
- * (its "direct messages" box ticked).
+ * Signed in as the account with its app password, on the first call that needs it, and kept for
+ * as long as this lives: { signIn(), get(nsid, params, { chat }), post(nsid, body, { type, chat }) }.
+ * A call whose token has expired renews the session (refreshSession, which doesn't count as a
+ * sign-in) and is made again. `chat` sends the call on to Bluesky's chat service, which the app
+ * password has to be allowed (its "direct messages" box ticked).
  */
-export function session(password){
-  let ready;
-  const signIn = () => ready ||= net.pdsOf(ACCOUNT).then(async pds => ({ pds, token: (await call(pds, 'com.atproto.server.createSession', { body: { identifier: ACCOUNT, password } })).accessJwt }));
-  const as = async (nsid, opts) => { const { pds, token } = await signIn(); return call(pds, nsid, { ...opts, token, proxy: opts.chat ? CHAT : undefined }); };
+export function session(password, { clock = Date.now } = {}){
+  let current = null, signing = null, renewing = null, failed = null;
+  const signIn = async () => {
+    if (current) return current;
+    if (failed && clock() - failed.at < SIGN_IN_PAUSE) throw failed.error;
+    return signing ||= (async () => {
+      try {
+        const pds = await net.pdsOf(ACCOUNT), s = await call(pds, 'com.atproto.server.createSession', { body: { identifier: ACCOUNT, password } });
+        failed = null;
+        return current = { pds, access: s.accessJwt, refresh: s.refreshJwt };
+      } catch (e) { failed = { at: clock(), error: e }; throw e; }
+      finally { signing = null; }
+    })();
+  };
+  // Renew the session that `stale` was from, once however many calls find it expired at the same time.
+  const renew = stale => current && current.access !== stale ? Promise.resolve() : renewing ||= (async () => {
+    try {
+      const s = await call(current.pds, 'com.atproto.server.refreshSession', { body: {}, token: current.refresh });
+      current = { ...current, access: s.accessJwt, refresh: s.refreshJwt };
+    } catch (_) { current = null; await signIn(); }
+  })().finally(() => { renewing = null; });
+  const as = async (nsid, opts) => {
+    const { pds, access } = await signIn(), proxy = opts.chat ? CHAT : undefined;
+    try { return await call(pds, nsid, { ...opts, token: access, proxy }); }
+    catch (e) {
+      if (!expired(e)) throw e;
+      await renew(access);
+      return call(current.pds, nsid, { ...opts, token: current.access, proxy });
+    }
+  };
   return {
     signIn: () => signIn().then(() => {}),
     get: (nsid, params, { chat } = {}) => as(nsid, { params, chat }),

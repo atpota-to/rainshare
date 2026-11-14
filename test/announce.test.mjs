@@ -1,10 +1,9 @@
-// Posting new asks to @rainshare.dev (api/_announce.js, api/announce.js), against a stand-in
+// Posting new asks to @rainshare.dev (announcer/src/posts.js), against a stand-in
 // network: a relay, the PLC directory, one PDS that holds everyone's repo (the account's too),
 // Bluesky's AppView, and the site's link preview pictures.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { announce, compose, isNew, askAt, linksIn, reader, ACCOUNT, WINDOW, SETTLE } from '../api/_announce.js';
-import handler, { allowed } from '../api/announce.js';
+import { announce, compose, isNew, askAt, linksIn, reader, ACCOUNT, WINDOW, SETTLE } from '../announcer/src/posts.js';
 import { SEED, TAKE, DELIVERY, PROFILE, MODERATION, SITE } from '../core/ns.js';
 
 const NOW = Date.parse('2026-11-13T16:00:00Z'), ago = ms => new Date(NOW - ms).toISOString();
@@ -249,26 +248,4 @@ test('a post’s links are read wherever they are, and matched to an ask by path
   }).map(askAt), ['carol.test 3k3', 'did:plc:bob 3k2', 'alice.test 3k1'], 'the card, then the text’s links, then what’s written out');
   assert.equal(askAt('https://rainshare.dev/seed/s/abc123'), null, 'a share code isn’t an ask');
   assert.equal(askAt('https://rainshare.dev/profile/alice.test'), null);
-});
-
-test('the daily call needs CRON_SECRET, and ?dry=1 posts nothing', async () => {
-  const req = (authorization, query = {}) => ({ headers: authorization ? { authorization } : {}, query });
-  assert.equal(allowed(req('Bearer s3cret'), ''), false, 'with no secret set, nothing gets in');
-  assert.equal(allowed(req('Bearer nope'), 's3cret'), false);
-  assert.equal(allowed(req('Bearer s3cret'), 's3cret'), true);
-
-  const call = async (r, env) => {
-    const before = { ...process.env };
-    Object.assign(process.env, env);
-    const res = { headers: {}, setHeader(k, v){ this.headers[k.toLowerCase()] = v; }, end(b){ this.body = JSON.parse(b); } };
-    try { await handler(r, res); } finally { for (const k of Object.keys(env)) if (k in before) process.env[k] = before[k]; else delete process.env[k]; }
-    return res;
-  };
-  const env = { CRON_SECRET: 's3cret', RAINSHARE_BLUESKY_APP_PASSWORD: 'app-pass' };
-  assert.equal((await call(req('Bearer nope'), env)).statusCode, 401);
-  assert.equal((await call(req('Bearer s3cret'), { RAINSHARE_BLUESKY_APP_PASSWORD: 'app-pass' })).statusCode, 401, 'switched off without CRON_SECRET');
-  assert.equal(asked.length, 0, 'and nothing was read');
-
-  const dry = await call(req('Bearer s3cret', { dry: '1' }), env);
-  assert.deepEqual([dry.statusCode, dry.headers['cache-control'], dry.body.posts.dryRun, dry.body.messages.dryRun, created.length], [200, 'no-store', true, true, 0]);
 });

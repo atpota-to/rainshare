@@ -1,17 +1,18 @@
-// Direct messages from @rainshare.dev (api/_messages.js), against a stand-in network: a relay,
+// Direct messages from @rainshare.dev (announcer/src/messages.js), against a stand-in network: a relay,
 // the PLC directory, one PDS holding everyone's repo, Bluesky's AppView, and Bluesky's chat
 // service behind the account's PDS. The chat service's clock is the test's.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { message, compose, newsFor, standing, boundary, wants } from '../api/_messages.js';
-import { ACCOUNT } from '../api/_announce.js';
-import { run } from '../api/announce.js';
+import { message, compose, newsFor, standing, boundary, wants } from '../announcer/src/messages.js';
+import { ACCOUNT } from '../announcer/src/posts.js';
+import { run } from '../announcer/src/run.js';
 import * as R from '../core/records.js';
 import { SEED, TAKE, DELIVERY, PROFILE, PREFERENCES, MODERATION, SITE } from '../core/ns.js';
 
-// A run at 16:05 UTC: updates up to 16:00, and the day's new asks up to 15:45.
-const NOW = Date.parse('2026-11-14T16:05:00Z'), TODAY = Date.parse('2026-11-14T15:45:00Z'), DAY = 864e5;
-const at = s => Date.parse('2026-11-' + s + ':00Z');
+// A run at 16:05:30 UTC, as the service runs them, half a minute past: updates up to 16:05, and
+// the day's new asks up to 15:45.
+const NOW = Date.parse('2026-11-14T16:05:30Z'), TODAY = Date.parse('2026-11-14T15:45:00Z'), DAY = 864e5;
+const at = s => { const t = Date.parse('2026-11-' + s + (s.split(':').length > 2 ? '' : ':00') + 'Z'); assert.ok(t > 0, s); return t; };
 const PDS = 'https://pds.test', CHAT = 'did:web:api.bsky.chat#bsky_chat';
 const [ALICE, BOB, CAROL, JUN, KAI, DEE, EVE, FAY, GUS, MAL, SPAM, ZED] = ['alice', 'bob', 'carol', 'juniper', 'kai', 'dee', 'eve', 'fay', 'gus', 'mal', 'spam', 'zed'].map(n => 'did:plc:' + n);
 const handleOf = did => did === ACCOUNT ? 'rainshare.dev' : did.slice(8) + '.test';
@@ -22,9 +23,9 @@ const ref = (did, c, rkey) => ({ uri: uri(did, c, rkey), cid: 'bafy' + rkey });
 const me = SITE + '/me', ours = (text, sentAt) => ({ id: 'm' + sentAt, rev: '1', text, sentAt, sender: { did: ACCOUNT }, facets: [{ index: { byteStart: 0, byteEnd: 1 }, features: [{ $type: 'app.bsky.richtext.facet#link', uri: me }] }] });
 const theirs = (did, text, sentAt) => ({ id: 'm' + sentAt + did, rev: '1', text, sentAt, sender: { did } });
 
-let repos, convos, asked, sentMessages, chatError, clock;
+let repos, convos, asked, sentMessages, chatError, clock, sendDelay;
 beforeEach(() => {
-  asked = []; sentMessages = []; chatError = null; clock = NOW;
+  asked = []; sentMessages = []; chatError = null; clock = NOW; sendDelay = 0;
   const ask = (title, createdAt, more = {}) => ({ $type: SEED, title, audience: anyone, createdAt, ...more });
   repos = {
     [ALICE]: {
@@ -54,7 +55,7 @@ beforeEach(() => {
     [KAI]: { [TAKE]: { ka1: { seed: ref(ALICE, SEED, 'a1'), createdAt: '2026-11-13T10:00:00Z' } }, [PREFERENCES]: { self: { notify: { newAsks: true } } } },
     [MAL]: { [TAKE]: { ma1: { seed: ref(ALICE, SEED, 'a1'), createdAt: '2026-11-14T08:00:00Z' } } },
     [GUS]: { [TAKE]: { ga1: { seed: ref(ALICE, SEED, 'a1'), createdAt: '2026-11-12T12:00:00Z' } }, [PROFILE]: { self: { displayName: 'Gus' } } },
-    [ZED]: { [TAKE]: { za1: { seed: ref(ALICE, SEED, 'a1'), createdAt: '2026-11-14T16:01:00Z' } } },
+    [ZED]: { [TAKE]: { za1: { seed: ref(ALICE, SEED, 'a1'), createdAt: '2026-11-14T16:05:10Z' } } },
     [SPAM]: { [SEED]: { s1: ask('Buy followers', '2026-11-14T13:30:00Z') } },
     [DEE]: { [PREFERENCES]: { self: { notify: { updates: true } } } },
     [EVE]: { [PREFERENCES]: { self: { notify: { updates: true } } } },
@@ -71,7 +72,7 @@ beforeEach(() => {
     [DEE]: { id: 'c-dee', canChat: true, messages: [theirs(DEE, 'stop', '2026-11-13T20:00:00Z'), ours('News from Rainshare: …', '2026-11-13T16:01:00Z')] },
     [KAI]: { id: 'c-kai', canChat: true, messages: [ours('Okay, no more messages from Rainshare.', '2026-11-13T16:02:00Z'), theirs(KAI, 'Stop', '2026-11-13T09:00:00Z')] },
     [EVE]: { id: null, canChat: false, messages: [] },
-    [FAY]: { id: 'c-fay', canChat: true, messages: [ours('News from Rainshare: …', '2026-11-14T16:01:00Z')] }
+    [FAY]: { id: 'c-fay', canChat: true, messages: [ours('News from Rainshare: …', '2026-11-14T16:05:05Z')] }
   };
 });
 
@@ -103,6 +104,7 @@ globalThis.fetch = async (input, init = {}) => {
     const byId = id => Object.entries(convos).find(([, x]) => x.id === id);
     if (method === 'chat.bsky.convo.getMessages') return json({ messages: byId(q.get('convoId'))[1].messages });
     if (method === 'chat.bsky.convo.sendMessage') {
+      if (sendDelay) await new Promise(r => setTimeout(r, sendDelay));
       const { convoId, message: m } = JSON.parse(init.body), [to, convo] = byId(convoId);
       const view = { id: 'new' + sentMessages.length, rev: '1', ...m, sender: { did: ACCOUNT }, sentAt: new Date(clock + 1000).toISOString() };
       convo.messages.unshift(view); sentMessages.push({ to, ...m });
@@ -243,14 +245,14 @@ test('news is only what happened in its time, to the person it’s about', () =>
   assert.deepEqual(newsFor({ did: ALICE, updates: false, newAsks: true }, { seeds, takes, deliveries: [], from: TODAY - DAY, to: TODAY }), { updates: [], fresh: [] });
 });
 
-test('updates go by quarters of an hour, and new asks by days from 15:45 UTC', () => {
-  assert.equal(boundary(NOW), at('14T16:00'));
+test('updates go by the minute, and new asks by days from 15:45 UTC', () => {
+  assert.equal(boundary(NOW), at('14T16:05'));
   assert.equal(boundary(at('14T16:15')), at('14T16:15'));
   assert.equal(boundary(NOW, true), TODAY);
   assert.equal(boundary(TODAY - 1, true), TODAY - DAY);
 });
 
-test('updates come within a quarter of an hour, and the day’s new asks once', async () => {
+test('updates come within a minute or two, and the day’s new asks once', async () => {
   await go();
   assert.deepEqual(sentMessages.map(m => m.to).sort(), [ALICE, DEE, JUN].sort());
   // Bob takes Alice's ask at 16:08, and Carol asks something new at 16:09.
@@ -258,24 +260,36 @@ test('updates come within a quarter of an hour, and the day’s new asks once', 
   repos[CAROL][SEED].f1 = { $type: SEED, title: 'Fresh idea', audience: anyone, createdAt: '2026-11-14T16:09:00Z' };
 
   sentMessages = [];
-  await go({ now: at('14T16:17') });
-  assert.deepEqual(sentMessages.map(m => m.to), [ALICE], 'the next quarter, Alice hears about Bob, and Juniper has had today’s new asks');
+  await go({ now: at('14T16:10:30') });
+  assert.deepEqual(sentMessages.map(m => m.to), [ALICE], 'a few minutes on, Alice hears about Bob, and Juniper has had today’s new asks');
   assert.match(sentMessages[0].text, /^News from Rainshare:\n• Zed \(@zed\.test\) is on your ask “Fix the flaky test”\.\n• Bob \(@bob\.test\) is on your ask “Fix the flaky test”\.\n\nReply STOP/,
-    'Zed’s take at 16:01, just past the last message’s boundary, comes now with Bob’s: nothing is lost at a boundary');
+    'Zed’s take at 16:05:10, just past the last message’s boundary, comes now with Bob’s: nothing is lost at a boundary');
 
   sentMessages = [];
-  await go({ now: at('14T16:32') });
+  await go({ now: at('14T16:32:30') });
   assert.deepEqual(sentMessages, [], 'nothing new, nothing sent');
 
   sentMessages = [];
-  await go({ now: at('15T16:02') });
+  await go({ now: at('15T16:02:30') });
   assert.deepEqual(sentMessages.map(m => m.to), [JUN], 'the next day’s new asks, the next day');
   assert.match(sentMessages[0].text, /^New on the board:\n• “Fresh idea”: an idea from Carol/);
   assert.ok(!/Tiny timer/.test(sentMessages[0].text), 'and not yesterday’s again');
 });
 
-test('a run too near the next quarter of an hour leaves the messages to the next', async () => {
-  const out = await go({ now: at('14T16:13:30') });
+test('a run stops sending before the next minute, and whoever it didn’t reach hears next run', async () => {
+  // Started 100 ms before the cut-off (15 s before 16:06), with each message taking 150 ms to send.
+  sendDelay = 150;
+  let out = await go({ now: at('14T16:05:44.900') });
+  assert.deepEqual(sentMessages.map(m => m.to), [ALICE]);
+  assert.match(out.note, /Out of time/);
+  sendDelay = 0; sentMessages = [];
+  out = await go({ now: at('14T16:06:30') });
+  assert.ok([JUN, DEE].every(d => sentMessages.some(m => m.to === d)), 'Juniper and Dee next minute');
+  assert.match(sentMessages.find(m => m.to === JUN).text, /Bob \(@bob\.test\) marked “Weather app” done/, 'with everything they were due');
+});
+
+test('a run too near the next minute leaves the messages to the next', async () => {
+  const out = await go({ now: at('14T16:13:50') });
   assert.match(out.note, /next run/);
   assert.deepEqual([sentMessages.length, asked.filter(m => m.startsWith('chat.')).length], [0, 0]);
 });

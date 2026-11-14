@@ -1474,7 +1474,7 @@ export function createRainshare({ root, base = '/', host }){
       </form>
     </section>`;
   }
-  // The direct messages you'd like from @rainshare.dev (../api/_messages.js). It reads your
+  // The direct messages you'd like from @rainshare.dev (../announcer/src/messages.js). It reads your
   // settings from your account, so a copy kept only in this browser doesn't reach it.
   function messageSettings(){
     const n = S.prefs?.notify || {};
