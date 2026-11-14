@@ -37,9 +37,10 @@ NODE_BIN=/opt/node22/bin
 KEEP=5
 HEALTH_WAIT_S=60
 # What the announcer runs and is tested with: everything announcer/src/ imports (core/,
-# lexicons/compat.mjs, api/_og/describe.js, ui/bits.js), package.json (its "type": "module"),
-# the tests, and these scripts.
-PARTS=(announcer core lexicons api/_og ui/bits.js test package.json droplet)
+# lexicons/compat.mjs, api/_og/describe.js, and ui/bits.js, so all of ui/, which is small, in
+# case bits.js comes to import its neighbours), package.json (its "type": "module"), the tests,
+# and these scripts.
+PARTS=(announcer core lexicons api/_og ui test package.json droplet)
 # A change to these restarts it. Docs don't.
 CODE=(announcer core lexicons/compat.mjs api/_og/describe.js ui/bits.js ':!*.md')
 
