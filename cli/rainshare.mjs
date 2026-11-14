@@ -28,7 +28,7 @@ import { wordOn } from '../core/vouch.js';
 import * as net from '../core/net.js';
 import { concerns, alarming } from '../core/scan.js';
 import { reasonName } from '../core/moderation.js';
-import { SAFETY, ASKING, LEGAL, LEGAL_VERSION, asMarkdown } from '../core/legal.js';
+import { SAFETY, ASKING, PROVIDER, LEGAL, LEGAL_VERSION, asMarkdown } from '../core/legal.js';
 import { agreedIn, recordAgreement, tellLedger } from '../core/agreement.js';
 import { readFile, writeFile, mkdir, appendFile, rm, chmod } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -154,8 +154,9 @@ const agreeHow = () => `run \`${SELF} agree\` in a terminal (it’s for a person
 async function askToAgree(src, session, kind = 'help'){
   err(['', kind === 'ask' ? 'Before you ask for rain:' : 'Before you direct your agent to work on someone else’s ask:',
     ...(kind === 'ask' ? ASKING : SAFETY).map(([point, why]) => `  - ${point} ${why}`), '',
-    `Terms of Service: ${SITE}/terms   (here: ${SELF} terms)`, `Privacy Policy:   ${SITE}/privacy (here: ${SELF} privacy)`, ''].join('\n'));
-  if (!/^\s*(i\s+)?agree\W*$/i.test(await ask('Type "agree" to agree to both, or anything else to leave it: '))) return false;
+    `Terms of Service: ${SITE}/terms   (here: ${SELF} terms)`, `Privacy Policy:   ${SITE}/privacy (here: ${SELF} privacy)`, '',
+    'And about your AI plan, typing "agree" says:', `  “${PROVIDER}”`, ''].join('\n'));
+  if (!/^\s*(i\s+)?agree\W*$/i.test(await ask('Type "agree" to agree to all three, or anything else to leave it: '))) return false;
   const at = Date.now(), r = await recordAgreement(src, { at, via: 'cli', must: true });
   await keepAgreed(session.did, { version: LEGAL_VERSION, at: new Date(at).toISOString(), logged: r.logged });
   err(`Agreed. It’s saved in your Rainshare settings${r.logged ? ', and Rainshare has noted it.' : '. Rainshare’s own note of it will be made next time.'}`);

@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { LEGAL, TERMS, PRIVACY, LEGAL_VERSION, SAFETY, ASKING, OPERATOR, asMarkdown } from '../core/legal.js';
+import { LEGAL, TERMS, PRIVACY, LEGAL_VERSION, SAFETY, ASKING, PROVIDER, OPERATOR, asMarkdown } from '../core/legal.js';
 import { renderMarkdown } from '../core/markdown.js';
 import { known, reroute } from '../core/route.js';
 import { APPVIEW, RELAYS, PLC, CONSTELLATION } from '../core/net.js';
@@ -155,6 +155,17 @@ test('the note before a first job or a first ask: three points, both documents l
   assert.match(html, /<a href="\/base\/terms" target="_blank" rel="noopener">Terms of Service<\/a> and <a href="\/base\/privacy" target="_blank" rel="noopener">Privacy Policy<\/a>/);
   assert.match(html, /<button class="rs-btn rs-primary" type="button" data-ag="go" disabled>Agree and continue<\/button>/);
   assert.match(html, /data-ag="cancel">Not now</);
+  // A second box, in both: what their AI provider allows is theirs to check, and theirs to answer for.
+  for (const h of [html, asking]) {
+    assert.ok(h.includes(`<input type="checkbox" name="provider"><span>${PROVIDER}</span>`));
+    assert.ok(h.indexOf('name="provider"') < h.indexOf('data-ag="go"'));
+  }
+  assert.match(PROVIDER, /mine to check/);
+  assert.match(PROVIDER, /my responsibility, not Rainshare’s/);
+  // And the terms say the same, in the section on helping.
+  const helping = TERMS.sections.find(([h]) => /^Helping/.test(h))[1];
+  assert.match(helping, /Your provider decides for itself what its terms allow/);
+  assert.match(helping, /we aren’t responsible for it/);
 });
 
 test('the two pages have addresses, and the words people reach for lead to them', () => {

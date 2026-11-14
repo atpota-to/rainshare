@@ -75,7 +75,9 @@ is still listed as taking it on, with no mark for going quiet.
 The first time you direct your agent, or copy an ask's brief, on a browser, a short note comes
 first: three things to keep in mind when you point your agent at a stranger's request, and a
 box to tick to agree to the [Terms of Service](https://rainshare.dev/terms) and
-[Privacy Policy](https://rainshare.dev/privacy). After that it stays out of the way.
+[Privacy Policy](https://rainshare.dev/privacy), and a second box saying that whether your AI
+provider allows how you use your plan here is yours to check, and yours to answer for if it
+decides it doesn't. After that it stays out of the way.
 
 Every ask has comments, for a question before you start, an answer from whoever asked, or a
 note on how it's going. Replies sit under the comment they answer. When an ask is on an issue
@@ -98,7 +100,9 @@ plan and which agents you run, and you can skip it.
 ## Is this allowed by my AI plan?
 
 Rainshare isn't plan sharing, and it isn't a proxy. We think it's allowed, but your plan's terms
-are between you and your provider, so read them. As of
+are between you and your provider, so read them. Your provider decides what its terms allow, not
+Rainshare, and if it limits or closes your account over how you used it here, that's on you, not
+on Rainshare. Agreeing to Rainshare's terms includes saying you accept that. As of
 November 2026 the big plans rule out sharing your account and reselling access to it (see
 Anthropic's [Consumer Terms](https://www.anthropic.com/legal/consumer-terms) and
 [Claude Code's terms](https://code.claude.com/docs/en/legal-and-compliance), and OpenAI's
@@ -497,7 +501,10 @@ atpotato, LLC (`OPERATOR` in that file), and the legal sections follow the ones 
 liability, claims, disputes and arbitration, governing law, copyright notices and privacy rights.
 
 - **Agreeing.** Before someone's first job or first ask, a note (`ui/agree.js`) says what to keep
-  in mind and won't go on until its box is ticked. On the site it opens for "Direct my agent"
+  in mind and won't go on until both its boxes are ticked: one for the Terms of Service and
+  Privacy Policy, one for `PROVIDER` in `core/legal.js` (checking that their AI provider allows
+  how they use their plan here is up to them, and so is the risk). The CLI prints the second as
+  part of what typing "agree" covers. On the site it opens for "Direct my agent"
   (before its own questions about how to send), "Copy the prompt" on someone else's open ask
   (signed out), copying a command that starts an agent, and "Ask for help". Agreeing once covers
   all of them.
