@@ -1,9 +1,10 @@
 // rainshare.dev. The screens are in ../ui and the data in ../core; this file is the site
 // around them:
 //
-//   /               signed out, the landing, and everything open to everyone under it;
-//                   signed in, the board
-//   /board          the board on its own, signed in or out (the bar's "Help someone")
+//   /               the home page, signed in or out (the logo leads there): the landing, and
+//                   the board under it
+//   /board          the board on its own, signed in or out (the bar's "Help someone"); signing
+//                   in from the home page lands here
 //   /new            asking for help (the bar's "Ask for help")
 //   /example/…      the example circle, kept in this browser (nothing in the app links to it)
 //   /seed/…, /new, /me, /settings, /profile/…, /agents, /feedback, /terms, /privacy, /releases   Rainshare's own screens (see ../ui/rainshare.js)
@@ -76,7 +77,7 @@ const host = kind => ({
   brand: 'rainshare',
   // Nobody to restore and nobody coming back from signing in: the screens needn't wait to say hello.
   visitor: kind === 'real' && visitor,
-  // Signed out, / is the landing with the board under it, so the board has an address of its own (/board).
+  // / is the landing with the board under it, so the board has an address of its own (/board).
   landing: kind === 'real',
   navigate,
   toast,
@@ -109,7 +110,7 @@ const host = kind => ({
   // from before it asked is pointed to Bluesky instead. (A server that won't say what it granted is tried.)
   canFollow: kind === 'real' ? () => !granted || canFollow(granted) : null,
   connectForge: kind === 'real' ? (forge, sub) => { if (session) openSignIn({ person: me || { did: session.did }, to: '/' + (sub || '') + location.search, forges: [...new Set([...forges, forge])], adding: forge }); } : null,
-  ...(kind === 'example' ? { exitDemo: session ? 'Back to the real board' : 'Sign in for the real board', onExitDemo: () => navigate('/') } : {})
+  ...(kind === 'example' ? { exitDemo: session ? 'Back to the real board' : 'Sign in for the real board', onExitDemo: () => navigate(session ? '/board' : '/') } : {})
 });
 let real = null, example = null;
 function app(kind){
@@ -213,8 +214,13 @@ function route(){
   const path = location.pathname, kind = isExample(path) ? 'example' : 'real', sub = subOf(path);
   $('#example').hidden = kind !== 'example';
   $('#circle').hidden = kind !== 'real';
-  const landing = (ready || visitor) && kind === 'real' && !session && !sub;
+  // The home page is the same signed in or out, so it shows at once, without waiting to find out.
+  const landing = kind === 'real' && !sub;
   $('#landing').hidden = !landing;
+  // Its two buttons are the way in from there, so the bar leaves its tabs out. "Make one" is for
+  // someone with no account, so it's not there for whoever's signed in (or about to be).
+  $('.rd-nav').hidden = landing;
+  $('#landing .rd-new').hidden = !!session || (!ready && !visitor);
   // Nothing in the app leads to the example circle: its people and asks are made up, and its
   // pages look enough like real ones to be taken for them. It's there at /example for whoever
   // has the address. Its tab shows only while you're in it, so every one of its pages says
@@ -222,8 +228,7 @@ function route(){
   $('[data-tab="example"]').hidden = kind !== 'example';
   landing ? showLanding() : hideLanding();
   // The bar has the two things to do here: help someone (the board, and an ask's page) and ask
-  // for help. (The landing isn't either, and nor are your profile, someone else's, or the pages
-  // in the footer.)
+  // for help. (Your profile isn't either, nor is someone else's, nor are the pages in the footer.)
   const top = sub.split('/')[0];
   const tab = kind === 'example' ? 'example' : landing ? null : top === 'new' ? 'new' : !top || top === 'board' || top === 'seed' ? 'circle' : null;
   // (The tab's tint slides over from the one you were on.)
@@ -281,11 +286,13 @@ document.addEventListener('click', e => {
   if (e.target.closest('[data-signout]')) signOut();
   if (e.target.closest('#rdPeek') && !e.metaKey && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); toBoard(); }
   // The bar's "Sign in": the dialog, and you come back to the page you were on (the example
-  // board isn't yours to come back to).
+  // board isn't yours to come back to, and from the home page it's on to the board: see boot).
   if (e.target.closest('[data-signin]')) openSignIn({ to: isExample(location.pathname) ? '/' : location.pathname + location.search });
-  // The landing's two buttons: the same dialog, saying what it's for, and on to the board or to asking.
+  // The landing's two buttons: signed in, straight to the board or to asking; signed out, the
+  // same dialog, saying what it's for, and on to them. (Tapped while a sign-in is still being
+  // restored, they wait to find out which.)
   const start = e.target.closest('[data-start]');
-  if (start) openSignIn(START[start.dataset.start] || START.board);
+  if (start) { const s = START[start.dataset.start] || START.board, go = () => session ? navigate(s.to) : openSignIn(s); ready || visitor ? go() : settled.then(go); }
   // "Make one", for someone with no account yet: the dialog, at the hosts to make one with.
   if (e.target.closest('[data-signup]')) openSignIn({ making: true, to: isExample(location.pathname) ? '/' : location.pathname + location.search });
 });
@@ -435,6 +442,9 @@ const START = {
 };
 
 /* ---------- boot ---------- */
+// Once it's known whether you're signed in.
+let settle;
+const settled = new Promise(r => { settle = r; });
 async function boot(){
   renderMe();
   // The logo starts moving: until now it was a picture of itself.
@@ -448,8 +458,13 @@ async function boot(){
     session = r.session; forges = r.forges || []; granted = r.scope || '';
     profiles([session.did]).then(m => { me = m.get(session.did); renderMe(); }, () => {});
   }
-  if (oauth.isCallback() || location.pathname === '/signed-in') history.replaceState(null, '', r?.to && r.to !== '/signed-in' ? r.to : '/');
-  ready = true;
+  // Back from signing in, to where you were, except that the home page is for before you're in:
+  // from there, it's on to the board.
+  if (oauth.isCallback() || location.pathname === '/signed-in') {
+    const to = r?.to && r.to !== '/signed-in' ? new URL(r.to, location.origin) : null;
+    history.replaceState(null, '', !to || to.pathname === '/' ? '/board' + (to ? to.search + to.hash : '') : to.pathname + to.search + to.hash);
+  }
+  ready = true; settle();
   renderMe();
   route();
   // (Handing over the source shows the screen the address points at: there's nothing left to route.)

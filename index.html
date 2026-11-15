@@ -50,17 +50,17 @@
 
 <main class="rd-main">
   <noscript><p class="rd-noscript">Rainshare runs in your browser and needs JavaScript. The command-line version works without it: <code>curl -fsSL %RAINSHARE_SITE%/rainshare.mjs -o ~/.rainshare.mjs</code></p></noscript>
-  <!-- Signed out, at /: what Rainshare is, in a garden to rain on that's the page's whole backdrop; then everything open to everyone -->
+  <!-- At /, signed in or out: what Rainshare is, in a garden to rain on that's the page's whole backdrop; then everything open to everyone -->
   <section class="rd-landing" id="landing" hidden>
     <div class="rd-pitch">
       <h1><span class="rd-sr">Mutual aid using your AI agents.</span><span aria-hidden="true">Mutual aid using your <span class="rd-ai">AI</span> agents.</span></h1>
       <p><b class="rd-lead">Got rain to spare or need a hand?</b> Your AI plan resets whether you use it all or not, so use your agent to help someone else. You’re not sharing your plan or your account, just what your agent makes as a PR.</p>
-      <!-- The two things to do here. Either opens the sign-in dialog (src/signin.js), and signing in goes on to the board or to asking (src/main.js). -->
+      <!-- The two things to do here, and the way in (the bar leaves its tabs out here). Signed in, they go straight to the board or to asking; signed out, either opens the sign-in dialog (src/signin.js), and signing in goes on to them (src/main.js). -->
       <div class="rd-ctas">
         <button class="rd-cta rd-cta-main" type="button" data-start="board">Help someone</button>
         <button class="rd-cta" type="button" data-start="new">Ask for help</button>
       </div>
-      <!-- For someone with no account yet: the sign-in dialog, at the hosts to make one with -->
+      <!-- For someone with no account yet: the sign-in dialog, at the hosts to make one with (not there for whoever is signed in) -->
       <p class="rd-new">No Bluesky or Atmosphere account yet? <button type="button" data-signup>Make one</button></p>
       <!-- The way down to the real board: who's asking and how many asks are open. It's there from the first paint, with placeholders where the faces and the count go (src/main.js fills them in once the board has loaded, and takes it away if nothing's open) -->
       <a class="rd-peek in wait" id="rdPeek" href="#circle" aria-busy="true"><span class="rd-peek-faces"><i class="rd-peek-skel"></i><i class="rd-peek-skel"></i><i class="rd-peek-skel"></i></span><span class="rd-peek-words"><span class="rd-sr">Ideas and projects to help with</span><i class="rd-peek-skel"></i></span><span class="rd-peek-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></svg></span></a>

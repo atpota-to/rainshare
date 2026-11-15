@@ -1,5 +1,5 @@
-/* The signed-out landing: the pitch, in the garden to rain on. Colours and the typeface come
-   from ../theme.css. What's only the water cycle's is in ./cycle/cycle.css. */
+/* The landing, at /, signed in or out: the pitch, in the garden to rain on. Colours and the
+   typeface come from ../theme.css. What's only the water cycle's is in ./cycle/cycle.css. */
 :root{--pin:rgba(255,255,255,.84);--pin-edge:rgba(18,32,58,.1)}
 :root[data-mode=night]{--pin:rgba(19,28,46,.8);--pin-edge:rgba(255,255,255,.14)}
 
