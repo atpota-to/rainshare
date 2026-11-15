@@ -5,11 +5,21 @@
 //          the field's end, and "Add a note" for a
 //          line to whoever asked. Where the pull request can be opened from a pushed branch
 //          instead (Tangled and knotless), a line says that's on the ask's page, and goes there.
+//          Over the field, the pull requests the forge has that mention the ask and weren't
+//          turned in, yours first: a press fills the field in, so on a phone there's nothing to
+//          copy from one app and paste in another. The one that's plainly yours is filled in already.
 //   done   that it's with them now, and what happens next.
 //
 // The ask's own page keeps its form, with the rest (what did the work, a session link, opening
 // the pull request from here).
 import { esc, ico, pasteField, pasteInto, PASTE_REFUSED } from './bits.js';
+
+const STATE = { open: 'Open', merged: 'Merged' };
+/** The pull requests to offer, best first: yours, then open ones, then merged ones. Closed ones aren't offered. */
+export function offerPulls(list){
+  const rank = p => (p.yours ? 0 : 2) + (p.state === 'merged' ? 1 : 0);
+  return (Array.isArray(list) ? list : []).filter(p => p?.url && p.state !== 'closed').sort((a, b) => rank(a) - rank(b)).slice(0, 4);
+}
 import { closeSoftly, swapStep } from './motion.js';
 
 /**
@@ -18,14 +28,17 @@ import { closeSoftly, swapStep } from './motion.js';
  *   idea         whether it's an idea (where it lives, not a pull request)
  *   placeholder  what the link looks like, on this forge
  *   branch       the forge's name when a pull request can be opened from a pushed branch, or null
+ *   forge        the forge's name ("GitHub"), for what's said while it's asked
+ *   found        a promise of the pull requests there that mention the ask and weren't turned in
+ *                here: [{ url, number, title, by, state, yours }] (null for none, or no forge)
  *   send         turns it in: ({ url, note }); throws to say it didn't
  *   toPage       goes to the ask's page, to open the pull request from a branch
  *   done         once it's closed: (whether it was turned in)
  *   error        what a failed send says, in plain words
  */
-export function openTurnIn({ asker, idea, placeholder, branch = null, send, toPage = () => {}, done = () => {}, error = e => e?.message || 'Something went wrong. Try again in a moment.' }){
+export function openTurnIn({ asker, idea, placeholder, branch = null, forge = '', found = null, send, toPage = () => {}, done = () => {}, error = e => e?.message || 'Something went wrong. Try again in a moment.' }){
   if (document.querySelector('.rs-ti')) return;
-  const st = { busy: false, note: false, sent: false };
+  const st = { busy: false, note: false, sent: false, pulls: found ? undefined : [], picked: null };
   const dlg = document.createElement('dialog');
   dlg.className = 'rs-wl rs-ti';
   dlg.setAttribute('aria-labelledby', 'rsTiTitle');
@@ -34,11 +47,21 @@ export function openTurnIn({ asker, idea, placeholder, branch = null, send, toPa
   document.body.append(dlg);
 
   const top = h => `<div class="rs-wl-top"><h2 id="rsTiTitle" tabindex="-1">${h}</h2><button class="rs-wl-x" type="button" data-ti="close" aria-label="Close">${ico('close')}</button></div>`;
+  // What the forge has: a line while it's asked, then a button for each one found.
+  function offered(){
+    if (st.pulls === undefined) return `<p class="rs-ti-look" role="status">Looking on ${esc(forge || 'the forge')} for your pull request…</p>`;
+    if (!st.pulls.length) return '';
+    const mine = st.pulls.filter(p => p.yours).length;
+    return `<div class="rs-ti-found"><p>${mine === 1 && st.pulls.length === 1 ? `Yours, on ${esc(forge || 'the forge')}:` : `On ${esc(forge || 'the forge')}, mentioning this:`}</p>
+      <ul>${st.pulls.map((p, i) => `<li><button type="button" class="rs-ti-pr" data-ti-pick="${i}" aria-pressed="${st.picked === p.url}">${ico('pull')}<span><b>${p.number ? `#${esc(p.number)} ` : ''}${esc(p.title || 'A pull request')}</b>
+        <small>${esc([p.yours ? 'Yours' : p.by ? `By @${p.by}` : '', STATE[p.state] || ''].filter(Boolean).join(' · '))}</small></span></button></li>`).join('')}</ul></div>`;
+  }
   function paint(){
     box.innerHTML = `${top('Turn it in')}
       <form class="rs-form rs-ti-form" novalidate>
+        <div class="rs-ti-offer">${offered()}</div>
         <label>${idea ? `A link to where it lives, so ${esc(asker)} can look` : 'The link to the pull request your agent opened'}
-          ${pasteField(`<input name="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="${esc(placeholder)}" required>`)}</label>
+          ${pasteField(`<input name="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="${esc(placeholder)}" value="${esc(st.picked || '')}" required>`)}</label>
         ${st.note ? `<label>A note for ${esc(asker)} <small>(optional)</small><input name="note" maxlength="300" autocomplete="off"></label>`
           : '<button class="rs-link rs-ti-more" type="button" data-ti="note">Add a note</button>'}
         <p class="rs-err" role="alert" hidden></p>
@@ -68,6 +91,16 @@ export function openTurnIn({ asker, idea, placeholder, branch = null, send, toPa
     if (e.target === dlg) return closeSoftly(dlg);
     const ps = e.target.closest('[data-rs-paste]');
     if (ps) { pasteInto(ps).then(ok => say(ok ? '' : PASTE_REFUSED)); return; }
+    // One the forge found: it goes in the field, and the button that turns it in is next.
+    const pk = e.target.closest('[data-ti-pick]');
+    if (pk) {
+      const p = st.pulls?.[+pk.dataset.tiPick]; if (!p) return;
+      st.picked = p.url;
+      const input = box.querySelector('[name=url]'); if (input) input.value = p.url;
+      box.querySelectorAll('[data-ti-pick]').forEach(b => b.setAttribute('aria-pressed', String(b === pk)));
+      say(''); box.querySelector('[type=submit]')?.focus();
+      return;
+    }
     const b = e.target.closest('[data-ti]'); if (!b) return;
     const act = b.dataset.ti;
     if (act === 'close') closeSoftly(dlg);
@@ -75,7 +108,7 @@ export function openTurnIn({ asker, idea, placeholder, branch = null, send, toPa
     else if (act === 'note') {
       // (What's typed in the link stays.)
       const url = box.querySelector('[name=url]')?.value || '';
-      st.note = true; paint();
+      st.note = true; st.picked = url || null; paint();
       box.querySelector('[name=url]').value = url;
       box.querySelector('[name=note]')?.focus();
     }
@@ -86,4 +119,16 @@ export function openTurnIn({ asker, idea, placeholder, branch = null, send, toPa
   paint();
   dlg.showModal();
   box.querySelector('[name=url]')?.focus();
+  // When the forge answers: what it has goes over the field, and the one that's plainly yours (if
+  // just one is) is filled in, unless something's been typed or picked by then.
+  found?.then(list => list, () => null).then(list => {
+    if (!dlg.open || st.sent) return;
+    st.pulls = offerPulls(list);
+    const input = box.querySelector('[name=url]'), typed = input?.value.trim();
+    const yours = st.pulls.filter(p => p.yours);
+    if (!typed && yours.length === 1) st.picked = yours[0].url;
+    const offer = box.querySelector('.rs-ti-offer');
+    if (offer) offer.innerHTML = offered();
+    if (input && !typed && st.picked) { input.value = st.picked; if (document.activeElement === input) box.querySelector('[type=submit]')?.focus(); }
+  });
 }
