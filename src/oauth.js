@@ -13,7 +13,7 @@
 //
 // Making an account is the same sign-in, started from a host's address (./hosts.js) in place of
 // a handle, with the host asked to open on its sign-up form.
-import { DECLARED_SCOPE, REDIRECT_PATH, PLC, FORGES, ladder, forgesIn, moderates } from './scope.js';
+import { DECLARED_SCOPE, REDIRECT_PATH, PLC, FORGES, ladder, forgesIn, moderates, moderatesBoard } from './scope.js';
 import { isHandle } from '../core/net.js';
 import { noSuchAccount, handleLookup } from './lookup.js';
 import { signsUp } from './hosts.js';
@@ -113,7 +113,7 @@ export async function whereToMake(url){
 // `forges` is which forges to ask to post to: all of them unless told otherwise. `step` is
 // how far down the ladder to start (after a refusal that came back through the address bar).
 export async function signIn(who, to, { forges = FORGES, step = 0, create = false } = {}){
-  const c = await client(), state = JSON.stringify({ to }), steps = ladder(forges, { moderator: moderates(who) });
+  const c = await client(), state = JSON.stringify({ to }), steps = ladder(forges, { moderator: moderates(who), boardModerator: moderatesBoard(who) });
   // The sign-up form, where the host has one. (The lookup is the one signing in makes anyway, and kept.)
   const prompt = create && await whereToMake(who).then(w => w.create, () => false) ? { prompt: 'create' } : {};
   for (let i = Math.min(Math.max(0, step), steps.length - 1); ; i++) {

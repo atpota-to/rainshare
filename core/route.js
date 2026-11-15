@@ -4,7 +4,7 @@
 //
 // A sub-path is the part after the app's base: '' (home: the board, or on rainshare.dev the
 // landing for someone signed out), 'board' (the board on its own), 'new', 'me', 'settings',
-// 'agents', 'feedback', 'releases', 'guidelines', 'profile/<who>', 'seed/<who>/<rkey>', 'seed/s/<code>' (see ../ui/rainshare.js). A profile's
+// 'agents', 'feedback', 'feedback/<did>/<rkey>', 'releases', 'guidelines', 'profile/<who>', 'seed/<who>/<rkey>', 'seed/s/<code>' (see ../ui/rainshare.js). A profile's
 // address is by DID; a handle works in its place, and the old 'u/<who>' leads there too.
 import { isHandle, isRkey } from './net.js';
 
@@ -42,6 +42,8 @@ export function known(sub){
   if (p.length === 1) return p[0] === '' || PAGES.includes(p[0]);
   if (p[0] === 'profile') return p.length === 2 && !!p[1];
   if (p[0] === 'seed') return p.length === 3 && (p[1] === 's' ? /^[A-Za-z0-9_-]+$/.test(p[2]) : !!p[1] && !!p[2]);
+  // One post on the feedback board: its author's DID and its record key.
+  if (p[0] === 'feedback') return p.length === 3 && isDid(p[1]) && isRkey(p[2]);
   return false;
 }
 

@@ -1,4 +1,4 @@
-// The signed-out landing: the pitch, and a scene to play with.
+// The landing at /, signed in or out: the pitch, and a scene to play with.
 //
 // The scene is the garden (./garden.js): your cloud, and your friends' plots to rain on. It's
 // the page's whole backdrop, with the pitch in its sky. The water cycle it replaced is kept
@@ -66,12 +66,12 @@ async function wire(){
   calm.addEventListener('change', () => { paused = calm.matches; sync(); });
 }
 
-/** The landing is on screen (signed out, at /). */
+/** The landing is on screen (at /). */
 export function showLanding(){
   shown = true;
   (wiring ||= wire()).then(() => { if (shown && inView) load(); sync(); });
 }
-/** The landing is hidden: another page, or someone signed in. */
+/** The landing is hidden: another page. */
 export function hideLanding(){
   shown = false;
   wiring?.then(sync);

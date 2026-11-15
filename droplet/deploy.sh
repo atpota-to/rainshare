@@ -195,7 +195,8 @@ fi
 
 for svc in "${unhealthy[@]}"; do
   echo "!! ${UNIT[$svc]} is not healthy on $short after ${HEALTH_WAIT_S}s" >&2
-  journalctl -u "${UNIT[$svc]}" --no-pager -o cat -n 30 >&2 || true
+  systemctl status "${UNIT[$svc]}" --no-pager -n 0 >&2 || true
+  echo "!! its log names accounts, so it stays on the droplet: journalctl -u ${UNIT[$svc]} -n 50" >&2
 done
 # The index alone unhealthy, with no release of it to go back to (its first deploy): rolling back
 # would take the announcer back to code from before the review queue, which posts without anyone's

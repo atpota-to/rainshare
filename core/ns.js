@@ -41,6 +41,24 @@ export const NOTIFY = [['updates', 'Updates on my asks and my work'], ['newAsks'
 // (../src/scope.js); it never unfollows, so switching messages off leaves the follow be.
 export const FOLLOW = 'app.bsky.graph.follow';
 export const FOLLOW_SCOPE = `repo:${FOLLOW}?action=create`;
+// Rainshare's feedback board (./feedback.js) is a board on userinput.app, and what people do on
+// it here is written as userinput.app's own records (app.userinput.*), in their own accounts, so
+// it shows the same on userinput.app. userinput.app publishes two permission sets for them:
+//   basic  posting, replying, voting, and editing your own posts: what everyone's sign-in asks for
+//   full   that, and running a board: statuses, moderators, hiding, bans, pins, locks and the
+//          board itself. Only the board's moderators' sign-ins ask for it (BOARD_MODERATORS).
+// Each set is asked for by name too, for a server that can't look it up (../src/scope.js), so
+// these lists are the sets' own, written out.
+export const USERINPUT = 'app.userinput';
+export const USERINPUT_SETS = { basic: USERINPUT + '.authBasic', full: USERINPUT + '.authFull' };
+export const USERINPUT_BASIC = ['discussion', 'reply', 'upvote', 'downvote', 'edit'].map(n => `${USERINPUT}.${n}`);
+export const USERINPUT_FULL = ['space', 'discussion', 'reply', 'upvote', 'downvote', 'status', 'member', 'pin', 'hide', 'ban', 'checkedNotifications', 'visited', 'lock', 'edit'].map(n => `${USERINPUT}.${n}`);
+// Who runs the feedback board, by DID, with the handle a sign-in might be started with: the
+// board's owner, @rainshare.dev, and @dame.is. Their sign-ins ask to write the board's
+// moderation records. A moderator's records only count once the owner has made them one on
+// the board (an app.userinput.member record in the owner's repo, which the feedback page can
+// write), so this list says whose sign-in asks, not whose word counts.
+export const BOARD_MODERATORS = [[MODERATOR, HANDLE], ['did:plc:gq4fo3u6tqzzdkjlwzpb23tj', 'dame.is']];
 // Private seeds in a group's space. Spaces are still an alpha on the group host, so for now
 // every seed is public: sign-in asks only for Rainshare's own records, and the app shows
 // groups as coming. Turning this on brings back everything private (src/scope.js, the
@@ -60,7 +78,7 @@ export const GROUPS = false;
 //   fit          how well an ask suits you (./rank.js), on the site: the drops and "Good fit" on
 //                a card, the box that says why on an ask, and the board's "Best for you" order.
 //                Off, the board is newest first, and how you know whoever asked is what's shown.
-//                The CLI and MCP server still rank by it, since an agent picking work uses the reasons.
+//                The CLI and MCP server still rank by it, since an agent suggesting work uses the reasons.
 export const FEATURES = { audience: false, seedValues: false, priorities: false, forecast: false, values: false, circumstances: false, fit: false };
 
 export const HARNESSES = [

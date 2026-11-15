@@ -1,12 +1,12 @@
 // Before someone's first job, or their first ask: a short note on what to keep in mind, and
-// agreeing to Rainshare's Terms of Service and Privacy Policy (../core/legal.js).
+// agreeing to Rainshare's Terms of Service, with the Privacy Policy linked beside it (../core/legal.js).
 //
 // It opens the first time someone goes to work on someone else's ask ("Direct my agent", copying
 // the brief, copying a command that starts an agent) or posts one of their own ("Ask for
-// rain"), whichever comes first: agreeing once covers both. It has two boxes: one for the
-// Terms of Service and Privacy Policy, and one saying that whether their AI provider allows how
-// they use their plan here is theirs to check, and theirs to answer for (PROVIDER). Nothing goes
-// ahead until both are ticked and "Agree and continue" is pressed. Closing it any other way (the ✕, "Not now",
+// help"), whichever comes first: agreeing once covers both. It has two boxes: one for the
+// Terms of Service, with the Privacy Policy linked beside it, and one saying that whether their
+// AI provider allows how they use their plan here is theirs to check, and theirs to answer for
+// (PROVIDER). Nothing goes ahead until both are ticked and "Agree and continue" is pressed. Closing it any other way (the ✕, "Not now",
 // Escape, a click outside) leaves things as they were, and it's asked again next time.
 //
 // Agreeing is remembered on this browser, with the version agreed to. Signed in, it's written
@@ -57,7 +57,7 @@ export function agreeHtml(href = sub => '/' + sub, kind = 'help'){
     <h2 id="rsAgreeTitle" tabindex="-1">${esc(k.title)}</h2>
     <p class="rs-muted">${esc(k.lead)}</p>
     <ol class="rs-wl-story">${k.points.map(([point, why], i) => `<li><span class="rs-wl-ico">${ico(k.icons[i] || 'info')}</span><p><b>${esc(point)}</b>${esc(why)}</p></li>`).join('')}</ol>
-    <label class="rs-agree-check"><input type="checkbox" name="agree"><span>I agree to Rainshare’s <a href="${esc(href('terms'))}" target="_blank" rel="noopener">Terms of Service</a> and <a href="${esc(href('privacy'))}" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
+    <label class="rs-agree-check"><input type="checkbox" name="agree"><span>I’m 18 or older, and I agree to Rainshare’s <a href="${esc(href('terms'))}" target="_blank" rel="noopener">Terms of Service</a>. Its <a href="${esc(href('privacy'))}" target="_blank" rel="noopener">Privacy Policy</a> says what happens to data.</span></label>
     <label class="rs-agree-check"><input type="checkbox" name="provider"><span>${esc(PROVIDER)}</span></label>
     <button class="rs-btn rs-primary" type="button" data-ag="go" disabled>Agree and continue</button>
     <div class="rs-wl-foot"><span class="rs-muted">Asked once, and again only if the terms change.</span><button class="rs-link" type="button" data-ag="cancel">Not now</button></div>`;

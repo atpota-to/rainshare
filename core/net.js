@@ -187,7 +187,7 @@ export async function relationships(actor, others){
   // A few calls at a time: a long list of people (everyone you follow) is dozens of them.
   await pool(chunk(dids, 30), 6, async part => {
     const r = await xrpc(APPVIEW, 'app.bsky.graph.getRelationships', { actor, others: part });
-    for (const x of r.relationships || []) if (x.did) out.set(x.did, { following: !!x.following, followedBy: !!x.followedBy, blocking: !!(x.blocking || x.blockingByList), blockedBy: !!x.blockedBy });
+    for (const x of r.relationships || []) if (x.did) out.set(x.did, { following: !!x.following, followedBy: !!x.followedBy, blocking: !!(x.blocking || x.blockingByList), blockedBy: !!(x.blockedBy || x.blockedByList) });
   });
   return out;
 }

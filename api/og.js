@@ -54,6 +54,6 @@ export default async function handler(req, res){
   if (!png) { res.statusCode = 302; res.setHeader('location', '/og.jpg'); res.setHeader('cache-control', 'public, max-age=60'); res.end(); return; }
   res.statusCode = 200;
   res.setHeader('content-type', 'image/png');
-  res.setHeader('cache-control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
+  res.setHeader('cache-control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=3600');
   res.end(png);
 }

@@ -324,25 +324,28 @@ test('a description to start a pull request from', () => {
 });
 
 test('sign-in asks for the forges up front, and for less only if a server refuses', async () => {
-  const { ladder, DECLARED_SCOPE, BASIC_SCOPE, OWN, forgesIn, clientMetadata } = await import('../src/scope.js');
+  const { ladder, DECLARED_SCOPE, BASIC_SCOPE, OWN, FEEDBACK, forgesIn, clientMetadata } = await import('../src/scope.js');
   const steps = ladder(), forge = Object.values(FORGE_SCOPES).flat(), tokens = s => s.split(' ');
   // The first thing asked for is everything: Rainshare's own records, by its permission set,
-  // and both forges.
-  assert.ok(tokens(steps[0]).includes(OWN.set));
+  // the feedback board's, by userinput.app's, and both forges.
+  assert.ok(tokens(steps[0]).includes(OWN.set) && tokens(steps[0]).includes(FEEDBACK.set));
+  const byName = s => s.replace(OWN.set, OWN.named).replace(FEEDBACK.set, FEEDBACK.named);
   for (const sc of forge) assert.ok(tokens(steps[0]).includes(sc), sc);
   assert.deepEqual(forgesIn(steps[0]), ['knotless', 'tangled']);
-  // A server that can't look the set up is asked for the same again, with the records by name,
+  // A server that can't look the sets up is asked for the same again, with the records by name,
   // before anything is left out.
-  assert.equal(steps[1], steps[0].replace(OWN.set, OWN.named));
+  assert.equal(steps[1], byName(steps[0]));
   assert.deepEqual(forgesIn(steps[1]), ['knotless', 'tangled']);
   for (let i = 0; i < steps.length; i += 2) {
-    assert.ok(tokens(steps[i]).includes(OWN.set) && !tokens(steps[i]).some(t => t.startsWith('repo:dev.rainshare.')), steps[i]);
-    assert.equal(steps[i + 1], steps[i].replace(OWN.set, OWN.named));
+    assert.ok(tokens(steps[i]).includes(OWN.set) && !tokens(steps[i]).some(t => t.startsWith('repo:dev.rainshare.') || t.startsWith('repo:app.userinput.')), steps[i]);
+    assert.equal(steps[i + 1], byName(steps[i]));
   }
-  // Declared: every step, and @rainshare.dev's, which asks for moderation records as well.
+  // Declared: every step, @rainshare.dev's, which asks for moderation records as well, and the
+  // feedback board's moderators', which ask for userinput.app's full set.
   const { MODERATE, moderates, canModerate } = await import('../src/scope.js');
   const modSteps = ladder(undefined, { moderator: true });
-  assert.equal(DECLARED_SCOPE, [...new Set([...steps, ...modSteps].flatMap(tokens))].join(' '));
+  const boardSteps = [...ladder(undefined, { moderator: true, boardModerator: true }), ...ladder(undefined, { boardModerator: true })];
+  assert.deepEqual(new Set(tokens(DECLARED_SCOPE)), new Set([...steps, ...modSteps, ...boardSteps].flatMap(tokens)));
   assert.deepEqual(modSteps, steps.map(s => s + ' ' + MODERATE));
   assert.ok(steps.every(s => !canModerate(s)) && modSteps.every(canModerate), 'nobody else is asked to write moderation records');
   assert.ok(moderates('did:plc:cmkittusvczhnei4gjt3asiv') && moderates('@Rainshare.dev') && !moderates('alice.test') && !moderates('did:plc:alice'));
@@ -360,4 +363,41 @@ test('sign-in asks for the forges up front, and for less only if a server refuse
   assert.deepEqual(forgesIn(BASIC_SCOPE + ' repo:dev.knotless.issue?action=create repo:dev.knotless.comment?action=create'), []);
   assert.deepEqual(forgesIn(BASIC_SCOPE + ' rpc:com.atproto.repo.createRecord?aud=* repo:org.tangled.graph.attestation?action=create'), []);
   assert.deepEqual(forgesIn(undefined), []);
+});
+
+test('the feedback board: everyone asks for userinput.app’s basic set, its moderators for the full one, and an older sign-in is known to be short', async () => {
+  const { ladder, FEEDBACK, FEEDBACK_FULL, missingFrom, canFeedback, canRunBoard, moderatesBoard, moderates, BASIC_SCOPE, DECLARED_SCOPE } = await import('../src/scope.js');
+  const { USERINPUT_BASIC, USERINPUT_FULL } = await import('../core/ns.js');
+  const tokens = s => s.split(' ');
+  // userinput.app's own sets, and the same written out by name.
+  assert.equal(FEEDBACK.set, 'include:app.userinput.authBasic');
+  assert.equal(FEEDBACK_FULL.set, 'include:app.userinput.authFull');
+  assert.deepEqual(tokens(FEEDBACK.named), USERINPUT_BASIC.map(c => 'repo:' + c));
+  assert.deepEqual(tokens(FEEDBACK_FULL.named), USERINPUT_FULL.map(c => 'repo:' + c));
+  assert.ok(USERINPUT_BASIC.every(c => USERINPUT_FULL.includes(c)), 'the full set holds the basic one');
+  // Nobody but the board's moderators is asked to run it.
+  for (const step of ladder()) assert.ok(!tokens(step).includes(FEEDBACK_FULL.set) && !tokens(step).includes('repo:app.userinput.status'), step);
+  const board = ladder(undefined, { boardModerator: true });
+  assert.deepEqual(board, ladder().map(s => s.replace(FEEDBACK.set, FEEDBACK_FULL.set).replace(FEEDBACK.named, FEEDBACK_FULL.named)));
+  for (const t of [FEEDBACK_FULL.set, ...tokens(FEEDBACK_FULL.named)]) assert.ok(tokens(DECLARED_SCOPE).includes(t), t);
+  // Who they are: @rainshare.dev and @dame.is, by DID or by the handle typed in.
+  assert.ok(moderatesBoard('did:plc:cmkittusvczhnei4gjt3asiv') && moderatesBoard('rainshare.dev') && moderatesBoard('@Dame.is') && moderatesBoard('did:plc:gq4fo3u6tqzzdkjlwzpb23tj'));
+  assert.ok(!moderatesBoard('alice.test') && !moderatesBoard('did:plc:alice') && !moderatesBoard(''));
+  assert.ok(!moderates('dame.is'), '@dame.is runs the feedback board, not Rainshare’s own moderation');
+  // A sign-in as it's asked for now is short of nothing, every step of the way, by set or by name.
+  for (const step of ladder()) assert.deepEqual(missingFrom(step), [], step);
+  for (const step of ladder(undefined, { moderator: true, boardModerator: true })) assert.deepEqual(missingFrom(step, { moderator: true, boardModerator: true }), [], step);
+  // One from before the board was asked for is short of it; one from before settings and the
+  // follow is short of those too. A server that won't say what it granted isn't taken for short.
+  assert.deepEqual(missingFrom('atproto include:dev.rainshare.authFull repo:app.bsky.graph.follow?action=create'), ['feedback']);
+  assert.deepEqual(missingFrom('atproto repo:dev.rainshare.profile repo:dev.rainshare.seed'), ['records', 'follow', 'feedback']);
+  assert.deepEqual(missingFrom(''), []);
+  assert.ok(!canFeedback('atproto include:dev.rainshare.authFull') && canFeedback(BASIC_SCOPE) && canFeedback(''));
+  // A server that writes the set out its own way still counts.
+  assert.deepEqual(missingFrom('atproto repo?collection=dev.rainshare.profile&collection=dev.rainshare.seed&collection=dev.rainshare.take&collection=dev.rainshare.delivery&collection=dev.rainshare.comment&collection=dev.rainshare.preferences repo:app.bsky.graph.follow?action=create repo?collection=app.userinput.discussion&collection=app.userinput.reply&collection=app.userinput.upvote&collection=app.userinput.edit'), []);
+  // Being able to create alone isn't enough: deleting a post or a vote is part of it.
+  assert.deepEqual(missingFrom(BASIC_SCOPE.replace('repo:app.userinput.upvote', 'repo:app.userinput.upvote?action=create')), ['feedback']);
+  // A moderator's sign-in from before is short of running the board, and of Rainshare's moderation if it's @rainshare.dev's.
+  assert.deepEqual(missingFrom(ladder()[0], { moderator: true, boardModerator: true }), ['moderation', 'board']);
+  assert.ok(!canRunBoard(ladder()[0]) && canRunBoard(board[0]) && canRunBoard(board[1]));
 });

@@ -17,14 +17,16 @@
 //                      like from @rainshare.dev (which follows it for you, so they reach you)
 //   profile/<did>      someone's profile and their seeds (a handle works in place of the DID)
 //   agents             the CLI and MCP server, for sending agents from a terminal
-//   feedback           bugs, requests and ideas about Rainshare itself: its board on userinput.app
+//   feedback           bugs, requests and ideas about Rainshare itself: its board on userinput.app,
+//                      posted, voted on and replied to here, and run here by its moderators (./feedback.js)
+//   feedback/<did>/<rkey>  one post on it, and its replies
 //   terms, privacy     the Terms of Service and the Privacy Policy (../core/legal.js)
 //   releases           what's new on Rainshare: the release notes (../core/releases.js)
 //   admin              @rainshare.dev's moderation page: what's hidden, what the checks flagged,
 //                      and hiding something. To anyone else it's as if nothing were there.
 //
-// A host with a landing of its own at its base address, for people signed out (rainshare.dev,
-// host.landing), shows the board under it there. The board's own address is then 'board', and
+// A host with a landing of its own at its base address (rainshare.dev, host.landing) shows the
+// board under it there, signed in or out. The board's own address is then 'board', and
 // every way back to the board leads there, to the board on its own.
 import { SEED, PROFILE, STAGE, HANDLE, SITE, FEATURES, TAKE_DAYS, TAKE_DAYS_DEFAULT, ROUTES, PLANS, UNPAID, plansIn, HARNESSES, MODELS, RUNS_ON, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, NOTIFY, labelOf, modelName, githubLogin } from '../core/ns.js';
 import { describeSubject, safeHttp, pullState, forkOf, linkedPulls, pullKey, FORGE_NAMES } from '../core/subjects.js';
@@ -46,11 +48,11 @@ import { activeTakes, lapsed, dueOf } from '../core/takes.js';
 import { resolveHandle, knownPerson, parseUri, profiles, pool } from '../core/net.js';
 import { concerns, alarming } from '../core/scan.js';
 import { REASONS, reasonName, isAccount, kindOf as subjectKind } from '../core/moderation.js';
-import { readBoard, groupOf, stateWord, GROUPS as FEEDBACK_GROUPS } from '../core/feedback.js';
 import { noticesFor } from '../core/notices.js';
 import { releasesBy } from '../core/releases.js';
 import { esc, lit, unb64url, ago, until, shortDay, nameOf, firstName, ico, forgeIco, skyIco, lifeIco, face, drops, pathOf, plantPic, avatarFallback, tip, tipLink, toggleTip, pasteField, pasteInto, PASTE_REFUSED, canShare, shareText } from './bits.js';
 import { createPoster } from './post.js';
+import { createFeedback } from './feedback.js';
 import { openWelcome, shouldWelcome, anyMessages, openMessages, shouldAskMessages } from './welcome.js';
 import { hasAgreed, agreement, rememberAgreement, openAgree } from './agree.js';
 import { agreedIn, agreementNow, recordAgreement } from '../core/agreement.js';
@@ -83,7 +85,6 @@ export function createRainshare({ root, base = '/', host }){
     admin: null,         // the moderation page, for @rainshare.dev: { list, about, error, loading }
     found: null,         // what was looked up there to hide: { subject, about, error }
     modding: null,       // what a hide form is open for: { subject, reason, note }
-    feedback: null,      // Rainshare's feedback board (../core/feedback.js): { board, at, loading, error }
     moment: null,        // something that just happened to an ask, for its next drawings to play: { uri, what, at } (see moment())
     freshComment: null,  // the comment you just posted, lit for a moment: { key, at }
     talk: null,          // comments read for the bell in the bar (../core/notices.js): on your asks, and the ones you're helping with or talking on
@@ -103,7 +104,7 @@ export function createRainshare({ root, base = '/', host }){
   // Where the links to the board lead, and whether it's sitting under the host's landing now.
   const BOARD_AT = host.landing ? 'board' : '';
   const isBoard = sub => !sub || sub === 'board';
-  const underLanding = () => !!host.landing && !signedIn() && !S.sub;
+  const underLanding = () => !!host.landing && !S.sub;
   const back = () => a(BOARD_AT, `${ico('back')}Back to the board`, 'rs-back');
   // Nothing's at an address, or what was there is gone: said plainly, with the ways on from it.
   const nothingHere = (what, more = '') => `${back()}<div class="rs-empty rs-need"><p>${what}</p><div class="rs-row">${a(BOARD_AT, 'Go to the board', 'rs-btn rs-primary')}${more}</div></div>`;
@@ -1065,8 +1066,8 @@ export function createRainshare({ root, base = '/', host }){
       <header class="rs-head">
         <div class="rs-brand">${host.brand !== 'rainshare' ? `<span class="rs-logo">${ico('drop')}</span>` : ''}<div>${
           host.brand !== 'rainshare' ? `<h1>Rainshare</h1><p>${lit('Got rain to spare? Pick an idea or a project and direct your agent.')}</p>`
-            : signedIn() ? `<h1>Ideas and projects you can help with</h1><p>${lit('Got rain to spare? Pick one and direct your agent.')}</p>`
-              // Under the landing, which has the page's h1 and says what Rainshare is.
+            // (Under the landing, which has the page's h1 and says what Rainshare is, it's one of its h2s.)
+            : signedIn() ? (underLanding() ? `<h2>Ideas and projects you can help with</h2>` : `<h1>Ideas and projects you can help with</h1>`) + `<p>${lit('Got rain to spare? Pick one and direct your agent.')}</p>`
               : underLanding() ? `<h2>Ideas and projects anyone can help with</h2><p>${signedOutLede}</p>`
                 // On its own, for someone who may have come straight here: the way to what Rainshare is.
                 : `<h1>Ideas and projects anyone can help with</h1><p>${signedOutLede} ${host.landing ? a('', 'How Rainshare works', 'rs-link') : ''}</p>`
@@ -1867,7 +1868,7 @@ export function createRainshare({ root, base = '/', host }){
       : on && f === false ? `<p class="rs-note rs-heed">${ico('info')}<span>You don’t follow @${esc(HANDLE)}, so Bluesky may not let its messages through.${can ? '' : ` To get them, ${onBluesky} on Bluesky, or sign out and in again to let Rainshare follow it for you.`}</span>${can ? `<button class="rs-btn rs-quiet rs-sm" type="button" data-rs-act="follow-us">Follow @${esc(HANDLE)}</button>` : ''}</p>`
       : can ? `<p class="rs-muted">Bluesky only lets accounts you follow message you, unless you’ve changed that, so ticking either follows @${esc(HANDLE)} for you.</p>`
       : `<p class="rs-muted">Bluesky only lets accounts you follow message you, unless you’ve changed that, so ${onBluesky}.</p>`;
-    return `<section class="rs-panel rs-mynotify"><div class="rs-hrow"><h2>Messages from @${esc(HANDLE)}</h2>${tip('Rainshare’s Bluesky account can send you a direct message when there’s news: updates within about a quarter of an hour, and new asks once a day. Your settings are saved in your account, where anyone can read them.')}</div>
+    return `<section class="rs-panel rs-mynotify"><div class="rs-hrow"><h2>Messages from @${esc(HANDLE)}</h2>${tip('Rainshare’s Bluesky account can send you a direct message when there’s news: updates within a minute or two, and new asks once a day. Your settings are saved in your account, where anyone can read them.')}</div>
       <form class="rs-prefs" data-rs-form="notify">
         ${NOTIFY.map(([k, l]) => `<label class="rs-check"><input type="checkbox" name="${k}"${n[k] ? ' checked' : ''}> ${esc(l)}</label>`).join('')}
         ${reach}
@@ -2041,7 +2042,7 @@ export function createRainshare({ root, base = '/', host }){
       <div class="rs-agents">
         <header class="rs-agents-head">
           <h1>The CLI and MCP server</h1>
-          <p>You don’t need anything here to help someone. Press “Direct my agent” on an ask, and paste what it copies into your agent: their ask in their own words, inside a few safety rules from Rainshare. This page is for one optional file that lets your agent find work, take it on and turn it in by itself.</p>
+          <p>You don’t need anything here to help someone. Press “Direct my agent” on an ask, and paste what it copies into your agent: their ask in their own words, inside a few safety rules from Rainshare. This page is for one optional file that lets your agent show you what’s open, take on the ask you pick and turn it in.</p>
         </header>
         <section class="rs-panel" aria-labelledby="rsQuick">
           <h2 id="rsQuick">${ico('copy')}With nothing set up</h2>
@@ -2083,7 +2084,7 @@ export function createRainshare({ root, base = '/', host }){
         ${S.source?.canPrivate ? `<p class="rs-note">${ico('lock')}<span>For now the CLI and MCP server reach public ones only. Private, group-only ones are taken on from here, in the app.</span></p>` : ''}
         <section class="rs-panel rs-faq" aria-labelledby="rsAllowed">
           <h2 id="rsAllowed">Is this allowed by my AI plan?</h2>
-          <p class="rs-muted"><b>Rainshare isn’t plan sharing, and it isn’t a proxy.</b> We think it’s allowed, but read your plan’s terms to be sure. What the big plans rule out is sharing your account or reselling access to it (<a href="https://www.anthropic.com/legal/consumer-terms" target="_blank" rel="noopener">Anthropic</a>, <a href="https://openai.com/policies/row-terms-of-use/" target="_blank" rel="noopener">OpenAI</a>). Rainshare does neither. You run your own agent, signed in as you, and Rainshare never sees your AI sign-in. The other person gets the work: a pull request, or a repo for an idea. Nobody is paid, and you start each job yourself.</p>
+          <p class="rs-muted"><b>Rainshare isn’t plan sharing, and it isn’t a proxy.</b> You run your own agent, signed in as you, and Rainshare never sees your AI sign-in. No request to a model goes through Rainshare. The other person gets the work: a pull request, or a repo for an idea. Nobody is paid, and you pick each ask yourself. Whether your plan allows helping someone this way is between you and your provider, and we can’t tell you, so read its terms before you help. Some plans are sold for one person’s own use, and a provider can limit or close an account without warning.</p>
           <p class="rs-muted">Your plan’s usage policy covers everything your agent does, whoever asked for it. Take on only what you’d be comfortable asking it to do for yourself.</p>
         </section>
       </div>`;
@@ -2095,7 +2096,7 @@ export function createRainshare({ root, base = '/', host }){
     title(doc.title);
     return `${back()}<article class="rs-panel rs-legal">
       <header class="rs-legal-head"><h1>${esc(doc.title)}</h1><p class="rs-muted">Last changed ${esc(doc.updated)} · ${a(other.key, `Read the ${esc(other.title)}`, 'rs-link')}</p></header>
-      <p class="rs-legal-lead">${esc(doc.lead)}</p>
+      <div class="rs-legal-lead">${doc.lead.split(/\n{2,}/).map(p => `<p>${esc(p)}</p>`).join('')}</div>
       <section class="rs-legal-short" aria-labelledby="rsLegalShort"><h2 id="rsLegalShort">In short</h2><ul>${doc.short.map(x => `<li>${esc(x)}</li>`).join('')}</ul><p class="rs-muted">${doc.key === 'guidelines' ? 'The rest of the page says what each one means.' : 'The full text below is what counts.'}</p></section>
       ${doc.sections.map(([h, md], i) => `<section><h2>${i + 1}. ${esc(h)}</h2><div class="rs-spec">${renderMarkdown(md.trim())}</div></section>`).join('')}
     </article>`;
@@ -2119,75 +2120,13 @@ export function createRainshare({ root, base = '/', host }){
     </article>`;
   }
 
-  /* ---------- feedback: Rainshare's own board, on userinput.app ---------- */
-  // Bugs, requests and ideas about Rainshare itself (../core/feedback.js). People post and vote
-  // on userinput.app, so this page reads the board and links there: signing in here isn't
-  // needed for it, and asks for nothing more. The board is read again after a minute away.
-  async function loadFeedback(again){
-    const f = S.feedback;
-    if (f?.loading || (!again && f && !f.error && Date.now() - f.at < 60e3)) return;
-    S.feedback = { ...(f || {}), loading: true, error: null };
-    if (S.view === 'feedback') render();
-    try {
-      const board = await readBoard();
-      S.feedback = { board, at: Date.now(), loading: false, error: null };
-      if (S.view === 'feedback') render();
-      // Who posted each, once their names come in.
-      if (board?.items.length) { await profiles(board.items.map(i => i.repo)).catch(() => null); if (S.view === 'feedback') render(); }
-    } catch (e) {
-      console.warn('rainshare feedback', e);
-      S.feedback = { ...S.feedback, loading: false, error: e };
-      if (S.view === 'feedback') render();
-    }
-  }
-  const UP = '<svg class="rs-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 14.5l6-6 6 6"/></svg>';
-  function feedbackItem(it, { tagNames, states }){
-    const p = knownPerson(it.repo) || { did: it.repo }, live = it.live, ex = askExcerpt(live.body, 180);
-    // A group with more than one state in it (new and under review; declined, duplicate, closed) says which.
-    const state = states > 1 && it.status ? `<span class="rs-state">${esc(stateWord(it.status.state))}</span>` : '';
-    const tags = live.tags.map(t => `<span class="rs-fb-tag">${esc(tagNames.get(t) || t)}</span>`).join('');
-    const replies = it.replies ? `<span>${it.replies === 1 ? '1 reply' : `${it.replies} replies`}</span>` : '';
-    const note = it.status?.note ? `<span class="rs-fb-note">${ico('drop')}<span>${esc(askExcerpt(it.status.note, 240))}</span></span>` : '';
-    return `<li><a class="rs-item rs-fb-item" href="${esc(it.link)}" target="_blank" rel="noopener" title="Open it on userinput.app">
-      <span class="rs-item-top">${face(p, 'xs')}<span class="rs-item-who"><b>${esc(nameOf(p))}</b></span><time>${esc(ago(it.createdAt))}</time>${ico('out', 'rs-fb-out')}</span>
-      <span class="rs-item-main">
-        <span class="rs-item-title">${esc(live.title)}</span>
-        ${ex ? `<span class="rs-item-ask">${esc(ex)}</span>` : ''}
-        ${note}
-        ${state || tags || replies ? `<span class="rs-item-line">${state}${tags}${replies}</span>` : ''}
-      </span>
-      <span class="rs-fb-votes"><span class="rs-sr">${it.votes === 1 ? '1 vote' : `${it.votes} votes`}</span><span aria-hidden="true">${UP}${it.votes}</span></span>
-    </a></li>`;
-  }
-  function renderFeedback(){
-    title('Feedback');
-    const f = S.feedback || {}, board = f.board;
-    const post = board ? `<a class="rs-btn rs-primary" href="${esc(board.space.link)}" target="_blank" rel="noopener">${ico('plus')}Post feedback</a>` : '';
-    const how = tip('@rainshare.dev marks each post as it moves along: planned, in progress, done or closed. Posts marked planned can be handed to a Claude Code routine that drafts the change as a pull request on GitHub, and a person reads every one before it’s merged.', 'What happens to a post');
-    // (Until there's a board, the box under this says what to do instead.)
-    const open = board || !S.feedback || f.loading;
-    const head = `<header class="rs-agents-head">
-        <h1>Feedback</h1>
-        <p>Found a bug, or want Rainshare to do something it doesn’t yet?${open ? ' Post it on Rainshare’s board on userinput.app, and vote for what you’d like next. You sign in there with the same handle, and what you post is a record in your own account, like an ask here.' : ''}</p>
-        ${board ? `<div class="rs-row">${post}${how}</div>` : ''}
-      </header>`;
-    let body;
-    if (!board && (f.loading || !S.feedback)) body = listSk(4, 'feedback');
-    else if (!board && f.error) body = `<div class="rs-empty rs-need"><p>The board couldn’t be read just now.</p><div class="rs-row"><button class="rs-btn rs-quiet" type="button" data-rs-act="feedback-again">${ico('refresh')}Try again</button></div></div>`;
-    else if (!board) body = `<div class="rs-empty rs-need"><p>Rainshare’s feedback board isn’t open yet. Until it is, open an issue where its code lives.</p><div class="rs-row"><a class="rs-btn rs-quiet" href="https://github.com/atpota-to/rainshare/issues" target="_blank" rel="noopener">${forgeIco('github')}GitHub</a><a class="rs-btn rs-quiet" href="https://tangled.org/atpota.to/rainshare/issues" target="_blank" rel="noopener">${forgeIco('tangled')}Tangled</a></div></div>`;
-    else if (!board.items.length) body = `<div class="rs-empty"><p>Nothing’s been posted yet.</p></div>`;
-    else {
-      const tagNames = new Map(board.space.tags.map(t => [t.value, t.label]));
-      // Done and closed are folded away, so what's still to come is what's in front of you.
-      body = `<div class="rs-fb-groups">${FEEDBACK_GROUPS.map(([key, heading, states]) => {
-        const items = board.items.filter(it => groupOf(it) === key);
-        if (!items.length) return '';
-        const h = `<h2>${esc(heading)} <span>${items.length}</span></h2>`, list = `<ul class="rs-list">${items.map(it => feedbackItem(it, { tagNames, states: states.length })).join('')}</ul>`;
-        return key === 'done' || key === 'closed' ? `<details class="rs-fb-group"${S.open['fb-' + key] ? ' open' : ''} data-rs-fold="fb-${key}"><summary>${h}</summary>${list}</details>` : `<section class="rs-fb-group">${h}${list}</section>`;
-      }).join('')}</div>`;
-    }
-    return `${host.brand === 'rainshare' ? '' : back()}<div class="rs-agents rs-fb">${head}${body}</div>`;
-  }
+  /* ---------- feedback: Rainshare's own board, on userinput.app (./feedback.js) ---------- */
+  const fb = createFeedback({
+    root, a, go, href, toast, title, plain, plainText, signedIn, viewer, host,
+    source: () => S.source, sub: () => S.sub, opened: k => !!S.open[k],
+    render: () => render()
+  });
+  const renderFeedback = () => (host.brand === 'rainshare' || S.sub !== 'feedback' ? '' : back()) + fb.view(S.sub);
 
   /* ---------- moderation: @rainshare.dev's page ---------- */
   // What's been hidden, read from the account's own repo, and what each decision is about, read
@@ -2356,8 +2295,8 @@ export function createRainshare({ root, base = '/', host }){
     for (const f of fading) { f.el.style.animationDelay = `${f.at - now}ms`; box.appendChild(f.el); }
   }
   // Before it's known who's looking, the address already says which screen is coming.
-  const viewOf = sub => isBoard(sub) ? 'board' : /^seed\//.test(sub) ? 'seed' : /^profile\//.test(sub) ? 'person' : sub;
-  const ahead = sub => ({ board: () => headSk() + boardSk(), seed: () => newHere() + back() + seedSk(), person: () => newHere() + back() + personSk(), feedback: () => headSk() + listSk(4, 'feedback') })[viewOf(sub)]?.() || '';
+  const viewOf = sub => isBoard(sub) ? 'board' : /^seed\//.test(sub) ? 'seed' : /^profile\//.test(sub) ? 'person' : /^feedback\//.test(sub) ? 'fbpost' : sub;
+  const ahead = sub => ({ board: () => headSk() + boardSk(), seed: () => newHere() + back() + seedSk(), person: () => newHere() + back() + personSk(), feedback: () => headSk() + listSk(4, 'feedback'), fbpost: () => seedSk() })[viewOf(sub)]?.() || '';
   const renderLost = () => { title('Nothing here'); return nothingHere('There’s nothing at this address. The link may have been cut short, or what it led to has been deleted.'); };
   function render(){
     // (Until a screen has been entered with someone to show it to, the address says what to hold its place with.)
@@ -2378,6 +2317,7 @@ export function createRainshare({ root, base = '/', host }){
 
   // Keep what someone typed in the turn-in and profile forms across re-renders.
   function stash(){
+    fb.stash();
     const t = root.querySelector('[data-rs-form="turnin"]');
     if (t) S.drafts.turnIn = Object.fromEntries(new FormData(t));
     for (const kind of ['comment', 'reply']) {
@@ -2406,7 +2346,7 @@ export function createRainshare({ root, base = '/', host }){
       if (name === 'filters') { const was = snapshot(root); S.open.filters = !S.open.filters; S.open.sort = false; render(); settle(root, was); root.querySelector('[data-rs-act="filters"]')?.focus(); return; }
       if (name === 'sorts') { const was = snapshot(root); S.open.sort = !S.open.sort; S.open.filters = false; render(); settle(root, was); root.querySelector('[data-rs-act="sorts"]')?.focus(); return; }
       if (name === 'exit-demo') return host.onExitDemo?.();
-      if (name === 'feedback-again') return loadFeedback(true);
+      if (name === 'feedback-again') return fb.again();
       if (name === 'stage-seen') { stageDismissed = true; try { localStorage.setItem(STAGE_SEEN, '1'); } catch (_) {} root.querySelector('.rs-stage-note')?.remove(); return; }
       if (name === 'take') return sendAgent(it, el);
       // "Change", beside "Direct my agent" when its questions are skipped: they're asked this once.
@@ -2593,6 +2533,7 @@ export function createRainshare({ root, base = '/', host }){
     const tk = t.closest('[data-rs-take]'); if (tk) { sendAgent(S.shown.find(i => i.uri === tk.dataset.rsTake), tk); return; }
     const ti = t.closest('[data-rs-turnin]'); if (ti) { turnInDialog([...(S.shown || []), ...(S.board?.items || [])].find(i => i.uri === ti.dataset.rsTurnin)); return; }
     if (t.closest('.rs-post') && poster.click(t)) return;
+    if (t.closest('.rs-fb') && fb.click(t)) return;
     // Sorting and narrowing the board. (The control pressed keeps the focus, or the Filter
     // button does when what was pressed has gone.)
     const refocus = sel => (root.querySelector(sel) || root.querySelector('[data-rs-act="filters"]'))?.focus();
@@ -2721,11 +2662,13 @@ export function createRainshare({ root, base = '/', host }){
     else if (f.dataset.rsForm === 'comment' || f.dataset.rsForm === 'reply') submitComment(f);
     else if (f.dataset.rsForm === 'hide') submitHide(f);
     else if (f.dataset.rsForm === 'hide-find') submitFind(f);
+    else if (f.dataset.rsForm.startsWith('fb-')) fb.submit(f);
   });
   root.addEventListener('input', e => { if (e.target.closest('[data-rs-form="post"]')) poster.typed(e.target); });
   // A folded section (the feedback page's done and closed posts) stays as it was left when the page is drawn again.
   root.addEventListener('toggle', e => { const d = e.target; if (d?.dataset?.rsFold) S.open[d.dataset.rsFold] = d.open; }, true);
   root.addEventListener('change', e => {
+    if (fb.changed(e.target)) return;
     if (e.target.closest('[data-rs-form="post"]')) poster.changed(e.target);
     // Choosing where a branch was pushed changes which branches there are to choose from.
     else if (e.target.name === 'from' && e.target.closest('[data-rs-form="pull"]')) rerender();
@@ -2760,7 +2703,7 @@ export function createRainshare({ root, base = '/', host }){
       if (signedIn() && !S.mine) { await loadMine(); render(); }
     }
     else if (sub === 'agents') { S.view = 'agents'; render(); }
-    else if (sub === 'feedback') { S.view = 'feedback'; render(); loadFeedback(); }
+    else if (sub === 'feedback' || /^feedback\//.test(sub)) { S.view = 'feedback'; render(); fb.enter(sub); }
     else if (sub === 'admin') { S.view = 'admin'; render(); loadAdmin(); }
     else if (sub === 'terms' || sub === 'privacy' || sub === 'guidelines') { S.view = sub; render(); }
     else if (sub === 'releases') {
@@ -2790,7 +2733,7 @@ export function createRainshare({ root, base = '/', host }){
     /** Hand in a (new) data source: on sign-in, sign-out, or switching to the example circle. */
     async setSource(source){
       Object.assign(S, { source, board: null, talk: null, mine: null, follows: undefined, garden: null, buds: null, grew: null, fresh: null, unlinked: null, seed: null, form: null, drafts: {}, pick: null, sheet: false, pull: null, circle: undefined, vouching: null, accepting: null, reply: null, from: 'anyone', sort: savedSort(), show: 'all', known: {}, admin: null, found: null, modding: null });
-      poster.reset();
+      poster.reset(); fb.reset();
       talkAt = 0;
       render();
       tellNotices();
