@@ -1,6 +1,7 @@
 // What's planted in the landing's garden (./garden.js): four asks from the example circle
-// (../../core/demo.js), so each has a page of its own to go and look at, and is drawn as the
-// same kind of plant there as here. test/landing.test.mjs checks they still match.
+// (../../core/demo.js), drawn as the same kind of plant there as here. test/landing.test.mjs
+// checks they still match. (The landing doesn't link to their pages: the example circle is
+// made up, and its pages look enough like real ones to be taken for them.)
 //
 // The first is the one a friend's cloud is already raining on; it's done in the example, by
 // that friend. The other three stand in the row for your cloud: an idea, a project that's
@@ -20,7 +21,5 @@ export const PLOTS = [
   { name: 'Priya', color: '#F5B3D6', did: 'did:example:priya', rkey: '3sq-priya', title: 'Dark mode for the carbon calculator', stage: 'young' }
 ].map(p => {
   const uri = `at://${p.did}/${SEED}/${p.rkey}`;
-  return { ...p, uri, noun: p.stage === 'seed' ? 'idea' : 'project', next: NEXT[p.stage], kind: plantKind(uri), path: `/example/seed/${p.did}/${p.rkey}` };
+  return { ...p, uri, noun: p.stage === 'seed' ? 'idea' : 'project', next: NEXT[p.stage], kind: plantKind(uri) };
 });
-/** Where what you've helped with shows, in the example circle. */
-export const GARDEN_PATH = '/example/profile/did:example:you';
