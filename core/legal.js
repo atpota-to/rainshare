@@ -47,6 +47,11 @@ export const ASKING = [
   ['Read what comes back.', 'It was probably written by an AI. Look it over before you merge it or run it.']
 ];
 
+// What someone says about their AI plan when they agree, in their own words: a second box on the
+// site (../ui/agree.js), and part of what's typed in the CLI. Rainshare can't know what each
+// provider allows, or what it'll decide, so checking is theirs, and so is the risk.
+export const PROVIDER = 'It’s up to me to check that my AI provider’s terms allow how I use my plan here. If my provider decides they don’t, that’s my responsibility, not Rainshare’s.';
+
 export const TERMS = {
   key: 'terms', title: 'Terms of Service', updated: UPDATED,
   lead: `Rainshare is a board where people ask for help with ideas and projects, and other people direct their own AI coding agents to do the work. It’s operated by ${LLC}, ${LLC_KIND} (“we”, “us”). These terms cover ${WHERE}, the Rainshare CLI and its MCP server (together, “Rainshare”). By using any of them you agree to these terms. Please read them: they limit what we’re responsible for, and they say that disputes are settled one at a time by arbitration, not in court, unless you opt out (see “Disputes”). If you don’t agree, please don’t use Rainshare.`,
@@ -54,6 +59,7 @@ export const TERMS = {
     'What you post is public, and it stays in your own account.',
     'You run your own agent, as you, at your own risk. Rainshare’s safety checks help, and they don’t promise anything.',
     'Rainshare never asks for or sees your AI login, and nobody else uses your plan or your account.',
+    'Whether your AI provider’s terms allow how you use your plan here is yours to check. If your provider decides they don’t, that’s between you and them, not us.',
     'Nobody pays, and nobody gets paid.',
     'Ask honestly. No tricks aimed at other people’s agents.',
     'Rainshare is free and early, and comes with no warranty.',
@@ -96,7 +102,8 @@ If you send us ideas, suggestions or bug reports, on Rainshare’s feedback boar
 
     ['Helping: directing your agent', `
 - You run your own agent, signed in as you, on your own machine or cloud session, on your own AI plan. What it does, you do: the commands it runs, the pull requests it opens, and what it uses of your plan.
-- Your AI provider’s terms and usage policy apply to the work you take on, and keeping to them is up to you. We think helping through Rainshare fits the big plans’ terms, but we can’t promise it, and those terms change.
+- Your AI provider’s terms and usage policy apply to the work you take on. Reading them, knowing whether they allow how you use your plan through Rainshare, and keeping to them are up to you. We think helping through Rainshare fits the big plans’ terms, but that’s our reading, not a promise or legal advice, and those terms change.
+- Your provider decides for itself what its terms allow. If it decides that how you used your plan with Rainshare breaks them, and limits, suspends or closes your account, or charges you for it, that’s between you and your provider. You accept that risk, and we aren’t responsible for it.
 - An ask is a stranger’s request, and a repository is a stranger’s code. Rainshare reads asks for tricks it knows about, and tells you and your agent what it finds. It can’t catch everything, and it doesn’t look inside repositories at all. Read the ask, keep your agent’s permission prompts on, and look over a repository before you trust it. You take work on at your own risk.
 - Don’t give anyone your AI login or access to your plan through Rainshare.
 - What you turn in should be honest work on what was asked: nothing harmful hidden in it, and nothing you don’t have the right to contribute. You contribute it under the project’s license.`],

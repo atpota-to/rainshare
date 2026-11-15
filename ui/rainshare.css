@@ -897,7 +897,9 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-agree-check{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:var(--rs-radius-sm);background:var(--rs-sunk);font-size:15px;line-height:1.45;cursor:pointer}
 .rs-agree-check input{flex:none;width:20px;height:20px;margin:1px 0 0;accent-color:var(--rs-accent)}
 .rs-agree-check a{color:var(--rs-accent-text);font-weight:600}
-.rs-agree .rs-primary:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+/* Here disabled means "tick the boxes first", not "working on it": the label stays, without the rain a busy button shows */
+.rs-agree .rs-primary:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none;color:var(--rs-btn-ink)}
+.rs-agree .rs-primary:disabled::after{display:none}
 .rs-post-terms{font-size:13px}
 
 /* ---------- motion that's moved from script (./motion.js) ---------- */
