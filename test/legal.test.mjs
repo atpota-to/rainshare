@@ -69,8 +69,8 @@ test('both documents say who runs Rainshare, and the terms say how a dispute goe
   for (const doc of [terms, privacy]) assert.doesNotMatch(doc, /arbitrat/i);
   assert.match(disputes, /not to bring or join a class, consolidated or representative action/);
   assert.match(section('Governing law'), /laws of the State of Delaware[\s\S]*state and federal courts located in Delaware[\s\S]*mandatory consumer-protection laws of the place you live/);
-  assert.match(section('Moderation'), /copyright agent: atpotato, LLC, 8595 Pelham Road[\s\S]*we’ll hide it[\s\S]*accounts that infringe repeatedly/);
-  // The Privacy Policy: who to write to, and the rights that depend on where someone lives.
+  assert.match(section('Moderation'), /copyright agent: atpotato, LLC, 8595 Pelham Road[\s\S]*we’ll hide what you named[\s\S]*accounts that infringe repeatedly, when the circumstances call for it/);
+  // The Privacy Policy: who to write to, the rights anyone can ask for, and Europe’s.
   assert.match(privacy, /\*\*Data controller:\*\* atpotato, LLC, 8595 Pelham Road, Suite 400 #747, Greenville, SC 29615, USA/);
   assert.match(privacy, /Wherever you live, you can ask to see the personal data we hold about you[\s\S]*Europe, the UK and Switzerland[\s\S]*no office in Europe, so write to us directly/);
   assert.match(privacy, /isn’t directed to anyone under 18/);
