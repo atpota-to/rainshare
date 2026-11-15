@@ -50,7 +50,7 @@ export const ASKING = [
 // What someone says about their AI plan when they agree, in their own words: a second box on the
 // site (../ui/agree.js), and part of what's typed in the CLI. Rainshare can't know what each
 // provider allows, or what it'll decide, so checking is theirs, and so is the risk.
-export const PROVIDER = 'Whether my AI provider’s terms allow how I use my plan with Rainshare is mine to check. If my provider decides they don’t, and limits, suspends or closes my account, that’s my responsibility, not Rainshare’s.';
+export const PROVIDER = 'It’s up to me to check that my AI provider’s terms allow how I use my plan here. If my provider decides they don’t, that’s my responsibility, not Rainshare’s.';
 
 export const TERMS = {
   key: 'terms', title: 'Terms of Service', updated: UPDATED,

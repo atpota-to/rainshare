@@ -160,7 +160,7 @@ test('the note before a first job or a first ask: three points, both documents l
     assert.ok(h.includes(`<input type="checkbox" name="provider"><span>${PROVIDER}</span>`));
     assert.ok(h.indexOf('name="provider"') < h.indexOf('data-ag="go"'));
   }
-  assert.match(PROVIDER, /mine to check/);
+  assert.match(PROVIDER, /up to me to check/);
   assert.match(PROVIDER, /my responsibility, not Rainshare’s/);
   // And the terms say the same, in the section on helping.
   const helping = TERMS.sections.find(([h]) => /^Helping/.test(h))[1];
