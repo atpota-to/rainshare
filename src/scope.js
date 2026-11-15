@@ -2,7 +2,7 @@
 // (plain data) behind it, because the Vercel function behind /oauth-client-metadata.json imports it too
 // (api/oauth-client-metadata.js): a hosted client whose document declares less than the app
 // asks for fails every sign-in, so both come from here.
-import { GROUPS, FORGE_SCOPES, COLLECTIONS, MODERATION, MODERATOR, HANDLE } from '../core/ns.js';
+import { GROUPS, FORGE_SCOPES, COLLECTIONS, MODERATION, MODERATOR, HANDLE, FOLLOW_SCOPE } from '../core/ns.js';
 
 const env = import.meta.env || {};
 
@@ -29,11 +29,14 @@ const rpc = m => `rpc:${NS}.${m}?aud=${A}`;
 export const PERMISSION_SET = 'dev.rainshare.authFull';
 export const OWN = { set: `include:${PERMISSION_SET}`, named: RAINSHARE.map(c => `repo:${c}`).join(' ') };
 
-// With groups off (GROUPS in ../core/ns.js), sign-in asks for nothing but your own Rainshare
-// records: your public seeds, takes, deliveries, comments and profile. `own` is one of OWN's two.
+// With groups off (GROUPS in ../core/ns.js), sign-in asks for your own Rainshare records (your
+// public seeds, takes, deliveries, comments, profile and settings), and to follow
+// @rainshare.dev for you when you switch its messages on (FOLLOW_SCOPE: create, never delete).
+// `own` is one of OWN's two. A set can only grant what's under its own name, so the follow is
+// always asked for on its own.
 //
 // Any atproto account: those, and finding your groups.
-const basic = own => ['atproto', own, ...(GROUPS ? METHODS.map(rpc) : [])].join(' ');
+const basic = own => ['atproto', own, FOLLOW_SCOPE, ...(GROUPS ? METHODS.map(rpc) : [])].join(' ');
 // An account whose server does spaces: the same, plus reading your groups' spaces and writing
 // your own Rainshare records into them. `space:*` because nobody publishes the space type, and a
 // consent screen looks up every space type a scope names.
@@ -42,6 +45,7 @@ const full = own => !GROUPS ? basic(own) : [
   `include:${NS}.basePermissions?aud=${A}`,
   `space:*?authority=*&${RAINSHARE.map(c => 'collection=' + c).join('&')}&action=read&action=create&action=update&action=delete`,
   own,
+  FOLLOW_SCOPE,
   ...METHODS.map(rpc)
 ].join(' ');
 // Both with your records by name: what's asked of a server that can't look the set up.
@@ -83,6 +87,16 @@ export const MODERATE = `repo:${MODERATION}`;
 export const moderates = who => who === MODERATOR || String(who || '').trim().replace(/^@/, '').toLowerCase() === HANDLE;
 /** Whether a granted scope lets this sign-in write moderation records. */
 export const canModerate = scope => String(scope || '').split(/\s+/).some(x => x.split('?')[0] === MODERATE);
+/**
+ * Whether a granted scope lets this sign-in follow @rainshare.dev for you. A server may write a
+ * scope its own way, so it's any grant of follows that allows creating one (or every action).
+ */
+export const canFollow = scope => String(scope || '').split(/\s+/).some(x => {
+  const [what, query = ''] = x.split('?');
+  if (what !== FOLLOW_SCOPE.split('?')[0]) return false;
+  const actions = new URLSearchParams(query).getAll('action');
+  return !actions.length || actions.includes('create');
+});
 
 // Everything the app might ever ask for: every part of every step, the moderator's included. A
 // hosted client's document has to declare it all, whatever a particular sign-in ends up asking for.

@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { LEGAL, TERMS, PRIVACY, LEGAL_VERSION, SAFETY, ASKING, OPERATOR, asMarkdown } from '../core/legal.js';
+import { LEGAL, TERMS, PRIVACY, LEGAL_VERSION, SAFETY, ASKING, PROVIDER, OPERATOR, asMarkdown } from '../core/legal.js';
 import { renderMarkdown } from '../core/markdown.js';
 import { known, reroute } from '../core/route.js';
 import { APPVIEW, RELAYS, PLC, CONSTELLATION } from '../core/net.js';
@@ -114,14 +114,15 @@ test('the Privacy Policy names every service the code asks, and everything kept 
     /holds no IP address and nothing about your browser/, /a database at Supabase that isn’t open to the public/, /Our own note that you agreed to the terms stays when you delete your record of it/, /that you agreed to Rainshare’s terms, which version, and when/]) assert.match(all, says);
   assert.match(PRIVACY.lead, /The one record we keep in a database of our own is a note that you agreed to the terms/);
   // Every key the site keeps in the browser. A new one belongs in the policy's list too, then here.
-  const KEYS = ['rs:accept-vouch', 'rs:agreed', 'rs:garden-seen:', 'rs:kept', 'rs:mode', 'rs:prefs:', 'rs:signin', 'rs:signin-skip', 'rs:stage-seen:', 'rs:waiting-later', 'rs:welcomed:'];
+  const KEYS = ['rs:accept-vouch', 'rs:agreed', 'rs:board-seen:', 'rs:board-sort', 'rs:garden-seen:', 'rs:kept', 'rs:messages-asked:', 'rs:mode', 'rs:notices-seen:', 'rs:prefs:', 'rs:signin', 'rs:signin-skip', 'rs:stage-seen:', 'rs:up-later', 'rs:waiting-later', 'rs:welcomed:'];
   const found = new Set();
   for (const dir of ['../ui/', '../src/', '../core/', '../public/']) for (const f of readdirSync(new URL(dir, import.meta.url)).filter(f => f.endsWith('.js')))
     for (const [, k] of readFileSync(new URL(dir + f, import.meta.url), 'utf8').matchAll(/['"`](rs:[a-z:-]+)['"`]/g)) if (k !== 'rs:') found.add(k);
   assert.deepEqual([...found].sort(), KEYS);
-  for (const says of [/sets no cookies/, /day or night/, /agreed to the terms/, /forges you chose not to connect/, /vouch for someone/, /example board/, /a copy of your settings for “Send my agent”/, /which plants in your garden you’ve already seen/, /notes and reminders you’ve dismissed/]) assert.match(all, says);
+  for (const says of [/sets no cookies/, /day or night/, /agreed to the terms/, /forges you chose not to connect/, /vouch for someone/, /example board/, /a copy of your settings for “Direct my agent”/, /which plants in your garden you’ve already seen/, /which asks were on the board when you last looked/, /how you last sorted the board/, /which notifications in the bell you’ve already seen/, /notes and reminders you’ve dismissed/,
+    /your GitHub username if you give it/, /whether that account has forked an ask’s repository/, /puts its prompt in the link to claude\.ai/]) assert.match(all, says);
   // Every kind of record Rainshare writes to someone's account is one the policy says is public.
-  const said = { profile: /your Rainshare profile/, seed: /your asks/, take: /your agent is working on an ask/, delivery: /the work you turn in/, comment: /your comments/, preferences: /your settings for “Send my agent”/ };
+  const said = { profile: /your Rainshare profile/, seed: /your asks/, take: /your agent is working on an ask/, delivery: /the work you turn in/, comment: /your comments/, preferences: /your settings for “Direct my agent”/ };
   assert.deepEqual(COLLECTIONS.map(c => c.split('.').pop()).sort(), Object.keys(said).sort(), 'a new kind of record belongs in the policy’s list, then here');
   for (const [kind, says] of Object.entries(said)) assert.match(all, says, kind);
 });
@@ -162,7 +163,7 @@ test('the note before a first job or a first ask: three points, both documents l
   for (const [point, why] of ASKING) assert.ok(asking.includes(point) && asking.includes(why), point);
   assert.match(asking, /<input type="checkbox" name="agree">[\s\S]*data-ag="go" disabled>Agree and continue/);
   const html = agreeHtml(sub => '/base/' + sub);
-  assert.match(html, /Before you send your agent/);
+  assert.match(html, /Before you direct your agent/);
   for (const [point, why] of SAFETY) assert.ok(html.includes(point) && html.includes(why), point);
   assert.match(html, /<input type="checkbox" name="agree">/);
   // The box is for the Terms, and for saying you're an adult. The policy is linked as something to read.
@@ -173,6 +174,17 @@ test('the note before a first job or a first ask: three points, both documents l
   const signin = readFileSync(new URL('../src/signin.js', import.meta.url), 'utf8');
   assert.match(signin, /By continuing you agree to Rainshare’s <a href="\/terms" target="_blank" rel="noopener">Terms of Service<\/a>\. Its <a href="\/privacy"/);
   assert.equal((signin.match(/TERMS_NOTE\}\n\s+<button class="si-go"/g) || []).length, 2);
+  // A second box, in both: what their AI provider allows is theirs to check, and theirs to answer for.
+  for (const h of [html, asking]) {
+    assert.ok(h.includes(`<input type="checkbox" name="provider"><span>${PROVIDER}</span>`));
+    assert.ok(h.indexOf('name="provider"') < h.indexOf('data-ag="go"'));
+  }
+  assert.match(PROVIDER, /up to me to check/);
+  assert.match(PROVIDER, /my responsibility, not Rainshare’s/);
+  // And the terms say the same, in the section on helping.
+  const helping = TERMS.sections.find(([h]) => /^Helping/.test(h))[1];
+  assert.match(helping, /Your provider decides for itself what its terms allow/);
+  assert.match(helping, /we aren’t responsible for it/);
 });
 
 test('the two pages have addresses, and the words people reach for lead to them', () => {

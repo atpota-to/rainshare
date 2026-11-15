@@ -30,7 +30,7 @@ const wordmark = logo => row({ gap: 10 }, logo ? img(logo, 64) : drop(52), lit('
 const pill = (label, { bg = C.accentSoft, color = C.accentText } = {}) => text({ padding: '10px 22px', borderRadius: 999, backgroundColor: bg, color, fontSize: 26, fontWeight: 700 }, label);
 const pitch = () => col({ alignItems: 'flex-end', gap: 2 },
   lit('Got rain to spare?', { fontSize: 28, fontWeight: 700, color: C.ink }),
-  text({ fontSize: 24, fontWeight: 500, color: C.muted }, 'Send your agent to help.'));
+  text({ fontSize: 24, fontWeight: 500, color: C.muted }, 'Direct your agent to help.'));
 
 // Someone's picture, or their initial on a soft colour when there isn't one.
 function face(p, src, size){

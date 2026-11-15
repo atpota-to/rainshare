@@ -20,6 +20,7 @@ const nameOf = did => did === ACCOUNT ? '' : did[8].toUpperCase() + did.slice(9)
 const anyone = { $type: `${SEED}#anyone` };
 const uri = (did, c, rkey) => `at://${did}/${c}/${rkey}`;
 const ref = (did, c, rkey) => ({ uri: uri(did, c, rkey), cid: 'bafy' + rkey });
+// (Its messages here are from before settings had a page of their own, so they link to /me: they still count as its own.)
 const me = SITE + '/me', ours = (text, sentAt) => ({ id: 'm' + sentAt, rev: '1', text, sentAt, sender: { did: ACCOUNT }, facets: [{ index: { byteStart: 0, byteEnd: 1 }, features: [{ $type: 'app.bsky.richtext.facet#link', uri: me }] }] });
 const theirs = (did, text, sentAt) => ({ id: 'm' + sentAt + did, rev: '1', text, sentAt, sender: { did } });
 
@@ -128,10 +129,10 @@ test('each person who asked hears their own news, in one message', async () => {
     'News from Rainshare:',
     '• Kai (@kai.test) is on your ask “Fix the flaky test”.',
     '• Juniper (@juniper.test) turned in work on your ask “Fix the flaky test”: github.com/alice/app/pull/4',
-    '', `Reply STOP to stop these, or choose what you get at ${SITE.replace('https://', '')}/me.`
+    '', `Reply STOP to stop these, or choose what you get at ${SITE.replace('https://', '')}/settings.`
   ].join('\n'), 'since her last message two days ago (a run was missed), and not Mal, whom she blocks, nor anything before then or since the boundary');
-  assert.deepEqual(facetText(alice), ['@kai.test', 'Fix the flaky test', '@juniper.test', 'Fix the flaky test', 'github.com/alice/app/pull/4', `${SITE.replace('https://', '')}/me`]);
-  assert.deepEqual(alice.facets.map(f => f.features[0].did || f.features[0].uri), [KAI, `${SITE}/seed/alice.test/a1`, JUN, `${SITE}/seed/alice.test/a1`, 'https://github.com/alice/app/pull/4', `${SITE}/me`]);
+  assert.deepEqual(facetText(alice), ['@kai.test', 'Fix the flaky test', '@juniper.test', 'Fix the flaky test', 'github.com/alice/app/pull/4', `${SITE.replace('https://', '')}/settings`]);
+  assert.deepEqual(alice.facets.map(f => f.features[0].did || f.features[0].uri), [KAI, `${SITE}/seed/alice.test/a1`, JUN, `${SITE}/seed/alice.test/a1`, 'https://github.com/alice/app/pull/4', `${SITE}/settings`]);
 
   const jun = sentMessages.find(m => m.to === JUN);
   assert.equal(jun.text, [
@@ -140,7 +141,7 @@ test('each person who asked hears their own news, in one message', async () => {
     '• Bob (@bob.test) marked “Weather app” done with your work. It’s in your garden now.',
     '', 'New on the board:',
     '• “Tiny timer”: an idea from Bob (@bob.test)',
-    '', `Reply STOP to stop these, or choose what you get at ${SITE.replace('https://', '')}/me.`
+    '', `Reply STOP to stop these, or choose what you get at ${SITE.replace('https://', '')}/settings.`
   ].join('\n'), 'not their own ask, one for mutuals, one from someone the account blocks, nor one from before their day');
 
   assert.match(sentMessages.find(m => m.to === DEE).text, /^Okay, no more messages from Rainshare\.\n\nReply START to have them again/, 'a STOP is answered once');
@@ -231,7 +232,7 @@ test('a message fits, however much there is, and says how many more', () => {
   assert.ok(count <= 1000, `${count} graphemes`);
   assert.match(m.text, /• and \d+ more\./);
   assert.match(m.text, /• and \d+ more on the board\./);
-  assert.ok(m.text.endsWith('/me.'), 'the way to stop them is always there');
+  assert.ok(m.text.endsWith('/settings.'), 'the way to stop them is always there');
   for (const f of m.facets) assert.ok(f.index.byteEnd <= Buffer.byteLength(m.text) && f.index.byteStart < f.index.byteEnd);
   assert.equal(compose({ updates: [], fresh: [] }, who), null, 'no news, no message');
 });

@@ -1,10 +1,12 @@
 // Before someone's first job, or their first ask: a short note on what to keep in mind, and
 // agreeing to Rainshare's Terms of Service, with the Privacy Policy linked beside it (../core/legal.js).
 //
-// It opens the first time someone goes to work on someone else's ask ("Send my agent", copying
+// It opens the first time someone goes to work on someone else's ask ("Direct my agent", copying
 // the brief, copying a command that starts an agent) or posts one of their own ("Ask for
-// help"), whichever comes first: agreeing once covers both. Nothing goes ahead until the box
-// is ticked and "Agree and continue" is pressed. Closing it any other way (the ✕, "Not now",
+// help"), whichever comes first: agreeing once covers both. It has two boxes: one for the
+// Terms of Service, with the Privacy Policy linked beside it, and one saying that whether their
+// AI provider allows how they use their plan here is theirs to check, and theirs to answer for
+// (PROVIDER). Nothing goes ahead until both are ticked and "Agree and continue" is pressed. Closing it any other way (the ✕, "Not now",
 // Escape, a click outside) leaves things as they were, and it's asked again next time.
 //
 // Agreeing is remembered on this browser, with the version agreed to. Signed in, it's written
@@ -13,7 +15,7 @@
 // been done for. When the terms change in a way that matters (LEGAL_VERSION), it's asked once
 // more. A browser that won't keep anything (a private window, blocked site data) is asked once
 // a visit.
-import { LEGAL_VERSION, SAFETY, ASKING } from '../core/legal.js';
+import { LEGAL_VERSION, SAFETY, ASKING, PROVIDER } from '../core/legal.js';
 import { esc, ico } from './bits.js';
 
 const KEY = 'rs:agreed';
@@ -45,7 +47,7 @@ export function forgetAgreement(){
 
 // What the note says, by what's about to happen: helping, or asking.
 const KINDS = {
-  help: { title: 'Before you send your agent', lead: 'You’re about to point your own agent at someone else’s request. Three things to keep in mind:', points: SAFETY, icons: ['info', 'shield', 'person'] },
+  help: { title: 'Before you direct your agent', lead: 'You’re about to point your own agent at someone else’s request. Three things to keep in mind:', points: SAFETY, icons: ['info', 'shield', 'person'] },
   ask: { title: 'Before you ask for help', lead: 'Your ask will be public, and other people’s agents will read it. Three things to keep in mind:', points: ASKING, icons: ['shield', 'lock', 'check'] }
 };
 /** The dialog's insides. `href` gives the address of a page ('terms', 'privacy'); `kind` is 'help' or 'ask'. */
@@ -56,6 +58,7 @@ export function agreeHtml(href = sub => '/' + sub, kind = 'help'){
     <p class="rs-muted">${esc(k.lead)}</p>
     <ol class="rs-wl-story">${k.points.map(([point, why], i) => `<li><span class="rs-wl-ico">${ico(k.icons[i] || 'info')}</span><p><b>${esc(point)}</b>${esc(why)}</p></li>`).join('')}</ol>
     <label class="rs-agree-check"><input type="checkbox" name="agree"><span>I’m 18 or older, and I agree to Rainshare’s <a href="${esc(href('terms'))}" target="_blank" rel="noopener">Terms of Service</a>. Its <a href="${esc(href('privacy'))}" target="_blank" rel="noopener">Privacy Policy</a> says what happens to data.</span></label>
+    <label class="rs-agree-check"><input type="checkbox" name="provider"><span>${esc(PROVIDER)}</span></label>
     <button class="rs-btn rs-primary" type="button" data-ag="go" disabled>Agree and continue</button>
     <div class="rs-wl-foot"><span class="rs-muted">Asked once, and again only if the terms change.</span><button class="rs-link" type="button" data-ag="cancel">Not now</button></div>`;
 }
@@ -73,15 +76,16 @@ export function openAgree({ href, kind = 'help' } = {}){
     dlg.setAttribute('aria-labelledby', 'rsAgreeTitle');
     dlg.innerHTML = `<div class="rs rs-wl-box">${agreeHtml(href, kind)}</div>`;
     document.body.append(dlg);
-    const box = dlg.firstChild, tick = box.querySelector('input[name="agree"]'), go = box.querySelector('[data-ag="go"]');
+    const box = dlg.firstChild, go = box.querySelector('[data-ag="go"]'), ticks = [...box.querySelectorAll('.rs-agree-check input')];
+    const ticked = () => ticks.every(t => t.checked);
     let agreed = false;
-    tick.addEventListener('change', () => { go.disabled = !tick.checked; });
+    for (const t of ticks) t.addEventListener('change', () => { go.disabled = !ticked(); });
     dlg.addEventListener('click', e => {
       // Outside the box is the same as "Not now".
       if (e.target === dlg) return dlg.close();
       const b = e.target.closest('[data-ag]'); if (!b) return;
       if (b.dataset.ag === 'cancel') return dlg.close();
-      if (b.dataset.ag === 'go' && tick.checked) { agreed = true; rememberAgreement(); dlg.close(); }
+      if (b.dataset.ag === 'go' && ticked()) { agreed = true; rememberAgreement(); dlg.close(); }
     });
     // (A dialog's close event comes a moment later: the answer is given here, inside the click.)
     const close = dlg.close.bind(dlg);

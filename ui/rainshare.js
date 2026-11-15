@@ -13,18 +13,21 @@
 //   new                plant a seed (./post.js)
 //   me                 your profile: your AI plan, what you run, and who you are to helpers,
 //                      with what you've helped with beside it
+//   settings           your settings: how "Direct my agent" works for you, and the messages you'd
+//                      like from @rainshare.dev (which follows it for you, so they reach you)
 //   profile/<did>      someone's profile and their seeds (a handle works in place of the DID)
 //   agents             the CLI and MCP server, for sending agents from a terminal
 //   feedback           bugs, requests and ideas about Rainshare itself: its board on userinput.app
 //   terms, privacy     the Terms of Service and the Privacy Policy (../core/legal.js)
+//   releases           what's new on Rainshare: the release notes (../core/releases.js)
 //   admin              @rainshare.dev's moderation page: what's hidden, what the checks flagged,
 //                      and hiding something. To anyone else it's as if nothing were there.
 //
-// A host with a landing of its own at its base address, for people signed out (rainshare.dev,
-// host.landing), shows the board under it there. The board's own address is then 'board', and
+// A host with a landing of its own at its base address (rainshare.dev, host.landing) shows the
+// board under it there, signed in or out. The board's own address is then 'board', and
 // every way back to the board leads there, to the board on its own.
-import { SEED, PROFILE, STAGE, HANDLE, SITE, FEATURES, TAKE_DAYS, TAKE_DAYS_DEFAULT, ROUTES, PLANS, UNPAID, plansIn, HARNESSES, MODELS, RUNS_ON, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, NOTIFY, labelOf, modelName } from '../core/ns.js';
-import { describeSubject, safeHttp, pullState, FORGE_NAMES } from '../core/subjects.js';
+import { SEED, PROFILE, STAGE, HANDLE, SITE, FEATURES, TAKE_DAYS, TAKE_DAYS_DEFAULT, ROUTES, PLANS, UNPAID, plansIn, HARNESSES, MODELS, RUNS_ON, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, NOTIFY, labelOf, modelName, githubLogin } from '../core/ns.js';
+import { describeSubject, safeHttp, pullState, forkOf, linkedPulls, pullKey, FORGE_NAMES } from '../core/subjects.js';
 import { look, carry, standing } from '../core/status.js';
 import { newRepoPlaces, placesFor } from '../core/forges.js';
 import { writableForge, pickSource, pullText, FORGE_SAID } from '../core/forgewrite.js';
@@ -33,26 +36,28 @@ import { tieOf, tieLines, knownText, TIE_SHORT, FROM, fromMatches } from '../cor
 import { wateredText } from '../core/garden.js';
 import { ACTIVITY_KINDS, activityCounts } from '../core/activity.js';
 import { audienceLine } from '../core/circle.js';
-import { rank, fit, join, pretty, wantPhrase } from '../core/rank.js';
+import { fit, join, pretty, wantPhrase, boardOrder, sortsFor } from '../core/rank.js';
 import { whereText, jobAndNotes, modelsText, progressOf, progressShort, relationText, askExcerpt, askSizeText, stateText, pictureOf, stageOf, nounOf, aNoun, whatItIs, planText } from '../core/words.js';
 import { renderMarkdown } from '../core/markdown.js';
 import { threads, talksOn } from '../core/comments.js';
-import { brief, launchers, pageOf, readHandBack, readBranchBack, INSTALL, MCP_ADD, CLI_HOME } from '../core/brief.js';
+import { brief, launchers, pageOf, readHandBack, readBranchBack, claudeWeb, webRepoOf, INSTALL, MCP_ADD, CLI_HOME } from '../core/brief.js';
 import { strongRef, HARNESS_NAMES, preferences as prefsRecord } from '../core/records.js';
 import { activeTakes, lapsed, dueOf } from '../core/takes.js';
 import { resolveHandle, knownPerson, parseUri, profiles, pool } from '../core/net.js';
 import { concerns, alarming } from '../core/scan.js';
 import { REASONS, reasonName, isAccount, kindOf as subjectKind } from '../core/moderation.js';
 import { readBoard, groupOf, stateWord, GROUPS as FEEDBACK_GROUPS } from '../core/feedback.js';
-import { esc, lit, unb64url, ago, until, shortDay, nameOf, firstName, ico, forgeIco, skyIco, lifeIco, face, drops, pathOf, plantPic, avatarFallback, tip, tipLink, toggleTip, pasteField, pasteInto, PASTE_REFUSED } from './bits.js';
+import { noticesFor } from '../core/notices.js';
+import { releasesBy } from '../core/releases.js';
+import { esc, lit, unb64url, ago, until, shortDay, nameOf, firstName, ico, forgeIco, skyIco, lifeIco, face, drops, pathOf, plantPic, avatarFallback, tip, tipLink, toggleTip, pasteField, pasteInto, PASTE_REFUSED, canShare, shareText } from './bits.js';
 import { createPoster } from './post.js';
-import { openWelcome, shouldWelcome } from './welcome.js';
+import { openWelcome, shouldWelcome, anyMessages, openMessages, shouldAskMessages } from './welcome.js';
 import { hasAgreed, agreement, rememberAgreement, openAgree } from './agree.js';
 import { agreedIn, agreementNow, recordAgreement } from '../core/agreement.js';
 import { LEGAL } from '../core/legal.js';
-import { openSend, openPasted, pasteWords, sendSummary, dayChoices } from './send.js';
+import { openSend, openPasted, pasteWords, sendSummary, dayChoices, webTarget } from './send.js';
 import { openTurnIn } from './turnin.js';
-import { headSk, boardSk, seedSk, personSk, gardenSk, meSk, listSk, activitySk } from './skeleton.js';
+import { headSk, boardSk, seedSk, personSk, gardenSk, meSk, listSk, activitySk, settingsSk } from './skeleton.js';
 import { known, reroute } from '../core/route.js';
 import { still as stillNow, snapshot, settle, glide, draw } from './motion.js';
 
@@ -62,7 +67,7 @@ export function createRainshare({ root, base = '/', host }){
   const S = {
     source: null, view: null, sub: '',
     board: null, boardAt: 0, loading: false, error: null, shown: [], pick: null, sheet: false,
-    mine: null, prefs: null, prefsLocal: false, garden: null, buds: null, seed: null, seedErr: null, unlinked: null, launch: null, handBack: null, handKind: null, again: null, other: null, form: null, drafts: {},
+    mine: null, prefs: null, prefsLocal: false, prefsUnread: false, follows: undefined, garden: null, buds: null, seed: null, seedErr: null, unlinked: null, launch: null, handBack: null, handKind: null, again: null, other: null, form: null, drafts: {},
     pull: null,          // the pull request form for the ask on screen: { uri, loading, choices, error }
     circle: undefined,   // your Tangled vouch circle (../core/vouch.js): undefined until asked for, null if there's none to show
     vouching: null,      // who a vouch is being written for: { did, evidence }
@@ -70,7 +75,7 @@ export function createRainshare({ root, base = '/', host }){
     grew: null,          // what's grown in your garden since you last looked: said once, on the board
     fresh: null,         // the same, once it's been said: marked "New" in your garden for the rest of the visit
     from: 'anyone',      // whose asks the board shows (FROM in ../core/ties.js): anyone, mutuals, people you follow, …
-    sort: null,          // how the board is sorted: 'fit' (best for you, signed in) or 'new' (newest first); null for the usual one
+    sort: null,          // how the board is sorted (SORTS in ../core/rank.js), as picked in this browser; null for the usual one
     show: 'all',         // which open asks the board shows: 'all', or 'free' (nobody's on it yet)
     known: {},           // by DID: which of the people you follow on Bluesky follow them ('loading' while asked)
     reply: null,         // the comment a reply is being written to: its URI, while the reply form is open
@@ -81,6 +86,7 @@ export function createRainshare({ root, base = '/', host }){
     feedback: null,      // Rainshare's feedback board (../core/feedback.js): { board, at, loading, error }
     moment: null,        // something that just happened to an ask, for its next drawings to play: { uri, what, at } (see moment())
     freshComment: null,  // the comment you just posted, lit for a moment: { key, at }
+    talk: null,          // comments read for the bell in the bar (../core/notices.js): on your asks, and the ones you're helping with or talking on
     open: {}   // which optional parts are showing (the turn-in's details, the comment form…), so a redraw leaves them be
   };
   const signedIn = () => !!S.source?.signedIn;
@@ -97,14 +103,14 @@ export function createRainshare({ root, base = '/', host }){
   // Where the links to the board lead, and whether it's sitting under the host's landing now.
   const BOARD_AT = host.landing ? 'board' : '';
   const isBoard = sub => !sub || sub === 'board';
-  const underLanding = () => !!host.landing && !signedIn() && !S.sub;
+  const underLanding = () => !!host.landing && !S.sub;
   const back = () => a(BOARD_AT, `${ico('back')}Back to the board`, 'rs-back');
   // Nothing's at an address, or what was there is gone: said plainly, with the ways on from it.
   const nothingHere = (what, more = '') => `${back()}<div class="rs-empty rs-need"><p>${what}</p><div class="rs-row">${a(BOARD_AT, 'Go to the board', 'rs-btn rs-primary')}${more}</div></div>`;
   // Someone who followed a link here from somewhere else hasn't seen the landing. Signed out,
   // an ask's page and a person's page say in a line what this place is, with the way to the rest.
   // (Before the page knows who's looking, the host says whether there's a sign-in to wait for.)
-  const newHere = (more = '') => (S.source ? signedIn() || S.source.demo : !host.visitor) ? '' : `<aside class="rs-note rs-newhere">${ico('drop')}<span><b>${lit('New to Rainshare?')}</b> People post ideas and projects they want help with, and others send their own AI agent to do the work, on their own plan.${more ? ' ' + esc(more) : ''}</span>${host.brand === 'rainshare' ? a('', 'How it works', 'rs-link') : ''}</aside>`;
+  const newHere = (more = '') => (S.source ? signedIn() || S.source.demo : !host.visitor) ? '' : `<aside class="rs-note rs-newhere">${ico('drop')}<span><b>${lit('New to Rainshare?')}</b> People post ideas and projects they want help with, and others direct their own AI agent to do the work, on their own plan.${more ? ' ' + esc(more) : ''}</span>${host.brand === 'rainshare' ? a('', 'How it works', 'rs-link') : ''}</aside>`;
   // A screen that's only for someone signed in says so once, with the way in beside it.
   const needSignIn = what => `${back()}<div class="rs-empty rs-need"><p>${what}</p>${host.signIn ? '<button class="rs-btn rs-primary" type="button" data-rs-act="signin">Sign in</button>' : ''}</div>`;
   const seg = (name, opts, value) => `<div class="rs-seg" role="group" data-rs-seg="${name}">${opts.map(([v, l]) => `<button type="button" data-v="${esc(v)}" aria-pressed="${v === value}">${esc(l)}</button>`).join('')}</div>`;
@@ -177,7 +183,7 @@ export function createRainshare({ root, base = '/', host }){
   }
   // The whole seed as Markdown (the brief an agent gets), for pasting into any agent's session.
   // (What it copies is the prompt: the asker's words in full, inside Rainshare's rules for an agent.
-  // It's only offered signed out, where there's no "Send my agent": signed in, that's the one way to
+  // It's only offered signed out, where there's no "Direct my agent": signed in, that's the one way to
   // get the prompt, so there aren't two buttons that both copy it.)
   const mdBtn = (it, cls = 'rs-quiet') => `<button class="rs-btn ${cls}" type="button" data-rs-md="${esc(it.uri)}">${ico('copy')}Copy the prompt</button>`;
   // A forecast that ran out (its "until" has passed) isn't shown as if it were still true.
@@ -193,13 +199,17 @@ export function createRainshare({ root, base = '/', host }){
   const mySetup = () => S.mine?.merged?.setups?.[0] || null;
   // Where a seed stands for whoever's looking (../core/status.js), and the brief made for them.
   const stand = it => standing(it, { viewer: viewer(), asker: firstName(it.author) });
-  const briefFor = it => brief(it, { viewer: viewer() });
+  // Your GitHub username, from your settings: the Claude app opens your fork, the prompt names it,
+  // and the pull requests you open are spotted for you to turn in.
+  const myGithub = () => githubLogin(S.prefs?.github);
+  const briefFor = it => brief(it, { viewer: viewer(), github: myGithub() });
+  const launchersFor = it => launchers(it, { viewer: viewer(), github: myGithub() });
   // What's in the way of starting on one, said to a person rather than to an agent.
   function heed(it, st){
     const who = firstName(it.author), forge = FORGE_NAMES[describeSubject(it.value?.subject)?.forge] || 'the forge';
     const others = (it.takes || []).filter(t => t.repo !== viewer()).map(t => nameOf(t.author));
     return {
-      'on-it': `${join(others)} ${others.length > 1 ? 'are' : 'is'} already on it. Check with them before you send your agent, so it isn’t done twice.`,
+      'on-it': `${join(others)} ${others.length > 1 ? 'are' : 'is'} already on it. Check with them before you direct your agent, so it isn’t done twice.`,
       'turned-in': st.idea ? 'Someone has already built a version of this. Look at theirs first. Another only helps if it’s different.'
         : 'There’s already a pull request for this. Look it over first. A second one only helps if that one has stalled.',
       merged: `A pull request for this has been merged, so it’s probably done. It’s waiting for ${who} to accept it.`,
@@ -208,13 +218,13 @@ export function createRainshare({ root, base = '/', host }){
   }
   const heedNote = (it, st) => st && !st.clear && heed(it, st) ? `<p class="rs-note rs-heed">${ico('person')}<span>${esc(heed(it, st))}</span></p>` : '';
   // What Rainshare's checks found in an ask (../core/scan.js), said to whoever's deciding whether
-  // to send their agent, with the words that set each one off. Whoever asked sees it too, so an
+  // to direct their agent, with the words that set each one off. Whoever asked sees it too, so an
   // honest ask that trips one can be reworded.
   function cautionNote(it){
     const list = concerns(it?.value);
     if (!list.length) return '';
     const mine = it.repo === viewer();
-    const head = mine ? 'Rainshare’s checks flagged something in your ask.' : 'Have a look before you send your agent.';
+    const head = mine ? 'Rainshare’s checks flagged something in your ask.' : 'Have a look before you direct your agent.';
     const lead = mine ? 'Helpers see a note like this one, and their agents are told about it in the prompt. If it’s a false alarm, rewording what’s quoted usually clears it.'
       : 'Rainshare’s checks found something in this ask that’s often used to misuse an agent. They’re rough: they miss some tricks, and an honest ask can trip one. Your agent is told about it in its prompt as well.';
     return `<div class="rs-note rs-caution${alarming(list) ? ' rs-alarm' : ''}">${ico('shield')}<div><p><b>${esc(head)}</b> ${esc(lead)}</p>
@@ -307,7 +317,7 @@ export function createRainshare({ root, base = '/', host }){
   function ownerMenu(it, { open, d }){
     const sq = it.value || {}, page = pageOf(it), fresh = open && !activeTakes(it).length && !(it.deliveries || []).length;
     const tell = open && page && d?.issue && !it.example && !writableForge(sq.subject)
-      ? `<button type="button" data-rs-copy-text="${esc(`I’ve posted this on Rainshare, for anyone who’d like to send their agent to work on it: ${page}`)}" data-rs-copied="Copied. Paste it as a comment on the issue.">Copy a note for the issue</button>` : '';
+      ? `<button type="button" data-rs-copy-text="${esc(`I’ve posted this on Rainshare, for anyone who’d like to direct their agent to work on it: ${page}`)}" data-rs-copied="Copied. Paste it as a comment on the issue.">Copy a note for the issue</button>` : '';
     const items = [
       fresh ? '' : shareBtn(it, 'Share on Bluesky', ''),
       tell,
@@ -336,6 +346,8 @@ export function createRainshare({ root, base = '/', host }){
         // The host hears what's open on the board (null if it couldn't be read): rainshare.dev's
         // landing points down to it with the faces of whoever's asking.
         host.onBoard?.(S.board ? boardItems() : null);
+        // And the bell in its bar hears what's happened, from the same reads.
+        tellNotices(); loadTalk();
       });
     if (S.view === 'board' && (!S.board || erred)) render();
     return S.loading;
@@ -343,10 +355,53 @@ export function createRainshare({ root, base = '/', host }){
   // There's no button to check again: coming back to the board, or to its browser tab, does it
   // (at most once a minute).
   globalThis.document?.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); return; }
+    // (Back after a while away, what's new is told from what the board had when you left.)
+    if (hiddenAt && Date.now() - hiddenAt > AWAY) beforeFor = null;
+    hiddenAt = 0;
     if (document.visibilityState !== 'visible' || root.closest('[hidden]')) return;
     if (S.view === 'board') loadBoard();
     if (signedIn() && Date.now() - gardenAt > 5 * 60e3) loadGarden();
+    // (Wherever you are, the bell in the bar is brought up to date after a couple of minutes away.)
+    bellCheck(NOTICES_AGAIN);
   });
+  /* ---------- the bell in the host's bar: what's happened on your asks and your work ---------- */
+  // Worked out from the board (../core/notices.js), so it's read once you're signed in, whatever
+  // you're looking at, and again every few minutes while the page is on screen, or when you come
+  // back to it. Comments aren't on the board: the ones the bell needs are read after it (loadTalk).
+  // The host shows it and keeps what's been seen; this hands it what there is:
+  //   { viewer, list, loading, error, demo }: `list` from noticesFor; `loading` while the board,
+  //   or the comments after it, are still being read for the first time; `error` if the board
+  //   couldn't be read, so there's only the release notes to show.
+  const NOTICES_AGAIN = 2 * 60e3, NOTICES_EVERY = 5 * 60e3;
+  let talking = null, talkAt = 0, bellAt = 0;
+  // (Counted from the last try as well as the last board read, so a network that isn't answering is asked no more often.)
+  function bellCheck(gap){
+    if (!signedIn() || Date.now() - Math.max(S.boardAt, bellAt) < gap) return;
+    bellAt = Date.now(); loadBoard();
+  }
+  function tellNotices(){
+    if (!host.onNotices) return;
+    const who = signedIn() ? viewer() : null;
+    host.onNotices({
+      viewer: who, demo: !!S.source?.demo,
+      list: noticesFor(who, { items: who && S.board ? S.board.items : [], comments: S.talk || [] }),
+      loading: !!who && ((!S.board && !S.error) || (!!S.source?.commentsFor && !S.talk && !!talking)),
+      error: !!who && !S.board && !!S.error
+    });
+  }
+  function loadTalk(){
+    if (!signedIn() || !S.board || !S.source.commentsFor || talking || Date.now() - talkAt < 60e3) return;
+    const src = S.source, me = viewer(), when = x => String(x.value?.updatedAt || x.value?.createdAt || '');
+    const latest = list => [...list].sort((a, b) => when(b).localeCompare(when(a))).map(x => x.uri);
+    const mine = latest(S.board.items.filter(it => it.repo === me && !it.space));
+    const helping = latest(S.board.items.filter(it => it.repo !== me && !it.space && [...(it.takes || []), ...(it.deliveries || [])].some(r => r.repo === me)));
+    talking = src.commentsFor(me, { asks: [...mine.slice(0, 12), ...helping.slice(0, 8)] })
+      .then(c => { if (S.source === src) { S.talk = c; talkAt = Date.now(); } }, e => { console.warn('rainshare comments for the bell', e); if (S.source === src) S.talk ||= []; })
+      .finally(() => { talking = null; if (S.source === src) tellNotices(); });
+    tellNotices();
+  }
+  globalThis.setInterval?.(() => { if (globalThis.document?.visibilityState === 'visible') bellCheck(NOTICES_EVERY); }, 60e3)?.unref?.();
   // What you've watered: worked out once you're known, and again when you come back to the tab
   // a while later, since a plant grows when someone else accepts your work. Anything new since
   // you last looked is said once, on the board (grewNote).
@@ -424,7 +479,7 @@ export function createRainshare({ root, base = '/', host }){
     ]);
     writeDownAgreement();
   }
-  /* ---------- your settings: how "Send my agent" works for you (./send.js) ---------- */
+  /* ---------- your settings: how "Direct my agent" works for you (./send.js) ---------- */
   // Kept in your account (dev.rainshare.preferences), and in this browser as well: a sign-in
   // from before Rainshare had settings isn't allowed to write them to your account, and they
   // work here all the same. Whichever copy was saved last is the one used.
@@ -432,27 +487,69 @@ export function createRainshare({ root, base = '/', host }){
   const localPrefs = () => { try { return JSON.parse(localStorage.getItem(PREFS_KEY()) || 'null'); } catch (_) { return null; } };
   const savedAt = r => String(r?.updatedAt || r?.createdAt || '');
   async function loadPrefs(){
-    if (!signedIn()) { S.prefs = null; return; }
-    const local = localPrefs(), rec = S.source.preferences ? await S.source.preferences().catch(() => null) : null;
+    if (!signedIn()) { S.prefs = null; S.prefsUnread = false; return; }
+    // (One your server didn't give isn't the same as none: it's not asked about messages over it.)
+    let unread = false;
+    const local = localPrefs(), rec = S.source.preferences ? await S.source.preferences().catch(() => { unread = true; return null; }) : null;
     S.prefs = rec && savedAt(rec) >= savedAt(local) ? rec : local;
     S.prefsLocal = !!local && S.prefs === local && savedAt(local) > savedAt(rec);
+    S.prefsUnread = unread;
   }
-  /** Save your settings ({ send } or { notify }). Says 'saved', or 'local' when only this browser could keep it. */
+  /** Save your settings ({ send }, { notify } or { github }). Says 'saved', or 'local' when only this browser could keep it. */
   async function savePrefs(change){
     const next = prefsRecord(change, S.prefs);
     S.prefs = next;
     try { localStorage.setItem(PREFS_KEY(), JSON.stringify(next)); } catch (_) {}
-    try { await S.source.savePreferences?.({ send: next.send, notify: next.notify || { updates: false, newAsks: false } }); S.prefsLocal = false; return 'saved'; }
+    try { await S.source.savePreferences?.({ send: next.send, notify: next.notify || { updates: false, newAsks: false }, github: next.github || '' }); S.prefsLocal = false; return 'saved'; }
     catch (e) { console.warn('rainshare preferences', e); S.prefsLocal = true; return 'local'; }
   }
-  // What "Send my agent" starts with on an ask: your settings, where they suit it. Before
+  /* ---------- messages from @rainshare.dev, and following it so they reach you ---------- */
+  // Bluesky only lets accounts you follow message you (unless you've changed that), so switching
+  // messages on follows @rainshare.dev for you. A sign-in from before Rainshare asked to can't, and
+  // is pointed to Bluesky instead. Switching them off never unfollows.
+  const canFollow = () => signedIn() && !!S.source.followRainshare && (host.canFollow?.() ?? true);
+  // Whether you follow it: undefined until asked, 'loading', true, false, or null if Bluesky didn't say.
+  function loadFollows(){
+    const src = S.source;
+    if (!signedIn() || !src.followsRainshare || S.follows !== undefined) return;
+    S.follows = 'loading';
+    src.followsRainshare().then(f => f, () => null).then(f => { if (S.source !== src) return; S.follows = f; if (S.view === 'settings') rerender(); });
+  }
+  /** Follow @rainshare.dev, unless you do. Says 'followed', 'already', or 'couldnt'. */
+  async function followUs(){
+    if (!canFollow()) return 'couldnt';
+    try { const r = await S.source.followRainshare(); S.follows = true; return r?.followed ? 'followed' : 'already'; }
+    catch (e) { console.warn('rainshare follow', e); return 'couldnt'; }
+  }
+  /**
+   * Save which messages you'd like, and with any on, follow @rainshare.dev. Says { saved, follow }:
+   * `saved` as savePrefs has it, and `follow` as followUs does (null with none on).
+   */
+  async function messagesOn(notify){
+    const saved = await savePrefs({ notify });
+    return { saved, follow: saved === 'saved' && anyMessages(notify) ? await followUs() : null };
+  }
+  // What's said once they're saved: `lead` first ("Saved."), then how they'll reach you.
+  function heardText({ saved, follow }, lead = 'Saved.'){
+    if (saved !== 'saved') return 'Saved in this browser only: sign out and in again for messages';
+    if (follow === 'followed') return `${lead} You follow @${HANDLE} now, so its messages can reach you.`;
+    if (follow === 'couldnt') return `${lead} Follow @${HANDLE} on Bluesky so its messages can reach you.`;
+    return lead;
+  }
+
+  // What "Direct my agent" starts with on an ask: your settings, where they suit it. Before
   // there are any, the command for what your profile says you run, and saying you're on it for a
-  // day. On a phone there's no terminal to paste a command into, so it starts on the prompt
-  // ("Any agent"), whatever the settings say; the other ways are still a press away.
+  // day. On a phone there's no terminal to paste a command into, so it starts on the Claude app
+  // for someone who runs Claude Code (or pays for Claude), when the ask is on GitHub, and on the
+  // prompt ("Any agent") otherwise, whatever the settings say about commands. The other ways are
+  // still a press away.
   const phone = () => !!globalThis.matchMedia?.('(hover: none) and (pointer: coarse)').matches;
+  const runsClaude = () => mySetup()?.harness === 'claude-code' || plansIn(S.mine?.merged).includes('claude');
   function sendStart(it){
-    const p = S.prefs?.send || {}, ls = ways(it);
-    const route = phone() ? 'brief' : ls.some(w => w.id === p.route) ? p.route : pickLauncher(launchers(it, { viewer: viewer() }))?.id || 'brief';
+    const p = S.prefs?.send || {}, ls = ways(it), has = id => ls.some(w => w.id === id);
+    const claudeish = ['web', 'claude', 'cloud'].includes(p.route) || (!p.route && runsClaude());
+    const route = phone() ? (has('web') && claudeish ? 'web' : 'brief')
+      : has(p.route) ? p.route : pickLauncher(launchersFor(it))?.id || 'brief';
     return { route, claim: p.claim ?? true, days: p.days || TAKE_DAYS_DEFAULT, askEachTime: p.askEachTime ?? true, remember: true };
   }
   const daysOf = () => S.prefs?.send?.days || TAKE_DAYS_DEFAULT;
@@ -465,38 +562,89 @@ export function createRainshare({ root, base = '/', host }){
   function welcome(){
     if (!shouldWelcome({ source: S.source, mine: S.mine, sub: S.sub })) return;
     const source = S.source;
+    let heard = null;   // how switching messages on went, for what's said once the dialog has closed
     openWelcome({
       person: S.mine.bluesky?.did ? S.mine.bluesky : self(),
-      save: p => source.saveProfile(p),
+      // The profile first: that's what the dialog is for, and a failure there is said in it.
+      // Messages after it, only if any are ticked, and never in the way of the profile.
+      async save(p, notify){
+        await source.saveProfile(p);
+        heard = anyMessages(notify) && S.source === source ? await messagesOn(notify).catch(e => { console.warn('rainshare messages', e); return null; }) : null;
+      },
       async saved(){
-        toast(FEATURES.fit ? 'Saved. Your board is sorted to suit you.' : 'Saved. Now pick something to help with.');
+        // (With something to say about the messages, that's said; otherwise what's next, as ever.)
+        const said = heard ? heardText(heard, 'Saved.') : '';
+        toast(said && said !== 'Saved.' ? said : FEATURES.fit ? 'Saved. Your board is sorted to suit you.' : 'Saved. Now pick something to help with.');
         if (S.source !== source) return;
         await loadMine(true); rerender();
       },
-      error: plainText
+      error: plainText,
+      canFollow: canFollow()
+    });
+  }
+  // Someone who was past the welcome before it asked about messages from @rainshare.dev, or made
+  // their profile without it, is asked about them on their own on their next visit, while they
+  // have none on (./welcome.js). Not over another dialog, and not on Settings, where they are.
+  function askMessages(){
+    if (!shouldAskMessages({ source: S.source, mine: S.mine, prefs: S.prefs, prefsUnread: S.prefsUnread, sub: S.sub })) return;
+    const source = S.source;
+    let heard = null;
+    openMessages({
+      did: viewer(),
+      async save(notify){
+        if (S.source !== source) throw new Error('You’ve signed out since. Sign in and switch them on in Settings.');
+        heard = await messagesOn(notify);
+      },
+      saved(){
+        toast(heardText(heard, 'Messages are on.'));
+        if (S.source === source && S.view === 'settings') rerender();
+      },
+      error: plainText,
+      canFollow: canFollow()
     });
   }
 
   /* ---------- the board: a list of short cards, and the one you pick beside them ---------- */
-  // Everything still open. Signed in (with fit on), it's sorted best first for you unless you'd rather have
-  // the newest first: best first, what someone else asked for comes first, ranked, then what
-  // you asked for yourself, newest first, marked as yours, so the one picked to begin with is
-  // one you could help with; newest first, it's all by date. Signed out, it's newest first.
-  // (What's done is on the page of whoever asked, and all of yours on your own page, which the
-  // board's quiet button leads to.)
+  // Everything still open, in the order picked with Sort (boardOrder in ../core/rank.js). Until
+  // something else is picked, signed in it's newest first, with what suits you less further down
+  // and what you asked for yourself at the end, marked as yours; signed out, it's newest first.
+  // Either way, what's come in since you last looked is at the top, marked new, over a dashed
+  // rule. (What's done is on the page of whoever asked, and all of yours on your own page, which
+  // the board's quiet button leads to.)
   const newest = (a, b) => String(b.value?.createdAt).localeCompare(String(a.value?.createdAt));
-  // (With fit switched off, FEATURES.fit in ../core/ns.js, there's only the one order: newest
-  // first, with your own after everyone else's, since the board is for helping someone else.)
-  const sortBy = () => FEATURES.fit && signedIn() && S.sort !== 'new' ? 'fit' : 'new';
-  function boardItems(){
+  // The sort picked is kept in this browser, so it's still the one next time.
+  const SORT_KEY = 'rs:board-sort';
+  const savedSort = () => { try { return localStorage.getItem(SORT_KEY) || null; } catch (_) { return null; } };
+  const sortChoices = () => sortsFor(signedIn());
+  const sortNow = () => (sortChoices().find(o => o[0] === S.sort) || sortChoices()[0])[0];
+  // What's new since you last looked: the asks the board had then are kept in this browser (for
+  // each account, and for anyone signed out), and whatever's on it now that wasn't is new. That's
+  // read once when you arrive, and again when you come back to the tab after a while away, so
+  // what was new stays marked new while you're here. The very first time, nothing's new: there's
+  // nothing to tell it from. (Your own asks are never new to you.)
+  const BOARD_SEEN = () => 'rs:board-seen:' + `${base}:${viewer() || 'anyone'}`;
+  const AWAY = 30 * 60e3;
+  let before = null, beforeFor = null, markedBoard = null, hiddenAt = 0;
+  function lookAgain(){
+    beforeFor = BOARD_SEEN(); before = null;
+    try { const v = JSON.parse(localStorage.getItem(beforeFor) || 'null'); if (Array.isArray(v)) before = new Set(v); } catch (_) {}
+  }
+  const isNew = it => !!before && it.repo !== viewer() && !before.has(it.uri);
+  function markBoardSeen(items){
+    // (Only once it's been on screen: a board drawn out of sight, behind another page, isn't seen.)
+    if (!S.board || S.board === markedBoard || !items.length || root.closest('[hidden]')) return;
+    markedBoard = S.board;
+    let was = [];
+    try { was = JSON.parse(localStorage.getItem(BOARD_SEEN()) || '[]'); } catch (_) {}
+    try { localStorage.setItem(BOARD_SEEN(), JSON.stringify([...new Set([...items.map(it => it.uri), ...(Array.isArray(was) ? was : [])])].slice(0, 1000))); } catch (_) {}
+  }
+  function boardOrdered(){
+    if (beforeFor !== BOARD_SEEN()) lookAgain();
     // (What Rainshare has hidden is never on the board. Whoever asked sees it on their own page.)
     const open = (S.board?.items || []).filter(it => isOpen(it) && !it.hidden);
-    if (!signedIn()) return open.sort(newest);
-    const others = open.filter(it => it.repo !== viewer()), mine = open.filter(it => it.repo === viewer()).sort(newest);
-    if (!FEATURES.fit) return [...others.sort(newest), ...mine];
-    const ranked = [...rank(others, me()), ...mine];
-    return sortBy() === 'new' ? ranked.sort(newest) : ranked;
+    return boardOrder(open, signedIn() ? me() : null, { sort: sortNow(), isNew });
   }
+  const boardItems = () => boardOrdered().items;
   // Narrowed to who asked, if you chose to. (Anything but "anyone" is about someone else, so
   // what you asked for is left out of it.)
   const fromWho = (k, it) => it.repo !== viewer() && fromMatches(k, it.ties, word(it.repo));
@@ -544,16 +692,13 @@ export function createRainshare({ root, base = '/', host }){
   const showEmpty = () => `<p class="rs-empty" data-rs-flip="empty">${esc({ free: 'Someone’s on each of these already.', 'on-it': 'Nobody’s in the middle of any of these right now.', 'turned-in': 'Nothing’s been turned in for any of these yet.' }[S.show] || '')} <button class="rs-link" type="button" data-rs-show="all">Show everything open</button></p>`;
   // Once nothing someone else asked for is free (each has someone on it or something turned in,
   // or there's nothing at all), the top of the list offers to tell people on Bluesky that you've
-  // got usage to spare, naming the paid plans your profile says you have (signed out, or with
-  // none, just "AI"). Under it, a dashed rule, and under that what's already being helped with.
+  // got rain to spare. (It doesn't name your plan or offer "usage": what you're offering is your
+  // agent's work, not your plan.) Under it, a dashed rule, and under that what's already being
+  // helped with.
   const allTaken = all => !!S.board && !S.error && !all.some(it => it.repo !== viewer() && standsAs(it) === 'free');
   // (Bluesky's butterfly, filled, as the footer on rainshare.dev draws it.)
   const BSKY = '<svg class="rs-i rs-bsky-i" viewBox="0 0 600 530" aria-hidden="true"><path d="m135.72 44.03c66.496 49.921 138.02 151.14 164.28 205.46 26.262-54.316 97.782-155.54 164.28-205.46 47.98-36.021 125.72-63.892 125.72 24.795 0 17.712-10.155 148.79-16.111 170.07-20.703 73.984-96.144 92.854-163.25 81.433 117.3 19.964 147.14 86.092 82.697 152.22-122.39 125.59-175.91-31.511-189.63-71.766-2.514-7.3797-3.6904-10.832-3.7077-7.8964-0.0174-2.9357-1.1937 0.51669-3.7077 7.8964-13.714 40.255-67.233 197.36-189.63 71.766-64.444-66.128-34.605-132.26 82.697-152.22-67.108 11.421-142.55-7.4491-163.25-81.433-5.9562-21.282-16.111-152.36-16.111-170.07 0-88.687 77.742-60.816 125.72-24.795z"/></svg>';
-  function spareUrl(){
-    const paid = plansIn(S.mine?.merged).filter(p => !UNPAID.includes(p)).map(p => labelOf(PLANS, p));
-    const which = !paid.length ? 'AI' : paid.length === 1 ? paid[0] : `${paid.slice(0, -1).join(', ')} and ${paid.at(-1)}`;
-    return `https://bsky.app/intent/compose?text=${encodeURIComponent(`I’ve got ${which} usage to spare. Post an idea or a project you’d like help with on @${HANDLE} and I’ll send my agent. ${SITE}`)}`;
-  }
+  const spareUrl = () => `https://bsky.app/intent/compose?text=${encodeURIComponent(`I’ve got rain to spare. Post an idea or a project you’d like help with on @${HANDLE} and I’ll direct my agent. ${SITE}`)}`;
   const spareCard = inList => {
     const body = `<a class="rs-item rs-spare" href="${esc(spareUrl())}" target="_blank" rel="noopener">
         <span class="rs-item-main">
@@ -566,27 +711,74 @@ export function createRainshare({ root, base = '/', host }){
     const rule = '<div class="rs-spare-rule" role="separator"><span>Someone’s already on each of these</span></div>';
     return inList ? `<li class="rs-spare-li">${body}${rule}</li>` : `<div class="rs-spare-alone">${body}</div>`;
   };
-  // Over the list: how it's sorted, and a button that folds out what narrows it (who asked,
-  // and whether anyone's on it). Whatever is narrowing it shows beside the button while it's
-  // folded away, each a press from undone.
+  // Over the list: a button that says how it's sorted and folds out the other ways, and one that
+  // folds out what narrows it (who asked, and whether anyone's on it). Whatever is narrowing it
+  // shows beside that button while it's folded away, each a press from undone. (One folds away
+  // when the other folds out.)
   function tools(all, byFrom){
     const fromLabel = (FROM.find(([k]) => k === S.from) || [])[1], showLabel = (SHOW.find(([k]) => k === S.show) || SHOW[0])[1];
     const on = [
       signedIn() && S.from !== 'anyone' && fromLabel ? `<button type="button" data-rs-from="anyone" aria-label="${esc(`Stop showing only ${fromLabel.toLowerCase()}`)}">${esc(fromLabel)}${ico('close')}</button>` : '',
       S.show !== 'all' ? `<button type="button" data-rs-show="all" aria-label="${esc(`Stop showing only ${showLabel.toLowerCase()}`)}">${esc(showLabel)}${ico('close')}</button>` : ''
     ].filter(Boolean);
-    const open = !!S.open.filters;
+    const open = !!S.open.filters, sorting = !!S.open.sort, cur = sortChoices().find(o => o[0] === sortNow());
     return `<div class="rs-tools">
-        ${signedIn() && FEATURES.fit ? `<div class="rs-from rs-sort" role="group" aria-label="Sort" data-rs-glide="sort">${[['fit', 'Best for you'], ['new', 'Newest']].map(([k, l]) => `<button type="button" data-rs-sort="${k}" aria-pressed="${sortBy() === k}">${l}</button>`).join('')}</div>` : ''}
+        <button type="button" class="rs-filter-btn rs-sort-btn" data-rs-act="sorts" aria-expanded="${sorting}" aria-controls="rsSorts" aria-label="${esc(`Sort: ${cur[1]}`)}">${ico('sort')}${esc(cur[1])}</button>
         <div class="rs-filter-bar">
           ${on.length && !open ? `<div class="rs-from rs-filter-on" data-rs-flip="filter-on">${on.join('')}</div>` : ''}
           <button type="button" class="rs-filter-btn" data-rs-act="filters" aria-expanded="${open}" aria-controls="rsFilters">${ico('filter')}Filter${on.length ? `<span class="rs-from-n" data-rs-count="filters-on">${on.length}</span>` : ''}</button>
         </div>
       </div>
+      ${sorting ? `<div class="rs-filters" id="rsSorts" data-rs-flip="sorts" data-rs-flip-in="open">
+        <div class="rs-filter-row"><span class="rs-from-l">Sort by</span><div class="rs-from" role="group" aria-label="Sort by">${sortChoices().map(([k, l, hint]) => `<button type="button" data-rs-sort="${k}" aria-pressed="${k === cur[0]}" title="${esc(hint)}">${esc(l)}</button>`).join('')}</div></div>
+        <p class="rs-sort-why">${esc(cur[2])}</p>
+      </div>` : ''}
       ${open ? `<div class="rs-filters" id="rsFilters" data-rs-flip="filters" data-rs-flip-in="open">
         ${signedIn() ? `<div class="rs-filter-row"><span class="rs-from-l">Who asked</span>${fromRow(all)}</div>` : ''}
         <div class="rs-filter-row"><span class="rs-from-l">Show</span>${showRow(byFrom)}</div>
       </div>` : ''}`;
+  }
+  // Pull requests on an ask's forge that mention it and weren't turned in here (linkedPulls, in
+  // ../core/subjects.js), with the ones that are yours marked: by your GitHub username, from your
+  // settings, or on knotless by your handle. Asked once in ten minutes for each ask, since GitHub
+  // lets a browser that isn't signed in ask 60 things an hour. The example board's are made up,
+  // so it has none.
+  const pullsSaid = new Map();   // seed URI -> { list, at }
+  async function pullsFor(it){
+    if (!it || it.example || S.source?.demo) return [];
+    const was = pullsSaid.get(it.uri);
+    let list = was && Date.now() - was.at < 10 * 60e3 ? was.list : null;
+    if (!list) {
+      list = (Array.isArray(it.linked) ? it.linked : await linkedPulls(it.value?.subject, { rkey: parseUri(it.uri)?.rkey }).catch(() => null)) || [];
+      pullsSaid.set(it.uri, { list, at: Date.now() });
+    }
+    const turned = new Set((it.deliveries || []).map(x => pullKey(x.value?.url || x.value?.pull)).filter(Boolean));
+    const gh = myGithub()?.toLowerCase(), handle = String(self()?.handle || '').toLowerCase();
+    return list.filter(p => !turned.has(pullKey(p.url))).map(p => ({ ...p, yours: !!p.by && [gh, handle].includes(String(p.by).toLowerCase()) }));
+  }
+  // An ask you're on whose pull request is up, but not turned in: the board says so, with the
+  // button that turns it in (the dialog has it filled in). Only on GitHub, with your username in
+  // your settings, for up to three of the asks you're on; "Not now" puts it away for this visit.
+  const UP_LATER = 'rs:up-later';
+  const upLater = () => { try { return new Set(JSON.parse(sessionStorage.getItem(UP_LATER) || '[]')); } catch (_) { return new Set(); } };
+  const upFound = new Map();     // seed URI -> your pull request there, once asked
+  const upAsked = new Set();
+  function upNote(){
+    if (!signedIn() || !S.board || !myGithub() || S.source?.demo) return '';
+    const later = upLater();
+    const mineOn = S.board.items.filter(it => isOpen(it) && !it.hidden && it.repo !== viewer() && myTake(it) && webRepoOf(it)
+      && !(it.deliveries || []).some(x => x.repo === viewer()) && !later.has(it.uri)).slice(0, 3);
+    const ask = mineOn.filter(it => !upAsked.has(it.uri));
+    if (ask.length) {
+      ask.forEach(it => upAsked.add(it.uri));
+      Promise.all(ask.map(it => pullsFor(it).then(l => { const p = l.find(x => x.yours && x.state !== 'closed'); if (p) upFound.set(it.uri, p); }, () => {})))
+        .then(() => { if (ask.some(it => upFound.has(it.uri)) && S.view === 'board') rerender(); });
+    }
+    const it = mineOn.find(x => upFound.has(x.uri));
+    if (!it) return '';
+    const p = upFound.get(it.uri);
+    return `<div class="rs-note rs-on rs-up-note" data-rs-up>${lifeIco('up')}<span><b>Your pull request for “${esc(it.value.title)}” is ${p.state === 'merged' ? 'merged' : 'up'} on GitHub.</b> Turn it in, so ${esc(firstName(it.author))} knows it’s ready${p.state === 'merged' ? ' to accept' : ' to look at'}.</span>
+      <div class="rs-row"><button class="rs-btn rs-primary rs-sm" type="button" data-rs-turnin="${esc(it.uri)}">Turn it in</button><button class="rs-link" type="button" data-rs-act="up-later" data-rs-uri="${esc(it.uri)}">Not now</button></div></div>`;
   }
   // Your asks with work turned in that you haven't accepted: accepting it is what grows the
   // helper's plant, so the board says so until it's done, or until you say not now (for this
@@ -632,7 +824,7 @@ export function createRainshare({ root, base = '/', host }){
   // in their own words, a quiet line (how well it suits you, or that it's yours or done) and where
   // it stands. Where the work is and how big a job it is are in its details, and so is who it's
   // open to unless you know them.
-  function card(it, { nav = false } = {}){
+  function card(it, { nav = false, fresh = false } = {}){
     const sq = it.value || {}, p = it.author || {}, mine = it.repo === viewer(), on = !nav && it.uri === S.pick;
     const rel = mine ? '' : relationText(it, viewer(), { audience: false }), ask = askExcerpt(sq.spec, 180);
     const pr = progressOf(it, viewer()), short = progressShort(it, viewer());
@@ -648,7 +840,7 @@ export function createRainshare({ root, base = '/', host }){
     const taken = !short ? '' : pr.key === 'turned-in' ? `<span class="rs-item-taken rs-turned-in">${faces}<span class="rs-chip">${ico(pr.idea ? 'link' : 'pull')}${esc(short)}</span></span>`
       : `<span class="rs-item-taken rs-${pr.key}">${faces}${esc(short)}</span>`;
     return `<li><a class="rs-item${on ? ' on' : ''}" href="${esc(href(pathOf(it)))}" ${nav ? `data-rs-go="${esc(pathOf(it))}"` : `data-rs-pick="${esc(it.uri)}"`}${on ? ' aria-current="true"' : ''} data-rs-flip="${esc(it.uri)}">
-      <span class="rs-item-top">${face(p, 'xs')}<span class="rs-item-who"><b>${esc(mine ? 'You' : nameOf(p))}</b>${mine ? '' : hat(it.repo)}${rel ? `<span> · ${it.space ? ico('lock') : ''}${esc(rel)}</span>` : ''}</span><time>${esc(ago(sq.createdAt))}</time></span>
+      <span class="rs-item-top">${face(p, 'xs')}<span class="rs-item-who"><b>${esc(mine ? 'You' : nameOf(p))}</b>${mine ? '' : hat(it.repo)}${rel ? `<span> · ${it.space ? ico('lock') : ''}${esc(rel)}</span>` : ''}</span>${fresh ? '<span class="rs-new" title="Posted since you last looked">New</span>' : ''}<time>${esc(ago(sq.createdAt))}</time></span>
       <span class="rs-item-main">
         <span class="rs-item-title" data-rs-vt="title:${esc(it.uri)}">${esc(sq.title)}</span>
         ${ask ? `<span class="rs-item-ask">${esc(ask)}</span>` : ''}
@@ -816,7 +1008,7 @@ export function createRainshare({ root, base = '/', host }){
     // (On it: turning it in is a short dialog too. Once it's turned in, what's next is on its page.)
     else if (myTake(it)) buttons = (it.deliveries || []).some(x => x.repo === viewer()) ? a(page, 'See where it stands', 'rs-btn rs-quiet')
       : `<button class="rs-btn rs-primary" type="button" data-rs-turnin="${esc(it.uri)}">${ico(describeSubject(sq.subject) ? 'pull' : 'link')}Turn it in</button>`;
-    else buttons = `<button class="rs-btn rs-primary" type="button" data-rs-take="${esc(it.uri)}">${ico('drop')}Send my agent</button>${shareBtn(it)}`;
+    else buttons = `<button class="rs-btn rs-primary" type="button" data-rs-take="${esc(it.uri)}">${ico('drop')}Direct my agent</button>${shareBtn(it)}`;
     const hint = open && !mine && signedIn() && !myTake(it) ? sendHint(it) : '';
     const st = open && !mine && !myTake(it) ? stand(it) : null;
     return `<article class="rs-detail">
@@ -837,20 +1029,27 @@ export function createRainshare({ root, base = '/', host }){
       <div class="rs-row rs-detail-actions">${buttons}</div>${hint}
     </article>`;
   }
-  // Over the list, one note at a time, the one that matters most: work waiting on you, then
-  // something of yours that grew, then setting up your profile, then that it's early days. The
+  // Over the list, one note at a time, the one that matters most: work waiting on you, then a pull
+  // request of yours that's up and not turned in, then something of yours that grew, then setting
+  // up your profile, then that it's early days. The
   // next shows once the one before is dealt with or put away.
   function boardNote(){
     const setup = () => signedIn() && S.mine && !S.mine.merged ? `<p class="rs-note">${ico('person')}<span>${FEATURES.priorities ? 'Say what you run and who you’d like to help, and your board is sorted to match.'
       : FEATURES.fit ? 'Say which AI plan you have and what you run. People see who they’d be helping, and your board is sorted by what suits you.'
-        : 'Say which AI plan you have and what you run. People see who they’d be helping, and “Send my agent” gets the command right.'}</span>${a('me', 'Set up your profile', 'rs-link')}</p>` : '';
+        : 'Say which AI plan you have and what you run. People see who they’d be helping, and “Direct my agent” gets the command right.'}</span>${a('me', 'Set up your profile', 'rs-link')}</p>` : '';
     const early = () => signedIn() && !S.source?.demo && !stageSeen() ? `<p class="rs-note rs-stage-note">${ico('info')}<span>Rainshare is in early ${esc(STAGE)}, so things may change or break. What you post stays in your own account.</span><button class="rs-link" type="button" data-rs-act="stage-seen">Got it</button></p>` : '';
-    for (const note of [waitingNote, grewNote, setup, early]) { const html = note(); if (html) return html; }
+    for (const note of [waitingNote, upNote, grewNote, setup, early]) { const html = note(); if (html) return html; }
     return '';
   }
   function renderBoard(){
-    const all = S.board ? boardItems() : [], byFrom = narrowFrom(all), items = narrowShow(byFrom);
+    const ord = S.board ? boardOrdered() : { items: [], fresh: 0 }, all = ord.items, byFrom = narrowFrom(all), items = narrowShow(byFrom);
     S.shown = items;
+    markBoardSeen(all);
+    // What's new is at the top (unless it's sorted by what's waiting longest), over a dashed
+    // rule, with what was here when you last looked under it.
+    const fresh = new Set(all.slice(0, ord.fresh).map(it => it.uri)), freshN = items.filter(it => fresh.has(it.uri)).length;
+    const seenRule = '<li class="rs-seen-li"><div class="rs-spare-rule" role="separator"><span>Here when you last looked</span></div></li>';
+    const cards = items.map((it, i) => (i === freshN && freshN ? seenRule : '') + card(it, { fresh: isNew(it) })).join('');
     if (items.length && !items.some(i => i.uri === S.pick)) { S.pick = items[0].uri; S.sheet = false; }
     const sel = items.find(i => i.uri === S.pick), spare = allTaken(all);
     const fc = forecastOf(S.mine?.merged);
@@ -865,9 +1064,9 @@ export function createRainshare({ root, base = '/', host }){
     return `
       <header class="rs-head">
         <div class="rs-brand">${host.brand !== 'rainshare' ? `<span class="rs-logo">${ico('drop')}</span>` : ''}<div>${
-          host.brand !== 'rainshare' ? `<h1>Rainshare</h1><p>${lit('Got rain to spare? Pick an idea or a project and send your agent.')}</p>`
-            : signedIn() ? `<h1>Ideas and projects you can help with</h1><p>${lit('Got rain to spare? Pick one and send your agent.')}</p>`
-              // Under the landing, which has the page's h1 and says what Rainshare is.
+          host.brand !== 'rainshare' ? `<h1>Rainshare</h1><p>${lit('Got rain to spare? Pick an idea or a project and direct your agent.')}</p>`
+            // (Under the landing, which has the page's h1 and says what Rainshare is, it's one of its h2s.)
+            : signedIn() ? (underLanding() ? `<h2>Ideas and projects you can help with</h2>` : `<h1>Ideas and projects you can help with</h1>`) + `<p>${lit('Got rain to spare? Pick one and direct your agent.')}</p>`
               : underLanding() ? `<h2>Ideas and projects anyone can help with</h2><p>${signedOutLede}</p>`
                 // On its own, for someone who may have come straight here: the way to what Rainshare is.
                 : `<h1>Ideas and projects anyone can help with</h1><p>${signedOutLede} ${host.landing ? a('', 'How Rainshare works', 'rs-link') : ''}</p>`
@@ -885,7 +1084,7 @@ export function createRainshare({ root, base = '/', host }){
       ${S.error ? `<p class="rs-note rs-bad">${plain(S.error)}</p>` : ''}
       ${!S.board ? boardSk({ fit: signedIn() && FEATURES.fit })
         : items.length ? `<div class="rs-split${S.sheet ? ' rs-open' : ''}">
-            <ul class="rs-list" aria-label="Ideas and projects">${spare ? spareCard(true) : ''}${items.map(it => card(it)).join('')}</ul>
+            <ul class="rs-list" aria-label="Ideas and projects">${spare ? spareCard(true) : ''}${cards}</ul>
             <div class="rs-scrim" data-rs-close-sheet aria-hidden="true"></div>
             <aside class="rs-side" aria-label="The one you picked">${sel ? detail(sel) : ''}</aside>
           </div>`
@@ -893,7 +1092,7 @@ export function createRainshare({ root, base = '/', host }){
       ${(S.board?.notes || []).map(n => `<p class="rs-note">${esc(n)}</p>`).join('')}
       ${
         // rainshare.dev has Agents in its own bar, and says where records live in its footer.
-        host.brand === 'rainshare' ? '' : `<footer class="rs-foot">${a('agents', `${ico('term')}Send agents from your terminal`, 'rs-link')}<span class="rs-muted">Every ask is a record in the account of whoever posted it.</span></footer>`}`;
+        host.brand === 'rainshare' ? '' : `<footer class="rs-foot">${a('agents', `${ico('term')}Direct agents from your terminal`, 'rs-link')}<span class="rs-muted">Every ask is a record in the account of whoever posted it.</span></footer>`}`;
   }
   // Picking a card fills the panel beside the list (or the sheet, on a phone) without
   // redrawing the list, so nothing else on the page moves.
@@ -913,7 +1112,7 @@ export function createRainshare({ root, base = '/', host }){
     root.querySelector('.rs-split')?.classList.remove('rs-open');
     root.querySelector(`.rs-item[data-rs-pick="${CSS.escape(S.pick || '')}"]`)?.focus({ preventScroll: true });
   }
-  // Sending your agent (./send.js) is a short dialog, and you stay where you are: it asks which
+  // Directing your agent (./send.js) is a short dialog, and you stay where you are: it asks which
   // agent and whether to say you're on it (unless your settings say to skip that), copies the
   // prompt or a command, then says what to do with it and what happens next. What Rainshare's
   // checks found that's very likely a trick is said once more before any of that, since the
@@ -938,7 +1137,8 @@ export function createRainshare({ root, base = '/', host }){
       const copying = copyLater(job.then(j => { if (!j) throw new Error('Not sent'); return j.w.command; }));
       return job.then(async j => j && {
         id: j.w.id, command: j.w.command, ...pasteWords(j.w, asker), copied: await copying, fresh: j.fresh,
-        until: answers.claim ? dayOf(dueOf(myTake(j.fresh))) || 'the day you said' : null
+        until: answers.claim ? dayOf(dueOf(myTake(j.fresh))) || 'the day you said' : null,
+        ...(j.w.id === 'web' ? { web: webFor(j.fresh) } : {})
       });
     };
     // Closed: wherever you are shows what's changed (on the board, the panel says you're on it).
@@ -948,8 +1148,10 @@ export function createRainshare({ root, base = '/', host }){
       swapIn(r.fresh); render();
     };
     const again = (text, btn) => copy(text, 'Copied', undefined, btn);
-    if (!skip) return openSend({ asker, ways: ways(it).map(w => ({ id: w.id, name: WAY_NAME[w.id] || w.label })), answers: start, send, copy: again, done: after, error: plainText });
-    try { const r = await send(start); if (r) openPasted({ r, asker, copy: again, done: after }); else if (el) el.disabled = false; }
+    // (On a phone, the share sheet hands the prompt to an app without the clipboard.)
+    const share = canShare() ? shareText : null;
+    if (!skip) return openSend({ asker, ways: ways(it).map(w => ({ id: w.id, name: wayNames()[w.id] || w.label })), lead: phone() ? ['web'] : [], answers: start, send, copy: again, share, done: after, error: plainText });
+    try { const r = await send(start); if (r) openPasted({ r, asker, copy: again, share, done: after }); else if (el) el.disabled = false; }
     catch (e) { console.warn('rainshare send', e); toast(plainText(e)); if (el) el.disabled = false; }
   }
   // An ask just written to, in the board's list too, so the panel says so before the board's been read again.
@@ -967,7 +1169,7 @@ export function createRainshare({ root, base = '/', host }){
       const now = carry(it, await S.source.seed(it.uri, { force: true }).catch(() => null) || it);
       await Promise.race([look(now), new Promise(r => setTimeout(r, 4000))]);
       const st = stand(now);
-      if (!st.clear && st.verdict !== shown && !confirm(`${heed(now, st) || st.advice}\n\nSend your agent anyway?`)) {
+      if (!st.clear && st.verdict !== shown && !confirm(`${heed(now, st) || st.advice}\n\nDirect your agent anyway?`)) {
         if (S.seed?.uri === now.uri) { S.seed = now; render(); }
         if (el) el.disabled = false;
         return null;
@@ -979,10 +1181,10 @@ export function createRainshare({ root, base = '/', host }){
       return { fresh };
     } catch (e) { if (el) el.disabled = false; throw e; }
   }
-  // Under "Send my agent", when the questions are skipped: what it'll do, and the way to change that.
+  // Under "Direct my agent", when the questions are skipped: what it'll do, and the way to change that.
   const sendHint = it => {
     const st = sendStart(it);
-    return st.askEachTime ? '' : `<p class="rs-muted rs-send-hint">${esc(sendSummary(st, WAY_NAME))}. <button class="rs-link" type="button" data-rs-act="send-ask" data-rs-uri="${esc(it.uri)}">Change</button></p>`;
+    return st.askEachTime ? '' : `<p class="rs-muted rs-send-hint">${esc(sendSummary(st, wayNames()))}. <button class="rs-link" type="button" data-rs-act="send-ask" data-rs-uri="${esc(it.uri)}">Change</button></p>`;
   };
 
   /* ---------- one seed, in full ---------- */
@@ -1067,24 +1269,51 @@ export function createRainshare({ root, base = '/', host }){
   }
   // Every way to hand a seed to an agent: the brief, to paste into one, and then the commands
   // that start one from a terminal.
+  // (The Claude app, or Claude Code on the web on a computer, is opened from a link with the prompt
+  // in it, on a GitHub repository: see webFor.)
   const ways = it => [
     { id: 'brief', label: 'Any agent, by pasting', note: 'Nothing to install. Paste it into Claude Code, Codex or a chat window that can reach the repo.', command: briefFor(it), copied: 'Copied the prompt. Paste it into your agent.' },
-    ...launchers(it, { viewer: viewer() }).map(l => ({ ...l, copied: `Copied the ${l.label} command. Paste it in a terminal.` }))
+    ...(webRepoOf(it) ? [{ id: 'web', label: 'Claude Code on the web', note: 'Opens a new session in the Claude app (or Claude Code on the web) with the prompt and the repository filled in.', command: briefFor(it), copied: 'Copied the prompt.' }] : []),
+    ...launchersFor(it).map(l => ({ ...l, copied: `Copied the ${l.label} command. Paste it in a terminal.` }))
   ];
-  // Each way by a word or two, to pick between.
-  const WAY_NAME = { brief: 'Any agent', claude: 'Claude Code', cloud: 'Claude Code in the cloud', codex: 'Codex', cli: 'Rainshare CLI', mcp: 'MCP' };
+  // Each way by a word or two, to pick between. (On a phone, the web is the Claude app.)
+  const WAY_NAMES = { brief: 'Any agent', claude: 'Claude Code', cloud: 'Claude Code in the cloud', codex: 'Codex', cli: 'Rainshare CLI', mcp: 'MCP' };
+  const wayNames = () => ({ ...WAY_NAMES, web: phone() ? 'Claude app' : 'Claude on the web' });
+  /**
+   * What the Claude app's step needs (./send.js secondStep): the ask's repository, your GitHub
+   * username, and how to make the prompt and the link, look for your fork and keep your username.
+   * Null when the ask isn't on GitHub.
+   */
+  function webFor(it){
+    const repo = webRepoOf(it);
+    return repo && {
+      repo, github: myGithub(),
+      prompt: login => brief(it, { viewer: viewer(), github: login }),
+      link: claudeWeb,
+      // (The example board's repositories are made up, so GitHub isn't asked about them.)
+      fork: login => S.source?.demo ? Promise.resolve(null) : forkOf(repo, login),
+      save: login => savePrefs({ github: login })
+    };
+  }
   // What to do next, once it's been sent: the one way picked (the one just copied), what it does,
   // and the prompt or command to copy. The other ways are a press away, under "Use a different agent".
   function renderLaunch(it){
     const ls = ways(it), on = Math.max(0, ls.findIndex(l => l.id === S.launch)), l = ls[on], more = !!S.open.ways;
-    const lede = l.id === 'brief' ? `Paste this into your agent. It’s ${esc(firstName(it.author || {}))}’s ask in their own words, inside Rainshare’s safety rules.` : `Paste this in a terminal. ${esc(l.note)}`;
+    // The Claude app opens on your fork when your settings say who you are on GitHub (the dialog
+    // looks for the fork; here it's taken on trust), and on the ask's own repository otherwise.
+    const web = l.id === 'web' ? webFor(it) : null, wt = web && webTarget(web.repo, web.github, null), wl = wt && claudeWeb({ repo: wt.repo, prompt: l.command });
+    const lede = l.id === 'brief' ? `Paste this into your agent. It’s ${esc(firstName(it.author || {}))}’s ask in their own words, inside Rainshare’s safety rules.`
+      : web ? `Open it in Claude: ${wl.filled ? 'the prompt and ' : ''}${wt.why === 'guess' ? `your fork, ${esc(wt.repo)},` : 'the repository'} ${wl.filled ? 'are' : 'is'} filled in, and nothing starts until you press send.${wl.filled ? '' : ' The prompt’s too long for the link, so copy it and paste it there.'} ${wt.why === 'guess' ? `Fork ${esc(web.repo)} first, if you haven’t.` : `Claude can only push where you can write: with your GitHub username in ${a('settings', 'your settings', 'rs-link')}, it opens your fork instead.`}`
+        : `Paste this in a terminal. ${esc(l.note)}`;
+    const shareIt = (l.id === 'brief' || l.id === 'web') && canShare() ? `<button class="rs-btn rs-quiet rs-sm" type="button" data-rs-share="${on}">${ico('share')}Share</button>` : '';
     return `<section class="rs-launch" id="rsLaunch" aria-labelledby="rsLaunchH">
       <div class="rs-hrow"><h3 id="rsLaunchH">Start your agent</h3>${tip(`When the work’s done, your agent hands you a link back to this page, and that turns it in. ${a('agents', 'Set up the CLI or MCP server', 'rs-link')} and it can do that part itself.`)}</div>
       <p class="rs-muted">${lede}</p>
       ${wantPhrase(it.value) ? `<p class="rs-muted rs-l-want">${esc(firstName(it.author || {}))} would prefer ${esc(wantPhrase(it.value))}. Pick the model before you start the session.</p>` : ''}
-      <div class="rs-l-head"><b>${esc(WAY_NAME[l.id] || l.label)}</b><button class="rs-btn rs-quiet rs-sm" type="button" data-rs-copy="${on}">${ico('copy')}Copy</button></div>
-      <pre class="rs-code${l.id === 'brief' ? ' rs-l-brief' : ''}"><code>${esc(l.id !== 'brief' && l.command.length > 600 ? l.command.slice(0, 600) + '\n…' : l.command)}</code></pre>
-      ${more ? `<div class="rs-chips" role="group" aria-label="How to send it" data-rs-glide="launch">${ls.map((x, i) => `<button type="button" data-rs-launch="${i}" aria-pressed="${i === on}">${esc(WAY_NAME[x.id] || x.label)}</button>`).join('')}</div>` : ''}
+      ${wl ? `<div class="rs-row rs-l-web"><a class="rs-btn rs-primary rs-sm" href="${esc(wl.href)}" target="_blank" rel="noopener" data-rs-open-web>${ico('out')}Open in Claude</a>${wt.why === 'guess' ? `<a class="rs-btn rs-quiet rs-sm" href="https://github.com/${esc(web.repo)}/fork" target="_blank" rel="noopener">Fork it on GitHub</a>` : ''}</div>` : ''}
+      <div class="rs-l-head"><b>${esc(wayNames()[l.id] || l.label)}</b><span class="rs-row">${shareIt}<button class="rs-btn rs-quiet rs-sm" type="button" data-rs-copy="${on}">${ico('copy')}Copy</button></span></div>
+      <pre class="rs-code${l.id === 'brief' || l.id === 'web' ? ' rs-l-brief' : ''}"><code>${esc(l.id !== 'brief' && l.id !== 'web' && l.command.length > 600 ? l.command.slice(0, 600) + '\n…' : l.command)}</code></pre>
+      ${more ? `<div class="rs-chips" role="group" aria-label="How to send it" data-rs-glide="launch">${ls.map((x, i) => `<button type="button" data-rs-launch="${i}" aria-pressed="${i === on}">${esc(wayNames()[x.id] || x.label)}</button>`).join('')}</div>` : ''}
       <button class="rs-link rs-l-other" type="button" data-rs-act="launch-ways" aria-expanded="${more}">${more ? 'Keep this one' : 'Use a different agent'}</button>
     </section>`;
   }
@@ -1313,7 +1542,7 @@ export function createRainshare({ root, base = '/', host }){
     const page = pageOf(it);
     // (Once you've said it, there's no need to again.)
     if (!page || (it.comments || []).some(c => c.repo === viewer() && String(c.value?.text || '').includes(page))) return null;
-    if (it.repo === viewer() && isOpen(it)) return ['Add a note that links here', `I’ve posted this on Rainshare, for anyone who’d like to send their agent to work on it: ${page}`];
+    if (it.repo === viewer() && isOpen(it)) return ['Add a note that links here', `I’ve posted this on Rainshare, for anyone who’d like to direct their agent to work on it: ${page}`];
     return myTake(it) && isOpen(it) ? ['Say you’re working on it', `I’m working on this, through Rainshare: ${page}`] : null;
   }
   const commentForm = (kind, it, { parent, to, forge } = {}) => {
@@ -1389,7 +1618,7 @@ export function createRainshare({ root, base = '/', host }){
     const sq = it.value || {}, forge = !st.idea && writableForge(sq.subject) && signedIn() && S.source?.forgePull ? writableForge(sq.subject) : null;
     const opening = !!forge && !!S.open.pull, more = !!(S.open['turnin-more'] || v.sessionUrl || v.note);
     const modes = forge ? `<div class="rs-hrow">${seg('turn', [['link', 'Paste its link'], ['open', 'Open it from here']], opening ? 'open' : 'link')}${tip(`From a branch that’s already pushed: Rainshare opens the pull request on ${esc(FORGE_SAID[forge])} as you, where anyone can read it, and turns it in here.`, 'About opening it from here')}</div>` : '';
-    const showWays = S.launch ? '' : '<button class="rs-link" type="button" data-rs-act="show-launch">Show the commands</button>';
+    const showWays = S.launch ? '' : `<button class="rs-link" type="button" data-rs-act="show-launch">${phone() ? 'Show the prompt' : 'Show the commands'}</button>`;
     return `<section class="rs-turn" aria-labelledby="rsTurnH"><h3 id="rsTurnH">${S.launch ? 'Then, turn it in' : 'Turn it in'}</h3>${S.launch ? `<p class="rs-muted">${st.idea ? 'When there’s something to show, paste a link to where it lives.' : 'When your agent opens a pull request, paste its link here.'}</p>` : ''}${modes}
       ${opening ? pullBox(it, { d, page }) + (showWays ? `<div class="rs-row">${showWays}</div>` : '') : `<form class="rs-form rs-turnin" data-rs-form="turnin">
         <label>${st.idea ? 'Where it lives <small>(a link)</small>' : 'Pull request link'}${pasteField(`<input name="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" pattern="\\s*(https?://|at://)\\S+\\s*" title="${st.idea ? 'A link to where it lives' : 'A link to the pull request, or its at:// address'}" placeholder="${st.idea ? 'https://…' : { tangled: 'https://tangled.org/…/pulls/…', knotless: 'at://…/dev.knotless.pull/… or its page' }[d?.forge] || 'https://github.com/…/pull/…'}" value="${esc(v.url || '')}" required>`)}</label>
@@ -1466,9 +1695,9 @@ export function createRainshare({ root, base = '/', host }){
       actions = `<p class="rs-muted">${sq.state === 'sprouted' ? 'It’s done, so there’s nothing left to take on.' : 'It’s closed, so there’s nothing to take on.'}</p>`;
     } else if (!taken && !handed) {
       // Copied without saying you're on it (./send.js): the commands are open, and saying so is a
-      // press away, in their place of "Send my agent", which would only copy it again.
+      // press away, in their place of "Direct my agent", which would only copy it again.
       const copied = S.launch ? `<p class="rs-note">${ico('info')}<span>Nobody’s been told you’re on it. If you start, say so, so nobody does it twice.</span><button class="rs-btn rs-primary rs-sm" type="button" data-rs-act="claim">I’m on it</button></p>${renderLaunch(it)}` : '';
-      actions = `${heedNote(it, st)}${copied}<div class="rs-row">${S.launch ? '' : `<button class="rs-btn ${st.clear ? 'rs-primary rs-big' : 'rs-quiet'}" type="button" data-rs-act="take">${ico('drop')}${st.clear ? 'Send my agent' : 'Send my agent anyway'}</button>`}${shareBtn(it)}</div>${S.launch ? '' : sendHint(it)}`;
+      actions = `${heedNote(it, st)}${copied}<div class="rs-row">${S.launch ? '' : `<button class="rs-btn ${st.clear ? 'rs-primary rs-big' : 'rs-quiet'}" type="button" data-rs-act="take">${ico('drop')}${st.clear ? 'Direct my agent' : 'Direct my agent anyway'}</button>`}${shareBtn(it)}</div>${S.launch ? '' : sendHint(it)}`;
     } else {
       const v = S.drafts.turnIn || {};
       // Once it's turned in, the form steps aside: what's left is the planter's to do.
@@ -1548,7 +1777,7 @@ export function createRainshare({ root, base = '/', host }){
           ${toggles('plans', PLANS, plansNow)}
           ${!p.plans?.length && typedPlans.length ? `<p class="rs-muted">You’d written “${esc(typedPlans.join('”, “'))}”. Pick the closest.</p>` : ''}
         </fieldset>
-        <fieldset><legend>What you run ${tip('So people know what your agent can do, and “Send my agent” copies the right command.')}</legend>
+        <fieldset><legend>What you run ${tip('So people know what your agent can do, and “Direct my agent” copies the right command.')}</legend>
           <ol class="rs-setups">${setups.map((s, i) => `<li data-setup="${i}">
             <label>Harness<select name="harness">${HARNESSES.map(([k, l]) => `<option value="${k}"${s.harness === k ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
             <label>Models<input name="models" list="rsModels" value="${esc((s.models || []).join(', '))}" placeholder="claude-opus-5-5"></label>
@@ -1590,36 +1819,59 @@ export function createRainshare({ root, base = '/', host }){
         <p class="rs-err" hidden></p>
       </form>
       <aside class="rs-me-side">
-        ${sendSettings()}
-        ${messageSettings()}
         ${S.source.gardenOf ? `<section class="rs-mygarden"><h2>What you’ve helped with</h2>${gardenBlock(S.garden, 'You', { buds: S.buds, fresh: S.fresh })}</section>` : ''}
         ${a('profile/' + viewer(), 'See your profile as others do', 'rs-link')}
+        ${a('settings', `${ico('settings')}Your settings`, 'rs-link')}
       </aside>
       </div>`;
   }
-  // Your settings for "Send my agent" (./send.js), beside your profile: they aren't about you, so they're saved on their own.
+  /* ---------- your settings ---------- */
+  // A page of their own, apart from your profile: they aren't about you, so they're saved on
+  // their own (dev.rainshare.preferences), and nobody else sees them on Rainshare.
+  function renderSettings(){
+    if (!signedIn()) return needSignIn('Sign in to change your settings.');
+    if (!S.mine) return back() + settingsSk();
+    return `${back()}
+      <div class="rs-settings">
+        <div class="rs-hrow"><h1>Settings</h1>${tip('How Rainshare works for you. They’re saved in your own account, apart from your profile.', 'About your settings')}</div>
+        ${sendSettings()}
+        ${messageSettings()}
+        <p class="rs-muted">What people see about you is on ${a('me', 'your profile', 'rs-link')}.</p>
+      </div>`;
+  }
+  // Your settings for "Direct my agent" (./send.js).
   function sendSettings(){
     const p = { route: 'brief', claim: true, days: TAKE_DAYS_DEFAULT, askEachTime: true, ...(S.prefs?.send || {}) };
     if (!S.prefs?.send?.route) p.route = { 'claude-code': 'claude', codex: 'codex' }[mySetup()?.harness] || 'brief';
-    return `<section class="rs-panel rs-mysend"><div class="rs-hrow"><h2>When you send your agent</h2>${tip('What “Send my agent” starts with. Where a way doesn’t suit an ask (the cloud needs a GitHub repo, say), copying the prompt is used instead.')}</div>
+    return `<section class="rs-panel rs-mysend"><div class="rs-hrow"><h2>When you direct your agent</h2>${tip('What “Direct my agent” starts with. Where a way doesn’t suit an ask (the cloud and the Claude app need a GitHub repo, say), copying the prompt is used instead. On a phone, there’s no terminal for a command, so it starts on the Claude app or the prompt.')}</div>
       <form class="rs-prefs" data-rs-form="prefs">
         <label>Send it as<select name="route">${ROUTES.map(([k, l]) => `<option value="${k}"${p.route === k ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
         <label class="rs-check"><input type="checkbox" name="claim"${p.claim ? ' checked' : ''}> Say I’m on it</label>
         <label>Turned in within<select name="days">${dayChoices(p.days).map(([d, l]) => `<option value="${d}"${p.days === d ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
         <label class="rs-check"><input type="checkbox" name="ask"${p.askEachTime ? ' checked' : ''}> Ask me each time</label>
+        <label><span>Your GitHub username <small>(if you’d like)</small></span><input name="github" value="${esc(myGithub() || '')}" maxlength="60" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="octocat"></label>
+        <p class="rs-muted">The Claude app can only push to a repository you can write to, so with this it opens your fork of an ask’s repository. Rainshare also spots the pull requests you open, so you can turn them in without pasting a link. Like the rest of your settings, anyone can read it.</p>
         ${S.prefsLocal ? `<p class="rs-muted">${ico('lock')} Saved in this browser only, because your sign-in is from before Rainshare had settings. Sign out and in again to keep them in your account.</p>` : ''}
         <button class="rs-btn rs-quiet rs-sm" type="submit">Save</button>
       </form>
     </section>`;
   }
   // The direct messages you'd like from @rainshare.dev (../announcer/src/messages.js). It reads your
-  // settings from your account, so a copy kept only in this browser doesn't reach it.
+  // settings from your account, so a copy kept only in this browser doesn't reach it. Saving
+  // with either ticked follows @rainshare.dev for you, which Bluesky needs for them to arrive.
   function messageSettings(){
-    const n = S.prefs?.notify || {};
+    const n = S.prefs?.notify || {}, on = anyMessages(n), f = S.follows, can = canFollow();
+    const onBluesky = `<a class="rs-link" href="https://bsky.app/profile/${esc(HANDLE)}" target="_blank" rel="noopener">follow @${esc(HANDLE)}</a>`;
+    // How they reach you: you follow the account, or ticking follows it for you, or you're to follow it on Bluesky.
+    const reach = f === true ? `<p class="rs-note rs-on">${ico('check')}<span>You follow @${esc(HANDLE)}, so its messages can reach you.</span></p>`
+      : on && f === false ? `<p class="rs-note rs-heed">${ico('info')}<span>You don’t follow @${esc(HANDLE)}, so Bluesky may not let its messages through.${can ? '' : ` To get them, ${onBluesky} on Bluesky, or sign out and in again to let Rainshare follow it for you.`}</span>${can ? `<button class="rs-btn rs-quiet rs-sm" type="button" data-rs-act="follow-us">Follow @${esc(HANDLE)}</button>` : ''}</p>`
+      : can ? `<p class="rs-muted">Bluesky only lets accounts you follow message you, unless you’ve changed that, so ticking either follows @${esc(HANDLE)} for you.</p>`
+      : `<p class="rs-muted">Bluesky only lets accounts you follow message you, unless you’ve changed that, so ${onBluesky}.</p>`;
     return `<section class="rs-panel rs-mynotify"><div class="rs-hrow"><h2>Messages from @${esc(HANDLE)}</h2>${tip('Rainshare’s Bluesky account can send you a direct message when there’s news: updates within a minute or two, and new asks once a day. Your settings are saved in your account, where anyone can read them.')}</div>
       <form class="rs-prefs" data-rs-form="notify">
         ${NOTIFY.map(([k, l]) => `<label class="rs-check"><input type="checkbox" name="${k}"${n[k] ? ' checked' : ''}> ${esc(l)}</label>`).join('')}
-        <p class="rs-muted">Bluesky only lets accounts you follow message you, unless you’ve changed that, so <a class="rs-link" href="https://bsky.app/profile/${esc(HANDLE)}" target="_blank" rel="noopener">follow @${esc(HANDLE)}</a>. To stop them, untick these, or reply STOP to any message.</p>
+        ${reach}
+        <p class="rs-muted">To stop them, untick these, or reply STOP to any message. Unticking them doesn’t unfollow @${esc(HANDLE)}.</p>
         ${S.prefsLocal ? `<p class="rs-muted">${ico('lock')} These can’t reach @${esc(HANDLE)} yet: your sign-in is from before Rainshare had settings, so they’re kept in this browser only. Sign out and in again to send them.</p>` : ''}
         <button class="rs-btn rs-quiet rs-sm" type="submit">Save</button>
       </form>
@@ -1628,14 +1880,17 @@ export function createRainshare({ root, base = '/', host }){
   async function submitNotify(form){
     const fd = new FormData(form), btn = form.querySelector('[type=submit]');
     btn.disabled = true;
-    const r = await savePrefs({ notify: Object.fromEntries(NOTIFY.map(([k]) => [k, !!fd.get(k)])) });
-    toast(r === 'saved' ? 'Saved' : 'Saved in this browser only: sign out and in again for messages');
+    const r = await messagesOn(Object.fromEntries(NOTIFY.map(([k]) => [k, !!fd.get(k)])));
+    toast(heardText(r));
     rerender();
   }
   async function submitPrefs(form){
     const fd = new FormData(form), btn = form.querySelector('[type=submit]');
     btn.disabled = true;
-    const r = await savePrefs({ send: { route: String(fd.get('route') || 'brief'), claim: !!fd.get('claim'), days: +fd.get('days') || TAKE_DAYS_DEFAULT, askEachTime: !!fd.get('ask') } });
+    // (A GitHub username that can't be one isn't saved: the field says so, and keeps what was typed.)
+    const typed = String(fd.get('github') || '').trim(), github = typed ? githubLogin(typed) : '';
+    if (github === null) { btn.disabled = false; toast('That isn’t a GitHub username: letters, numbers and hyphens, up to 39.'); form.elements.github?.focus(); return; }
+    const r = await savePrefs({ send: { route: String(fd.get('route') || 'brief'), claim: !!fd.get('claim'), days: +fd.get('days') || TAKE_DAYS_DEFAULT, askEachTime: !!fd.get('ask') }, github });
     toast(r === 'saved' ? 'Saved' : 'Saved in this browser');
     rerender();
   }
@@ -1786,12 +2041,12 @@ export function createRainshare({ root, base = '/', host }){
       <div class="rs-agents">
         <header class="rs-agents-head">
           <h1>The CLI and MCP server</h1>
-          <p>You don’t need anything here to help someone. Press “Send my agent” on an ask, and paste what it copies into your agent: their ask in their own words, inside a few safety rules from Rainshare. This page is for one optional file that lets your agent show you what’s open, take on the ask you pick and turn it in.</p>
+          <p>You don’t need anything here to help someone. Press “Direct my agent” on an ask, and paste what it copies into your agent: their ask in their own words, inside a few safety rules from Rainshare. This page is for one optional file that lets your agent show you what’s open, take on the ask you pick and turn it in.</p>
         </header>
         <section class="rs-panel" aria-labelledby="rsQuick">
           <h2 id="rsQuick">${ico('copy')}With nothing set up</h2>
           <ol class="rs-steps">
-            <li><h3>Press Send my agent ${tip('It asks how to hand it over (a command for Claude Code or Codex, or the prompt for any agent) and whether to say you’re on it yet. It can remember your answers and stop asking: see your profile.')}</h3><p class="rs-muted">Pick how to send it, and whether to tell whoever asked that you’re on it, and for how long.</p></li>
+            <li><h3>Press Direct my agent ${tip('It asks how to hand it over (a command for Claude Code or Codex, or the prompt for any agent) and whether to say you’re on it yet. It can remember your answers and stop asking: see your profile.')}</h3><p class="rs-muted">Pick how to send it, and whether to tell whoever asked that you’re on it, and for how long.</p></li>
             <li><h3>Paste it</h3><p class="rs-muted">In a terminal, or into any agent that can reach the repo.</p></li>
             <li><h3>Open the link it hands back ${tip(`<span class="rs-tip-p">On GitHub the agent opens the pull request itself. On knotless it can too, if the knotless CLI or its MCP server is set up.</span><span class="rs-tip-p">On Tangled the agent pushes a branch, and Rainshare opens the pull request as you: the agent does that itself if Rainshare’s CLI or MCP server is signed in beside it. Otherwise the link it hands back carries the branch, with the pull request written out for you to look over.</span>`, 'How the pull request gets opened')}</h3><p class="rs-muted">It turns the work in. Whoever asked marks it done once it’s merged.</p></li>
           </ol>
@@ -1828,7 +2083,7 @@ export function createRainshare({ root, base = '/', host }){
         ${S.source?.canPrivate ? `<p class="rs-note">${ico('lock')}<span>For now the CLI and MCP server reach public ones only. Private, group-only ones are taken on from here, in the app.</span></p>` : ''}
         <section class="rs-panel rs-faq" aria-labelledby="rsAllowed">
           <h2 id="rsAllowed">Is this allowed by my AI plan?</h2>
-          <p class="rs-muted">We can’t tell you. It depends on your plan, and its terms are between you and your provider, so read them before you help. This is how Rainshare works: you run your own agent, signed in as you, and Rainshare never sees your AI sign-in. The other person gets the work: a pull request, or a repo for an idea. Nobody is paid, and you pick each ask yourself. Some plans are sold for one person’s own use, and a provider can limit or close an account without warning.</p>
+          <p class="rs-muted"><b>Rainshare isn’t plan sharing, and it isn’t a proxy.</b> You run your own agent, signed in as you, and Rainshare never sees your AI sign-in. No request to a model goes through Rainshare. The other person gets the work: a pull request, or a repo for an idea. Nobody is paid, and you pick each ask yourself. Whether your plan allows helping someone this way is between you and your provider, and we can’t tell you, so read its terms before you help. Some plans are sold for one person’s own use, and a provider can limit or close an account without warning.</p>
           <p class="rs-muted">Your plan’s usage policy covers everything your agent does, whoever asked for it. Take on only what you’d be comfortable asking it to do for yourself.</p>
         </section>
       </div>`;
@@ -1843,6 +2098,24 @@ export function createRainshare({ root, base = '/', host }){
       <div class="rs-legal-lead">${doc.lead.split(/\n{2,}/).map(p => `<p>${esc(p)}</p>`).join('')}</div>
       <section class="rs-legal-short" aria-labelledby="rsLegalShort"><h2 id="rsLegalShort">In short</h2><ul>${doc.short.map(x => `<li>${esc(x)}</li>`).join('')}</ul><p class="rs-muted">The full text below is what counts.</p></section>
       ${doc.sections.map(([h, md], i) => `<section><h2>${i + 1}. ${esc(h)}</h2><div class="rs-spec">${renderMarkdown(md.trim())}</div></section>`).join('')}
+    </article>`;
+  }
+
+  /* ---------- what's new: the release notes (../core/releases.js) ---------- */
+  // Every note that's out, newest first, for anyone, signed in or not. The bell in the bar lists
+  // the last month's and marks the ones you haven't seen; each one there opens its place here.
+  const releaseDay = d => new Date(d + 'T00:00:00Z').toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+  function renderReleases(){
+    title('What’s new');
+    const list = releasesBy();
+    return `${back()}<article class="rs-panel rs-legal rs-releases">
+      <header class="rs-legal-head"><h1>What’s new</h1><p class="rs-muted">What’s changed on Rainshare, newest first.${signedIn() ? ' The bell in the bar says when there’s something new here.' : ''}</p></header>
+      ${list.length ? list.map(r => `<section class="rs-release" id="${esc(r.id)}">
+        <p class="rs-muted rs-release-day"><time datetime="${esc(r.date)}">${esc(releaseDay(r.date))}</time></p>
+        <h2>${esc(r.title)}</h2>
+        <p class="rs-legal-lead">${esc(r.summary)}</p>
+        ${r.text ? `<div class="rs-spec">${renderMarkdown(r.text.trim())}</div>` : ''}
+      </section>`).join('') : '<p class="rs-muted">Nothing yet.</p>'}
     </article>`;
   }
 
@@ -2043,7 +2316,7 @@ export function createRainshare({ root, base = '/', host }){
     onPosted(){ S.board = null; loadBoard(true); }
   });
   const renderNew = () => signedIn() ? poster.view()
-    : needSignIn('Post an idea or a project you’d like help with, and someone can send their own agent to do the work. Sign in first: what you post is kept in your own account.');
+    : needSignIn('Post an idea or a project you’d like help with, and someone can direct their own agent to do the work. Sign in first: what you post is kept in your own account.');
 
   /* ---------- render ---------- */
   const datalists = `<datalist id="rsModels">${MODELS.map(m => `<option value="${m}">`).join('')}</datalist><datalist id="rsValues">${VALUES.map(m => `<option value="${m}">`).join('')}</datalist>`;
@@ -2089,7 +2362,7 @@ export function createRainshare({ root, base = '/', host }){
   function render(){
     // (Until a screen has been entered with someone to show it to, the address says what to hold its place with.)
     if (!S.source || !S.view) { paint(`<div class="rs">${ahead(S.sub)}</div>`, viewOf(S.sub)); return; }
-    const body = { board: renderBoard, seed: renderSeed, new: renderNew, me: renderMe, person: renderPerson, agents: renderAgents, feedback: renderFeedback, admin: renderAdmin, terms: renderLegal, privacy: renderLegal, lost: renderLost }[S.view]?.() || renderBoard();
+    const body = { board: renderBoard, seed: renderSeed, new: renderNew, me: renderMe, settings: renderSettings, person: renderPerson, agents: renderAgents, feedback: renderFeedback, admin: renderAdmin, terms: renderLegal, privacy: renderLegal, releases: renderReleases, lost: renderLost }[S.view]?.() || renderBoard();
     // Redrawing keeps whichever field had focus, and where its cursor was.
     const focus = document.activeElement && root.contains(document.activeElement) ? document.activeElement : null;
     const keep = focus?.name ? { name: focus.name, pos: focus.selectionStart } : null;
@@ -2130,12 +2403,13 @@ export function createRainshare({ root, base = '/', host }){
     try {
       // Signing in is the host's: it asks who you are and sends you to your server, over this screen.
       if (name === 'signin') { host.signIn?.(S.sub); return; }
-      if (name === 'filters') { const was = snapshot(root); S.open.filters = !S.open.filters; render(); settle(root, was); root.querySelector('[data-rs-act="filters"]')?.focus(); return; }
+      if (name === 'filters') { const was = snapshot(root); S.open.filters = !S.open.filters; S.open.sort = false; render(); settle(root, was); root.querySelector('[data-rs-act="filters"]')?.focus(); return; }
+      if (name === 'sorts') { const was = snapshot(root); S.open.sort = !S.open.sort; S.open.filters = false; render(); settle(root, was); root.querySelector('[data-rs-act="sorts"]')?.focus(); return; }
       if (name === 'exit-demo') return host.onExitDemo?.();
       if (name === 'feedback-again') return loadFeedback(true);
       if (name === 'stage-seen') { stageDismissed = true; try { localStorage.setItem(STAGE_SEEN, '1'); } catch (_) {} root.querySelector('.rs-stage-note')?.remove(); return; }
       if (name === 'take') return sendAgent(it, el);
-      // "Change", beside "Send my agent" when its questions are skipped: they're asked this once.
+      // "Change", beside "Direct my agent" when its questions are skipped: they're asked this once.
       if (name === 'send-ask') { const one = S.view === 'seed' ? it : S.shown.find(i => i.uri === el.dataset.rsUri); return sendAgent(one, null, { ask: true }); }
       // Copied without saying so, and now starting on it.
       if (name === 'claim') {
@@ -2148,7 +2422,7 @@ export function createRainshare({ root, base = '/', host }){
         toast(`You have until ${dayOf(dueOf(myTake(S.seed))) || 'later'} now.`); render(); return;
       }
       if (name === 'launch-ways') { S.open.ways = !S.open.ways; const box = root.querySelector('#rsLaunch'); if (box && it) { box.outerHTML = renderLaunch(it); root.querySelector('[data-rs-act="launch-ways"]')?.focus(); } return; }
-      if (name === 'show-launch') { S.launch = S.launch || pickLauncher(launchers(it, { viewer: viewer() }))?.id || 'brief'; rerender(); root.querySelector('#rsLaunch')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+      if (name === 'show-launch') { S.launch = S.launch || sendStart(it).route || 'brief'; rerender(); root.querySelector('#rsLaunch')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
       if (name === 'connect-forge') {
         stash();
         try { sessionStorage.setItem(KEPT, JSON.stringify({ uri: S.view === 'seed' ? it?.uri : null, comment: S.drafts.comment || null, reply: S.reply ? S.drafts.reply || null : null, pull: S.drafts.pull || null, vouching: S.vouching })); } catch (_) {}
@@ -2156,6 +2430,12 @@ export function createRainshare({ root, base = '/', host }){
         return;
       }
       if (name === 'pull-retry') { stash(); await loadPull(it, true); return; }
+      if (name === 'follow-us') {
+        el.disabled = true;
+        const r = await followUs();
+        toast(r === 'couldnt' ? `That didn’t work. Follow @${HANDLE} on Bluesky instead.` : `You follow @${HANDLE} now, so its messages can reach you.`);
+        rerender(); return;
+      }
       if (name === 'me-more') { S.open['me-more'] = true; const more = root.querySelector('[data-rs-me-more]'); if (more) { more.hidden = false; el.remove(); } return; }
       if (name === 'ask-fold') {
         // Folded and unfolded in place. Folding keeps the button where it was on screen, so a
@@ -2174,6 +2454,10 @@ export function createRainshare({ root, base = '/', host }){
       if (name === 'thanks-cancel') { S.open.thanks = null; S.drafts.thanks = null; rerender(); return; }
       // What grew is seen once you've said so; the waiting note steps aside for this visit.
       if (name === 'grew-seen') { grewSeen(); el.closest('.rs-grew')?.remove(); return; }
+      if (name === 'up-later') {
+        try { sessionStorage.setItem(UP_LATER, JSON.stringify([...new Set([...upLater(), el.dataset.rsUri])])); } catch (_) {}
+        el.closest('[data-rs-up]')?.remove(); return;
+      }
       if (name === 'waiting-later') {
         try { sessionStorage.setItem(LATER, JSON.stringify([...new Set([...laterOn(), ...waitingOn().map(x => x.uri)])])); } catch (_) {}
         el.closest('[data-rs-waiting]')?.remove(); return;
@@ -2285,6 +2569,8 @@ export function createRainshare({ root, base = '/', host }){
     const sq = it.value || {}, d = describeSubject(sq.subject), forge = d && signedIn() && S.source?.forgePull ? writableForge(sq.subject) : null;
     openTurnIn({
       asker: firstName(it.author), idea: !d,
+      forge: d ? FORGE_NAMES[d.forge] || '' : '',
+      found: d && signedIn() ? pullsFor(it) : null,
       placeholder: !d ? 'https://…' : { tangled: 'https://tangled.org/…/pulls/…', knotless: 'at://…/dev.knotless.pull/… or its page' }[d.forge] || 'https://github.com/…/pull/…',
       branch: forge ? FORGE_SAID[forge] : null,
       send: async v => { swapIn(await turnIn(it, v)); },
@@ -2305,7 +2591,7 @@ export function createRainshare({ root, base = '/', host }){
     const pk = t.closest('[data-rs-pick]'); if (pk) { if (plainClick) { e.preventDefault(); pick(pk.dataset.rsPick); } return; }
     if (t.closest('[data-rs-close-sheet]')) { closeSheet(); return; }
     const tk = t.closest('[data-rs-take]'); if (tk) { sendAgent(S.shown.find(i => i.uri === tk.dataset.rsTake), tk); return; }
-    const ti = t.closest('[data-rs-turnin]'); if (ti) { turnInDialog(S.shown.find(i => i.uri === ti.dataset.rsTurnin)); return; }
+    const ti = t.closest('[data-rs-turnin]'); if (ti) { turnInDialog([...(S.shown || []), ...(S.board?.items || [])].find(i => i.uri === ti.dataset.rsTurnin)); return; }
     if (t.closest('.rs-post') && poster.click(t)) return;
     // Sorting and narrowing the board. (The control pressed keeps the focus, or the Filter
     // button does when what was pressed has gone.)
@@ -2313,7 +2599,8 @@ export function createRainshare({ root, base = '/', host }){
     // (Drawn again, the list shows what moved: ./motion.js.)
     const narrowed = change => { const was = snapshot(root); change(); S.sheet = false; render(); settle(root, was); };
     const fr = t.closest('[data-rs-from]'); if (fr) { narrowed(() => { S.from = fr.dataset.rsFrom; }); refocus(`.rs-filters [data-rs-from="${S.from}"]`); return; }
-    const so = t.closest('[data-rs-sort]'); if (so) { narrowed(() => { S.sort = so.dataset.rsSort; }); refocus(`[data-rs-sort="${S.sort}"]`); return; }
+    // (Picking a sort folds the choices away again, and the focus goes back to the button.)
+    const so = t.closest('[data-rs-sort]'); if (so) { narrowed(() => { S.sort = so.dataset.rsSort; try { localStorage.setItem(SORT_KEY, S.sort); } catch (_) {} S.open.sort = false; }); refocus('[data-rs-act="sorts"]'); return; }
     const sh = t.closest('[data-rs-show]'); if (sh) { narrowed(() => { S.show = sh.dataset.rsShow; }); refocus(`.rs-filters [data-rs-show="${S.show}"]`); return; }
     const sg = t.closest('[data-rs-seg] button');
     // Turning it in by its link, or opening the pull request from here (which asks the forge about the repo the first time).
@@ -2349,6 +2636,21 @@ export function createRainshare({ root, base = '/', host }){
       }
       return;
     }
+    // The phone's share sheet, for the prompt, and the link that opens it in Claude (the prompt's
+    // copied as well, in case the app opens without it filled in).
+    const shr = t.closest('[data-rs-share]');
+    if (shr) {
+      const l = ways(S.seed)[+shr.dataset.rsShare];
+      if (l) agreeFirst().then(ok => { if (ok) shareText(l.command).then(r => { if (r === 'failed') copy(l.command, 'Couldn’t share it, so it’s copied instead'); }); });
+      return;
+    }
+    const ow = t.closest('[data-rs-open-web]');
+    if (ow && S.seed) {
+      const l = ways(S.seed).find(x => x.id === 'web');
+      if (!agreed()) { e.preventDefault(); agreeFirst().then(ok => { if (ok) globalThis.open(ow.href, '_blank', 'noopener'); }); return; }
+      if (l) { try { navigator.clipboard?.writeText(l.command).catch(() => {}); } catch (_) {} }
+      return;
+    }
     const cp = t.closest('[data-rs-copy]');
     if (cp) {
       const l = ways(S.seed)[+cp.dataset.rsCopy];
@@ -2362,7 +2664,7 @@ export function createRainshare({ root, base = '/', host }){
       // Copying is free; starting on it is worth saying, so two people don't do the same work.
       const free = it && signedIn() && isOpen(it) && it.repo !== viewer() && !myTake(it);
       if (!it) return;
-      const send = () => copy(briefFor(it), free ? 'Copied. Paste it into your agent. If you start on it, press “Send my agent” so nobody doubles up.' : 'Copied the prompt. Paste it into your agent.', undefined, md);
+      const send = () => copy(briefFor(it), free ? 'Copied. Paste it into your agent. If you start on it, press “Direct my agent” so nobody doubles up.' : 'Copied the prompt. Paste it into your agent.', undefined, md);
       // Someone else's open ask, on its way to an agent: the first time, the safety note comes first.
       if (it.repo !== viewer() && isOpen(it)) agreeFirst().then(ok => { if (ok) send(); }); else send();
       return;
@@ -2453,10 +2755,21 @@ export function createRainshare({ root, base = '/', host }){
       if (signedIn() && !S.mine) { await loadMine(); render(); }
       if (signedIn() && S.form && S.form.groups === null) { const g = await S.source.groups().catch(() => []); if (S.form) { S.form.groups = g; rerender(); } }
     }
+    else if (sub === 'settings') {
+      S.view = 'settings'; title('Settings'); loadFollows(); render();
+      if (signedIn() && !S.mine) { await loadMine(); render(); }
+    }
     else if (sub === 'agents') { S.view = 'agents'; render(); }
     else if (sub === 'feedback') { S.view = 'feedback'; render(); loadFeedback(); }
     else if (sub === 'admin') { S.view = 'admin'; render(); loadAdmin(); }
     else if (sub === 'terms' || sub === 'privacy') { S.view = sub; render(); }
+    else if (sub === 'releases') {
+      S.view = 'releases'; render();
+      // Come from the bell, to one note: it's scrolled to, once the host has put the new page at its top.
+      const id = typeof location !== 'undefined' ? decode(location.hash.slice(1)) : '';
+      await null;
+      if (id && S.sub === sub) root.querySelector(`[id="${CSS.escape(id)}"]`)?.scrollIntoView({ block: 'start' });
+    }
     else if (/^profile\//.test(sub)) { S.view = 'person'; render(); loadCircle(); loadPerson(sub); }
     else if (/^seed\//.test(sub)) {
       S.view = 'seed'; render(); loadCircle(); await loadSeed(sub);
@@ -2476,13 +2789,19 @@ export function createRainshare({ root, base = '/', host }){
     show,
     /** Hand in a (new) data source: on sign-in, sign-out, or switching to the example circle. */
     async setSource(source){
-      Object.assign(S, { source, board: null, mine: null, garden: null, buds: null, grew: null, fresh: null, unlinked: null, seed: null, form: null, drafts: {}, pick: null, sheet: false, pull: null, circle: undefined, vouching: null, accepting: null, reply: null, from: 'anyone', sort: null, show: 'all', known: {}, admin: null, found: null, modding: null });
+      Object.assign(S, { source, board: null, talk: null, mine: null, follows: undefined, garden: null, buds: null, grew: null, fresh: null, unlinked: null, seed: null, form: null, drafts: {}, pick: null, sheet: false, pull: null, circle: undefined, vouching: null, accepting: null, reply: null, from: 'anyone', sort: savedSort(), show: 'all', known: {}, admin: null, found: null, modding: null });
       poster.reset();
+      talkAt = 0;
       render();
-      if (source?.signedIn) { await loadMine(); loadGarden(); welcome(); }
+      tellNotices();
+      if (source?.signedIn) { await loadMine(); loadGarden(); welcome(); askMessages(); }
       show(S.sub);
+      // (The bell needs the board whichever screen this is.)
+      if (source?.signedIn) loadBoard();
     },
     refresh: () => loadBoard(true),
+    /** Bring the bell up to date, if it's been a minute: the host asks as it's opened. */
+    checkNotices: () => { if (signedIn()) loadBoard(); },
     get source(){ return S.source; }
   };
 }

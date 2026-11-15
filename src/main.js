@@ -1,12 +1,13 @@
 // rainshare.dev. The screens are in ../ui and the data in ../core; this file is the site
 // around them:
 //
-//   /               signed out, the landing, and everything open to everyone under it;
-//                   signed in, the board
-//   /board          the board on its own, signed in or out (the bar's "Help someone")
+//   /               the home page, signed in or out (the logo leads there): the landing, and
+//                   the board under it
+//   /board          the board on its own, signed in or out (the bar's "Help someone"); signing
+//                   in from the home page lands here
 //   /new            asking for help (the bar's "Ask for help")
-//   /example/…      the example circle, kept in this browser (linked from the landing)
-//   /seed/…, /new, /me, /profile/…, /agents, /feedback, /terms, /privacy   Rainshare's own screens (see ../ui/rainshare.js)
+//   /example/…      the example circle, kept in this browser (nothing in the app links to it)
+//   /seed/…, /new, /me, /settings, /profile/…, /agents, /feedback, /terms, /privacy, /releases   Rainshare's own screens (see ../ui/rainshare.js)
 //   /signed-in      where your server sends you back after signing in
 //
 // Signing in is a dialog of its own (./signin.js), opened from here.
@@ -17,8 +18,7 @@ import { createRainshare } from '../ui/rainshare.js';
 import { createSource } from '../core/source.js';
 import { createDemoSource } from '../core/demo.js';
 import { BOARD, GROUPS, MODERATOR } from '../core/ns.js';
-import { canModerate } from './scope.js';
-import { closeTo } from '../core/route.js';
+import { canModerate, canFollow } from './scope.js';
 import { profiles } from '../core/net.js';
 // The spaces alpha's plumbing (credentials, signed reads, writes into a space) and the group
 // host's methods, for private seeds.
@@ -28,6 +28,8 @@ import { openSignIn } from './signin.js';
 import { showLanding, hideLanding } from './landing/landing.js';
 import { peekWords, peekPeople } from './landing/peek.js';
 import { face, avatarFallback } from '../ui/bits.js';
+import { noticePanel, countLabel, bellLabel } from '../ui/notices.js';
+import { freshIn, markRead, seenFrom, firstSeen } from '../core/notices.js';
 import { still, glide, SPRING } from '../ui/motion.js';
 import { mountLogo } from './logo/live.js';
 import { mountMode } from './mode.js';
@@ -75,7 +77,7 @@ const host = kind => ({
   brand: 'rainshare',
   // Nobody to restore and nobody coming back from signing in: the screens needn't wait to say hello.
   visitor: kind === 'real' && visitor,
-  // Signed out, / is the landing with the board under it, so the board has an address of its own (/board).
+  // / is the landing with the board under it, so the board has an address of its own (/board).
   landing: kind === 'real',
   navigate,
   toast,
@@ -99,11 +101,16 @@ const host = kind => ({
   forges: () => kind === 'example' ? ['knotless', 'tangled'] : forges,
   // What's open on your board: the landing's way down to it says who's asking, and how many.
   onBoard: kind === 'real' ? peek : null,
+  // What's happened on your asks and your work, and what's new on Rainshare: the bell in the bar.
+  onNotices: n => noticed(kind, n),
   // Whether this sign-in can write moderation records (only @rainshare.dev's asks to: ./scope.js).
   // One from before it asked is told to sign in again, on the moderation page.
   canModerate: kind === 'real' ? () => canModerate(granted) : null,
+  // Whether this sign-in can follow @rainshare.dev for you, when you switch its messages on. One
+  // from before it asked is pointed to Bluesky instead. (A server that won't say what it granted is tried.)
+  canFollow: kind === 'real' ? () => !granted || canFollow(granted) : null,
   connectForge: kind === 'real' ? (forge, sub) => { if (session) openSignIn({ person: me || { did: session.did }, to: '/' + (sub || '') + location.search, forges: [...new Set([...forges, forge])], adding: forge }); } : null,
-  ...(kind === 'example' ? { exitDemo: session ? 'Back to the real board' : 'Sign in for the real board', onExitDemo: () => navigate('/') } : {})
+  ...(kind === 'example' ? { exitDemo: session ? 'Back to the real board' : 'Sign in for the real board', onExitDemo: () => navigate(session ? '/board' : '/') } : {})
 });
 let real = null, example = null;
 function app(kind){
@@ -203,22 +210,25 @@ function toBoard(){
 
 /* ---------- moving around ---------- */
 function route(){
-  showMenu(false);
+  showMenu(false); showBell(false);
   const path = location.pathname, kind = isExample(path) ? 'example' : 'real', sub = subOf(path);
-  // A slip of the keys on the way to the example circle still gets there.
-  const [head, ...rest] = sub.split('/'), h = head.toLowerCase();
-  if (kind === 'real' && head && (h === 'example' || ['examples', 'demo'].includes(h) || closeTo(h, 'example'))) return navigate([EXAMPLE, ...rest].join('/'), { replace: true });
   $('#example').hidden = kind !== 'example';
   $('#circle').hidden = kind !== 'real';
-  const landing = (ready || visitor) && kind === 'real' && !session && !sub;
+  // The home page is the same signed in or out, so it shows at once, without waiting to find out.
+  const landing = kind === 'real' && !sub;
   $('#landing').hidden = !landing;
-  // The example circle is reached from the landing. Its tab shows only while you're in it,
-  // so every one of its pages says where you are.
+  // Its two buttons are the way in from there, so the bar leaves its tabs out. "Make one" is for
+  // someone with no account, so it's not there for whoever's signed in (or about to be).
+  $('.rd-nav').hidden = landing;
+  $('#landing .rd-new').hidden = !!session || (!ready && !visitor);
+  // Nothing in the app leads to the example circle: its people and asks are made up, and its
+  // pages look enough like real ones to be taken for them. It's there at /example for whoever
+  // has the address. Its tab shows only while you're in it, so every one of its pages says
+  // where you are.
   $('[data-tab="example"]').hidden = kind !== 'example';
   landing ? showLanding() : hideLanding();
   // The bar has the two things to do here: help someone (the board, and an ask's page) and ask
-  // for help. (The landing isn't either, and nor are your profile, someone else's, or the pages
-  // in the footer.)
+  // for help. (Your profile isn't either, nor is someone else's, nor are the pages in the footer.)
   const top = sub.split('/')[0];
   const tab = kind === 'example' ? 'example' : landing ? null : top === 'new' ? 'new' : !top || top === 'board' || top === 'seed' ? 'circle' : null;
   // (The tab's tint slides over from the one you were on.)
@@ -227,6 +237,8 @@ function route(){
   const now = document.querySelector('.rd-nav [aria-current="true"]');
   if (was && now && was !== now) glide(now, was);
   app(kind).show(sub);
+  // (The bell is the example board's while you're on it, and yours everywhere else.)
+  renderBell();
 }
 // Going to another page fades from one to the other, and what the two share travels between
 // them: an ask's title and plant, from its card or the panel beside the board to its own page,
@@ -274,18 +286,20 @@ document.addEventListener('click', e => {
   if (e.target.closest('[data-signout]')) signOut();
   if (e.target.closest('#rdPeek') && !e.metaKey && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); toBoard(); }
   // The bar's "Sign in": the dialog, and you come back to the page you were on (the example
-  // board isn't yours to come back to).
+  // board isn't yours to come back to, and from the home page it's on to the board: see boot).
   if (e.target.closest('[data-signin]')) openSignIn({ to: isExample(location.pathname) ? '/' : location.pathname + location.search });
-  // The landing's two buttons: the same dialog, saying what it's for, and on to the board or to asking.
+  // The landing's two buttons: signed in, straight to the board or to asking; signed out, the
+  // same dialog, saying what it's for, and on to them. (Tapped while a sign-in is still being
+  // restored, they wait to find out which.)
   const start = e.target.closest('[data-start]');
-  if (start) openSignIn(START[start.dataset.start] || START.board);
+  if (start) { const s = START[start.dataset.start] || START.board, go = () => session ? navigate(s.to) : openSignIn(s); ready || visitor ? go() : settled.then(go); }
   // "Make one", for someone with no account yet: the dialog, at the hosts to make one with.
   if (e.target.closest('[data-signup]')) openSignIn({ making: true, to: isExample(location.pathname) ? '/' : location.pathname + location.search });
 });
 
 /* ---------- you ---------- */
 // Signed in, the bar has only your face, so it keeps to one row on a phone. It opens a little
-// menu under it: who you're signed in as, which is the way to your profile, and "Sign out".
+// menu under it: who you're signed in as, which is the way to your profile, your settings, and "Sign out".
 // It closes when you pick something, tap anywhere else, press Escape or tab away.
 const meBox = $('#rdMe');
 avatarFallback(meBox);
@@ -299,9 +313,11 @@ function renderMe(){
   box.innerHTML = `<button class="rd-who" type="button" aria-expanded="false" aria-controls="rdMenu" aria-label="Signed in as ${esc(name)}" title="Signed in as ${esc(name)}">${face(p)}</button>`
     + `<div class="rd-menu" id="rdMenu" hidden>`
     + `<a class="rd-menu-you" href="/me" data-nav>${face(p)}<span class="rd-menu-name"><span class="rd-sr">Your profile: </span><b>${esc(name)}</b>${handle ? `<small>${esc(handle)}</small>` : ''}</span><svg class="rd-menu-go" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>`
+    // How "Direct my agent" works for you, and messages from @rainshare.dev: a page of their own, apart from your profile.
+    + `<a href="/settings" data-nav><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h8.5M17.5 7H20M4 17h2.5M11.5 17H20"/><circle cx="15" cy="7" r="2.5"/><circle cx="9" cy="17" r="2.5"/></svg>Settings</a>`
     // @rainshare.dev's own sign-in has its moderation page here, and nobody else's mentions it.
     + (session.did === MODERATOR ? `<a href="/admin" data-nav><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l7 2.6v5.5c0 4.2-3 7.6-7 8.9-4-1.3-7-4.7-7-8.9V6.1z"/><path d="M9 12l2 2 4-4"/></svg>Moderation</a>` : '')
-    // Sending your agent from a terminal, or letting it do the Rainshare side itself: setup, so it's here rather than in the bar.
+    // Directing your agent from a terminal, or letting it do the Rainshare side itself: setup, so it's here rather than in the bar.
     + `<a href="/agents" data-nav><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M7.5 10l2.5 2-2.5 2M12.5 14.5h4"/></svg>CLI &amp; MCP</a>`
     + `<a href="/feedback" data-nav><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5h14a1.5 1.5 0 0 1 1.5 1.5v8.5A1.5 1.5 0 0 1 19 17h-7l-4.5 3.5V17H5a1.5 1.5 0 0 1-1.5-1.5V7A1.5 1.5 0 0 1 5 5.5z"/></svg>Feedback</a>`
     + `<hr>`
@@ -314,10 +330,14 @@ function showMenu(open){
   const who = meBox.querySelector('.rd-who'), menu = meBox.querySelector('.rd-menu');
   if (!who || !menu) return;
   who.setAttribute('aria-expanded', String(open));
-  if (open) { menu.classList.remove('rd-closing'); menu.hidden = false; return; }
+  if (open) { showBell(false); menu.classList.remove('rd-closing'); menu.hidden = false; return; }
+  // It shrinks back into your face, the way it came out of it.
+  shrink(menu);
+}
+// A menu or panel from the bar going away: back into what opened it, unless motion's been turned down.
+function shrink(menu){
   if (menu.hidden || menu.classList.contains('rd-closing')) return;
   if (still()) { menu.hidden = true; return; }
-  // It shrinks back into your face, the way it came out of it.
   let wait = 0;
   const end = e => { if (e.target === menu) done(); };
   const done = () => {
@@ -337,6 +357,78 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && menuOpen) { showMenu(false); meBox.querySelector('.rd-who')?.focus(); }
 });
 meBox.addEventListener('focusout', e => { if (menuOpen && e.relatedTarget && !meBox.contains(e.relatedTarget)) showMenu(false); });
+/* ---------- the bell ---------- */
+// Signed in, beside your face: how much has happened on your asks and your work since you last
+// opened it, and what's new on Rainshare. The screens work out what there is (../core/notices.js)
+// and hand it over through onNotices; this keeps what you've seen, in this browser, for each
+// account. Opening it marks all of it seen, and what was new stays lit for as long as it's open.
+// On the example board it's the example's, and says so.
+const bellBox = $('#rdBell');
+avatarFallback(bellBox);
+const BELL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.2 10.2a5.8 5.8 0 0 1 11.6 0v3.4l1.7 2.7a.9.9 0 0 1-.8 1.4H5.3a.9.9 0 0 1-.8-1.4l1.7-2.7z"/><path d="M9.8 20.2a2.4 2.4 0 0 0 4.4 0"/></svg>';
+const told = { real: null, example: null };
+let bellOpen = false, lit = new Set(), lastCount = 0;
+const shownKind = () => isExample(location.pathname) ? 'example' : 'real';
+const seenKey = did => 'notices-seen:' + did;
+// (The first time there's nothing kept, where that account starts is kept at once, so that what
+// counts as new doesn't move along with the clock until the bell is first opened.)
+function seenBy(did){
+  let s = seenFrom(store.get(seenKey(did)));
+  if (!s) { s = firstSeen(); store.set(seenKey(did), s); }
+  return s;
+}
+function noticed(kind, n){ told[kind] = n; if (kind === shownKind()) renderBell(); }
+function renderBell(){
+  const n = told[shownKind()];
+  if (!n?.viewer) { showBell(false); bellBox.hidden = true; lastCount = 0; return; }
+  if (!bellBox.firstChild) bellBox.innerHTML = `<button class="rd-bell-btn" type="button" aria-expanded="false" aria-controls="rdBellPanel">${BELL}<span class="rd-bell-count" aria-hidden="true" hidden></span></button>`
+    + `<div class="rd-bell-panel" id="rdBellPanel" role="region" aria-labelledby="rdBellTitle" hidden></div>`;
+  bellBox.hidden = false;
+  let seen = seenBy(n.viewer);
+  const fresh = freshIn(n.list, seen);
+  // Whatever arrives while it's open is seen as it arrives.
+  if (bellOpen && fresh.size) { for (const k of fresh) lit.add(k); store.set(seenKey(n.viewer), seen = markRead(n.list, seen)); }
+  const count = bellOpen ? 0 : fresh.size, btn = bellBox.querySelector('.rd-bell-btn'), badge = btn.querySelector('.rd-bell-count');
+  badge.textContent = countLabel(count); badge.hidden = !count;
+  btn.setAttribute('aria-label', bellLabel(count)); btn.title = bellLabel(count);
+  // More than there was: it rings, once.
+  if (count > lastCount && !still()) { btn.classList.remove('rd-bell-swing'); void btn.offsetWidth; btn.classList.add('rd-bell-swing'); }
+  lastCount = count;
+  if (bellOpen) bellBox.querySelector('.rd-bell-panel').innerHTML = noticePanel(n, { href: sub => (shownKind() === 'example' ? EXAMPLE + '/' : '/') + sub, fresh: lit });
+}
+function showBell(open){
+  const btn = bellBox.querySelector('.rd-bell-btn'), panel = bellBox.querySelector('.rd-bell-panel'), n = told[shownKind()];
+  if (!btn || !panel) return;
+  if (open && n?.viewer) {
+    if (!bellOpen) {
+      const seen = seenBy(n.viewer);
+      lit = freshIn(n.list, seen);
+      store.set(seenKey(n.viewer), markRead(n.list, seen));
+      // (and anything new since the screens last looked is asked for, if it's been a minute)
+      app(shownKind()).checkNotices?.();
+    }
+    bellOpen = true; showMenu(false);
+    btn.setAttribute('aria-expanded', 'true');
+    panel.classList.remove('rd-closing'); panel.hidden = false;
+    renderBell();
+    return;
+  }
+  if (!bellOpen) return;
+  bellOpen = false;
+  btn.setAttribute('aria-expanded', 'false');
+  shrink(panel);
+}
+document.addEventListener('click', e => {
+  if (e.target.closest('.rd-bell-btn')) showBell(!bellOpen);
+  // (anything picked in it, or anywhere off it)
+  else if (bellOpen && (!e.target.closest('.rd-bell-panel') || e.target.closest('a,button'))) showBell(false);
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && bellOpen) { showBell(false); bellBox.querySelector('.rd-bell-btn')?.focus(); }
+});
+bellBox.addEventListener('focusout', e => { if (bellOpen && e.relatedTarget && !bellBox.contains(e.relatedTarget)) showBell(false); });
+// Opened in another tab, it's seen in this one too.
+addEventListener('storage', e => { if (String(e.key || '').startsWith('rs:notices-seen:')) renderBell(); });
 async function signOut(){
   const s = session; session = null; me = null; forges = []; granted = '';
   atp.forgetCredentials();
@@ -350,6 +442,9 @@ const START = {
 };
 
 /* ---------- boot ---------- */
+// Once it's known whether you're signed in.
+let settle;
+const settled = new Promise(r => { settle = r; });
 async function boot(){
   renderMe();
   // The logo starts moving: until now it was a picture of itself.
@@ -363,8 +458,13 @@ async function boot(){
     session = r.session; forges = r.forges || []; granted = r.scope || '';
     profiles([session.did]).then(m => { me = m.get(session.did); renderMe(); }, () => {});
   }
-  if (oauth.isCallback() || location.pathname === '/signed-in') history.replaceState(null, '', r?.to && r.to !== '/signed-in' ? r.to : '/');
-  ready = true;
+  // Back from signing in, to where you were, except that the home page is for before you're in:
+  // from there, it's on to the board.
+  if (oauth.isCallback() || location.pathname === '/signed-in') {
+    const to = r?.to && r.to !== '/signed-in' ? new URL(r.to, location.origin) : null;
+    history.replaceState(null, '', !to || to.pathname === '/' ? '/board' + (to ? to.search + to.hash : '') : to.pathname + to.search + to.hash);
+  }
+  ready = true; settle();
   renderMe();
   route();
   // (Handing over the source shows the screen the address points at: there's nothing left to route.)

@@ -49,7 +49,7 @@ const CONTACT = `Rainshare is operated by ${LLC}.
 
 If something on Rainshare doesn’t work with a screen reader, a keyboard or other assistive tools, tell us and we’ll try to fix it.`;
 
-// What to keep in mind before sending an agent, as briefly as it can be said. [the point, why]
+// What to keep in mind before directing an agent, as briefly as it can be said. [the point, why]
 export const SAFETY = [
   ['Read the ask yourself first.', 'It’s a stranger’s request. Rainshare flags the tricks it can spot, and it can’t spot them all.'],
   ['Look the repo over first.', 'It can carry scripts and agent settings of its own, and Rainshare doesn’t look inside it. Make sure your agent asks before it acts.'],
@@ -63,6 +63,11 @@ export const ASKING = [
   ['Read what comes back.', 'A stranger sent it, and an AI probably wrote it. Check what your project runs on pull requests, and look the work over before you merge it or run it.']
 ];
 
+// What someone says about their AI plan when they agree, in their own words: a second box on the
+// site (../ui/agree.js), and part of what's typed in the CLI. Rainshare can't know what each
+// provider allows, or what it'll decide, so checking is theirs, and so is the risk.
+export const PROVIDER = 'It’s up to me to check that my AI provider’s terms allow how I use my plan here. If my provider decides they don’t, that’s my responsibility, not Rainshare’s.';
+
 export const TERMS = {
   key: 'terms', title: 'Terms of Service', updated: UPDATED,
   // Two paragraphs: what Rainshare is and isn't, then who runs it and how these terms apply.
@@ -73,7 +78,9 @@ Rainshare is operated by ${LLC}, ${LLC_KIND} (“we”, “us”). These terms c
     'What you post is public, and most of it stays in your own account.',
     'You run your own agent, as you, at your own risk. Rainshare’s safety checks are rough, and they don’t promise anything.',
     'What your agent does counts as you doing it. If that gets us sued, you cover it.',
-    'Help here is voluntary and unpaid. Nobody pays, nobody gets paid, and nobody shares an account or an AI plan.',
+    'Rainshare never asks for or sees your AI login, and nobody else uses your plan or your account.',
+    'Whether your AI provider’s terms allow how you use your plan here is yours to check. If your provider decides they don’t, that’s between you and them, not us.',
+    'Help here is voluntary and unpaid. Nobody pays, and nobody gets paid.',
     'Ask honestly. No tricks aimed at other people’s agents.',
     'A dispute with another user is between you and them, not us.',
     'Rainshare is free and early, and comes with no warranty.',
@@ -87,7 +94,7 @@ Rainshare is operated by **${LLC}**, ${LLC_KIND}. In these terms, “we”, “u
 
 We run Rainshare from the United States. If you use it from somewhere else, following the law where you are is up to you.
 
-“You” means the person using Rainshare, and the person or organization an account belongs to. What an AI agent, a script or another person does on Rainshare for you, or through your account because you let them, counts as you doing it, even when it isn’t what you wanted. Agree to these terms yourself. If you let software do it for you anyway, the agreement is still yours. People who post asks are askers, and people who send their agents are helpers.
+“You” means the person using Rainshare, and the person or organization an account belongs to. What an AI agent, a script or another person does on Rainshare for you, or through your account because you let them, counts as you doing it, even when it isn’t what you wanted. Agree to these terms yourself. If you let software do it for you anyway, the agreement is still yours. People who post asks are askers, and people who direct their agents at an ask are helpers.
 
 To use Rainshare:
 
@@ -126,10 +133,11 @@ If you send us ideas, suggestions or bug reports, on Rainshare’s feedback boar
 - For an idea with no repository yet, your ask says who keeps what gets built. If it’s started for you, you get the same permission as for a project with no license. If someone else can run with it, what they build is theirs, and they may keep using your idea and the words of your ask, for free and for good. If your ask doesn’t say, settle it with the helper before work starts.
 - Work written by an AI may not be protected by copyright, and it can resemble code from somewhere else. We don’t promise otherwise.`],
 
-    ['Helping: sending your agent', `
+    ['Helping: directing your agent', `
 - You run your own agent, signed in as you, on your own machine or cloud session, on your own AI plan. It can reach what you can on that machine, the Rainshare CLI’s saved sign-in included. What it does, you do: the commands it runs, the files it changes, the pull requests it opens, what it posts as you, what it uses of your plan, and what it costs you. That holds when it does something you didn’t ask for or expect, and when an ask, a repository or anything else it read led it to do that. None of this takes away any claim you have against the person who set the trick. We don’t see what your agent does on your machine, and once it’s running we have no way to stop it.
 - Use a plan, a machine and accounts that are yours to use for this. If your employer, school or client pays for the plan, or owns the machine or the accounts your agent is signed in to, get their agreement first. Their rules apply, and they may own what’s made with their things.
-- Your AI provider’s terms and usage policy apply to the work you take on, and keeping to them is up to you. We can’t tell you whether your plan allows helping someone else with it: plans differ, their terms change, and some are sold for one person’s own use. A provider can limit or close an account without warning. Read your plan’s terms before you take an ask on, and if they don’t allow it, don’t use that plan here.
+- Your AI provider’s terms and usage policy apply to the work you take on. Reading them, knowing whether they allow how you use your plan through Rainshare, and keeping to them are up to you. We can’t tell you whether your plan allows it: plans differ, their terms change, and some are sold for one person’s own use. If your plan’s terms don’t allow it, don’t use that plan here.
+- Your provider decides for itself what its terms allow. If it decides that how you used your plan with Rainshare breaks them, and limits, suspends or closes your account, or charges you for it, that’s between you and your provider. You accept that risk, and we aren’t responsible for it.
 - Pick each ask yourself. Your agent may look through the board and tell you what suits you, but taking one on is your decision each time. Don’t set an agent to take asks by itself, one after another. If your agent takes one on anyway, it’s still yours.
 - An ask is a stranger’s request, and a repository is a stranger’s code. Rainshare runs rough checks on an ask’s title and text, and flags what they find. The checks miss things. They don’t look at the repository or anything else an ask points to, or at what other people post about it. An ask with no flag isn’t a safe ask.
 - The brief Rainshare writes for your agent carries rules, and most of the commands Rainshare gives you clone the repository and start your agent in it straight away. The rules are requests to an AI model, which may not follow them. None of this makes a repository safe. Read a command before you run it.
@@ -151,7 +159,7 @@ Rainshare shows asks and who is on them, sorts them, tells people about new ones
 
 Nobody works for anybody here. Helping doesn’t make a helper the asker’s employee, contractor, representative or partner, or ours.
 
-These terms are between you and us. The only things one user gets from another under them are two permissions: to use an ask to do the work, and to use the work that’s turned in. They’re set out under “Your account and what you post”, “Asking for help” and “Helping: sending your agent”. Anything more that an asker and a helper promise each other is their own affair.
+These terms are between you and us. The only things one user gets from another under them are two permissions: to use an ask to do the work, and to use the work that’s turned in. They’re set out under “Your account and what you post”, “Asking for help” and “Helping: directing your agent”. Anything more that an asker and a helper promise each other is their own affair.
 
 If you have a dispute with another person over an ask, a repository, an agent or work that was turned in, take it up with them. As far as the law allows, you release us and our people from claims and losses that come out of that dispute, whether or not you know of them yet, and even if you say we or our people were careless. This doesn’t release anyone from their own fraud, or from harm they did on purpose. If we or one of our people is the asker or the helper, the release doesn’t cover what they did in that role either.`],
 
@@ -262,8 +270,8 @@ Anyone can read these. Nearly all of them are records in your own account, at yo
 - that your agent is working on an ask, with which tool and model, a note if you add one, and when you expect to turn it in
 - the work you turn in: its link, what did the work, and a session link or note if you add one
 - your comments
-- your settings for “Send my agent”: how an ask is handed to your agent, whether sending it also says you’re working on the ask, and for how many days
-- whether you’ve asked for direct messages from @${HANDLE}, and which kind
+- your settings for “Direct my agent”: how an ask is handed to your agent, whether directing it also says you’re working on the ask, and for how many days, and your GitHub username if you give it
+- whether you’ve asked for direct messages from @${HANDLE}, and which kind, and, if you switch them on, that you follow @${HANDLE} on Bluesky
 - that you agreed to Rainshare’s terms, which version, and when
 - anything you post to Tangled or knotless through Rainshare (an issue, a comment, a pull request, a vouch), which is public there too
 
@@ -277,7 +285,7 @@ Rainshare also shows public information about people who haven’t signed in: wh
 
 Don’t put secrets or private details in an ask or a comment. A session link is public too. It can show file names, commands and what’s in your environment, so look at what it shows before you add one, and tell your agent not to add one for you.
 
-Asks are read by AI agents. When someone takes yours on, its text and whatever is in your repository are given to their agent, and so to the AI provider behind it, under that helper’s own agreement with the provider. With the CLI or MCP server, their agent gets your name, your Rainshare profile and the comments on the ask as well. When you help, your agent reads the ask and the repository the same way.
+Asks are read by AI agents. When someone takes yours on, its text and whatever is in your repository are given to their agent, and so to the AI provider behind it, under that helper’s own agreement with the provider. With the CLI or MCP server, their agent gets your name, your Rainshare profile and the comments on the ask as well. When you help, your agent reads the ask and the repository the same way. Opening an ask in the Claude app, or in Claude Code on the web, puts its prompt in the link to claude.ai, so Anthropic receives it when you open the link.
 
 Feedback about Rainshare is posted on userinput.app, a separate app with terms of its own. What you post there is a public record in your account too. Rainshare’s feedback page shows it. A post we’ve marked as planned may be handed to an AI coding agent that we run on our own AI plan, and so to the AI provider behind it. The agent drafts the change, and marks the post as in progress or done on the feedback board.`],
 
@@ -295,7 +303,7 @@ There’s no Rainshare server in the middle, so your browser (or the CLI, from y
 - Bluesky’s relays and public API (for the list of accounts with Rainshare records, and for profiles, follows, lists and blocks) and its picture server
 - the PLC directory, which says where an account lives. An account whose ID is a web address is looked up at that address instead
 - Constellation, run by microcosm.blue, which says which records point at an ask
-- GitHub, Tangled and knotless, for the state of issues and pull requests, and for what you post there. What you post to a Tangled repository goes to the server that hosts it, which its owner may run
+- GitHub, Tangled and knotless, for the state of issues and pull requests, and for what you post there. What you post to a Tangled repository goes to the server that hosts it, which its owner may run. With a GitHub username in your settings, GitHub is also asked whether that account has forked an ask’s repository, and that names the account
 - Supabase, where our note that you agreed to the terms is kept. It’s asked when you agree, and again the next time you sign in if the note wasn’t made then
 
 When you’re signed in, some of these lookups name your account, so the server that gets one can tell which account is looking, and from which IP address. Bluesky is asked which of the people on the board you follow. The host of each person whose ask or work you’re shown, or whose profile you open, is asked whether they follow you on Tangled, and that host may be a server they run themselves. The services named here each have a privacy policy of their own. A server someone runs for themselves may have none.`],
@@ -329,16 +337,18 @@ A small server of ours, at DigitalOcean, listens to Bluesky’s Jetstream for Ra
 
 **Posts.** Each new ask that’s open to everyone, and that nobody has taken up yet, is posted once on Bluesky by @${HANDLE}, with its title and a mention of whoever asked. The post’s card shows the first lines of the ask and its preview picture, which has your name and profile picture on it. The post is a record in our account, not yours, so it stays up when you close or delete the ask. Write to us (see Contact) and we’ll delete it, and keep that ask off the account. To keep your asks off that account, block it on Bluesky before you ask. That works whenever our server can read the block, and if a post slips through we’ll delete it when you tell us. We don’t post anything we’ve hidden, or any ask our checks find very likely to be a trick.
 
-**Direct messages.** @${HANDLE} sends you direct messages on Bluesky only if you switch them on in your settings, and only when there’s news. News about your asks and what you’ve helped with comes within a minute or two. New asks come once a day. You choose which of the two you get. The messages go through Bluesky’s chat service, which keeps them under its own privacy policy. The server reads that conversation to see what it last sent you, and whether you replied STOP or START. We keep no subscriber list of our own: your setting is in your account, and it’s public like the rest. The server’s log (above) names everyone who has messages switched on each time it runs, and says whether it sent one or why it didn’t: nothing new, a STOP, a block. @${HANDLE}’s own conversations on Bluesky show whom it has messaged too. To stop the messages, switch them off in your settings, reply STOP, or leave the conversation in Bluesky. Apart from those messages, we may write to you on Bluesky ourselves, to answer something you sent or about a problem with what you posted.`],
+**Direct messages.** @${HANDLE} sends you direct messages on Bluesky only if you switch them on in your settings, and only when there’s news. News about your asks and what you’ve helped with comes within a minute or two. New asks come once a day. You choose which of the two you get. Bluesky only lets accounts you follow message you, so switching them on also follows @${HANDLE} from your account, unless you already do. That follow is public, like any other, and switching messages off doesn’t undo it: unfollow on Bluesky if you’d like. The messages go through Bluesky’s chat service, which keeps them under its own privacy policy. The server reads that conversation to see what it last sent you, and whether you replied STOP or START. We keep no subscriber list of our own: your setting is in your account, and it’s public like the rest. The server’s log (above) names everyone who has messages switched on each time it runs, and says whether it sent one or why it didn’t: nothing new, a STOP, a block. @${HANDLE}’s own conversations on Bluesky show whom it has messaged too. To stop the messages, switch them off in your settings, reply STOP, or leave the conversation in Bluesky. Apart from those messages, we may write to you on Bluesky ourselves, to answer something you sent or about a problem with what you posted.`],
 
     ['What’s kept in your browser', `
 Rainshare sets no cookies. It keeps a few things in your browser’s own storage. They aren’t sent to us, except that the note that you agreed is written down as “That you agreed” says:
 
 - your sign-in (the token and keys from your host), and what signing in looked up: the handle you typed, your account’s ID and your host’s sign-in details
-- small choices you’ve made: day or night, which forges you chose not to connect, and whether you last chose to vouch for someone as you accepted their work
-- a copy of your settings for “Send my agent”, which are saved to your account as well
+- small choices you’ve made: day or night, how you last sorted the board, which forges you chose not to connect, and whether you last chose to vouch for someone as you accepted their work
+- a copy of your settings for “Direct my agent”, which are saved to your account as well
 - which plants in your garden you’ve already seen, so a new one can be pointed out
-- notes and reminders you’ve dismissed, that you’ve seen the welcome, and that you agreed to the terms (and which version)
+- which asks were on the board when you last looked, so new ones can be marked
+- which notifications in the bell you’ve already seen, so it can count the new ones
+- notes and reminders you’ve dismissed, that you’ve seen the welcome or been asked about messages, and that you agreed to the terms (and which version)
 - what you were writing, the handle you typed and the page to come back to, while you’re sent to your host and back
 - the example board’s made-up data
 

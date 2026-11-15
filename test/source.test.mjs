@@ -190,6 +190,30 @@ test('profiles: the public copy leaves private fields out', async () => {
   assert.equal(p.merged.setups[0].harness, 'codex');
 });
 
+test('switching messages on follows @rainshare.dev, once, and only if you don’t already', async () => {
+  const src = createSource({ agent: agent(people.me) });
+  assert.equal(await src.followsRainshare(), false);
+  assert.deepEqual(await src.followRainshare(), { followed: true });
+  const written = [...repos[people.me]['app.bsky.graph.follow'].values()].map(r => r.value);
+  assert.equal(written.length, 1);
+  assert.equal(written[0].$type, 'app.bsky.graph.follow'); assert.equal(written[0].subject, MODERATOR);
+  // Bluesky takes a moment to hear of it: the follow just written counts all the same, and isn't written twice.
+  assert.equal(await src.followsRainshare(), true);
+  assert.deepEqual(await src.followRainshare(), { followed: false });
+  assert.equal(repos[people.me]['app.bsky.graph.follow'].size, 1);
+  // Someone who already follows it, by Bluesky's word, isn't made to follow it again.
+  people.rs = MODERATOR; follows.push(['alice', 'rs']);
+  try {
+    const alice = createSource({ agent: agent(people.alice) });
+    assert.equal(await alice.followsRainshare(), true);
+    assert.deepEqual(await alice.followRainshare(), { followed: false });
+    assert.equal(repos[people.alice]['app.bsky.graph.follow'], undefined);
+  } finally { delete people.rs; follows.pop(); }
+  // Signed out, there's nobody to follow it.
+  assert.equal(await createSource().followsRainshare(), null);
+  await assert.rejects(createSource().followRainshare(), { name: 'NotSignedIn' });
+});
+
 test('reach: how many people each audience could show it to', async () => {
   // me follows alice and carol; alice and bob follow me; alice is the one mutual.
   assert.deepEqual(await createSource({ agent: agent(people.me) }).reach(), { following: 2, followers: 2, mutuals: 1 });

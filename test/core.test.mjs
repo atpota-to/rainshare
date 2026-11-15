@@ -5,7 +5,7 @@ import { SEED, SITE, FAMILIES, PLANS, FEATURES, ROUTES, lowBudgetOf } from '../c
 import { parseSubject, describeSubject, cloneUrlOf } from '../core/subjects.js';
 import * as R from '../core/records.js';
 import { meantFor, closeness } from '../core/circle.js';
-import { rank, score, fit } from '../core/rank.js';
+import { rank, score, fit, boardOrder, sortsFor, defaultSort } from '../core/rank.js';
 import { whereText, shortWhere, jobText, jobShort, modelsText, wantsShort, notesText, jobAndNotes, progressOf, progressShort, askExcerpt, askSize, askSizeText, stageOf, nounOf, aNoun, pictureOf, whatItIs, stateText, planText } from '../core/words.js';
 import { wateredBy, wateredText } from '../core/garden.js';
 import { renderMarkdown } from '../core/markdown.js';
@@ -136,6 +136,42 @@ test('ranking puts the people a helper prioritises first, and says why', () => {
   assert.ok(out[1].reasons.some(r => r.tone === 'down'));
   const taken = score({ closeness: 'mutual', value: {}, takes: [{ repo: 'did:other' }] }, me, ON);
   assert.ok(taken.reasons.some(r => r.text === 'Someone’s on it'));
+});
+
+test('the board is newest first, what suits you less further down, and what came in since you last looked on top', () => {
+  const me = { did: 'did:me', profile: { setups: [{ harness: 'claude-code', models: ['claude-opus-5-5'] }] } };
+  const at = d => `2026-01-0${d}T00:00:00Z`;
+  const open = [
+    { uri: 'old-free', repo: 'did:a', value: { createdAt: at(1) } },
+    { uri: 'new-taken', repo: 'did:b', value: { createdAt: at(5) }, takes: [{ repo: 'did:c' }] },
+    { uri: 'mid-gpt', repo: 'did:d', value: { createdAt: at(4), wants: { families: ['gpt'] } } },
+    { uri: 'mid-free', repo: 'did:e', closeness: 'mutual', value: { createdAt: at(3) } },
+    { uri: 'turned-in', repo: 'did:f', value: { createdAt: at(6) }, deliveries: [{ repo: 'did:g' }] },
+    { uri: 'mine', repo: 'did:me', value: { createdAt: at(7) } }
+  ];
+  const uris = r => r.items.map(it => it.uri), FIT = { fit: true };
+  // With fit on, Suggested is the usual one signed in: newest first among what suits you, then the rest, then yours.
+  assert.equal(defaultSort(true, true), 'suggested');
+  assert.deepEqual(uris(boardOrder(open, me, FIT)), ['mid-free', 'old-free', 'turned-in', 'new-taken', 'mid-gpt', 'mine']);
+  assert.equal(boardOrder(open, me, { ...FIT, sort: 'fit' }).items.at(-1).uri, 'mine');
+  // By date, what you asked for yourself is still after everyone else's.
+  assert.deepEqual(uris(boardOrder(open, me, { ...FIT, sort: 'new' })), ['turned-in', 'new-taken', 'mid-gpt', 'mid-free', 'old-free', 'mine']);
+  assert.deepEqual(uris(boardOrder(open, me, { ...FIT, sort: 'old' })), ['old-free', 'mid-free', 'mid-gpt', 'new-taken', 'turned-in', 'mine']);
+  // With fit off, there's nothing to suggest by: newest first, and a sort that needs fit is ignored.
+  assert.deepEqual(sortsFor(true, false).map(s => s[0]), ['new', 'old']);
+  assert.equal(defaultSort(true, false), 'new');
+  assert.deepEqual(uris(boardOrder(open, me, { fit: false, sort: 'suggested' })), ['turned-in', 'new-taken', 'mid-gpt', 'mid-free', 'old-free', 'mine']);
+  // Signed out it's the same two, whatever fit is.
+  assert.deepEqual(sortsFor(false, true).map(s => s[0]), ['new', 'old']);
+  assert.deepEqual(uris(boardOrder(open, null, { ...FIT, sort: 'fit' })), ['mine', 'turned-in', 'new-taken', 'mid-gpt', 'mid-free', 'old-free']);
+  // What's new goes on top, in the same order among itself, and is counted; yours never counts as new.
+  const isNew = it => ['old-free', 'mid-gpt', 'mine'].includes(it.uri);
+  const r = boardOrder(open, me, { ...FIT, isNew });
+  assert.deepEqual(uris(r), ['old-free', 'mid-gpt', 'mid-free', 'turned-in', 'new-taken', 'mine']);
+  assert.equal(r.fresh, 2);
+  assert.deepEqual(uris(boardOrder(open, me, { fit: false, isNew })), ['mid-gpt', 'old-free', 'turned-in', 'new-taken', 'mid-free', 'mine']);
+  // Sorted by what's waiting longest, nothing moves to the top for being new.
+  assert.equal(boardOrder(open, me, { ...FIT, sort: 'old', isNew }).fresh, 0);
 });
 
 test('fit says how well a seed suits a helper, in one sentence', () => {
@@ -453,7 +489,7 @@ test('a space record URI splits into its space and record', () => {
   assert.equal(splitSpaceUri('at://did:plc:me/dev.rainshare.seed/3k1'), null);
 });
 
-test('without groups, the example has nothing private and sign-in asks only for Rainshare’s records', async () => {
+test('without groups, the example has nothing private and sign-in asks only for Rainshare’s records, and to follow @rainshare.dev', async () => {
   const src = createDemoSource({ groups: false });
   assert.equal(src.canPrivate, false);
   assert.deepEqual(await src.groups(), []);
@@ -465,9 +501,40 @@ test('without groups, the example has nothing private and sign-in asks only for 
   const { SCOPE, BASIC_SCOPE } = await import('../src/scope.js');
   const { GROUPS } = await import('../core/ns.js');
   if (!GROUPS) {
-    assert.equal(SCOPE, 'atproto repo:dev.rainshare.profile repo:dev.rainshare.seed repo:dev.rainshare.take repo:dev.rainshare.delivery repo:dev.rainshare.comment repo:dev.rainshare.preferences');
+    assert.equal(SCOPE, 'atproto repo:dev.rainshare.profile repo:dev.rainshare.seed repo:dev.rainshare.take repo:dev.rainshare.delivery repo:dev.rainshare.comment repo:dev.rainshare.preferences repo:app.bsky.graph.follow?action=create');
     assert.equal(BASIC_SCOPE, SCOPE);
   }
+});
+
+test('every sign-in asks to follow @rainshare.dev (to create a follow, never to delete one), and an older one is known not to have it', async () => {
+  const { ladder, DECLARED_SCOPE, canFollow, BASIC_SCOPE } = await import('../src/scope.js');
+  const { FOLLOW_SCOPE } = await import('../core/ns.js');
+  assert.equal(FOLLOW_SCOPE, 'repo:app.bsky.graph.follow?action=create');
+  for (const step of [...ladder(), ...ladder(undefined, { moderator: true })]) assert.ok(step.split(' ').includes(FOLLOW_SCOPE), step);
+  assert.ok(DECLARED_SCOPE.split(' ').includes(FOLLOW_SCOPE));
+  assert.ok(!/app\.bsky\.graph\.follow\?action=delete/.test(DECLARED_SCOPE));
+  assert.ok(canFollow(BASIC_SCOPE) && canFollow('atproto repo:app.bsky.graph.follow') && canFollow('atproto repo:app.bsky.graph.follow?action=create&action=delete'));
+  // A sign-in from before Rainshare asked, or one that may only delete follows, can't.
+  assert.ok(!canFollow(BASIC_SCOPE.replace(' ' + FOLLOW_SCOPE, '')) && !canFollow('repo:app.bsky.graph.follow?action=delete') && !canFollow('repo:app.bsky.graph.followx') && !canFollow(''));
+});
+
+test('the example keeps whether you follow @rainshare.dev, and following twice writes once', async () => {
+  const mem = new Map(), store = { get: k => mem.get(k) ?? null, set: (k, v) => mem.set(k, v) };
+  const src = createDemoSource({ store });
+  assert.equal(await src.followsRainshare(), false);
+  assert.deepEqual(await src.followRainshare(), { followed: true });
+  assert.deepEqual(await src.followRainshare(), { followed: false });
+  assert.equal(await createDemoSource({ store }).followsRainshare(), true, 'kept in this browser');
+  src.reset();
+  assert.equal(await src.followsRainshare(), false);
+});
+
+test('following @rainshare.dev is a Bluesky follow of its DID', async () => {
+  const { FOLLOW, MODERATOR } = await import('../core/ns.js');
+  const rec = R.followRainshare();
+  assert.deepEqual(Object.keys(rec).sort(), ['$type', 'createdAt', 'subject']);
+  assert.equal(rec.$type, FOLLOW); assert.equal(rec.subject, MODERATOR);
+  assert.ok(Date.parse(rec.createdAt));
 });
 
 test('the example circle answers like the real source', async () => {
@@ -915,7 +982,7 @@ test('an idea or a project, said plainly and drawn as how far along it is', () =
   assert.deepEqual([{ state: 'sprouted' }, { subject: repo, stage: 'seedling', state: 'sprouted' }, { subject: repo, stage: 'established', state: 'sprouted' }].map(pictureOf), ['seedling', 'young', 'established']);
   // The brief leads with what it is.
   const item = v => ({ uri: 'at://did:plc:abc/dev.rainshare.seed/3k1', repo: 'did:plc:abc', author: { handle: 'friend.example' }, value: { title: 'Fix it', ...v } });
-  assert.match(brief(item({ subject: repo, stage: 'established' })), /^# Project: Fix it\n\nOn Rainshare, people post ideas and projects they want help with, and others send their own agents to do the work\. @friend\.example is asking for help with this project \(established: people use it and rely on it\): https:\/\/[a-z.]+\/seed\/friend\.example\/3k1\./);
+  assert.match(brief(item({ subject: repo, stage: 'established' })), /^# Project: Fix it\n\nOn Rainshare, people post ideas and projects they want help with, and others direct their own agents to do the work\. @friend\.example is asking for help with this project \(established: people use it and rely on it\): https:\/\/[a-z.]+\/seed\/friend\.example\/3k1\./);
   assert.match(brief(item({ owner: 'helper' })), /^# Idea: Fix it\n\n[^\n]*@friend\.example is asking for help with this idea \(nothing’s been built yet\): https/);
   assert.match(brief(item({ subject: repo })), /^# Project: Fix it\n\n[^\n]*is asking for help with this project \(it works, and it’s still taking shape\)/);
 });

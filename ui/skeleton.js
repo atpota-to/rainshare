@@ -47,6 +47,8 @@ export const detailSk = ({ fit = false } = {}) => `<article class="rs-detail" ar
 /** The board's heading, before it's known who's looking. */
 export const headSk = () => `<header class="rs-head" aria-hidden="true"><div class="rs-sk-stack">${line('min(420px,80%)', 'rs-sk-h1')}${line('min(280px,60%)')}</div></header>`;
 /** A few cards, for a list that's still being read. */
+/** Your settings: their heading, and two panels of a few lines each. */
+export const settingsSk = () => `<div class="rs-settings" data-rs-sk="settings" aria-hidden="true">${line('min(200px,50%)', 'rs-sk-h1')}${[['46%', '84%', '62%'], ['58%', '70%', '40%']].map(ws => `<div class="rs-panel">${ws.map(w => line(w)).join('')}</div>`).join('')}</div>`;
 export const listSk = (n, key) => `<ul class="rs-list" data-rs-sk="${key}">${cardsSk(n)}</ul>`;
 
 /** The board: its list, and the picked one beside it (which a phone keeps tucked away). */

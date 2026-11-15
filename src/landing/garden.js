@@ -16,7 +16,7 @@
 // The scene itself is three.js (./garden-scene.js), so it's fetched only when the landing is
 // on screen. If the browser can't draw it, a flat drawing takes its place, with the same
 // story set out under it in three short notes.
-import { PLOTS, FRIEND, GARDEN_PATH } from './plots.js';
+import { PLOTS, FRIEND } from './plots.js';
 import { fit } from './fit.js';
 
 const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -32,7 +32,7 @@ const SINK = .4;        // how far the garden sinks for each pixel scrolled, onc
 /** Put the garden's labels in the landing's figure. What comes back is what ./landing.js drives a scene with. */
 export function mount(figure){
   const view = $('#sceneView', figure), canvas = $('canvas', view), layer = $('.rd-pins', view), hint = $('#sceneHint', figure), note = $('#sceneNote', figure);
-  const title = $('h2', note), text = $('p', note), link = $('a', note), again = $('#sceneAgain', figure);
+  const title = $('h2', note), text = $('p', note), again = $('#sceneAgain', figure);
   layer.innerHTML = PLOTS.map((p, i) => `<button type="button" class="rd-pin rd-plot${p.theirs ? ' theirs' : ''}" data-plot="${i}"><i style="--c:${esc(p.color)}">${esc(p.name[0])}</i><span>${esc(p.name)}</span>${SPARK}</button>`).join('')
     + `<span class="rd-pin rd-friend"><i style="--c:${esc(FRIEND.color)}">${esc(FRIEND.name[0])}</i><span>${esc(FRIEND.name)}’s plan</span></span>`
     + `<div class="rd-cloud" id="sceneCloud"><span class="rd-pin rd-plan"><svg class="rd-ring" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><circle class="left" cx="10" cy="10" r="7.5" pathLength="100"/></svg><span><b>Your AI plan</b><small>Resets in 2 days</small></span></span></div>`;
@@ -121,7 +121,6 @@ export function mount(figure){
     if (i === -2) {
       title.textContent = 'Three done';
       text.textContent = 'Each is a plant in your garden now, grown with rain you’d have lost at the reset.';
-      link.textContent = 'See a garden'; link.setAttribute('href', GARDEN_PATH);
       return;
     }
     const p = PLOTS[i], done = state[i] === 'done';
@@ -129,7 +128,6 @@ export function mount(figure){
     text.textContent = p.theirs
       ? (done ? `Done. ${FRIEND.name}’s agent did it, on ${FRIEND.name}’s plan.` : `${FRIEND.name}’s agent is on it, on ${FRIEND.name}’s plan.`)
       : (done ? 'Done. It’s grown a stage, and it’s in your garden.' : 'Your agent’s on it, on your plan. That’s the rain.');
-    link.textContent = `See ${whose(p)}`; link.setAttribute('href', p.path);
   }
   // Something to say for a moment, before going back to what was there.
   function toast(words){

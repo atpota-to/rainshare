@@ -259,7 +259,7 @@ export function createPoster(ui){
       // The example circle's asks live in this browser, so they have no page anyone else could open.
       P.done = { path: pathOf(item), page: item.space || src().demo ? null : pageOf(item), group: g, issue: opened ? { href: opened.url, forge: FORGE_SAID[writableForge(opened)] } : null };
       // The new issue says where the ask is, so people who find it there can pick it up here.
-      if (opened && P.done.page) src().forgeComment(opened, `I’ve posted this on Rainshare, for anyone who’d like to send their agent to work on it: ${P.done.page}`).catch(e => console.warn('rainshare issue note', e));
+      if (opened && P.done.page) src().forgeComment(opened, `I’ve posted this on Rainshare, for anyone who’d like to direct their agent to work on it: ${P.done.page}`).catch(e => console.warn('rainshare issue note', e));
       P.busy = false;
       ui.onPosted(r);
       ui.render(); arrive();
@@ -491,7 +491,7 @@ export function createPoster(ui){
         ${src().demo ? '<small>This is the example board, so nothing goes to Bluesky.</small>' : intent ? `<a class="rs-btn rs-primary" href="${esc(intent)}" target="_blank" rel="noopener">${ico('sky')}Post it on Bluesky</a>` : ''}
       </div>` : ''}
       <div class="rs-next"><h2>What happens next</h2><ol>
-        <li><b>Someone sends their agent.</b> <span>You’ll see who’s on it, and what they’re running.</span></li>
+        <li><b>Someone directs their agent.</b> <span>You’ll see who’s on it, and what they’re running.</span></li>
         ${P.kind === 'idea' ? '<li><b>They turn in what they built.</b> <span>A link to it shows up on its page, with the model that did the work.</span></li>'
           : '<li><b>They turn in a pull request.</b> <span>It shows up on its page, with the model that did the work.</span></li>'}
         <li><b>You mark it done.</b> <span>And thank them on Bluesky, if you like.</span></li>

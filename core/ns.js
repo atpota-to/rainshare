@@ -2,7 +2,7 @@
 // browser apps and the CLI and MCP server read the same lists.
 export const NS = 'dev.rainshare';
 export const PROFILE = NS + '.profile', SEED = NS + '.seed', TAKE = NS + '.take', DELIVERY = NS + '.delivery', COMMENT = NS + '.comment';
-// Your settings: how "Send my agent" works for you. One record, kept in your own repo.
+// Your settings: how "Direct my agent" works for you. One record, kept in your own repo.
 export const PREFERENCES = NS + '.preferences';
 export const COLLECTIONS = [PROFILE, SEED, TAKE, DELIVERY, COMMENT, PREFERENCES];
 // Rainshare's own moderation: what @rainshare.dev has hidden (./moderation.js). Only records in
@@ -35,6 +35,12 @@ export const HANDLE = 'rainshare.dev';
 // The direct messages someone can ask it for (`notify` in their dev.rainshare.preferences,
 // sent by ../announcer/src/messages.js). [value, what people read]
 export const NOTIFY = [['updates', 'Updates on my asks and my work'], ['newAsks', 'New asks on the board']];
+// Bluesky only lets accounts someone follows message them (unless they've changed that), so
+// switching messages on follows @rainshare.dev for you: a Bluesky follow record in your own
+// repo, whose subject is the account's DID (MODERATOR, above). Sign-in asks to create one
+// (../src/scope.js); it never unfollows, so switching messages off leaves the follow be.
+export const FOLLOW = 'app.bsky.graph.follow';
+export const FOLLOW_SCOPE = `repo:${FOLLOW}?action=create`;
 // Private seeds in a group's space. Spaces are still an alpha on the group host, so for now
 // every seed is public: sign-in asks only for Rainshare's own records, and the app shows
 // groups as coming. Turning this on brings back everything private (src/scope.js, the
@@ -163,12 +169,19 @@ export const AUDIENCES = [
   ['list', 'A list', 'People on one of your Bluesky lists'],
   ['anyone', 'Everyone', 'Anyone who comes across it']
 ];
-// How long a helper gives themselves to turn an ask in, in days: the choices "Send my agent"
+// How long a helper gives themselves to turn an ask in, in days: the choices "Direct my agent"
 // offers, the one it starts on, and the most a take can hold an ask (./takes.js).
 export const TAKE_DAYS = [[1, 'A day'], [3, '3 days'], [7, 'A week'], [14, '2 weeks']];
 export const TAKE_DAYS_DEFAULT = 1;
-// The ways "Send my agent" can hand an ask over (../core/brief.js has the commands).
-export const ROUTES = [['brief', 'The prompt, for any agent'], ['claude', 'Claude Code'], ['cloud', 'Claude Code in the cloud'], ['codex', 'Codex'], ['cli', 'Rainshare CLI'], ['mcp', 'MCP']];
+// The ways "Direct my agent" can hand an ask over (../core/brief.js has the commands).
+export const ROUTES = [['brief', 'The prompt, for any agent'], ['web', 'The Claude app, or Claude Code on the web'], ['claude', 'Claude Code'], ['cloud', 'Claude Code in the cloud'], ['codex', 'Codex'], ['cli', 'Rainshare CLI'], ['mcp', 'MCP']];
+// A GitHub username: letters, digits and single hyphens between them, 39 at most.
+export const GITHUB_LOGIN = /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/;
+/** A GitHub username as typed ("@kai", "github.com/kai", " kai "), as GitHub has it, or null if it can't be one. */
+export function githubLogin(s){
+  const t = String(s ?? '').trim().replace(/^(?:https?:\/\/)?(?:www\.)?github\.com\//i, '').replace(/^@/, '').replace(/\/+$/, '');
+  return GITHUB_LOGIN.test(t) ? t : null;
+}
 export const TESTS = [['required', 'Tests required'], ['welcome', 'Tests welcome'], ['none', 'No tests needed']];
 export const SIZES = [['tiny', 'Tiny'], ['small', 'Small'], ['medium', 'Medium'], ['large', 'Large']];
 // What's being asked about, by how far along it is: an idea (no repo), or a project that

@@ -138,6 +138,10 @@
 .rs-item-who b{color:var(--rs-ink);font-weight:650}
 .rs-item-who .rs-i{width:13px;height:13px;vertical-align:-2px;margin-right:2px}
 .rs-item-top time{margin-left:auto;color:var(--rs-muted);font-size:13px;white-space:nowrap}
+/* posted since you last looked: a word beside when, and a dashed rule under the last of them */
+.rs-new{margin-left:auto;flex:none;padding:1px 8px;border-radius:999px;background:var(--rs-accent-soft);color:var(--rs-accent-text);font-size:12px;font-weight:700;line-height:1.5}
+.rs-new+time{margin-left:0}
+.rs-seen-li{display:flex;flex-direction:column}
 .rs-item-title{font-size:17px;font-weight:650;letter-spacing:-.01em;line-height:1.3;overflow-wrap:anywhere}
 .rs-item-line{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;min-height:18px;font-size:13px;font-weight:500;color:var(--rs-muted)}
 /* where it stands, and who's helping, on a row of its own under the rest, starting where the rest does */
@@ -299,13 +303,13 @@ span.rs-helper-pull{color:var(--rs-muted)}
 @keyframes rs-sk-out{to{opacity:0}}
 @keyframes rs-in{from{opacity:0;transform:translateY(10px)}}
 /* (Each region's start is kept on the box as --rs-at-<region>, counted back from now, so a redraw part-way through carries on from where it was.) */
-[data-rs-in] :is(.rs-list>li,.rs-side>.rs-detail,.rs-seed-main,.rs-seed-side>*,.rs-person>*,.rs-garden>li,.rs-activity>li,.rs-me-wrap>*){--rs-i:0s}
-[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side)>:nth-child(2){--rs-i:.05s}
-[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side)>:nth-child(3){--rs-i:.1s}
-[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side)>:nth-child(4){--rs-i:.15s}
-[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side)>:nth-child(5){--rs-i:.2s}
-[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side)>:nth-child(6){--rs-i:.25s}
-[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side)>:nth-child(n+7){--rs-i:.3s}
+[data-rs-in] :is(.rs-list>li,.rs-side>.rs-detail,.rs-seed-main,.rs-seed-side>*,.rs-person>*,.rs-garden>li,.rs-activity>li,.rs-me-wrap>*,.rs-settings>*){--rs-i:0s}
+[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side,.rs-settings)>:nth-child(2){--rs-i:.05s}
+[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side,.rs-settings)>:nth-child(3){--rs-i:.1s}
+[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side,.rs-settings)>:nth-child(4){--rs-i:.15s}
+[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side,.rs-settings)>:nth-child(5){--rs-i:.2s}
+[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side,.rs-settings)>:nth-child(6){--rs-i:.25s}
+[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side,.rs-settings)>:nth-child(n+7){--rs-i:.3s}
 [data-rs-in] :is(.rs-side>.rs-detail,.rs-seed-side>*,.rs-me-side){--rs-i:.08s}
 [data-rs-in~="board"] :is(.rs-split>.rs-list>li,.rs-side>.rs-detail){animation:rs-in .5s var(--rs-ease) calc(var(--rs-at-board,0s) + var(--rs-i)) backwards}
 [data-rs-in~="seed"] :is(.rs-seed-main,.rs-seed-side>*){animation:rs-in .5s var(--rs-ease) calc(var(--rs-at-seed,0s) + var(--rs-i)) backwards}
@@ -314,6 +318,7 @@ span.rs-helper-pull{color:var(--rs-muted)}
 [data-rs-in~="garden"] .rs-garden>li{animation:rs-in .5s var(--rs-ease) calc(var(--rs-at-garden,0s) + var(--rs-i)) backwards}
 [data-rs-in~="activity"] .rs-activity>li{animation:rs-in .5s var(--rs-ease) calc(var(--rs-at-activity,0s) + var(--rs-i)) backwards}
 [data-rs-in~="me"] .rs-me-wrap>*{animation:rs-in .5s var(--rs-ease) calc(var(--rs-at-me,0s) + var(--rs-i)) backwards}
+[data-rs-in~="settings"] .rs-settings>*{animation:rs-in .5s var(--rs-ease) calc(var(--rs-at-settings,0s) + var(--rs-i)) backwards}
 @media (prefers-reduced-motion:reduce){.rs-sk{animation:none}.rs-sk-out{display:none}[data-rs-in] *{animation:none!important}}
 /* A word for someone who came by a link, signed out */
 .rs-newhere{align-items:center}
@@ -376,11 +381,11 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-watered-btn .rs-plant{margin:-6px 2px -4px -6px}
 .rs-mygarden{display:flex;flex-direction:column;gap:10px}
 /* on the board: what grew since you last looked, and your asks waiting on you */
-.rs-grew,.rs-waiting{align-items:center}
+.rs-grew,.rs-waiting,.rs-up-note{align-items:center}
 .rs-note.rs-grew>.rs-plant{flex:none;min-width:0;margin:-8px 0}
 .rs-grow{transform-origin:50% 92%;animation:rs-grow .9s var(--rs-ease) .15s backwards}
 @keyframes rs-grow{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
-.rs-waiting>.rs-i{align-self:flex-start;margin-top:2px}
+.rs-waiting>.rs-i,.rs-up-note>.rs-i{align-self:flex-start;margin-top:2px}
 .rs-waiting-list{flex:1 1 100%;list-style:none;margin:0;padding:0 0 0 28px;display:flex;flex-direction:column;gap:2px}
 .rs-waiting-list li{display:flex;flex-wrap:wrap;gap:0 8px;align-items:baseline}
 .rs-waiting-list .rs-link{padding:2px 0}
@@ -439,7 +444,7 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-panel>.rs-link{align-self:flex-start}
 .rs-bio{font-size:15px}
 
-/* sending an agent, and turning it in: sections of the ask's own card, not cards of their own */
+/* directing an agent, and turning it in: sections of the ask's own card, not cards of their own */
 .rs-launch,.rs-turn{display:flex;flex-direction:column;gap:10px;scroll-margin-top:16px;min-width:0}
 .rs-launch+.rs-turn{margin-top:10px}
 .rs-l-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
@@ -447,6 +452,9 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-l-head b{font-size:14px}
 .rs-launch>p{margin:0}
 .rs-launch .rs-l-other{align-self:flex-start;font-size:14px}
+.rs-l-head .rs-row{gap:8px;flex-wrap:nowrap}
+.rs-l-web{gap:8px}
+.rs-l-web a.rs-btn{text-decoration:none}
 .rs-code,.rs-cmd pre{margin:0;padding:10px 12px;border-radius:10px;background:#0F1A2E;color:#E2E9F7;font:12.5px/1.5 var(--rs-mono);overflow:auto;max-height:180px;white-space:pre-wrap;word-break:break-all}
 .rs-code code,.rs-cmd pre code{background:none;padding:0;color:inherit}
 /* the brief is prose, so it wraps like prose */
@@ -510,11 +518,19 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-me-wrap>.rs-form{max-width:none}
 .rs-me-side{position:sticky;top:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
 .rs-me-side>.rs-link{align-self:flex-start;margin-left:4px}
-.rs-mysend h2{font-size:18px;margin:0}
+/* Your settings: a column of panels on a page of their own */
+.rs-settings{display:flex;flex-direction:column;gap:14px;max-width:640px;min-width:0}
+.rs-settings .rs-panel h2{font-size:18px;margin:0}
+.rs-settings>.rs-muted{margin-left:4px}
+.rs-prefs .rs-note{margin:2px 0}
 .rs-prefs{display:flex;flex-direction:column;gap:10px}
 .rs-prefs>label:not(.rs-check){display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:14px}
 .rs-prefs .rs-check{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14px}
 .rs-prefs>.rs-btn{align-self:flex-start}
+.rs-prefs>label:not(.rs-check)>input{font:500 16px var(--rs-font);color:var(--rs-ink);background:var(--rs-field);border:0;border-radius:12px;padding:11px 13px;min-height:46px;width:100%;box-shadow:inset 0 0 0 1.5px var(--rs-line)}
+.rs-prefs>label:not(.rs-check)>input:focus{outline:none;box-shadow:inset 0 0 0 2px var(--rs-accent)}
+.rs-prefs>label small{font-weight:400;color:var(--rs-muted)}
+.rs-prefs>.rs-muted{margin:-4px 0 0;font-size:13px;line-height:1.45}
 .rs-send-hint{font-size:13px;margin-top:-4px}
 .rs-sticky{position:sticky;bottom:12px;z-index:2;padding:10px;margin:0 -10px;border-radius:999px;background:color-mix(in srgb,var(--rs-bg-card) 85%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
 
@@ -721,6 +737,8 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-filter-btn{border:0;border-radius:999px;min-height:32px;padding:0 13px 0 11px;font:600 13px var(--rs-font);background:none;color:var(--rs-ink);box-shadow:inset 0 0 0 1.5px var(--rs-line);cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;flex:none}
 .rs-filter-btn .rs-i{width:16px;height:16px}
 .rs-filter-btn[aria-expanded="true"]{background:var(--rs-ink);color:var(--rs-on-ink);box-shadow:none}
+/* the sort button says how it's sorted now; folded out, what that order means is said under the choices */
+.rs-sort-why{margin:0;font-size:13px;line-height:1.45;color:var(--rs-muted)}
 /* what's narrowing it while the filter is folded away: pressing one undoes it */
 .rs-from.rs-filter-on button{color:var(--rs-ink);background:var(--rs-accent-soft);box-shadow:none;padding-right:8px}
 .rs-from.rs-filter-on .rs-i{width:14px;height:14px;opacity:.7}
@@ -795,9 +813,10 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-wl .rs-toggles{gap:6px}
 .rs-wl .rs-toggles button{padding:7px 12px}
 .rs-wl .rs-err{font-size:14px}
+.rs-wl .rs-check{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px}
 /* the way on, and the ways out */
 .rs-wl .rs-primary{width:100%;min-height:52px;font-size:16px}
-/* "Send my agent" (./send.js): a line on what the agent gets under the heading, the agents as
+/* "Direct my agent" (./send.js): a line on what the agent gets under the heading, the agents as
    chips, whether to say you're on it (and for how long), the one button, and the box that skips
    it next time, all on one left edge */
 .rs-sd .rs-chips{flex-wrap:wrap;overflow:visible;padding-right:0;-webkit-mask-image:none;mask-image:none}
@@ -820,10 +839,46 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-sd-code pre{width:100%;max-height:150px}
 .rs-sd-code pre.rs-l-brief{max-height:170px}
 .rs-sd-next{margin:0;padding:0 0 0 18px;display:flex;flex-direction:column;gap:6px;font-size:14px;line-height:1.45;color:var(--rs-muted)}
+/* the Claude app's second step: your GitHub username (once), then your fork or forking it, then
+   the link that opens Claude; the prompt folded under it, since it's in the link already */
+.rs-sd-web{display:flex;flex-direction:column;gap:10px;min-width:0}
+.rs-sd-small{margin:0;font-size:13px;line-height:1.45;color:var(--rs-muted);text-wrap:pretty}
+.rs-sd-small .rs-link{font-size:13px}
+.rs-sd-gh{display:flex;flex-direction:column;gap:6px}
+.rs-sd-gh label{font-weight:600;font-size:15px}
+.rs-sd-gh .rs-row{flex-wrap:nowrap;gap:8px}
+.rs-sd-gh input{flex:1;min-width:0;font:500 16px var(--rs-font);color:var(--rs-ink);background:var(--rs-field);border:0;border-radius:12px;padding:11px 13px;min-height:46px;box-shadow:inset 0 0 0 1.5px var(--rs-line)}
+.rs-sd-gh input:focus{outline:none;box-shadow:inset 0 0 0 2px var(--rs-accent)}
+.rs-sd-gh .rs-btn{flex:none;min-height:46px}
+.rs-sd-gh .rs-err{margin:0}
+.rs-sd-alt{align-self:flex-start;font-size:14px}
+.rs-sd-steps{margin:0;padding:0 0 0 20px;display:flex;flex-direction:column;gap:12px}
+.rs-sd-steps li{font-size:14px;line-height:1.45;padding-left:2px}
+.rs-sd-steps li::marker{font-weight:800}
+.rs-sd-steps li>span{display:block;margin-bottom:8px}
+.rs-sd-steps a.rs-btn.rs-quiet{text-decoration:none}
+.rs-wl a.rs-btn.rs-primary{text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.rs-sd-prompt>summary{cursor:pointer;font-size:14px;font-weight:600;color:var(--rs-muted);padding:4px 0}
+.rs-sd-prompt[open]>summary{margin-bottom:8px}
+.rs-sd-prompt .rs-sd-code .rs-row{gap:8px}
+.rs-sd .rs-sd-done{align-self:stretch;min-height:46px}
 /* "Turn it in", from the board (./turnin.js): the link, a note if you like, and the button */
 .rs.rs-wl-box .rs-ti-form{padding:0;gap:12px;background:none;box-shadow:none;outline:0;-webkit-backdrop-filter:none;backdrop-filter:none;max-width:none}
 .rs-ti-form label>input{width:100%}
 .rs-ti-more{align-self:flex-start;font-size:14px}
+/* the pull requests the forge found that mention the ask, a press each to fill the field in */
+.rs-ti-offer:empty{display:none}
+.rs-ti-look{margin:0;font-size:14px;color:var(--rs-muted)}
+.rs-ti-found{display:flex;flex-direction:column;gap:6px}
+.rs-ti-found>p{margin:0;font-weight:600;font-size:14px}
+.rs-ti-found ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.rs-ti-pr{display:flex;align-items:flex-start;gap:10px;width:100%;padding:10px 12px;border:0;border-radius:14px;background:var(--rs-sunk);color:var(--rs-ink);font:inherit;text-align:left;cursor:pointer;box-shadow:inset 0 0 0 1.5px transparent;transition:box-shadow .15s,background .15s}
+.rs-ti-pr:hover{background:var(--rs-accent-soft)}
+.rs-ti-pr[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--rs-accent);background:var(--rs-accent-soft)}
+.rs-ti-pr .rs-i{flex:none;width:20px;height:20px;margin-top:1px;color:var(--rs-muted)}
+.rs-ti-pr>span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.rs-ti-pr b{font-size:15px;line-height:1.35;overflow-wrap:anywhere}
+.rs-ti-pr small{font-size:13px;color:var(--rs-muted)}
 /* a link's field with a paste button at its right end (../ui/bits.js) */
 .rs-paste-field{position:relative;display:block;margin-top:6px}
 .rs-form .rs-paste-field>input:not([type=checkbox]){display:block;width:100%;margin:0;padding-right:50px}
@@ -893,11 +948,17 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-legal .rs-spec li+li{margin-top:0}
 .rs-legal .rs-spec a{color:var(--rs-accent-text)}
 @media (max-width:820px){.rs-panel.rs-legal{padding:18px}}
+/* what's new: each release note under the one after it, with its day over its title */
+.rs-release{scroll-margin-top:24px}
+.rs-release+.rs-release{padding-top:22px;border-top:1px solid var(--rs-line)}
+.rs-release .rs-release-day{margin:0;font-size:14px;font-weight:600}
 .rs-agree>.rs-wl-box>.rs-muted{margin-top:-6px;font-size:15px}
 .rs-agree-check{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:var(--rs-radius-sm);background:var(--rs-sunk);font-size:15px;line-height:1.45;cursor:pointer}
 .rs-agree-check input{flex:none;width:20px;height:20px;margin:1px 0 0;accent-color:var(--rs-accent)}
 .rs-agree-check a{color:var(--rs-accent-text);font-weight:600}
-.rs-agree .rs-primary:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+/* Here disabled means "tick the boxes first", not "working on it": the label stays, without the rain a busy button shows */
+.rs-agree .rs-primary:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none;color:var(--rs-btn-ink)}
+.rs-agree .rs-primary:disabled::after{display:none}
 .rs-post-terms{font-size:13px}
 
 /* ---------- motion that's moved from script (./motion.js) ---------- */

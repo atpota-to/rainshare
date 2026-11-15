@@ -1,6 +1,6 @@
 // Building the records from what people type, so every app writes the same shapes.
 // Each builder trims, clips to the lexicon's limits and leaves out what's empty.
-import { PROFILE, SEED, TAKE, DELIVERY, COMMENT, PREFERENCES, ROUTES, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, PLANS, UNPAID, LEVELS, planKey, HARNESSES, RUNS_ON, AUDIENCES, TESTS, SIZES, OWNERS, STAGES, audienceOf } from './ns.js';
+import { PROFILE, SEED, TAKE, DELIVERY, COMMENT, PREFERENCES, FOLLOW, MODERATOR, ROUTES, githubLogin, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, PLANS, UNPAID, LEVELS, planKey, HARNESSES, RUNS_ON, AUDIENCES, TESTS, SIZES, OWNERS, STAGES, audienceOf } from './ns.js';
 import { parseUri } from './net.js';
 import { kindOf } from './subjects.js';
 import { untilIn, MAX_DAYS } from './takes.js';
@@ -154,11 +154,20 @@ export function preferences(input = {}, prev){
       askEachTime: typeof s.askEachTime === 'boolean' ? s.askEachTime : undefined
     }),
     notify: prune({ updates: n.updates === true || undefined, newAsks: n.newAsks === true || undefined }),
+    // Your GitHub username, so the Claude app opens your fork, and your pull requests are spotted.
+    // Given as '' or null, it's taken out; left out of `input`, what's there stays.
+    github: githubLogin('github' in input ? input.github : prev?.github) || undefined,
     terms: t ? { version: t.version, agreedAt: iso(t.agreedAt) } : undefined,
     createdAt: prev?.createdAt || now(),
     updatedAt: prev ? now() : undefined
   });
 }
+
+/**
+ * Following @rainshare.dev on Bluesky, so its messages reach you: a Bluesky follow record, by the
+ * account's DID. (The one Bluesky record Rainshare writes, and only when messages are switched on.)
+ */
+export const followRainshare = () => ({ $type: FOLLOW, subject: MODERATOR, createdAt: now() });
 
 export function delivery({ seed: sq, take: tk, url, pull, setup: s, sessionUrl, note }){
   if (!sq?.uri || !sq?.cid) throw new Error('That seed can’t be found.');
