@@ -18,6 +18,22 @@
 // the list (test/notices.test.mjs).
 export const RELEASES = [
   {
+    id: 'feedback-here',
+    date: '2026-11-15',
+    title: 'Feedback, right here',
+    summary: 'Post bugs and ideas, vote for what you’d like next, and reply, on Rainshare’s own feedback page. Sign in again once to switch it on.',
+    text: `**Feedback** (in the footer, and the menu under your face) is where to say what’s broken or what you’d like Rainshare to do. Now you can do all of it there:
+
+- post a bug, a request, a question or an idea, with a category
+- vote for the posts you want most, and take a vote back
+- reply to a post, or to someone’s reply
+- change or delete what you’ve posted
+
+It’s Rainshare’s board on userinput.app, and what you write is kept in your own account, as userinput.app’s own records, so it shows there too, and what’s posted there shows here. Each post says where it stands (planned, in progress, done), with a note from the moderators when there is one.
+
+Rainshare asks for a little more when you sign in now, so your sign-in needs refreshing once: you’ll be asked to **sign in again**, and you come straight back, still signed in. If you put it off, it’s in the menu under your face.`
+  },
+  {
     id: 'notifications',
     date: '2026-11-15',
     title: 'A bell for what’s happened',

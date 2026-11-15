@@ -140,6 +140,14 @@ a{color:inherit}
 .rd-who{display:inline-flex;padding:2px;border:0;border-radius:50%;background:none;cursor:pointer;transition:box-shadow .15s}
 .rd-who .rs-face{font-size:15px}
 .rd-who:hover,.rd-who[aria-expanded=true]{box-shadow:0 0 0 3px var(--accent-soft)}
+/* a sign-in from before Rainshare asked for what it asks for now: a dot on your face, and the way to sign in again in the menu */
+.rd-who{position:relative}
+.rd-who-dot{position:absolute;top:0;right:0;width:11px;height:11px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--bg);pointer-events:none}
+.rd-menu .rd-menu-again{color:var(--accent-text,var(--ink))}
+.rd-menu .rd-menu-again svg{color:var(--accent)}
+.rd-menu-again span{display:flex;flex-direction:column;line-height:1.25}
+.rd-menu-again small{font-weight:500;font-size:13px;color:var(--muted)}
+@media (forced-colors:active){.rd-who-dot{forced-color-adjust:none;background:Highlight}}
 .rd-menu{position:absolute;top:calc(100% + 10px);right:0;z-index:30;width:max-content;min-width:230px;max-width:min(320px,calc(100vw - 32px));padding:6px;border:1px solid var(--line);border-radius:18px;background:var(--card);box-shadow:0 22px 44px -18px rgba(8,16,40,.45);transform-origin:top right;animation:rd-menu .24s var(--ease-spring)}
 @keyframes rd-menu{from{opacity:0;transform:translateY(-6px) scale(.94)}}
 /* closing, it shrinks back toward your face (showMenu in ./main.js) */

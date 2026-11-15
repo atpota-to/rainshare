@@ -153,7 +153,7 @@ test('the panel: links go where each notice is about, and nothing anyone wrote b
   const seed = { ...ask(ADA, 'a1'), value: { title: evil } };
   const list = [
     { key: 'comment:x', kind: 'comment', at: NOW - HOUR, seed, by: ADA, person: { did: ADA, displayName: evil }, text: evil },
-    { key: 'release:notifications', kind: 'release', at: NOW - DAY, release: RELEASES[0] }
+    { key: 'release:notifications', kind: 'release', at: NOW - DAY, release: RELEASES.find(r => r.id === 'notifications') }
   ];
   const html = noticePanel({ list }, { href: p => '/example/' + p, fresh: new Set(['comment:x']) });
   assert.ok(!html.includes('<img'), 'escaped');

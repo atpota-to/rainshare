@@ -114,7 +114,7 @@ test('the Privacy Policy names every service the code asks, and everything kept 
     /holds no IP address and nothing about your browser/, /a database at Supabase that isn’t open to the public/, /Our own note that you agreed to the terms stays when you delete your record of it/, /that you agreed to Rainshare’s terms, which version, and when/]) assert.match(all, says);
   assert.match(PRIVACY.lead, /The one record we keep in a database of our own is a note that you agreed to the terms/);
   // Every key the site keeps in the browser. A new one belongs in the policy's list too, then here.
-  const KEYS = ['rs:accept-vouch', 'rs:agreed', 'rs:board-seen:', 'rs:board-sort', 'rs:garden-seen:', 'rs:kept', 'rs:messages-asked:', 'rs:mode', 'rs:notices-seen:', 'rs:prefs:', 'rs:signin', 'rs:signin-skip', 'rs:stage-seen:', 'rs:up-later', 'rs:waiting-later', 'rs:welcomed:'];
+  const KEYS = ['rs:accept-vouch', 'rs:agreed', 'rs:board-seen:', 'rs:board-sort', 'rs:garden-seen:', 'rs:kept', 'rs:messages-asked:', 'rs:mode', 'rs:notices-seen:', 'rs:prefs:', 'rs:signin', 'rs:signin-again', 'rs:signin-skip', 'rs:stage-seen:', 'rs:up-later', 'rs:waiting-later', 'rs:welcomed:'];
   const found = new Set();
   for (const dir of ['../ui/', '../src/', '../core/', '../public/']) for (const f of readdirSync(new URL(dir, import.meta.url)).filter(f => f.endsWith('.js')))
     for (const [, k] of readFileSync(new URL(dir + f, import.meta.url), 'utf8').matchAll(/['"`](rs:[a-z:-]+)['"`]/g)) if (k !== 'rs:') found.add(k);

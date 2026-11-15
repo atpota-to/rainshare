@@ -274,6 +274,7 @@ Anyone can read these. Nearly all of them are records in your own account, at yo
 - whether you’ve asked for direct messages from @${HANDLE}, and which kind, and, if you switch them on, that you follow @${HANDLE} on Bluesky
 - that you agreed to Rainshare’s terms, which version, and when
 - anything you post to Tangled or knotless through Rainshare (an issue, a comment, a pull request, a vouch), which is public there too
+- your feedback on Rainshare’s feedback board: what you post, your replies and edits, and your votes
 
 A profile saved by an earlier version of Rainshare, or by another app, can hold more: a rough monthly AI budget, your situation, what you care about, who you’d like to help first, and a forecast. Rainshare’s site doesn’t show those now, except that a budget of nothing or free tiers only still reads as your AI plan. The CLI and MCP server hand a helper’s agent your whole profile record. Saving your profile here doesn’t remove any of it.
 
@@ -287,7 +288,7 @@ Don’t put secrets or private details in an ask or a comment. A session link is
 
 Asks are read by AI agents. When someone takes yours on, its text and whatever is in your repository are given to their agent, and so to the AI provider behind it, under that helper’s own agreement with the provider. With the CLI or MCP server, their agent gets your name, your Rainshare profile and the comments on the ask as well. When you help, your agent reads the ask and the repository the same way. Opening an ask in the Claude app, or in Claude Code on the web, puts its prompt in the link to claude.ai, so Anthropic receives it when you open the link.
 
-Feedback about Rainshare is posted on userinput.app, a separate app with terms of its own. What you post there is a public record in your account too. Rainshare’s feedback page shows it. A post we’ve marked as planned may be handed to an AI coding agent that we run on our own AI plan, and so to the AI provider behind it. The agent drafts the change, and marks the post as in progress or done on the feedback board.`],
+Rainshare’s feedback board is a board on userinput.app, a separate app with terms of its own. Feedback you post, reply or vote on, on Rainshare’s feedback page or on userinput.app, is written as userinput.app’s own records, so both show it. A post we’ve marked as planned may be handed to an AI coding agent that we run on our own AI plan, and so to the AI provider behind it. The agent drafts the change, and marks the post as in progress or done on the feedback board.`],
 
     ['Signing in', `
 On the site, you sign in on your own host’s page. Rainshare never sees your password. Your host gives your browser a token that lets Rainshare write the records your host’s sign-in page listed. That token is kept in your browser and isn’t sent to us.
@@ -302,7 +303,7 @@ There’s no Rainshare server in the middle, so your browser (or the CLI, from y
 - your own host, and the host of every account that has asked for help, taken something on or turned work in, even when what they posted isn’t shown to you. Also the host of anyone whose comments or profile you look at, anyone you vouch for on Tangled, and anyone who has posted on the feedback page when you open it. Anyone can run a host of their own
 - Bluesky’s relays and public API (for the list of accounts with Rainshare records, and for profiles, follows, lists and blocks) and its picture server
 - the PLC directory, which says where an account lives. An account whose ID is a web address is looked up at that address instead
-- Constellation, run by microcosm.blue, which says which records point at an ask
+- Constellation, run by microcosm.blue, which says which records point at an ask, or at the feedback board and its posts
 - GitHub, Tangled and knotless, for the state of issues and pull requests, and for what you post there. What you post to a Tangled repository goes to the server that hosts it, which its owner may run. With a GitHub username in your settings, GitHub is also asked whether that account has forked an ask’s repository, and that names the account
 - Supabase, where our note that you agreed to the terms is kept. It’s asked when you agree, and again the next time you sign in if the note wasn’t made then
 
@@ -348,14 +349,16 @@ Rainshare sets no cookies. It keeps a few things in your browser’s own storage
 - which plants in your garden you’ve already seen, so a new one can be pointed out
 - which asks were on the board when you last looked, so new ones can be marked
 - which notifications in the bell you’ve already seen, so it can count the new ones
-- notes and reminders you’ve dismissed, that you’ve seen the welcome or been asked about messages, and that you agreed to the terms (and which version)
+- notes and reminders you’ve dismissed, that you’ve seen the welcome or been asked about messages or to sign in again, and that you agreed to the terms (and which version)
 - what you were writing, the handle you typed and the page to come back to, while you’re sent to your host and back
 - the example board’s made-up data
 
 Signing out removes your sign-in, and clearing the site’s data in your browser removes the rest.`],
 
     ['Moderation', `
-If we hide something you posted, or everything from your account, that decision is a public record in @${HANDLE}’s account. It names your record or account and gives a reason in a few words, sometimes with a short note. It stays there for as long as the thing is hidden. Unhiding deletes it, though copies other people and services made may remain. We can also hide a comment you wrote on a Tangled or knotless issue that Rainshare shows, whether or not you use Rainshare. Rainshare’s automatic checks only put flags on asks. They don’t hide anything by themselves. If you think a flag or a decision about you is wrong, write to ${EMAIL} and we’ll look again.`],
+If we hide something you posted, or everything from your account, that decision is a public record in @${HANDLE}’s account. It names your record or account and gives a reason in a few words, sometimes with a short note. It stays there for as long as the thing is hidden. Unhiding deletes it, though copies other people and services made may remain. We can also hide a comment you wrote on a Tangled or knotless issue that Rainshare shows, whether or not you use Rainshare. Rainshare’s automatic checks only put flags on asks. They don’t hide anything by themselves. If you think a flag or a decision about you is wrong, write to ${EMAIL} and we’ll look again.
+
+On the feedback board, what its moderators decide (a post’s status, hiding a post or a reply, banning someone from the board) is a public record in the moderator’s own account, as it is on userinput.app.`],
 
     ['Deleting, and how long things last', `
 Your records stay in your account until you delete them. In Rainshare you can delete an ask or a comment you made here, take back a vouch, and drop something you took on. Anything else (your Rainshare profile, your settings, something you turned in) can be deleted with your host’s tools or any atproto record browser. Deleting your account at your host removes all of them.
