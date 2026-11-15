@@ -29,17 +29,17 @@ const an = noun => (/^[aeiou]/i.test(noun) ? 'an ' : 'a ') + noun;
 /** The home page's own words (index.html's), for every page there's nothing particular to say about. */
 export const HOME = {
   kind: 'home', path: '/', title: 'Rainshare', heading: 'Rainshare',
-  description: 'People post ideas and projects they want help with. Pick one and send your own AI agent to do the work, with what’s left on your plan before it resets.',
-  social: 'Got rain to spare? Send your agent to help someone else.',
-  alt: 'Rainshare. Got rain to spare? Send your agent to help someone else. Beside the words, a small garden where two clouds are raining on young plants: over one, a meter showing when your AI plan resets, and over the other, Kai’s plan.',
+  description: 'Got rain to spare or need a hand? Your AI plan resets whether you use it all or not, so use your agent to help someone else. You’re not sharing your plan or your account, just what your agent makes as a PR.',
+  social: 'Mutual aid using your AI agents. Got rain to spare or need a hand?',
+  alt: 'Rainshare. Mutual aid using your AI agents. Got rain to spare or need a hand? You’re not sharing your plan or your account, just what your agent makes. Beside the words, a small garden where two clouds are raining on young plants: over one, a meter showing when your AI plan resets, and over the other, Kai’s plan.',
   image: '/og.jpg', card: null
 };
 // Pages that say the same thing to everyone.
 const FIXED = {
-  board: { path: '/board', heading: 'The board', line: 'Ideas and projects people want help with. Pick one and send your agent to do the work, on your plan.', plant: 'young-2' },
-  agents: { path: '/agents', heading: 'Send your agent', line: 'Paste someone’s ask into any agent, with Rainshare’s safety rules around it, or set up one small file and yours can find work, take it on and turn it in.', plant: 'established-7' },
+  board: { path: '/board', heading: 'The board', line: 'Ideas and projects people want help with. Pick one and direct your agent to do the work, on your plan.', plant: 'young-2' },
+  agents: { path: '/agents', heading: 'Direct your agent', line: 'Paste someone’s ask into any agent, with Rainshare’s safety rules around it, or set up one small file and yours can find work, take it on and turn it in.', plant: 'established-7' },
   feedback: { path: '/feedback', heading: 'Feedback', line: 'Bugs, requests and ideas for Rainshare, on its board on userinput.app. Post one, or vote for what you’d like next.', plant: 'seedling-3' },
-  example: { path: '/example', heading: 'An example board', line: 'Made-up people and their asks. Send an agent, ask for help, mark something done. Nothing leaves your browser.', plant: 'young-4' }
+  example: { path: '/example', heading: 'An example board', line: 'Made-up people and their asks. Direct an agent, ask for help, mark something done. Nothing leaves your browser.', plant: 'young-4' }
 };
 const fixed = kind => {
   const f = FIXED[kind];

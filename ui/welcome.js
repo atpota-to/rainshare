@@ -35,7 +35,7 @@ export const welcomeProfile = ({ plans = [], runs = [] } = {}) => ({ plans: [...
 // [icon, the step, what it means for you]
 const STORY = [
   [lifeIco('up'), 'People post ideas and projects they’d like help with.', 'You can post your own with “Ask for help”.'],
-  [skyIco('showers'), 'Pick one and send your agent, on your own plan.', 'It gets their ask in their own words, with safety rules from Rainshare around it. Read it before you start.'],
+  [skyIco('showers'), 'Pick one and direct your agent, on your own plan.', 'It gets their ask in their own words, with safety rules from Rainshare around it. Read it before you start.'],
   [lifeIco('sprouted'), 'Your agent opens a pull request. Paste its link back here.', 'If it does the job, they accept it, and it grows in your garden.']
 ];
 
@@ -77,7 +77,7 @@ export function openWelcome({ person, save, saved = () => {}, error = e => e?.me
     swapStep(box, `${top(2, 'What do you code with?')}
       <div class="rs-wl-you">${face(person)}<span><b>${esc(nameOf(person))}</b><small>Your name and picture come from Bluesky.</small></span></div>
       <fieldset><legend>Your AI plan</legend><p class="rs-muted">Any you pay for to code with. It shows beside your asks.</p>${chips('plans', PLANS, st.plans)}</fieldset>
-      <fieldset><legend>What you run</legend><p class="rs-muted">So “Send my agent” copies the right command.</p>${chips('runs', HARNESSES, st.runs)}</fieldset>
+      <fieldset><legend>What you run</legend><p class="rs-muted">So “Direct my agent” copies the right command.</p>${chips('runs', HARNESSES, st.runs)}</fieldset>
       <p class="rs-err" role="alert" hidden></p>
       <button class="rs-btn rs-primary" type="button" data-wl="save">Save my profile</button>
       <div class="rs-wl-foot"><button class="rs-link" type="button" data-wl="back">${ico('back')}Back</button>${skip}</div>`, dir);

@@ -1,4 +1,4 @@
-// "Send my agent", as a short guided dialog. Nothing is written until its button is pressed, and
+// "Direct my agent", as a short guided dialog. Nothing is written until its button is pressed, and
 // you stay where you were the whole way through: there's no page to be taken to.
 //
 //   choose  under the heading, one line: your agent gets the ask as its asker wrote it, inside
@@ -110,9 +110,9 @@ export function openSend({ asker, ways, answers, send, copy, done = () => {}, er
   }
   function paint(){
     const showing = st.moreWays || rest.some(w => w.id === st.route) ? [...first, ...rest] : first;
-    box.innerHTML = `${top('Send your agent')}
+    box.innerHTML = `${top('Direct your agent')}
       <p class="rs-sd-intro">It gets ${esc(asker)}’s ask as written, inside Rainshare’s safety rules ${RULES}</p>
-      <div class="rs-chips" role="group" aria-label="Send it with" data-rs-glide="way">${showing.map(w => `<button type="button" data-sd-way="${esc(w.id)}" aria-pressed="${w.id === st.route}">${esc(w.name)}</button>`).join('')}${showing === first && rest.length ? '<button type="button" data-sd="more" class="rs-sd-more">More</button>' : ''}</div>
+      <div class="rs-chips" role="group" aria-label="Hand it over with" data-rs-glide="way">${showing.map(w => `<button type="button" data-sd-way="${esc(w.id)}" aria-pressed="${w.id === st.route}">${esc(w.name)}</button>`).join('')}${showing === first && rest.length ? '<button type="button" data-sd="more" class="rs-sd-more">More</button>' : ''}</div>
       <div class="rs-sd-claim"><label class="rs-sd-check"><input type="checkbox" name="sdClaim"${st.claim ? ' checked' : ''}> Tell ${esc(asker)} I’m on it for ${esc(daysSaid())}</label>${st.claim ? `<button class="rs-link" type="button" data-sd="days" aria-expanded="${st.moreDays}" aria-controls="rsSdDays">Change</button>` : ''}</div>
       ${st.claim && st.moreDays ? `<div class="rs-sd-days" id="rsSdDays">
         <div class="rs-toggles" role="group" aria-label="I’ll turn it in within">${dayChoices(st.days).map(([d, l]) => `<button type="button" data-sd-days="${d}" aria-pressed="${d === st.days}">${esc(l)}</button>`).join('')}</div>
