@@ -464,14 +464,15 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
   }
   const mine = list => (list || []).filter(r => r.repo === viewer);
   /* ---------- your settings ---------- */
-  // One record, dev.rainshare.preferences/self. Null when there isn't one (or it can't be read).
+  // One record, dev.rainshare.preferences/self. Null when there isn't one; when it can't be read,
+  // it throws, so that isn't taken for having none (the messages aren't asked about again over it).
   async function preferences(){
     if (!viewer) return null;
-    return (await net.getRecordOrNull(viewer, PREFERENCES, 'self').catch(() => null))?.value || null;
+    return (await net.getRecordOrNull(viewer, PREFERENCES, 'self'))?.value || null;
   }
   async function savePreferences(input){
     if (!viewer) throw new SourceError('NotSignedIn', 'Sign in first.');
-    const record = R.preferences(input, await preferences());
+    const record = R.preferences(input, await preferences().catch(() => null));
     await put(PREFERENCES, 'self', record);
     return record;
   }

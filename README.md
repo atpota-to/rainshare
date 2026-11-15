@@ -97,6 +97,8 @@ asks, and "Direct my agent" starts with the command for what you run. The first 
 a short welcome says what happens in three steps, then asks for your
 plan and which agents you run, and whether you'd like messages from @rainshare.dev (both kinds are
 ticked to begin with; see [Messages](#messages)). You can skip it, which switches nothing on.
+If you were already past the welcome before it asked about messages, or made your profile
+without it, your next visit asks about them on their own, once, unless you have some on.
 
 Your settings are on a page of their own, apart from your profile: **Settings** (`/settings`), in
 the menu under your face. They're how "Direct my agent" works for you, and which messages you'd
@@ -590,7 +592,7 @@ which spells it out by hand.
 | `src/mode.js`, `public/mode.js` | day and night: the toggle in the bar, and the small script that picks one before the page is first drawn |
 | `src/hosts.js` | the hosts offered for making an account, for someone who hasn't got one |
 | `src/spaces.js` | group spaces for private asks (switched off) |
-| `ui/` | the app's screens: the board, an ask, profiles, your settings, posting an ask, the first-time welcome, loading placeholders, the feedback page, the note before a first job, the terms and privacy pages, and @rainshare.dev's moderation page |
+| `ui/` | the app's screens: the board, an ask, profiles, your settings, posting an ask, the first-time welcome (and asking about messages, for someone past it), loading placeholders, the feedback page, the note before a first job, the terms and privacy pages, and @rainshare.dev's moderation page |
 | `core/` | everything the site and the CLI share (below) |
 | `cli/rainshare.mjs` | the CLI and MCP server |
 | `api/` | Vercel functions: the OAuth client metadata, and link previews (`page.js` sets the meta tags, `og.js` draws the image) |
@@ -708,7 +710,11 @@ posts and sends nothing.
 
 People ask for messages on their Settings page (`/settings`), under "Messages from
 @rainshare.dev", or in the welcome the first time they sign in, where both kinds are ticked to
-begin with. There are two kinds, and they can have either or both:
+begin with. Someone who was past the welcome before it asked (a profile, or the welcome seen on
+that browser), and has none on, is asked about them on their own on their next visit, both ticked
+again. "No thanks" switches nothing on, and either way it's asked once per account on a browser
+(and not while their settings can't be read, since they may have them on).
+There are two kinds, and they can have either or both:
 
 - **Updates on my asks and my work**: someone's on one of your asks, or has turned in work on it
   (with a link to the pull request); an ask you were on was marked done, with your work or
@@ -781,7 +787,8 @@ done for real yet:
   has been posted or sent yet. The Bluesky chat calls have only been tried against a stand-in,
   including whether a STOP reaches the account when its own settings only allow messages from
   people it follows.
-- A real account's first sign-in, and the welcome that follows it.
+- A real account's first sign-in, and the welcome that follows it; and an account with a profile and
+  no messages on, which is asked about messages on its own.
 - Following @rainshare.dev from a real account when messages are switched on, and a real server's
   consent page for the follow permission. It's only been tried against a stand-in PDS and AppView.
 - A server accepting the permission set. That waits for a production build to publish it.

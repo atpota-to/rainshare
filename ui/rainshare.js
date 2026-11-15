@@ -48,7 +48,7 @@ import { REASONS, reasonName, isAccount, kindOf as subjectKind } from '../core/m
 import { readBoard, groupOf, stateWord, GROUPS as FEEDBACK_GROUPS } from '../core/feedback.js';
 import { esc, lit, unb64url, ago, until, shortDay, nameOf, firstName, ico, forgeIco, skyIco, lifeIco, face, drops, pathOf, plantPic, avatarFallback, tip, tipLink, toggleTip, pasteField, pasteInto, PASTE_REFUSED } from './bits.js';
 import { createPoster } from './post.js';
-import { openWelcome, shouldWelcome, anyMessages } from './welcome.js';
+import { openWelcome, shouldWelcome, anyMessages, openMessages, shouldAskMessages } from './welcome.js';
 import { hasAgreed, agreement, rememberAgreement, openAgree } from './agree.js';
 import { agreedIn, agreementNow, recordAgreement } from '../core/agreement.js';
 import { LEGAL } from '../core/legal.js';
@@ -64,7 +64,7 @@ export function createRainshare({ root, base = '/', host }){
   const S = {
     source: null, view: null, sub: '',
     board: null, boardAt: 0, loading: false, error: null, shown: [], pick: null, sheet: false,
-    mine: null, prefs: null, prefsLocal: false, follows: undefined, garden: null, buds: null, seed: null, seedErr: null, unlinked: null, launch: null, handBack: null, handKind: null, again: null, other: null, form: null, drafts: {},
+    mine: null, prefs: null, prefsLocal: false, prefsUnread: false, follows: undefined, garden: null, buds: null, seed: null, seedErr: null, unlinked: null, launch: null, handBack: null, handKind: null, again: null, other: null, form: null, drafts: {},
     pull: null,          // the pull request form for the ask on screen: { uri, loading, choices, error }
     circle: undefined,   // your Tangled vouch circle (../core/vouch.js): undefined until asked for, null if there's none to show
     vouching: null,      // who a vouch is being written for: { did, evidence }
@@ -438,10 +438,13 @@ export function createRainshare({ root, base = '/', host }){
   const localPrefs = () => { try { return JSON.parse(localStorage.getItem(PREFS_KEY()) || 'null'); } catch (_) { return null; } };
   const savedAt = r => String(r?.updatedAt || r?.createdAt || '');
   async function loadPrefs(){
-    if (!signedIn()) { S.prefs = null; return; }
-    const local = localPrefs(), rec = S.source.preferences ? await S.source.preferences().catch(() => null) : null;
+    if (!signedIn()) { S.prefs = null; S.prefsUnread = false; return; }
+    // (One your server didn't give isn't the same as none: it's not asked about messages over it.)
+    let unread = false;
+    const local = localPrefs(), rec = S.source.preferences ? await S.source.preferences().catch(() => { unread = true; return null; }) : null;
     S.prefs = rec && savedAt(rec) >= savedAt(local) ? rec : local;
     S.prefsLocal = !!local && S.prefs === local && savedAt(local) > savedAt(rec);
+    S.prefsUnread = unread;
   }
   /** Save your settings ({ send } or { notify }). Says 'saved', or 'local' when only this browser could keep it. */
   async function savePrefs(change){
@@ -520,6 +523,27 @@ export function createRainshare({ root, base = '/', host }){
         toast(said && said !== 'Saved.' ? said : FEATURES.fit ? 'Saved. Your board is sorted to suit you.' : 'Saved. Now pick something to help with.');
         if (S.source !== source) return;
         await loadMine(true); rerender();
+      },
+      error: plainText,
+      canFollow: canFollow()
+    });
+  }
+  // Someone who was past the welcome before it asked about messages from @rainshare.dev, or made
+  // their profile without it, is asked about them on their own on their next visit, while they
+  // have none on (./welcome.js). Not over another dialog, and not on Settings, where they are.
+  function askMessages(){
+    if (!shouldAskMessages({ source: S.source, mine: S.mine, prefs: S.prefs, prefsUnread: S.prefsUnread, sub: S.sub })) return;
+    const source = S.source;
+    let heard = null;
+    openMessages({
+      did: viewer(),
+      async save(notify){
+        if (S.source !== source) throw new Error('You’ve signed out since. Sign in and switch them on in Settings.');
+        heard = await messagesOn(notify);
+      },
+      saved(){
+        toast(heardText(heard, 'Messages are on.'));
+        if (S.source === source && S.view === 'settings') rerender();
       },
       error: plainText,
       canFollow: canFollow()
@@ -2590,7 +2614,7 @@ export function createRainshare({ root, base = '/', host }){
       Object.assign(S, { source, board: null, mine: null, follows: undefined, garden: null, buds: null, grew: null, fresh: null, unlinked: null, seed: null, form: null, drafts: {}, pick: null, sheet: false, pull: null, circle: undefined, vouching: null, accepting: null, reply: null, from: 'anyone', sort: savedSort(), show: 'all', known: {}, admin: null, found: null, modding: null });
       poster.reset();
       render();
-      if (source?.signedIn) { await loadMine(); loadGarden(); welcome(); }
+      if (source?.signedIn) { await loadMine(); loadGarden(); welcome(); askMessages(); }
       show(S.sub);
     },
     refresh: () => loadBoard(true),
