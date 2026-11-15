@@ -346,6 +346,24 @@ export function tangledPullsAbout(items, { page, issue, rkey } = {}){
 }
 
 /**
+ * Where `login` can push work on the GitHub repository `repo` ("owner/name"): the repository
+ * itself when it's theirs, or their fork of it, as "login/name". Null when they haven't forked
+ * it (that GitHub knows of). Throws when GitHub couldn't be asked, so "no fork" and "don't know"
+ * aren't mixed up. A fork is looked for under the same name first, then among the repository's
+ * newest forks, for one GitHub named differently ("name-1").
+ */
+export async function forkOf(repo, login){
+  if (!REPO_NAME.test(repo || '') || !/^[A-Za-z0-9-]{1,39}$/.test(login || '')) return null;
+  const [owner, name] = repo.split('/'), same = (a, b) => String(a || '').toLowerCase() === String(b || '').toLowerCase();
+  if (same(owner, login)) return repo;
+  const of = r => r && (same(r.parent?.full_name, repo) || same(r.source?.full_name, repo)) && same(r.owner?.login, login) ? r.full_name : null;
+  const named = await getJSON(`${GITHUB_API}/repos/${login}/${name}`).catch(e => { if (e?.status === 404) return null; throw e; });
+  if (of(named)) return of(named);
+  const forks = await getJSON(`${GITHUB_API}/repos/${repo}/forks?sort=newest&per_page=100`);
+  return (Array.isArray(forks) ? forks : []).find(f => same(f?.owner?.login, login) && REPO_NAME.test(f?.full_name || ''))?.full_name || null;
+}
+
+/**
  * Whether a delivered pull request has landed: 'merged', 'open', 'closed', or null if we can't
  * tell. `subject` is the seed's, which is how a pull turned in by its record alone is placed.
  */

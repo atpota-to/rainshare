@@ -50,6 +50,7 @@ const ICON = {
   info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.2M12 7.9v.1"/>',
   hat: '<path d="M3.5 17h17"/><path d="M6.5 17v-5.5a5.5 5.5 0 0 1 11 0V17"/><path d="M6.5 13.5h11"/>',
   shield: '<path d="M12 3.5l7 2.6v5.5c0 4.2-3 7.6-7 8.9-4-1.3-7-4.7-7-8.9V6.1z"/><path d="M12 8.5v4M12 15.6v.1"/>',
+  share: '<path d="M12 14.5V3.5M8 7.5l4-4 4 4"/><path d="M8.5 10.5H7a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-1.5"/>',
   pull: '<circle cx="7" cy="6" r="2.2"/><circle cx="7" cy="18" r="2.2"/><circle cx="17" cy="18" r="2.2"/><path d="M7 8.2v7.6M11 6h3a3 3 0 0 1 3 3v6.8M13.2 3.8L11 6l2.2 2.2"/>'
 };
 // The weather and the life of a seed, in the same pictures as the landing's scene: a forecast
@@ -139,6 +140,18 @@ export async function pasteInto(btn){
   } catch (_) { input.focus(); return false; }
 }
 export const PASTE_REFUSED = 'Couldn’t read what you copied. Paste it into the box instead.';
+/*
+ * The phone's own share sheet, for handing a prompt straight to an app (the Claude app, ChatGPT,
+ * anything that takes text) instead of copying it and switching apps. Offered only on a touch
+ * screen whose browser has one: on a computer, copying is what people expect.
+ */
+export const canShare = () => typeof globalThis.navigator?.share === 'function' && !!globalThis.matchMedia?.('(hover: none) and (pointer: coarse)').matches;
+/** Hand `text` to the share sheet. Says 'shared', 'cancelled' (closed without picking an app) or 'failed'. */
+export async function shareText(text){
+  try { await navigator.share({ text }); return 'shared'; }
+  catch (e) { return e?.name === 'AbortError' ? 'cancelled' : 'failed'; }
+}
+export const SHARE_FAILED = 'Couldn’t open the share sheet. Copy it instead.';
 /** How well a seed suits you, as one to three filled drops. */
 export const drops = level => `<span class="rs-drops" aria-hidden="true">${[1, 2, 3].map(n => `<svg viewBox="0 0 24 24"${n <= level ? ' class="on"' : ''}>${ICON.drop}</svg>`).join('')}</span>`;
 

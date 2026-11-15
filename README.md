@@ -41,7 +41,8 @@ to asking. They're the two tabs in the bar as well.
    stay where you are throughout. It asks which agent, as a row of choices: the one your profile
    says you run (Claude Code or Codex), "Any agent" for the prompt itself, and the cloud, the
    CLI and MCP under "More". On a phone, where there's no terminal to paste a command into, it
-   starts on "Any agent". Under them, "Tell Kai I'm on it for a day" is ticked to begin with
+   starts on the Claude app when the ask is on GitHub and you run Claude Code or pay for Claude,
+   and on "Any agent" otherwise (see [Helping from a phone](#helping-from-a-phone)). Under them, "Tell Kai I'm on it for a day" is ticked to begin with
    (three days, a week or two are behind "Change"), and one button copies the command or the
    prompt. Ticked, everyone sees the ask as "In progress" with your face and handle; unticked,
    it's copied and nothing is said. Nothing is written until you press it. Then the dialog shows
@@ -53,7 +54,8 @@ to asking. They're the two tabs in the bar as well.
    again, and you're listed as having gone quiet. You can give yourself more time from the
    ask's page, or drop it.
 4. **Turn it in.** When the pull request is up, paste its link back (the field has a paste
-   button at its end): in the dialog that "Turn it in" opens from the board, or on the ask's own
+   button at its end), or pick it from the pull requests Rainshare found that mention the ask,
+   listed over the field with yours first: in the dialog that "Turn it in" opens from the board, or on the ask's own
    page, which also takes what did the work, a session link, and on Tangled and knotless can open
    the pull request from a pushed branch.
    Your agent's link back to the ask fills the form in for you. The asker reviews it and
@@ -109,8 +111,46 @@ If you were already past the welcome before it asked about messages, or made you
 without it, your next visit asks about them on their own, once, unless you have some on.
 
 Your settings are on a page of their own, apart from your profile: **Settings** (`/settings`), in
-the menu under your face. They're how "Direct my agent" works for you, and which messages you'd
-like from @rainshare.dev.
+the menu under your face. They're how "Direct my agent" works for you, your GitHub username if
+you'd like to give it (see [Helping from a phone](#helping-from-a-phone)), and which messages
+you'd like from @rainshare.dev.
+
+## Helping from a phone
+
+A phone has no terminal, but it may have the Claude app, so "Direct my agent" can hand an ask
+straight to it. For an ask on GitHub, the dialog's **Claude app** choice (**Claude on the web**
+on a computer, under "More") opens a new Claude Code session from a link, with the prompt and the
+repository already filled in. Nothing is sent until you press send there. The link is the one
+[Claude Code documents for this](https://code.claude.com/docs/en/web-quickstart#pre-fill-sessions)
+(`claude.ai/code?prompt=…&repositories=owner/name`). On a phone it opens the app's Code tab, if
+the app takes it, and the browser otherwise. The prompt is copied as well, in case the app opens
+without it filled in.
+
+A cloud session can only push to a repository your GitHub account can write to, so it's opened
+on your fork. The first time, the dialog asks for your GitHub username and keeps it in your
+settings. It then asks GitHub whether you've forked the ask's repository, checking your name
+first, then the newest forks in case GitHub named yours differently. If you haven't, it offers
+GitHub's fork page, and looks again when you come back. The prompt names your fork too, and
+fills your username into the link that opens the pull request against the original. If a session
+was opened on a repository it can't push to, the prompt tells it to say so rather than look for
+another way. A prompt too long to go in a link (most are 5 to 7 thousand characters) is left out
+of it, and you paste it instead.
+
+Everywhere the prompt can be copied on a phone, **Share** sits beside Copy. It hands the prompt to
+any app through the phone's share sheet, so it doesn't need the clipboard, which Safari sometimes
+refuses.
+
+Turning in doesn't need a link pasted either. The "Turn it in" dialog lists the pull requests on
+the forge that mention the ask and haven't been turned in. With your GitHub username in your
+settings, yours come first, and if just one is yours it's filled in already. When a pull request
+of yours is up for an ask you're on, the board says so, with a button that turns it in. That
+note comes after work waiting for you to look at, and "Not now" puts it away for the visit. It
+looks for up to three of your asks, once in ten minutes each, since GitHub lets a browser that
+isn't signed in ask 60 things an hour.
+
+These haven't been tried on every phone. The Claude app may open without the prompt or the
+repository filled in, and some browsers open the link in a new tab rather than the app. The
+prompt is copied as well for that reason.
 
 ## Is this allowed by my AI plan?
 
@@ -201,11 +241,12 @@ prompt, since that's what it is to whoever pastes it:
   that turns it in if it didn't, the issue and the ask's page), and that if reviewers ask for
   changes, it updates the same pull request rather than opening a new one
 
-There are four ways to hand it over:
+There are five ways to hand it over:
 
 | Route | Needs | Who turns it in |
 | --- | --- | --- |
 | Copy the prompt into any agent | nothing | you, using the link the agent hands back |
+| Open it in the Claude app, or Claude Code on the web, from a link with the prompt and your fork filled in (GitHub only) | a Claude plan with cloud sessions, and GitHub connected | you, using the same link |
 | One command: `git clone … && claude "<brief>"` (or `codex`) | that agent's CLI | you, using the same link |
 | `rainshare.mjs run <link>` | the CLI and an app password | the CLI, once the agent exits |
 | The MCP server | the CLI and an app password | the agent, with `rainshare_turn_in` |
@@ -266,7 +307,8 @@ closed. While it's folded away, whatever is narrowing the board shows beside it,
 press from undone. What's done is never on the board; it's on the page of whoever asked.
 
 Over the list there's one note at a time, the one that matters most: work waiting on you to look
-at, then something of yours that grew, then setting up your profile, then that it's early days.
+at, then a pull request of yours that's up and not turned in, then something of yours that grew,
+then setting up your profile, then that it's early days.
 
 ## How it's built
 
@@ -280,7 +322,7 @@ schemas are in `lexicons/dev/rainshare/`.
 | `dev.rainshare.profile` | everyone | AI plans, setups (harness, models, where it runs), the kinds of work you take on, and an optional Rainshare-only name and bio |
 | `dev.rainshare.seed` | the asker | title, subject (an issue or repo, or none for an idea), project stage, spec in Markdown, preferred models, tags, size, state |
 | `dev.rainshare.take` | a helper | "my agent is on this": a strong ref to the seed, the setup doing the work, and `until`, the day they expect to turn it in |
-| `dev.rainshare.preferences` | you | your settings: how "Direct my agent" hands an ask over, whether it says you're on it and for how many days, whether to ask each time, which messages you'd like from @rainshare.dev, and that you agreed to the terms (which version, and when). Public, like every record in your repo |
+| `dev.rainshare.preferences` | you | your settings: how "Direct my agent" hands an ask over, whether it says you're on it and for how many days, whether to ask each time, your GitHub username if you gave it, which messages you'd like from @rainshare.dev, and that you agreed to the terms (which version, and when). Public, like every record in your repo |
 | `dev.rainshare.delivery` | a helper | the pull request (a URL, or an `at://` URI on Tangled and knotless), what did the work, and an optional session link |
 | `dev.rainshare.moderation` | @rainshare.dev only | something Rainshare has hidden: an account, or one record, and why. See [Moderation](#moderation) |
 | `dev.rainshare.comment` | anyone | what they said (Markdown), a strong ref to the seed, and, for a reply, a strong ref to the comment it answers. An ask on a Tangled or knotless issue uses the issue's comments instead (`org.tangled.feed.comment`, `dev.knotless.comment`) |

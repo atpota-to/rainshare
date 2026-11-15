@@ -203,7 +203,7 @@ These are records in your own account, at your host, that anyone can read:
 - that your agent is working on an ask, with which tool and model, and when you expect to turn it in
 - the work you turn in: its link, what did the work, and a session link or note if you add one
 - your comments
-- your settings for “Direct my agent”: how an ask is handed to your agent, whether that says you’re working on it, and for how long
+- your settings for “Direct my agent”: how an ask is handed to your agent, whether that says you’re working on it, and for how long, and your GitHub username if you give it
 - whether you’ve asked for direct messages from @${HANDLE}, and which kind, and, if you switch them on, that you follow @${HANDLE} on Bluesky
 - that you agreed to Rainshare’s terms, which version, and when
 - anything you post to Tangled or knotless through Rainshare (an issue, a comment, a pull request, a vouch), which is public there too
@@ -212,7 +212,7 @@ Rainshare keeps no copy of its own. It reads these from your host each time, alo
 
 Don’t put secrets or private details in an ask or a comment. A session link is public too, so check what it shows before you add one.
 
-Asks are read by AI agents. When someone takes yours on, its text and whatever is in your repository are given to their agent, and so to the AI provider behind it, under that helper’s own agreement with the provider. When you help, your agent reads the ask and the repository the same way.
+Asks are read by AI agents. When someone takes yours on, its text and whatever is in your repository are given to their agent, and so to the AI provider behind it, under that helper’s own agreement with the provider. When you help, your agent reads the ask and the repository the same way. Opening an ask in the Claude app, or in Claude Code on the web, puts its prompt in the link to claude.ai, so Anthropic receives it when you open the link.
 
 Feedback about Rainshare is posted on userinput.app, a separate app with terms of its own. What you post there is a public record in your account too. Rainshare’s feedback page shows it, and a post we’ve marked as planned may be handed to an AI coding agent to draft the change.`],
 
@@ -230,7 +230,7 @@ There’s no Rainshare server in the middle, so your browser (or the CLI, from y
 - Bluesky’s relays and public API (which accounts have Rainshare records, profiles, follows, lists and blocks) and its picture server
 - the PLC directory, which says where an account lives
 - Constellation, run by microcosm.blue, which says which records point at an ask
-- GitHub, Tangled and knotless, for the state of issues and pull requests, and for what you post there
+- GitHub, Tangled and knotless, for the state of issues and pull requests, and for what you post there. With a GitHub username in your settings, GitHub is also asked whether that account has forked an ask’s repository, and that names the account
 - Supabase, where our note that you agreed to the terms is kept, at the moment you agree
 
 When you’re signed in, some of these lookups name your account (asking Bluesky which of the people on the board you follow, for one), so those services can tell which account is asking. Each of them has a privacy policy of its own.`],

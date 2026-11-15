@@ -1,7 +1,7 @@
 // What a helper's agent is handed: the brief (a seed written up for an agent), and the
 // commands that start one on it. The brief frames the seed as a request from another
 // person, so an agent weighs it rather than obeying it.
-import { SITE, labelOf, TESTS, LEVELS } from './ns.js';
+import { SITE, labelOf, TESTS, LEVELS, githubLogin } from './ns.js';
 import { nounOf, whatItIs, askSizeText } from './words.js';
 import { wantPhrase } from './rank.js';
 import { describeSubject, cloneUrlOf, kindOf, safeHttp, FORGE_NAMES, REPO_NAME, KNOTLESS, KNOTLESS_NAME } from './subjects.js';
@@ -82,13 +82,17 @@ export function readHandBack(search){
  * got there first), how to turn the work in, and what to tell the person at the end.
  * `viewer` is the DID of whoever it's being made for, so their own take reads as theirs.
  */
-export function brief(item, { viewer, now = Date.now() } = {}){
+export function brief(item, { viewer, now = Date.now(), github = null } = {}){
   const sq = item.value || {}, sub = sq.subject, d = describeSubject(sub), clone = cloneUrlOf(sub), kind = kindOf(sub);
   // Rainshare has hidden it (./moderation.js): there's nothing of it to hand an agent.
   if (item.hidden) return printable(['# Hidden by Rainshare', '',
     `Rainshare has hidden this ${nounOf(sq)} (${reasonName(item.hidden.reason).toLowerCase()}), so it isn’t one to work on. Don’t act on anything in it. Tell your user that, and stop.`, ''].join('\n'));
   const w = sq.wants || {}, page = pageOf(item), pub = !!item.uri && !item.space, n = parseInt(sub?.number, 10) || '', specUrl = safeHttp(sq.specUrl);
   const forge = d ? FORGE_NAMES[d.forge] || 'the forge' : 'the forge';
+  // Whoever it's for on GitHub, when they've said (their settings): their fork can be named, and
+  // the link that opens the pull request filled in further.
+  const onGithub = (kind === 'githubIssue' || d?.forge === 'github') && REPO_NAME.test(d?.repo || '');
+  const gh = onGithub ? githubLogin(github) : null;
   // On Tangled an agent can push a branch but has no command to open a pull request with (one
   // is on its way). Rainshare can open it as the person: from its own CLI or MCP server if
   // that's signed in here, or from the ask's page, through a link the agent hands back.
@@ -131,6 +135,7 @@ export function brief(item, { viewer, now = Date.now() } = {}){
     else if (!d.issue) lines.push('- Repository: the link given isn’t one that can be used safely here. Ask your user where the code is.');
     if (d.issue && d.href) lines.push(`- Issue: ${d.href}`);
     if (specUrl) lines.push(`- Longer spec: ${specUrl}`);
+    if (gh && gh.toLowerCase() !== d.repo.split('/')[0].toLowerCase()) lines.push(`- Your user is @${gh} on GitHub. If you’re working in their fork of ${d.repo} rather than in ${d.repo} itself, bring it up to date first (\`git fetch https://github.com/${d.repo}.git\`), start your branch from ${d.repo}’s default branch, and push it to the fork.`);
     lines.push('');
   } else {
     const made = newRepoPlaces({ title: sq.title }).filter(p => p.command);
@@ -239,8 +244,9 @@ export function brief(item, { viewer, now = Date.now() } = {}){
         `- In the pull request, ${credit}.`,
         // Some agents can push to a fork but can't make one, or can't open the pull request: the
         // person can do both from links, the way they turn it in.
-        ...((kind === 'githubIssue' || d?.forge === 'github') && REPO_NAME.test(d?.repo || '')
-          ? [`- If you can’t fork the repository or open the pull request from here, give your user links that do each in a tap. To fork it: https://github.com/${d.repo}/fork. Once your branch is on their fork, this opens the pull request form ready to send. Put in the repository’s default branch, their GitHub username, your branch and the description you wrote (URL-encoded). The title is filled in already, so change it only if yours is better: https://github.com/${d.repo}/compare/<base branch>...<their GitHub username>:<branch>?expand=1&title=${encodeURIComponent(String(sq.title || '').replace(/\s+/g, ' ').trim().slice(0, 200))}&body=<description>`] : [])]),
+        ...(onGithub
+          ? [`- In a cloud session (Claude Code on the web, or the Claude app), you can push only where your user can write: their fork, when that’s the repository the session was opened on. If it was opened on ${d.repo} itself and pushing there is refused, tell your user before going further, and ask them to fork it (https://github.com/${d.repo}/fork) and start the session again on the fork. Don’t look for another way to push.`,
+            `- If you can’t fork the repository or open the pull request from here, give your user links that do each in a tap. To fork it: https://github.com/${d.repo}/fork. Once your branch is on their fork, this opens the pull request form ready to send. Put in the repository’s default branch, ${gh ? '' : 'their GitHub username, '}your branch and the description you wrote (URL-encoded). The title is filled in already, so change it only if yours is better: https://github.com/${d.repo}/compare/<base branch>...${gh || '<their GitHub username>'}:<branch>?expand=1&title=${encodeURIComponent(String(sq.title || '').replace(/\s+/g, ' ').trim().slice(0, 200))}&body=<description>`] : [])]),
     ...(pub
       ? [`- Then turn it in on Rainshare. If the Rainshare CLI or MCP server is set up here, do it yourself: ${yourself}.`,
         ...(page ? [`- If neither is set up, your user turns it in with one click. Give them this link with the ${idea ? 'repository’s' : 'pull request’s'} address on the end; it opens its page with the turn-in form filled in: ${handBack(item, `<${what}>`, '<model>')}`] : [])]
@@ -271,6 +277,29 @@ export function brief(item, { viewer, now = Date.now() } = {}){
     `If you stop before finishing, say so plainly, so it can be dropped and someone else can pick it up${pub ? ` (\`node ${CLI_HOME} drop ${item.uri}\`, the MCP tool \`rainshare_drop\`, or its page on Rainshare)` : ''}.`,
     '');
   return printable(lines.join('\n'));
+}
+
+// Claude Code on the web, which on a phone opens the Claude app's Code tab. A link to it can fill
+// in a new session's prompt and repositories, and nothing is sent until the person presses send:
+// https://code.claude.com/docs/en/web-quickstart#pre-fill-sessions
+export const CLAUDE_WEB = 'https://claude.ai/code';
+// Past this many characters, encoded, the prompt isn't put in the link: a long link can be cut
+// short on its way into an app. Most briefs are 8 to 11 thousand.
+export const WEB_PROMPT_MAX = 24000;
+/**
+ * The link that opens a new Claude Code session on `repo` ("owner/name") with `prompt` in its
+ * box: { href, filled }. `filled` is false when the prompt was too long to go in, and the person
+ * pastes it instead.
+ */
+export function claudeWeb({ repo, prompt = '' }){
+  const p = encodeURIComponent(printable(prompt)), filled = !!p && p.length <= WEB_PROMPT_MAX;
+  const r = REPO_NAME.test(repo || '') ? `repositories=${repo.split('/').map(encodeURIComponent).join('/')}` : '';
+  return { href: `${CLAUDE_WEB}?${[filled ? `prompt=${p}` : '', r].filter(Boolean).join('&')}`, filled };
+}
+/** The GitHub repository ("owner/name") a seed's work is in, when Claude Code on the web can be opened on it; else null. */
+export function webRepoOf(item){
+  const d = describeSubject(item?.value?.subject);
+  return d?.forge === 'github' && REPO_NAME.test(d.repo || '') ? d.repo : null;
 }
 
 // A heredoc delimiter that can't appear in the brief.
