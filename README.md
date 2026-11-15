@@ -283,11 +283,12 @@ runs on a droplet and deploys itself when `main` changes. See
   `core/moderation.js`.
 - **Release notes** go at the top of `core/releases.js`, which says how to write one. They show in
   the bell for 30 days and on [What's new](https://rainshare.dev/releases) for good.
-- **Feedback** is a board on [userinput.app](https://userinput.app), shown at `/feedback`
-  (`core/feedback.js`). A Claude Code routine on the maintainers' own plan turns posts a maintainer
-  has marked planned into draft pull requests, and a person reviews each one
-  (`.claude/skills/feedback/SKILL.md`). `node scripts/feedback.mjs` reads the board and sets
-  statuses.
+- **Feedback** is
+  [Rainshare's board on userinput.app](https://userinput.app/s/did:plc:cmkittusvczhnei4gjt3asiv/3n2eeq4jt3s2w),
+  shown at `/feedback` and pinned by its record key (`SPACE_KEY` in `core/feedback.js`). A Claude
+  Code routine on the maintainers' own plan turns posts a maintainer has marked planned into
+  draft pull requests, and a person reviews each one (`.claude/skills/feedback/SKILL.md`).
+  `node scripts/feedback.mjs` reads the board and sets statuses.
 - **Terms and privacy** are written once, in `core/legal.js`, and shown at `/terms` and `/privacy`.
   Rainshare is operated by atpotato, LLC. People agree before their first job or first ask, and
   that's kept in their own settings record and in a ledger at Supabase (`core/agreement.js`,
@@ -298,7 +299,7 @@ runs on a droplet and deploys itself when `main` changes. See
 ## Not tried for real yet
 
 - The announcer on the droplet: nothing has been posted or sent from @rainshare.dev yet.
-- Moderating, and the feedback board and its routine: neither has been used for real.
+- Moderating as @rainshare.dev, and the feedback routine end to end in a scheduled session.
 - Posting an issue, comment or pull request to Tangled or knotless as a real user.
 - `rainshare.mjs run` end to end with a real agent.
 - Making an account all the way through, and following @rainshare.dev when messages are switched

@@ -27,10 +27,11 @@ export const NS = 'app.userinput';
 export const SPACE = NS + '.space', DISCUSSION = NS + '.discussion', STATUS = NS + '.status', EDIT = NS + '.edit',
   MEMBER = NS + '.member', HIDE = NS + '.hide', BAN = NS + '.ban', UPVOTE = NS + '.upvote', REPLY = NS + '.reply';
 export const USERINPUT = 'https://userinput.app';
-// Whose board it is: @rainshare.dev, by its DID. Its board's record key goes in SPACE_KEY once
-// it's made; until then, the first board that account made is the one.
+// Whose board it is: @rainshare.dev, by its DID, and the board's record key, so another board
+// that account makes later doesn't take its place. With SPACE_KEY null, the first board that
+// account made is the one. The board: https://userinput.app/s/did:plc:cmkittusvczhnei4gjt3asiv/3n2eeq4jt3s2w
 export const OWNER = MODERATOR;
-export const SPACE_KEY = null;
+export const SPACE_KEY = '3n2eeq4jt3s2w';
 
 // Every state a status can name, in the order a post goes through them, and what people read.
 // [value, word]
