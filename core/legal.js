@@ -58,7 +58,7 @@ export const SAFETY = [
 
 // And before posting a first ask. [the point, why]
 export const ASKING = [
-  ['Say plainly what you want.', 'No tricks aimed at agents, in the ask or in what it points to: nothing hidden, and nothing that reaches for a helper’s keys or files. We can hide an ask that breaks this.'],
+  ['Say plainly what you want.', 'No tricks aimed at agents, in the ask or in what it points to: nothing hidden, and nothing that reaches for a helper’s keys or files. No paid work such as bug bounties, and nothing else the community guidelines rule out. A person reads each new ask before @rainshare.dev shares it, and we can hide one that breaks this.'],
   ['Keep secrets out of it.', 'An ask is a public record in your account, and everything else you post here is public as well. Helpers’ agents read your repo too.'],
   ['Read what comes back.', 'A stranger sent it, and an AI probably wrote it. Check what your project runs on pull requests, and look the work over before you merge it or run it.']
 ];
@@ -415,7 +415,68 @@ We aim to answer privacy questions within 30 days. You can also reach us as [@${
   ]
 };
 
-export const LEGAL = { terms: TERMS, privacy: PRIVACY };
+// What kinds of asks fit Rainshare, and how new ones are reviewed before @rainshare.dev passes
+// them on (../announcer/src/review.js). Shown at /guidelines, in the same shape as the terms. It
+// isn't something people agree to on its own: the Terms of Service already say an ask can be
+// hidden, and these say which ones and how. Changing them doesn't ask anyone to agree again.
+export const GUIDELINES = {
+  key: 'guidelines', title: 'Community guidelines', updated: '15 November 2026',
+  lead: `Rainshare works because people spend their own AI plans on someone else’s idea. These guidelines say what kind of ask fits that, what @${HANDLE} won’t pass on, and how new asks are reviewed. The Terms of Service still apply in full.`,
+  short: [
+    'Ask for help with something you’ll build, share or maintain.',
+    'Don’t turn other people’s plans into your income: no bug bounties, paid client work, or prize contests.',
+    'Don’t ask helpers to hunt for security holes in software that isn’t yours.',
+    'Nothing an AI provider’s usage policy rules out, and no tricks aimed at helpers’ agents.',
+    `A person reads every new ask before @${HANDLE} posts it or sends it to anyone.`
+  ],
+  sections: [
+    ['What fits', `
+- Work on your own project, or one you maintain.
+- Work on an open-source project that takes contributions, done the way it asks for them: through its issue tracker, following its contributing guide.
+- An idea you’d like to exist, where you say who keeps what gets built.
+- Fixing a security problem in your own project, or one an open-source project has already reported and asked for help with.
+
+Running out of your own plan for the month is a fine reason to ask. That’s what Rainshare is for.
+
+Say what done looks like, and keep it to something one agent session, or a few, can finish.`],
+
+    ['What doesn’t fit', `
+**Paid work passed on.** Bug bounties, freelance or client work, contests and hackathons with prizes, or anything else where you’re paid for the result and the people whose plans did the work aren’t. The terms already say nobody pays or gets paid through Rainshare. This is the same rule from the other side.
+
+**Security research on someone else’s software.** Hunting for vulnerabilities, writing exploits or proofs of concept, or scanning systems you don’t own or maintain. That includes work described as white hat, or in scope for a bounty program. A vulnerability is sensitive until it’s fixed, and a public board is the wrong place to pass one around. AI providers’ usage policies also set conditions on vulnerability research and exploit writing that ordinary coding doesn’t have, and it’s the helper’s account that answers for meeting them.
+
+**What AI plans rule out.** Malware, phishing, spam tools, collecting people’s personal data, harassment, and anything else a helper’s provider forbids. Whoever helps answers to their provider for what their agent does.
+
+**Getting around other services’ rules.** Evading a ban, solving CAPTCHAs, cheats for online games, making accounts in bulk, or scraping a site whose terms forbid it.
+
+**Work you’re meant to do yourself.** Graded coursework, exams, and tasks from a job application.
+
+**Tricks aimed at agents.** Text hidden from people, telling an agent to set its rules aside or keep things from its user, reaching for a helper’s keys or files, or having an agent run code nobody has read. Rainshare’s checks look for these on every ask.
+
+**Spam and abuse.** Advertising, the same ask posted over and over, scams, harassment, hate or threats.`],
+
+    ['How new asks are reviewed', `
+A person reads every new ask before @${HANDLE} posts it on Bluesky or puts it in anyone’s direct messages. Until then the ask is on the board like any other. If it’s edited, it’s read again, as it is now.
+
+An ask can then be:
+
+- passed on: posted by @${HANDLE}, and sent to people who asked for new asks by message
+- left on the board without being passed on, when it isn’t harmful but isn’t something Rainshare wants to spread
+- hidden, which takes it off the board, its own page, the CLI and the MCP server, and link previews. Each hide is a public record in @${HANDLE}’s own repository, with its reason. If @${HANDLE} had already posted about the ask, that post comes down.
+
+Everything from an account can be hidden too, for repeated or serious breaches. Rainshare can’t delete or change your records: they stay in your own account.
+
+If something of yours was hidden and you think that was a mistake, write to [@${HANDLE}](${BLUESKY}) on Bluesky, or to ${EMAIL}.`],
+
+    ['When something gets through', `
+Review is one person reading, and Rainshare’s checks are rough. Read every ask yourself before you direct your agent at it, and keep your agent’s permission prompts on. If you see an ask that breaks these guidelines, tell [@${HANDLE}](${BLUESKY}) or use the [feedback page](${SITE}/feedback).`],
+
+    ['Changes', `
+These guidelines will change as we learn what people ask for. The date at the top says when they last changed.`]
+  ]
+};
+
+export const LEGAL = { terms: TERMS, privacy: PRIVACY, guidelines: GUIDELINES };
 
 /** A document as one piece of Markdown, for anywhere that isn't the site. */
 export const asMarkdown = doc => [`# ${doc.title}`, `Last changed ${doc.updated}.`, doc.lead, '## In short', doc.short.map(s => '- ' + s).join('\n'), 'The full text below is what counts.',

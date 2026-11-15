@@ -20,7 +20,7 @@ const { agreement, hasAgreed, rememberAgreement, forgetAgreement, agreeHtml } = 
 
 test('both documents are whole: a date, a lead, a summary, and sections that say something', () => {
   assert.match(LEGAL_VERSION, /^\d{4}-\d{2}-\d{2}$/);
-  assert.deepEqual(Object.keys(LEGAL), ['terms', 'privacy']);
+  assert.deepEqual(Object.keys(LEGAL), ['terms', 'privacy', 'guidelines']);
   for (const doc of [TERMS, PRIVACY]) {
     assert.ok(doc.title && doc.lead.length > 100 && doc.short.length >= 3, doc.key);
     assert.match(doc.updated, /^\d{1,2} [A-Z][a-z]+ \d{4}$/);
@@ -191,3 +191,21 @@ test('the two pages have addresses, and the words people reach for lead to them'
   assert.ok(known('terms') && known('privacy'));
   assert.deepEqual(['tos', 'Terms.', 'legal', 'terms-of-service', 'privacy-policy', 'Privacy'].map(reroute), ['terms', 'terms', 'terms', 'terms', 'privacy', 'privacy']);
 });
+
+test('the community guidelines: whole, linked where an ask is written, and plain', () => {
+  const g = LEGAL.guidelines;
+  assert.equal(g.key, 'guidelines');
+  assert.ok(g.title && g.lead.length > 100 && g.short.length >= 3);
+  assert.match(g.updated, /^\d{1,2} [A-Z][a-z]+ \d{4}$/);
+  for (const [h, md] of g.sections) {
+    const html = renderMarkdown(md.trim());
+    assert.ok(h && html.length > 40, h);
+    assert.doesNotMatch(html, /<br>/, h);
+    for (const [, href] of html.matchAll(/href="([^"]+)"/g)) assert.match(href, /^https:\/\//, href);
+  }
+  const all = [g.lead, ...g.short, ...g.sections.flat()].join('\n');
+  assert.doesNotMatch(all, /\u2014/, 'no em dashes');
+  assert.match(all, /bug bounties/i);
+  assert.match(all, /security holes in software that isn’t yours/);
+});
+

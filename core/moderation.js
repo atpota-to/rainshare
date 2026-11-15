@@ -24,6 +24,7 @@ export const REASONS = [
   ['harmful', 'Asks for harm', 'It asks for something AI plans’ usage policies rule out, like malware, phishing or attacks on others.'],
   ['spam', 'Spam or a scam', 'Advertising, scams, or the same thing posted over and over.'],
   ['abuse', 'Abuse', 'Harassment, hate or threats.'],
+  ['guidelines', 'Against the guidelines', 'It asks for something the community guidelines rule out, like paid work passed on to helpers or hunting for security holes in someone else’s software.'],
   ['other', 'Something else', 'Said in the note.']
 ];
 const reasonOf = r => REASONS.some(x => x[0] === r) ? r : 'other';

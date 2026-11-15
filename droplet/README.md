@@ -1,17 +1,23 @@
 # The droplet
 
-The announcer ([`announcer/`](../announcer): @rainshare.dev's posts and messages) runs on the
-DigitalOcean droplet that runs Poe's services from
+Rainshare's two services run on the DigitalOcean droplet that runs Poe's services from
 [atpota-to/atpota.to](https://github.com/atpota-to/atpota.to) (`hook.atpota.to`). It's deployed
-the way they are, and kept apart from them: its own folders, unit, deploy key and lock. Nothing
+the way they are, and kept apart from them: their own folders, units, deploy key and lock. Nothing
 here touches theirs.
+
+- **The announcer** ([`announcer/`](../announcer)): @rainshare.dev's posts and messages, and the
+  approver's review before either. Holds the @rainshare.dev app password.
+- **The index** ([`indexer/`](../indexer)): every `dev.rainshare.*` record, from Jetstream to
+  Supabase, with the review queue beside them. Holds only the Supabase service key.
+
+One release serves both, and a deploy deploys whichever of them is set up.
 
 | What | Where |
 |---|---|
 | Code, from git | `/root/rainshare-live/`: `repo.git` (a bare clone of atpota-to/rainshare), `releases/<sha>/`, `current` → the running release, `deploy.sh` and `ci-deploy.sh` → the tip of main's, `logs/deploys.log` |
-| Data, never in git | `/root/rainshare-announcer/`: `.env`, `KILL` |
-| The unit | `rainshare-announcer` (`/etc/systemd/system/rainshare-announcer.service`, from `announcer/`) |
-| Health | `http://127.0.0.1:8792/health`, localhost only. Poe's services use 8787, 8790 and 8791. No nginx route. |
+| Data, never in git | `/root/rainshare-announcer/`: `.env`, `KILL`. `/root/rainshare-index/`: `.env`, `state.json` |
+| The units | `rainshare-announcer` (from `announcer/`) and `rainshare-index` (from `indexer/`), in `/etc/systemd/system/` |
+| Health | `http://127.0.0.1:8792/health` (announcer) and `http://127.0.0.1:8793/healthz` (index), localhost only. Poe's services use 8787, 8790 and 8791. No nginx route. |
 
 ## Deploying
 
@@ -64,6 +70,34 @@ journalctl -u rainshare-announcer -f      # watch a few dry runs say what they'd
 
 When the dry runs look right, set `MODE=live` in the `.env` and
 `systemctl restart rainshare-announcer`.
+
+### The index, and the review queue
+
+The announcer passes nothing new on without the review queue, which lives in the index. Set the
+index up before (or with) the change that brings it:
+
+```bash
+# 1. The schema: supabase/migrations/20261115210000_rainshare_index.sql, then
+#    20261115230000_rainshare_review_post_or_send.sql (the approver's POST and SEND), applied to
+#    the Supabase project "atpota.to" (zdzjtziydmwkxbzlkwxv), before the code that uses them.
+
+# 2. The index's data folder, with the same Supabase values as the garden's index.
+mkdir -p /root/rainshare-index && chmod 700 /root/rainshare-index
+grep -E '^SUPABASE_(URL|SERVICE_ROLE_KEY)=' /root/atpotato-garden/.env > /root/rainshare-index/.env
+chmod 600 /root/rainshare-index/.env
+
+# 3. The same two lines in the announcer's .env, so it can read the queue and write answers.
+grep -E '^SUPABASE_(URL|SERVICE_ROLE_KEY)=' /root/atpotato-garden/.env >> /root/rainshare-announcer/.env
+
+# 4. Deploy: the first one installs and enables rainshare-index, and its first reconcile fills
+#    the index within a minute or so.
+FORCE=1 /root/rainshare-live/deploy.sh
+journalctl -u rainshare-index -f -o cat
+```
+
+The approver (dame.is, or `RAINSHARE_APPROVER` in the announcer's `.env`) has to let
+@rainshare.dev message them on Bluesky. If it can't, every run says so in the journal, and nothing
+new goes out.
 
 ### The deploy key
 

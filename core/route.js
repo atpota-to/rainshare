@@ -4,15 +4,16 @@
 //
 // A sub-path is the part after the app's base: '' (home: the board, or on rainshare.dev the
 // landing for someone signed out), 'board' (the board on its own), 'new', 'me', 'settings',
-// 'agents', 'feedback', 'feedback/<did>/<rkey>', 'releases', 'profile/<who>', 'seed/<who>/<rkey>', 'seed/s/<code>' (see ../ui/rainshare.js). A profile's
+// 'agents', 'feedback', 'feedback/<did>/<rkey>', 'releases', 'guidelines', 'profile/<who>', 'seed/<who>/<rkey>', 'seed/s/<code>' (see ../ui/rainshare.js). A profile's
 // address is by DID; a handle works in its place, and the old 'u/<who>' leads there too.
 import { isHandle, isRkey } from './net.js';
 
 // ('admin' is @rainshare.dev's moderation page: to anyone else, it's as if nothing were there.)
-// ('terms' and 'privacy' are the Terms of Service and the Privacy Policy: ./legal.js.)
+// ('terms' and 'privacy' are the Terms of Service and the Privacy Policy, and 'guidelines' the
+// community guidelines: ./legal.js.)
 // ('settings' is how "Send my agent" works for you, and the messages you'd like from @rainshare.dev.)
 // ('releases' is what's new on Rainshare, its release notes: ./releases.js.)
-const PAGES = ['board', 'new', 'me', 'settings', 'agents', 'feedback', 'admin', 'terms', 'privacy', 'releases'];
+const PAGES = ['board', 'new', 'me', 'settings', 'agents', 'feedback', 'admin', 'terms', 'privacy', 'guidelines', 'releases'];
 // Other words people reach for.
 const ALIAS = {
   ask: 'new', post: 'new', plant: 'new', create: 'new', add: 'new',
@@ -22,6 +23,7 @@ const ALIAS = {
   circle: 'board', feed: 'board', all: 'board', browse: 'board', explore: 'board',
   moderation: 'admin', moderate: 'admin', mod: 'admin',
   tos: 'terms', legal: 'terms', 'terms-of-service': 'terms', 'terms-of-use': 'terms', 'privacy-policy': 'privacy',
+  rules: 'guidelines', community: 'guidelines', 'community-guidelines': 'guidelines', guideline: 'guidelines', conduct: 'guidelines', 'code-of-conduct': 'guidelines', 'acceptable-use': 'guidelines',
   news: 'releases', 'whats-new': 'releases', whatsnew: 'releases', changelog: 'releases', changes: 'releases', release: 'releases', 'release-notes': 'releases', updates: 'releases',
   bug: 'feedback', bugs: 'feedback', report: 'feedback', roadmap: 'feedback', suggestions: 'feedback', requests: 'feedback', support: 'feedback', contact: 'feedback',
   home: '', index: '', 'index.html': ''

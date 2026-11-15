@@ -21,7 +21,8 @@
 // the next. A first message catches up on the day before.
 //
 // Nothing the account has hidden (../core/moderation.js) is in anyone's news, and it doesn't
-// message an account it has hidden.
+// message an account it has hidden. A new ask is only in the day's news once the approver has
+// said YES or SEND to it (./review.js), and it's the day's news for the day they did.
 //
 // Stopping, three ways, and any one does it:
 //   - switch them off in their settings (/settings)
@@ -32,7 +33,7 @@ import { SEED, TAKE, DELIVERY, PREFERENCES, SITE } from '../../core/ns.js';
 import * as net from '../../core/net.js';
 import { aNoun } from '../../core/words.js';
 import { updatesFor } from '../../core/news.js';
-import { ACCOUNT, passable, free, isHidden, reader, session, blocked, whoAre, graphemes, bytes } from './posts.js';
+import { ACCOUNT, passable, free, isHidden, reader, session, blocked, whoAre, graphemes, bytes, cleared, clearedAt } from './posts.js';
 import { clean } from '../../api/_og/describe.js';
 
 const MINUTE = 60e3, HOUR = 60 * MINUTE, DAY = 24 * HOUR;
@@ -50,7 +51,7 @@ export const wants = profile => ({ updates: profile?.notify?.updates === true, n
 
 /* ---------- writing a message ---------- */
 // Text in pieces, some of them links or mentions, put together with the byte offsets Bluesky's facets need.
-function rich(){
+export function rich(){
   const parts = [];
   const self = {
     add(text, feature){ parts.push({ text: String(text), feature }); return self; },
@@ -73,14 +74,14 @@ const fits = s => graphemes(s).length <= MAX_GRAPHEMES && bytes(s) <= MAX_BYTES;
 const title = sq => clean(sq?.value?.title, 80);
 const pageOf = (sq, who) => `${SITE}/seed/${who.get(sq.repo)?.handle || sq.repo}/${sq.rkey}`;
 // Someone, as a message names them: "Juniper (@juniper.example)", with the handle a mention.
-function person(r, p){
+export function person(r, p){
   const at = p?.handle ? '@' + p.handle : '', name = p?.name && p.name !== at ? p.name : '';
   if (!at) return r.add(name || 'Someone');
   if (name) r.add(name + ' (');
   r.add(at, { $type: 'app.bsky.richtext.facet#mention', did: p.did });
   return name ? r.add(')') : r;
 }
-const shortLink = u => u.replace(/^https?:\/\//, '').replace(/\/$/, '');
+export const shortLink = u => u.replace(/^https?:\/\//, '').replace(/\/$/, '');
 // The last line of every message the run sends, and how it knows them again: a link to the
 // settings page. One with the day's new asks also links to the board, in its heading. (Messages
 // from before settings had a page of their own linked to the profile page, /me, and count too:
@@ -139,23 +140,24 @@ export function compose({ updates = [], fresh = [] }, who){
 export const stopped = () => footer(rich().add('Okay, no more messages from Rainshare.'), true).build();
 
 /* ---------- whose news is what ---------- */
-const within = (t, from, to) => { const x = Date.parse(t); return x >= from && x < to; };
+const inside = (x, from, to) => x >= from && x < to;
 /**
  * Someone's news from `from` up to `to`: { updates, fresh }, each oldest first. `theirBlocks` is
  * who they block, whose doings aren't news to them; `ourBlocks` is who the account blocks,
  * whose asks it doesn't pass on; `hidden` is what it has hidden (decisions from
  * ../core/moderation.js), which is nobody's news. A new ask is only news while nobody's on it
- * (`free`, ./posts.js), as of `now`.
+ * (`free`, ./posts.js), as of `now`, and once the approver has said YES or SEND to it (`reviews`, from
+ * the review queue: without it, no new ask is news), from when they did.
  */
-export function newsFor(r, { seeds, takes, deliveries, from, to, theirBlocks = new Set(), ourBlocks = new Set(), hidden = new Map(), now = Date.now() }){
+export function newsFor(r, { seeds, takes, deliveries, from, to, theirBlocks = new Set(), ourBlocks = new Set(), hidden = new Map(), reviews = null, now = Date.now() }){
   const shown = list => list.filter(x => !isHidden(hidden, x));
   [seeds, takes, deliveries] = [shown(seeds), shown(takes), shown(deliveries)];
   // (What's news about their own asks and their work is ../../core/news.js, so the bell in the
   // site's bar says the same things.)
   const updates = r.updates ? updatesFor(r.did, { seeds, takes, deliveries, from, to, theirBlocks }) : [], at = x => Date.parse(x.value?.createdAt);
   const blocks = new Set([...theirBlocks, ...ourBlocks]);
-  const fresh = !r.newAsks ? [] : seeds.filter(s => s.repo !== r.did && !blocks.has(s.repo) && passable(s.value) && within(s.value.createdAt, from, to) && free(s, { takes, deliveries, blocks, now }))
-    .map(s => ({ kind: 'new', seed: s, by: s.repo, at: at(s) }));
+  const fresh = !r.newAsks ? [] : seeds.filter(s => s.repo !== r.did && !blocks.has(s.repo) && passable(s.value) && cleared(s, reviews, 'send') && inside(clearedAt(s, reviews), from, to) && free(s, { takes, deliveries, blocks, now }))
+    .map(s => ({ kind: 'new', seed: s, by: s.repo, at: clearedAt(s, reviews) }));
   const order = (a, b) => a.at - b.at;
   return { updates: updates.sort(order), fresh: fresh.sort(order) };
 }
@@ -214,9 +216,9 @@ export async function message({ post = true, password = process.env.RAINSHARE_BL
   if (boundary(now + GUARD) !== boundary(now)) { out.note = 'Too near the next minute to send messages: the next run will.'; log(out.note); return out; }
   const to = boundary(now), today = boundary(now, true);
   // All of these are needed to know what's news and what's free: if any can't be read, nothing is sent this run.
-  const [seeds, takes, deliveries, hidden] = await Promise.all([read(SEED), read(TAKE), read(DELIVERY), read.hidden()]);
+  const [seeds, takes, deliveries, hidden, reviews] = await Promise.all([read(SEED), read(TAKE), read(DELIVERY), read.hidden(), read.reviews ? read.reviews() : null]);
   // Who the account won't deal with: those it blocks or who block it, among the people asking and anyone whose new ask it could pass on.
-  const askers = seeds.filter(s => passable(s.value) && within(s.value.createdAt, today - LOOKBACK, today)).map(s => s.repo);
+  const askers = seeds.filter(s => passable(s.value) && cleared(s, reviews, 'send') && inside(clearedAt(s, reviews), today - LOOKBACK, today)).map(s => s.repo);
   const ourBlocks = await blocked([...new Set([...people.map(p => p.did), ...askers])]);
   const skip = (p, why) => { out.skipped.push({ to: p.did, why }); log(`Not messaging ${p.did}: ${why}`); };
   if (password) await as.signIn();
@@ -253,7 +255,7 @@ export async function message({ post = true, password = process.env.RAINSHARE_BL
   const theirBlocks = new Map(await Promise.all(ready.filter(x => !x.stop).map(async x => [x.p.did, await net.blocksOf(x.p.did)])));
   for (const x of ready) {
     if (x.stop) continue;
-    const common = { seeds, takes, deliveries, theirBlocks: theirBlocks.get(x.p.did), ourBlocks, hidden, now };
+    const common = { seeds, takes, deliveries, theirBlocks: theirBlocks.get(x.p.did), ourBlocks, hidden, reviews, now };
     x.news = {
       updates: newsFor({ ...x.p, newAsks: false }, { ...common, from: x.from, to }).updates,
       fresh: x.daily ? newsFor({ ...x.p, updates: false }, { ...common, ...x.daily }).fresh : []

@@ -632,6 +632,7 @@ Commands and records may still change.
 ${FEATURES.forecast ? '  forecast <dry|drizzle|showers|downpour> [--until date] [--models a,b] [--note n]\n' : ''}  doctor                     what's set up here, and so which of these will work
   agree                      agree to Rainshare's terms, once, before your first job or ask (in a terminal)
   terms | privacy            Rainshare's Terms of Service and Privacy Policy
+  guidelines                 what kinds of asks fit Rainshare, and how new ones are reviewed
   mcp                        run as an MCP server over stdio (claude mcp add rainshare -- ${SELF} mcp)
 
 <link> is its at:// URI, its rainshare.dev link, or <handle>/<rkey>.`;
@@ -668,7 +669,7 @@ async function main(){
       return;
     }
     case 'logout': await rm(SESSION_FILE, { force: true }); return out('Signed out.');
-    case 'terms': case 'privacy': return out(asMarkdown(LEGAL[cmd]));
+    case 'terms': case 'privacy': case 'guidelines': return out(asMarkdown(LEGAL[cmd]));
     case 'whoami': { const s = await loadSession(); return out(s ? `@${s.handle} (${s.did}) on ${s.pds}` : 'Not signed in.'); }
     case 'board': {
       const r = await boardItems({ tab: opts.everyone ? 'everyone' : opts.yours ? 'yours' : 'foryou', tag: opts.tag, from: typeof opts.from === 'string' ? opts.from : 'anyone', limit: +opts.limit || 20 });

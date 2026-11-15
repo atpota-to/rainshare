@@ -8,6 +8,6 @@
   },
   "scripts": {
     "start": "node src/index.js",
-    "test": "cd .. && node --test test/announce.test.mjs test/messages.test.mjs test/announcer.test.mjs"
+    "test": "cd .. && node --test test/announce.test.mjs test/messages.test.mjs test/review.test.mjs test/announcer.test.mjs"
   }
 }

@@ -145,6 +145,22 @@ const RULES = [
   { id: 'machine', level: 'look',
     said: 'It has commands that reach past the repository into the machine itself (sudo, crontab, shell profiles, system files).',
     test: [/\bsudo\s+(?!apt(-get)?\s+install|dnf\s+install|yum\s+install|pacman\s+-S|zypper\s+install|apk\s+add)\S/, /\bcrontab\s+-|\blaunchctl\s+(load|bootstrap)\b|\bsystemctl\s+(enable|start)\b/i, /(~|\$HOME)[\\/]\.(bashrc|zshrc|profile|bash_profile|zprofile|zshenv)\b/, /\/etc\/(hosts|passwd|profile|crontab|rc\.local)\b/, /\breg(\.exe)?\s+add\s+HK/i] },
+  // Two things the community guidelines rule out (../core/legal.js GUIDELINES) that the checks can
+  // sometimes spot: paid work passed on to helpers, and hunting for security holes. Both are only
+  // worth a look, since an ask about payouts or vulnerabilities in your own project is fine.
+  { id: 'paid', level: 'look',
+    said: 'It mentions bug bounties, payouts or client work. The community guidelines rule out asks where whoever asked is paid for what helpers’ agents do.',
+    test: [
+      /\bbug[- ]?bount(y|ies)\b|\bbounty (program|programme|payout|hunt\w*|reward)s?\b|\b(hackerone|bugcrowd|intigriti|immunefi|yeswehack)\b/i,
+      /\bpay(out|s out)s?\b[^.\n]{0,40}(\$|€|£|\b\d+(\.\d+)?\s?k\b|\b(usd|eur|gbp|dollars)\b)/i,
+      /\b(for|from) (a|my|our) (paying )?client\b|\b(upwork|fiverr|freelancer\.com)\b/i
+    ] },
+  { id: 'vuln-hunting', level: 'look',
+    said: 'It asks for security holes to be found, or exploits written. The community guidelines rule that out for software whoever asked doesn’t maintain: check whose it is.',
+    test: [
+      new RegExp(String.raw`\b(find|finding|hunt|hunting|look(ing)?|search(ing)?|discover|uncover)\s+(for\s+)?(new\s+)?(sec(urity)?[- ]?(high|crit(ical)?|moderate)?\s+)?(or higher\s+)?(vulnerabilit(y|ies)|vulns?|0[- ]?days?|zero[- ]days?|security (bugs|holes|flaws|issues)|bugs? (in|for) (the )?(sandbox|browser|kernel))\b${NOT_HARM}`, 'i'),
+      /\bsec[- ]?(high|crit(ical)?)\b|\bUXSS\b|\bsandbox escapes?\b|\b(write|writing|build|develop)\w*\s+(an?\s+)?(working\s+)?(PoC\s+|proof[- ]of[- ]concept\s+)?exploits?\b|\b(PoC|proof[- ]of[- ]concept) for (a|the|this) (vuln\w*|CVE|security (bug|hole|issue))/i
+    ] },
   { id: 'harmful', level: 'look',
     said: 'It mentions something AI plans’ usage policies usually rule out (malware, phishing, attacks on others). Read it before your agent does: what it asks for is on your plan.',
     test: [new RegExp(String.raw`\b(keyloggers?|ransomware|cryptojack\w*|info[- ]?stealers?|credential (stealer|harvester)s?|password stealers?|botnets?|rootkits?|spyware|stalkerware|phishing (pages?|sites?|kits?|emails?|campaigns?)|(ddos|dos) (tools?|scripts?|bots?)|sms bomb\w*|(evade|bypass|disable) (antivirus|anti-virus|edr|windows defender|defender)|captcha (solver|bypass)|account (checker|cracker)s?|aimbots?|wallhacks?)\b${NOT_HARM}`, 'i')] }

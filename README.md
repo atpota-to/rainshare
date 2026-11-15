@@ -148,6 +148,15 @@ trusted.
 - **Blocks and moderation count.** Takes, turn-ins and comments from people you've blocked on
   Bluesky are hidden. @rainshare.dev can hide an ask, a record or an account, and the brief for a
   hidden ask says only that.
+- **The community guidelines say what fits.** [`/guidelines`](https://rainshare.dev/guidelines)
+  (written in `core/legal.js` beside the terms, and `rainshare guidelines` in the CLI): work on
+  something you'll build, share or maintain; no paid work passed on to helpers, such as bug
+  bounties or client work; no hunting for security holes in software that isn't yours. Two of the
+  checks look for the last two (`paid` and `vuln-hunting` in `core/scan.js`), and "Against the
+  guidelines" is one of the reasons a hide can give.
+- **A person reads each new ask before @rainshare.dev shares it.** The ask is on the board straight
+  away, but it isn't posted or put in anyone's messages until the approver says so (see
+  [Running Rainshare](#running-rainshare)). An edit asks again.
 
 A repo you clone can carry its own agent config (`CLAUDE.md`, hooks, `.mcp.json`), so look before
 you trust a folder you haven't seen.
@@ -190,7 +199,7 @@ goes on without it. `missingFrom` in `src/scope.js` says what a granted scope is
 then offers **Sign in again** once a visit, and keeps it in the menu under your face until you do.
 Changing what sign-in asks for is enough for everyone to be asked again.
 
-### No index server
+### No index server for the site
 
 The board is read straight from the network, in your browser (`core/source.js`, `core/net.js`). A
 relay lists the accounts that hold `dev.rainshare.*` records, their records come from each
@@ -198,6 +207,11 @@ account's own PDS, and names, avatars and follows come from Bluesky's AppView. A
 [Constellation](https://constellation.microcosm.blue) to find the takes, deliveries and comments
 that point at it. That's a request per person taking part: fine at dozens of people, and the part
 to replace with an index at thousands.
+
+That index exists for @rainshare.dev already: [`indexer/`](indexer) keeps every `dev.rainshare.*`
+record in Supabase, from Jetstream, reconciled against every repo every six hours. The announcer
+reads the board from it while its heartbeat is fresh, and the review queue lives beside the
+records. The site doesn't use it yet. [`indexer/README.md`](indexer/README.md) has the rest.
 
 `core/status.js` combines Rainshare's records with what the forge says (is the issue closed, was
 a pull request merged) to work out where an ask stands. Nothing closes automatically: whether a
@@ -229,9 +243,9 @@ you press a button that says so. The scopes are `FORGE_SCOPES` in `core/ns.js`.
 | `core/` | everything the site and the CLI share. Each file starts with a comment saying what it does |
 | `cli/rainshare.mjs` | the CLI and MCP server |
 | `api/` | Vercel functions: the OAuth client metadata, and link previews |
-| `announcer/`, `droplet/` | @rainshare.dev's posts and messages, and how they're deployed |
+| `announcer/`, `indexer/`, `droplet/` | @rainshare.dev's review, posts and messages, the index of every record, and how they're deployed |
 | `lexicons/` | the record schemas and permission set, and the scripts that publish and check them |
-| `supabase/` | the ledger of who agreed to the terms |
+| `supabase/` | the ledger of who agreed to the terms, the index and the review queue |
 | `scripts/` | the image scripts, `feedback.mjs` and `announce.mjs` |
 | `test/` | `npm test` |
 
@@ -280,8 +294,9 @@ use a new NSID instead. If nobody has written records under the published schema
 
 `@vercel/og` is pinned to 0.11.1, because 1.0.3 doesn't load as an ES module in Node.
 
-The announcer, which posts new asks from @rainshare.dev and sends the messages people ask for,
-runs on a droplet and deploys itself when `main` changes. See
+The announcer, which asks the approver about new asks, posts the ones they say yes to from
+@rainshare.dev and sends the messages people ask for, runs on a droplet beside the index, and both
+deploy themselves when `main` changes. See
 [`announcer/README.md`](announcer/README.md) and [`droplet/README.md`](droplet/README.md).
 `npm run announce` shows what it would post and send right now, without doing either.
 
@@ -292,6 +307,12 @@ runs on a droplet and deploys itself when `main` changes. See
   `dev.rainshare.moderation` record in @rainshare.dev's repo, and only that repo's are read, so it
   needs no server of its own. Write notes that are fine for anyone to read. See
   `core/moderation.js`.
+- **Review.** The announcer sends the approver (dame.is, by DID) a direct message about each new
+  ask, one at a time: its title, who asked, the start of it, and what the checks noticed. They
+  reply **YES** (post it and send it in the day's new asks), **POST** (only post it), **SEND** or
+  **DM** (only send it), **NO** (leave it on the board, don't pass it on), or **HIDE** (hide it,
+  with what follows as the reason, and take down any post). An answer holds for that version of
+  the ask only. Without the queue, nothing new goes out. See `announcer/src/review.js`.
 - **Release notes** go at the top of `core/releases.js`, which says how to write one. They show in
   the bell for 30 days and on [What's new](https://rainshare.dev/releases) for good.
 - **Feedback** is

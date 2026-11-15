@@ -3,7 +3,7 @@
 // Bluesky's AppView, and the site's link preview pictures.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { announce, compose, isNew, askAt, linksIn, reader, ACCOUNT, WINDOW, SETTLE } from '../announcer/src/posts.js';
+import { announce, compose, isNew, askAt, linksIn, reader, hiddenPosts, cleared, clearedAt, ACCOUNT, APPROVER, WINDOW, SETTLE } from '../announcer/src/posts.js';
 import { SEED, TAKE, DELIVERY, PROFILE, MODERATION, SITE } from '../core/ns.js';
 
 const NOW = Date.parse('2026-11-13T16:00:00Z'), ago = ms => new Date(NOW - ms).toISOString();
@@ -16,10 +16,10 @@ const A1 = '3n2aaaaaaaaa2', B1 = '3n2bbbbbbbbb2';   // record keys as atproto ma
 const anyone = { $type: `${SEED}#anyone` };
 const ask = (title, createdAt, more = {}) => ({ $type: SEED, title, audience: anyone, createdAt, ...more });
 
-let repos, asked, created, onCreate, og;
+let repos, asked, created, deleted, onCreate, og;
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 beforeEach(() => {
-  asked = []; created = []; onCreate = null;
+  asked = []; created = []; deleted = []; onCreate = null;
   og = () => new Response(new Uint8Array([0x89, 0x50, 0x4e, 0x47]), { headers: { 'content-type': 'image/png' } });
   repos = {
     [ALICE]: { [SEED]: {
@@ -84,11 +84,26 @@ globalThis.fetch = async (input, init = {}) => {
     mine[rkey] = body.record; created.push({ rkey, ...body });
     return json({ uri: `at://${ACCOUNT}/${body.collection}/${rkey}`, cid: 'bafynew' });
   }
+  if (u.host === 'pds.test' && method === 'com.atproto.repo.deleteRecord') {
+    const body = JSON.parse(init.body);
+    assert.equal(body.repo, ACCOUNT);
+    delete repos[ACCOUNT][body.collection]?.[body.rkey]; deleted.push(body.rkey);
+    return json({});
+  }
   if (u.origin === SITE && u.pathname === '/api/og') return og(u);
   throw new Error('a host this shouldn’t ask: ' + u.href);
 };
 const quiet = () => {};
-const run = opts => announce({ password: 'app-pass', now: NOW, log: quiet, ...opts });
+// The review queue (announcer/src/review.js), as the index would answer: by default the approver
+// has said yes to every ask there is, at the version it is now ('bafy' + its key, as records() has it).
+let verdict;
+beforeEach(() => { verdict = () => 'approved'; });
+const queue = () => new Map(Object.entries(repos).flatMap(([did, r]) => Object.keys(r[SEED] || {}).map(rkey => {
+  const uri = `at://${did}/${SEED}/${rkey}`, v = verdict(uri, rkey);
+  return [uri, typeof v === 'object' ? { seed_uri: uri, ...v } : { seed_uri: uri, cid: 'bafy' + rkey, status: v, decided_at: v === 'pending' ? null : ago(HOUR) }];
+})));
+const db = () => ({ ready: async () => ({ ok: false, why: 'a test' }), reviews: async () => queue() });
+const run = opts => announce({ password: 'app-pass', now: NOW, log: quiet, read: reader({ db: db() }), ...opts });
 
 test('each new ask is posted once, the earliest first, naming who’s asking, with a card for its page', async () => {
   const out = await run();
@@ -140,14 +155,14 @@ test('only an ask nobody’s on yet is posted: not one someone’s taken, nor on
 });
 
 test('if who’s on what can’t be read, nothing is posted', async () => {
-  const read = Object.assign(c => c === TAKE ? Promise.reject(new Error('relay down')) : reader()(c), { hidden: () => Promise.resolve(new Map()) });
+  const read = Object.assign(c => c === TAKE ? Promise.reject(new Error('relay down')) : reader()(c), { hidden: () => Promise.resolve(new Map()), reviews: async () => queue() });
   await assert.rejects(run({ read }), /relay down/);
   assert.equal(created.length, 0);
 });
 
 test('a dry run says what it would post and posts nothing, with no password', async () => {
   const lines = [];
-  const out = await announce({ post: false, password: '', now: NOW, log: s => lines.push(s) });
+  const out = await announce({ post: false, password: '', now: NOW, log: s => lines.push(s), read: reader({ db: db() }) });
   assert.equal(out.dryRun, true);
   assert.deepEqual(out.posts.map(p => [p.text.split('\n')[0], p.link, p.uri]), [
     ['Alice (@alice.test) is asking for help with a project:', `${SITE}/seed/alice.test/${A1}`, null],
@@ -248,4 +263,66 @@ test('a post’s links are read wherever they are, and matched to an ask by path
   }).map(askAt), ['carol.test 3k3', 'did:plc:bob 3k2', 'alice.test 3k1'], 'the card, then the text’s links, then what’s written out');
   assert.equal(askAt('https://rainshare.dev/seed/s/abc123'), null, 'a share code isn’t an ask');
   assert.equal(askAt('https://rainshare.dev/profile/alice.test'), null);
+});
+
+test('nothing is posted until the approver has said yes to it, as it is now', async () => {
+  // Alice's is waiting for an answer; Bob's was said yes to, then edited (its CID is new since).
+  verdict = (uri, rkey) => rkey === A1 ? 'pending' : rkey === B1 ? { cid: 'bafy-before-the-edit', status: 'approved', decided_at: ago(HOUR) } : 'approved';
+  let out = await run();
+  assert.deepEqual([created.length, out.waiting, out.found, out.skipped], [0, 2, 6, 4]);
+
+  // Declined stays declined, and isn't waiting any more; said yes to as it is now, it goes.
+  verdict = (uri, rkey) => rkey === A1 ? 'declined' : 'approved';
+  out = await run();
+  assert.deepEqual([created.map(c => c.rkey), out.waiting], [[B1], 0]);
+});
+
+test('POST is posted, SEND isn’t, and neither is waiting', async () => {
+  verdict = (uri, rkey) => rkey === A1 ? 'send_only' : 'post_only';
+  const out = await run();
+  assert.deepEqual([created.map(c => c.rkey), out.waiting], [[B1], 0]);
+});
+
+test('without the review queue, nothing new is posted at all', async () => {
+  const lines = [];
+  const out = await announce({ password: 'app-pass', now: NOW, log: s => lines.push(s), read: reader() });
+  assert.deepEqual([created.length, out.waiting], [0, 2]);
+  assert.match(lines.join('\n'), /no review queue/);
+  const broken = await announce({ password: 'app-pass', now: NOW, log: quiet, read: reader({ db: { ready: async () => ({ ok: false }), reviews: () => Promise.reject(new Error('Supabase down')) } }) });
+  assert.deepEqual([created.length, broken.waiting], [0, 2], 'nor when it can’t be read');
+});
+
+test('what the approver and the account ask needs nobody’s yes', () => {
+  const none = new Map();
+  assert.equal(cleared({ uri: `at://${APPROVER}/${SEED}/x`, repo: APPROVER, cid: 'c' }, null), true);
+  assert.equal(cleared({ uri: `at://${ACCOUNT}/${SEED}/x`, repo: ACCOUNT, cid: 'c' }, none), true);
+  assert.equal(cleared({ uri: `at://${ALICE}/${SEED}/x`, repo: ALICE, cid: 'c' }, none), false);
+  assert.equal(cleared({ uri: `at://${ALICE}/${SEED}/x`, repo: ALICE, cid: null }, new Map([[`at://${ALICE}/${SEED}/x`, { status: 'approved', cid: null }]])), false, 'a record with no CID can’t be matched to a yes');
+  const ask = { uri: `at://${ALICE}/${SEED}/x`, repo: ALICE, cid: 'c', value: { createdAt: ago(DAY) } };
+  assert.equal(clearedAt(ask, new Map([[ask.uri, { status: 'approved', cid: 'c', decided_at: ago(HOUR) }]])), NOW - HOUR, 'passed on when it was said yes to');
+  assert.equal(clearedAt(ask, new Map()), NOW - DAY);
+  const said = status => new Map([[ask.uri, { status, cid: 'c', decided_at: ago(HOUR) }]]);
+  assert.deepEqual(['approved', 'post_only', 'send_only', 'declined', 'pending'].map(s => [s, cleared(ask, said(s), 'post'), cleared(ask, said(s), 'send'), cleared(ask, said(s))]), [
+    ['approved', true, true, true], ['post_only', true, false, false], ['send_only', false, true, false], ['declined', false, false, false], ['pending', false, false, false]
+  ], 'which answers let it be posted, sent, or (with no way named) both');
+  assert.equal(clearedAt(ask, said('send_only')), NOW - HOUR);
+});
+
+test('a post about an ask that’s since been hidden comes down, and nothing written by hand does', async () => {
+  // The account posted Alice's ask, and someone wrote by hand about it too. Then it was hidden.
+  const card = { $type: 'app.bsky.embed.external', external: { uri: `${SITE}/seed/alice.test/${A1}`, title: '', description: '' } };
+  const mention = [{ index: { byteStart: 7, byteEnd: 18 }, features: [{ $type: 'app.bsky.richtext.facet#mention', did: ALICE }] }];
+  repos[ACCOUNT][POST][A1] = { $type: POST, text: 'Alice (@alice.test) is asking for help with a project:\n\nFix the flaky test', facets: mention, embed: card, createdAt: ago(HOUR) };
+  repos[ACCOUNT][POST]['3n2byhand0002'] = { $type: POST, text: 'Not a good fit, @alice.test, sorry', facets: mention, embed: card, createdAt: ago(HOUR) };
+  repos[ACCOUNT][MODERATION] = { [`${ALICE}:${SEED}:${A1}`]: { subject: `at://${ALICE}/${SEED}/${A1}`, action: 'hide', reason: 'guidelines', createdAt: ago(HOUR) } };
+  const out = await run();
+  assert.deepEqual(out.takenDown, [{ ask: `at://${ALICE}/${SEED}/${A1}`, uri: `at://${ACCOUNT}/${POST}/${A1}`, error: null }]);
+  assert.deepEqual(deleted, [A1]);
+  assert.equal(hiddenPosts([{ rkey: 'x', value: repos[ACCOUNT][POST]['3n2byhand0002'] }], new Map([[`at://${ALICE}`, {}]])).length, 0);
+
+  deleted = [];
+  repos[ACCOUNT][POST][A1] = { $type: POST, text: 'Alice (@alice.test) is asking for help with a project:\n\nFix the flaky test', facets: mention, embed: card, createdAt: ago(HOUR) };
+  const dry = await announce({ post: false, password: '', now: NOW, log: quiet, read: reader({ db: db() }) });
+  assert.equal(dry.takenDown.length, 1);
+  assert.deepEqual(deleted, [], 'a dry run takes nothing down');
 });

@@ -20,6 +20,11 @@
 // likely a trick on helpers' agents (../core/scan.js). To keep someone's asks off the account,
 // block them from it.
 //
+// And nothing is posted until the approver has said yes to it, by direct message (./review.js),
+// for the version of the ask that's there now: an edit asks them again. Without the review queue
+// (the index, ./index-db.js), nothing new is posted at all. A post about an ask that's since been
+// hidden is taken down.
+//
 // A post names who's asking (with a mention, so they hear about it) and gives the ask's title,
 // with a card for its page: the same words as the page's own link preview
 // (../../api/_og/describe.js), and its picture (../../api/og.js).
@@ -27,6 +32,7 @@ import { SEED, TAKE, DELIVERY, PROFILE, SITE, MODERATION, MODERATOR, audienceOf 
 import * as net from '../../core/net.js';
 import { askExcerpt, aNoun, progressOf } from '../../core/words.js';
 import { decisionsFrom, hiddenBy } from '../../core/moderation.js';
+import { isDid } from '../../core/net.js';
 import { concerns, alarming } from '../../core/scan.js';
 import { clean } from '../../api/_og/describe.js';
 import { OWNER } from '../../lexicons/compat.mjs';
@@ -45,6 +51,33 @@ const CHAT = 'did:web:api.bsky.chat#bsky_chat';
 export const forAll = v => typeof v?.title === 'string' && !!clean(v.title) && (!v.state || v.state === 'open') && audienceOf(v) === 'anyone';
 /** Whether the account may pass an ask on: on the board for everyone, and not very likely a trick on helpers' agents. */
 export const passable = v => forAll(v) && !alarming(concerns(v));
+// Who says yes to an ask before the account passes it on (./review.js): dame.is, by DID, so a new
+// handle changes nothing. RAINSHARE_APPROVER in the announcer's .env names someone else.
+export const APPROVER = isDid(process.env.RAINSHARE_APPROVER) ? process.env.RAINSHARE_APPROVER : 'did:plc:gq4fo3u6tqzzdkjlwzpb23tj';
+// The approver's answers that let the account pass an ask on, by way (./review.js): YES is both,
+// POST only the account's post, SEND only the new asks in people's direct messages.
+export const ALLOWS = { post: ['approved', 'post_only'], send: ['approved', 'send_only'] };
+/**
+ * Whether the account may pass an ask on `way` ('post' or 'send'): the approver said yes to it
+ * that way, for the version of it that's there now (`reviews`, from read.reviews()). Without a
+ * way, only a yes to both counts. The approver's own asks, and the account's, need nobody's yes.
+ * With no queue to read (`reviews` null), nothing else is.
+ */
+export function cleared(ask, reviews, way = null, approver = APPROVER){
+  if (ask?.repo === ACCOUNT || ask?.repo === approver) return true;
+  const r = reviews?.get(ask?.uri);
+  return !!r && (ALLOWS[way] || ['approved']).includes(r.status) && !!ask.cid && r.cid === ask.cid;
+}
+/** Whether the approver has answered about the version of an ask that's there now, whatever they said. */
+export function decided(ask, reviews){
+  const r = reviews?.get(ask?.uri);
+  return !!r && r.status !== 'pending' && !!ask?.cid && r.cid === ask.cid;
+}
+/** When an ask was passed on: when it was asked, or when it was said yes to, if that was later (ms). */
+export function clearedAt(ask, reviews){
+  const asked = Date.parse(ask?.value?.createdAt), r = reviews?.get(ask?.uri), yes = [...ALLOWS.post, ...ALLOWS.send].includes(r?.status) ? Date.parse(r.decided_at) : NaN;
+  return Number.isFinite(yes) && !(yes <= asked) ? yes : asked;
+}
 /** Whether an ask is one to post about at `now`: passable, and asked between WINDOW and SETTLE ago. */
 export function isNew(v, now){
   const at = Date.parse(v?.createdAt);
@@ -53,20 +86,34 @@ export function isNew(v, now){
 
 /**
  * Every public record of a collection, across everyone who has any, read the first time it's
- * asked for and kept for the rest of the run: the posts and the messages read the same asks.
+ * asked for and kept for the rest of the run: the review, the posts and the messages read the
+ * same asks. From the index (`db`, ./index-db.js) while it's fresh, and otherwise from every
+ * repo that has any.
  */
-export function reader(){
+export function reader({ db = null, log = () => {} } = {}){
   const got = new Map();
+  let source;
+  /** 'index' or 'network': where this run reads records from, decided once. */
+  const from = () => source ||= !db ? Promise.resolve('network') : db.ready().then(
+    s => { if (!s.ok) log(`The index isn’t fresh (${s.why}), so this run reads every repo instead.`); return s.ok ? 'index' : 'network'; },
+    e => { log(`The index couldn’t be read (${e.message}), so this run reads every repo instead.`); return 'network'; });
+  const network = collection => net.reposWith(collection)
+    .then(dids => net.pool(dids, 6, d => net.listRecords(d, collection, { pages: 2 }).catch(() => [])))
+    .then(lists => lists.flat());
   const read = collection => {
-    if (!got.has(collection)) got.set(collection, net.reposWith(collection)
-      .then(dids => net.pool(dids, 6, d => net.listRecords(d, collection, { pages: 2 }).catch(() => [])))
-      .then(lists => lists.flat()));
+    if (!got.has(collection)) got.set(collection, from().then(s => s === 'index' ? db.list(collection) : network(collection)));
     return got.get(collection);
   };
-  // What the account has hidden, from its own repo. If that can't be read, nothing goes out,
-  // rather than something it hid.
+  read.source = from;
+  // What the account has hidden, from its own repo, always: it's one read, and it's what
+  // matters most. If that can't be read, nothing goes out, rather than something it hid.
   let hidden;
   read.hidden = () => hidden ||= net.listRecords(MODERATOR, MODERATION, { pages: 10 }).then(decisionsFrom);
+  // The review queue (./review.js), for asks from the last few days. Null when there's none to
+  // read, and then nothing new is passed on.
+  let reviews;
+  read.reviews = () => reviews ||= !db ? Promise.resolve(null)
+    : db.reviews(Date.now() - WINDOW - 24 * 3600e3).catch(e => { log(`The review queue couldn’t be read (${e.message}), so nothing new is passed on this run.`); return null; });
   return read;
 }
 /** Whether a record (or its whole account) is hidden, by the decisions from read.hidden(). */
@@ -91,10 +138,26 @@ export function askAt(link){
   try { return decodeURIComponent(m[1]).replace(/^@/, '').toLowerCase() + ' ' + decodeURIComponent(m[2]).replace(/[.,;:!?)\]]+$/, ''); }
   catch (_) { return null; }
 }
-// What the account has posted about lately: the asks its last 300 posts link to, and those posts' own keys.
+// What the account has posted about lately: the asks its last 300 posts link to, those posts' own keys, and the posts.
 async function postedAlready(){
   const posts = await net.listRecords(ACCOUNT, POST, { pages: 3 });
-  return { links: new Set(posts.flatMap(p => linksIn(p.value).map(askAt).filter(Boolean))), keys: new Set(posts.map(p => p.rkey)) };
+  return { links: new Set(posts.flatMap(p => linksIn(p.value).map(askAt).filter(Boolean))), keys: new Set(posts.map(p => p.rkey)), posts };
+}
+/**
+ * The account's posts about asks that have since been hidden (or whose asker has): [{ rkey, ask }].
+ * Only its own posts about an ask, as compose() writes them (a card for the ask's page, and a
+ * mention of who's asking), never anything written by hand.
+ */
+export function hiddenPosts(posts, hidden){
+  if (!hidden?.size) return [];
+  return (posts || []).flatMap(p => {
+    const v = p?.value, card = v?.embed?.external?.uri, at = card && askAt(card);
+    if (!at || !/ is asking for help with /.test(String(v?.text || ''))) return [];
+    const did = (v.facets || []).flatMap(f => f?.features || []).find(x => x?.$type === 'app.bsky.richtext.facet#mention' && isDid(x.did))?.did;
+    if (!did) return [];
+    const ask = `at://${did}/${SEED}/${at.split(' ')[1]}`;
+    return hiddenBy(hidden, ask, did) ? [{ rkey: p.rkey, ask }] : [];
+  });
 }
 const posted = (ask, who, done) => done.keys.has(ask.rkey) || done.links.has(`${ask.repo.toLowerCase()} ${ask.rkey}`) || (!!who?.handle && done.links.has(`${who.handle} ${ask.rkey}`));
 
@@ -117,12 +180,13 @@ export async function whoAre(dids){
 
 // Those of `asks` that haven't been posted and whose askers aren't blocked, each with `who` asked.
 async function unposted(asks, { read, now }){
-  if (!asks.length) return [];
+  if (!asks.length) return Object.assign([], { done: await postedAlready(), hidden: await read.hidden() });
   const authors = [...new Set(asks.map(a => a.repo))];
   // Takes and turn-ins are read whole: if they can't be, nothing is posted, rather than an ask someone's on.
   const [done, blocks, who, takes, deliveries, hidden] = await Promise.all([postedAlready(), blocked(authors), whoAre(authors), read(TAKE), read(DELIVERY), read.hidden()]);
-  return asks.filter(a => !blocks.has(a.repo) && !posted(a, who.get(a.repo), done) && free(a, { takes, deliveries, hidden, blocks, now }))
+  const todo = asks.filter(a => !blocks.has(a.repo) && !posted(a, who.get(a.repo), done) && free(a, { takes, deliveries, hidden, blocks, now }))
     .map(a => ({ ...a, who: who.get(a.repo) }));
+  return Object.assign(todo, { done, hidden });
 }
 /**
  * Whether nobody's on an ask: what the board calls "Nobody on it yet" (progressOf in
@@ -251,27 +315,37 @@ async function thumbnail(url, upload){
  * Post the board's new asks to the account, or with `post: false`, only say what would be
  * posted (which needs no password). `log` is told each step in a line.
  *
- * { setUp, dryRun, found, skipped, posts: [{ ask, text, link, uri, error }], later }: `found`
- * is how many asks were new, `skipped` how many of them were posted already, blocked or taken up, and
- * `later` how many are left for the next run.
+ * { setUp, dryRun, found, skipped, waiting, posts: [{ ask, text, link, uri, error }], later, takenDown }:
+ * `found` is how many asks were new, `skipped` how many of them were posted already, blocked or
+ * taken up, `waiting` how many are waiting for the approver's answer (./review.js), `later` how many
+ * are left for the next run, and `takenDown` the posts about asks hidden since: [{ ask, uri, error }].
  */
 export async function announce({ post = true, password = process.env.RAINSHARE_BLUESKY_APP_PASSWORD, now = Date.now(), max = MAX_POSTS, log = console.log, read = reader(), as = session(password) } = {}){
   if (post && !password) {
     log(`RAINSHARE_BLUESKY_APP_PASSWORD isn't set, so nothing was posted. Set it to an app password for ${ACCOUNT} (@rainshare.dev) to post new asks there.`);
-    return { setUp: false, dryRun: false, found: 0, skipped: 0, posts: [], later: 0 };
+    return { setUp: false, dryRun: false, found: 0, skipped: 0, waiting: 0, posts: [], later: 0, takenDown: [] };
   }
-  const asks = await newAsks(now, read), todo = await unposted(asks, { read, now });
-  const posts = todo.slice(0, max).map(a => ({ ask: a.uri, rkey: a.rkey, ...compose(a, a.who), uri: null, error: null }));
-  const result = () => ({ setUp: !!password, dryRun: !post, found: asks.length, skipped: asks.length - todo.length,
-    posts: posts.map(({ ask, text, card, uri, error }) => ({ ask, text, link: card.uri, uri, error })), later: todo.length - posts.length });
-  log(`${asks.length} new ${asks.length === 1 ? 'ask' : 'asks'}, ${asks.length - todo.length} posted already, blocked or with someone on them, ${posts.length} to post${todo.length > posts.length ? `, ${todo.length - posts.length} left for next time` : ''}.`);
+  const asks = await newAsks(now, read), todo = await unposted(asks, { read, now }), reviews = read.reviews ? await read.reviews() : null;
+  // Ready: the approver said YES or POST. Waiting: they haven't answered yet. The rest (NO, SEND) aren't posted.
+  const ready = todo.filter(a => cleared(a, reviews, 'post')), waiting = todo.filter(a => !cleared(a, reviews, 'post') && !decided(a, reviews)).length;
+  const posts = ready.slice(0, max).map(a => ({ ask: a.uri, rkey: a.rkey, ...compose(a, a.who), uri: null, error: null }));
+  const down = hiddenPosts(todo.done.posts, todo.hidden).map(d => ({ ...d, uri: net.recordUri(ACCOUNT, POST, d.rkey), error: null }));
+  const result = () => ({ setUp: !!password, dryRun: !post, found: asks.length, skipped: asks.length - todo.length, waiting,
+    posts: posts.map(({ ask, text, card, uri, error }) => ({ ask, text, link: card.uri, uri, error })), later: ready.length - posts.length,
+    takenDown: down.map(({ ask, uri, error }) => ({ ask, uri, error })) });
+  log(`${asks.length} new ${asks.length === 1 ? 'ask' : 'asks'}, ${asks.length - todo.length} posted already, blocked or with someone on them, ${waiting} waiting for review${reviews ? '' : ' (there’s no review queue to read)'}, ${posts.length} to post${ready.length > posts.length ? `, ${ready.length - posts.length} left for next time` : ''}.`);
   if (!post) {
     for (const p of posts) log(`\nWould post, for ${p.ask}:\n  ${p.text.replace(/\n/g, '\n  ')}\n  [${p.card.title}](${p.card.uri})`);
+    for (const d of down) log(`Would take down ${d.uri}: ${d.ask} is hidden.`);
     return result();
   }
-  if (!posts.length) return result();
+  if (!posts.length && !down.length) return result();
 
   await as.signIn();   // a wrong password stops the run here, before anything is posted
+  for (const d of down) {
+    try { await as.post('com.atproto.repo.deleteRecord', { repo: ACCOUNT, collection: POST, rkey: d.rkey }); log(`Took down ${d.uri}: ${d.ask} is hidden.`); }
+    catch (e) { d.error = e.message; log(`Couldn't take down ${d.uri}: ${e.message}`); }
+  }
   const upload = async (body, type) => (await as.post('com.atproto.repo.uploadBlob', body, { type })).blob || null;
   const thumbs = await Promise.all(posts.map(p => thumbnail(p.card.image, upload)));
   for (const [i, p] of posts.entries()) {
