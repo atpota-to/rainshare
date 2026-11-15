@@ -20,6 +20,7 @@ import { activityOf } from './activity.js';
 import { forgeIssue, forgeComment, forgePull, pullChoices, FORGE_SAID } from './forgewrite.js';
 import { circleOf, vouchFor, unvouch, evidenceFor, vouchesBy } from './vouch.js';
 import { tangledFollowsOf, followsOnTangled, knownFollowers } from './ties.js';
+import { feedbackWriter, createLocal } from './feedback.js';
 
 const TTL = 60e3;
 /** A record URI inside a space: the space, then repo/collection/rkey. */
@@ -609,8 +610,15 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     return { subject: s, kind: subjectKind(s), author: who, title: typeof v.title === 'string' ? v.title : typeof v.displayName === 'string' ? v.displayName : '', text: words, unread: !!p && !rec, gone: rec === null };
   }
 
+  // Rainshare's feedback board (./feedback.js): posting, replying, voting and editing, and for its
+  // moderators, running it. What's written is userinput.app's records, in your own repo. `local`
+  // is what's just been written, for the board to read with until Constellation catches up.
+  const fbLocal = createLocal();
+  const feedback = viewer ? { ...feedbackWriter({ viewer, create, put, del, local: fbLocal }), local: fbLocal } : null;
+
   return {
     viewer, signedIn: !!viewer, canPrivate: !!(spaces && groups),
+    feedback,
     // The moderation page's: null for everyone but @rainshare.dev.
     moderation: moderator ? {
       list: listDecisions, hide, unhide, about,

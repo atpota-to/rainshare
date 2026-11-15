@@ -18,7 +18,7 @@ import { createRainshare } from '../ui/rainshare.js';
 import { createSource } from '../core/source.js';
 import { createDemoSource } from '../core/demo.js';
 import { BOARD, GROUPS, MODERATOR } from '../core/ns.js';
-import { canModerate, canFollow } from './scope.js';
+import { canModerate, canFollow, canFeedback, canRunBoard, missingFrom, moderatesBoard } from './scope.js';
 import { profiles } from '../core/net.js';
 // The spaces alpha's plumbing (credentials, signed reads, writes into a space) and the group
 // host's methods, for private seeds.
@@ -58,6 +58,7 @@ let session = null, me = null, ready = false;
 const visitor = !oauth.mightBeSignedIn() && !oauth.isCallback();
 let forges = [];   // the forges this sign-in lets Rainshare post to for you (knotless, tangled): see ./scope.js
 let granted = '';  // everything this sign-in was granted, as a scope: whether @rainshare.dev's can moderate
+let stale = [];    // what this sign-in is short of, from before Rainshare asked for it (missingFrom in ./scope.js)
 const EXAMPLE = '/example';
 const isExample = p => p === EXAMPLE || p.startsWith(EXAMPLE + '/');
 const subOf = p => (isExample(p) ? p.slice(EXAMPLE.length) : p).replace(/^\/+/, '');
@@ -109,6 +110,11 @@ const host = kind => ({
   // Whether this sign-in can follow @rainshare.dev for you, when you switch its messages on. One
   // from before it asked is pointed to Bluesky instead. (A server that won't say what it granted is tried.)
   canFollow: kind === 'real' ? () => !granted || canFollow(granted) : null,
+  // Whether this sign-in can post, reply and vote on the feedback board, and run it (its
+  // moderators'). One from before Rainshare asked is offered "Sign in again" (refreshSignIn).
+  canFeedback: kind === 'real' ? () => canFeedback(granted) : null,
+  canRunBoard: kind === 'real' ? () => canRunBoard(granted) : null,
+  refreshSignIn: kind === 'real' ? () => refreshSignIn() : null,
   connectForge: kind === 'real' ? (forge, sub) => { if (session) openSignIn({ person: me || { did: session.did }, to: '/' + (sub || '') + location.search, forges: [...new Set([...forges, forge])], adding: forge }); } : null,
   ...(kind === 'example' ? { exitDemo: session ? 'Back to the real board' : 'Sign in for the real board', onExitDemo: () => navigate(session ? '/board' : '/') } : {})
 });
@@ -284,6 +290,7 @@ document.addEventListener('click', e => {
   const a = e.target.closest('a[data-nav]');
   if (a && !e.metaKey && !e.ctrlKey && !e.shiftKey && e.button === 0) { e.preventDefault(); navigate(a.getAttribute('href')); }
   if (e.target.closest('[data-signout]')) signOut();
+  if (e.target.closest('[data-refresh]')) refreshSignIn();
   if (e.target.closest('#rdPeek') && !e.metaKey && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); toBoard(); }
   // The bar's "Sign in": the dialog, and you come back to the page you were on (the example
   // board isn't yours to come back to, and from the home page it's on to the board: see boot).
@@ -310,9 +317,11 @@ function renderMe(){
   if (!session) { menuOpen = false; box.innerHTML = `<button class="rd-btn" type="button" data-signin title="Sign in"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l4-4-4-4M14 12H4"/></svg><span>Sign in</span></button>`; return; }
   const p = me || { did: session.did };
   const name = p.displayName || (p.handle ? '@' + p.handle : 'You'), handle = p.displayName && p.handle ? '@' + p.handle : '';
-  box.innerHTML = `<button class="rd-who" type="button" aria-expanded="false" aria-controls="rdMenu" aria-label="Signed in as ${esc(name)}" title="Signed in as ${esc(name)}">${face(p)}</button>`
+  box.innerHTML = `<button class="rd-who" type="button" aria-expanded="false" aria-controls="rdMenu" aria-label="Signed in as ${esc(name)}${stale.length ? ', and asked to sign in again' : ''}" title="Signed in as ${esc(name)}">${face(p)}${stale.length ? '<span class="rd-who-dot" aria-hidden="true"></span>' : ''}</button>`
     + `<div class="rd-menu" id="rdMenu" hidden>`
     + `<a class="rd-menu-you" href="/me" data-nav>${face(p)}<span class="rd-menu-name"><span class="rd-sr">Your profile: </span><b>${esc(name)}</b>${handle ? `<small>${esc(handle)}</small>` : ''}</span><svg class="rd-menu-go" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>`
+    // A sign-in from before Rainshare asked for what it asks for now: the way to sign in again, until you do.
+    + (stale.length ? `<button type="button" class="rd-menu-again" data-refresh><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4h-4"/></svg><span>Sign in again<small>for what’s new on Rainshare</small></span></button>` : '')
     // How "Direct my agent" works for you, and messages from @rainshare.dev: a page of their own, apart from your profile.
     + `<a href="/settings" data-nav><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h8.5M17.5 7H20M4 17h2.5M11.5 17H20"/><circle cx="15" cy="7" r="2.5"/><circle cx="9" cy="17" r="2.5"/></svg>Settings</a>`
     // @rainshare.dev's own sign-in has its moderation page here, and nobody else's mentions it.
@@ -430,11 +439,35 @@ bellBox.addEventListener('focusout', e => { if (bellOpen && e.relatedTarget && !
 // Opened in another tab, it's seen in this one too.
 addEventListener('storage', e => { if (String(e.key || '').startsWith('rs:notices-seen:')) renderBell(); });
 async function signOut(){
-  const s = session; session = null; me = null; forges = []; granted = '';
+  const s = session; session = null; me = null; forges = []; granted = ''; stale = [];
   atp.forgetCredentials();
   await oauth.signOut(s);
   renderMe(); await app('real').setSource(sourceNow()); toast('Signed out'); navigate('/');
 }
+/* ---------- signing in again ---------- */
+// What your server grants is fixed when you sign in, so a sign-in from before Rainshare asked for
+// something (the feedback board, settings, following @rainshare.dev) goes on without it. The
+// dialog says what's new and sends you to say yes to it, and you come back where you were,
+// still signed in as you. It opens by itself once a visit, in a tab that has nothing else open,
+// and stays in the menu under your face until you've done it.
+const roleOf = did => ({ moderator: did === MODERATOR, boardModerator: moderatesBoard(did) });
+function refreshSignIn(){
+  if (!session) return;
+  showMenu(false);
+  openSignIn({ person: me || { did: session.did }, to: location.pathname + location.search, refreshing: stale.length ? stale : ['feedback'] });
+}
+const OFFERED = 'rs:signin-again';
+function offerRefresh(){
+  const did = session?.did;
+  try { if (!did || sessionStorage.getItem(OFFERED) === did) return; } catch (_) { return; }
+  setTimeout(() => {
+    // (Not over another dialog, nor once you've moved on to sign in or out.)
+    if (session?.did !== did || !stale.length || document.querySelector('dialog[open]')) return;
+    try { sessionStorage.setItem(OFFERED, did); } catch (_) {}
+    refreshSignIn();
+  }, 1500);
+}
+
 // Where the landing's two buttons lead once you're signed in, and what the dialog says first.
 const START = {
   board: { to: '/board', why: 'Sign in, then pick something to help with.' },
@@ -456,6 +489,7 @@ async function boot(){
   if (r?.redirecting) return;
   if (r?.session) {
     session = r.session; forges = r.forges || []; granted = r.scope || '';
+    stale = missingFrom(granted, roleOf(session.did));
     profiles([session.did]).then(m => { me = m.get(session.did); renderMe(); }, () => {});
   }
   // Back from signing in, to where you were, except that the home page is for before you're in:
@@ -469,5 +503,6 @@ async function boot(){
   route();
   // (Handing over the source shows the screen the address points at: there's nothing left to route.)
   await app('real').setSource(sourceNow());
+  if (stale.length) offerRefresh();
 }
 boot();

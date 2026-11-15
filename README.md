@@ -169,6 +169,9 @@ are in `lexicons/dev/rainshare/`.
 | `dev.rainshare.preferences` | you | your settings, which messages you'd like, and that you agreed to the terms. Public, like every record in your repo |
 | `dev.rainshare.moderation` | @rainshare.dev only | something Rainshare has hidden, and why |
 
+The feedback board's records are userinput.app's own (`app.userinput.*`), so the same board shows
+on both sites: see **Feedback** below.
+
 The records use garden words the site doesn't show: an ask is a `seed`, and a finished one is
 `sprouted`. Nobody can delete someone else's take, so a take lapses once its `until` has passed
 with nothing turned in (`core/takes.js`). Gardens aren't stored anywhere: `core/garden.js` works
@@ -176,8 +179,16 @@ them out from two records that have to agree, the helper's delivery and the aske
 it, so nobody can add to their own.
 
 Sign-in asks for these records through a permission set, `dev.rainshare.authFull`, and falls back
-to asking for them by name. Tangled and knotless permissions are asked for separately, with a
-checkbox for each, and so is creating a Bluesky follow, for switching on messages.
+to asking for them by name. It asks the same way for userinput.app's `app.userinput.authBasic`
+(posting, replying, voting and editing on the feedback board), and @rainshare.dev and @dame.is
+(`BOARD_MODERATORS` in `core/ns.js`) get `app.userinput.authFull`, which adds running the board.
+Tangled and knotless permissions are asked for separately, with a checkbox for each, and so is
+creating a Bluesky follow, for switching on messages.
+
+What a server grants is fixed at sign-in, so a sign-in from before Rainshare asked for something
+goes on without it. `missingFrom` in `src/scope.js` says what a granted scope is short of. The app
+then offers **Sign in again** once a visit, and keeps it in the menu under your face until you do.
+Changing what sign-in asks for is enough for everyone to be asked again.
 
 ### No index server
 
@@ -285,9 +296,14 @@ runs on a droplet and deploys itself when `main` changes. See
   the bell for 30 days and on [What's new](https://rainshare.dev/releases) for good.
 - **Feedback** is
   [Rainshare's board on userinput.app](https://userinput.app/s/did:plc:cmkittusvczhnei4gjt3asiv/3n2eeq4jt3s2w),
-  shown at `/feedback` and pinned by its record key (`SPACE_KEY` in `core/feedback.js`). A Claude
-  Code routine on the maintainers' own plan turns posts a maintainer has marked planned into
-  draft pull requests, and a person reviews each one (`.claude/skills/feedback/SKILL.md`).
+  pinned by its record key (`SPACE_KEY` in `core/feedback.js`). People post, vote and reply on
+  `/feedback` itself (`ui/feedback.js`), and what they write is userinput.app's own records in
+  their own accounts, so both sites show the same board. Its moderators set statuses, hide posts
+  and replies, ban people, and pin and lock posts from a post's page. Signed in as @rainshare.dev,
+  **Run the board** appoints moderators (one tap for @dame.is) and changes the board's name,
+  description and categories. A moderator's records only count once the owner has appointed them.
+  A Claude Code routine on the maintainers' own plan turns posts a maintainer has marked planned
+  into draft pull requests, and a person reviews each one (`.claude/skills/feedback/SKILL.md`).
   `node scripts/feedback.mjs` reads the board and sets statuses.
 - **Terms and privacy** are written once, in `core/legal.js`, and shown at `/terms` and `/privacy`.
   Rainshare is operated by atpotato, LLC. People agree before their first job or first ask, and
@@ -300,6 +316,8 @@ runs on a droplet and deploys itself when `main` changes. See
 
 - The announcer on the droplet: nothing has been posted or sent from @rainshare.dev yet.
 - Moderating as @rainshare.dev, and the feedback routine end to end in a scheduled session.
+- Posting, voting and moderating on the feedback board with real accounts (it's been driven in a
+  browser against a fake network), and signing in again on a real server.
 - Posting an issue, comment or pull request to Tangled or knotless as a real user.
 - `rainshare.mjs run` end to end with a real agent.
 - Making an account all the way through, and following @rainshare.dev when messages are switched
