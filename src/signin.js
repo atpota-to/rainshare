@@ -16,7 +16,9 @@
 //
 // The landing's two buttons open the dialog at the first step, saying what signing in is for.
 // Adding a forge to a sign-in you already have ("Connect Tangled") is the
-// second step on its own. The signing in itself is your server's (./oauth.js).
+// second step on its own, and so is signing in again to a sign-in from before Rainshare asked
+// for what it asks for now ("Sign in again": ../src/main.js opens it). The signing in itself is
+// your server's (./oauth.js).
 import './signin.css';
 import * as oauth from './oauth.js';
 import { FORGES } from './scope.js';
@@ -30,7 +32,15 @@ import { closeSoftly, swapStep } from '../ui/motion.js';
 // What's asked for, as it's said beside each tick box. Your server words the same list its own
 // way on the page it shows.
 // (And following @rainshare.dev, which every sign-in asks for too: it's only done when you switch its messages on.)
-const OWN = `Your asks, what you take on and your profile${GROUPS ? ', and your groups’ private asks' : ''}, kept in your own account, and following @${HANDLE} if you switch on its messages.`;
+const OWN = `Your asks, what you take on and your profile${GROUPS ? ', and your groups’ private asks' : ''}, and your posts and votes on Rainshare’s feedback board, kept in your own account, and following @${HANDLE} if you switch on its messages.`;
+// What a sign-in from before is short of (missingFrom in ./scope.js), as what it lets Rainshare do.
+const NEWER = {
+  records: 'Keep your settings in your own account',
+  follow: `Follow @${HANDLE} for you, so its messages reach you`,
+  feedback: 'Post, reply and vote on its feedback board, right on Rainshare',
+  moderation: `Hide things as @${HANDLE}`,
+  board: 'Run the feedback board: statuses, hiding, bans, pins and moderators'
+};
 const ASKS = {
   tangled: ['Tangled', 'Issues, comments, pull requests and vouches, only when you say so.'],
   knotless: ['knotless', 'Issues, comments and pull requests, only when you say so.']
@@ -190,13 +200,15 @@ const asks = () => `<fieldset class="si-asks">
  *   to              the path to come back to
  *   forges          which forges start ticked: all of them, less any unticked last time
  *   adding          a forge being added to the sign-in `person` already has
+ *   refreshing      what the sign-in `person` already has is short of (missingFrom in ./scope.js):
+ *                   it says so, and signing in again asks for all of it
  *   making          for someone with no account: it starts at the hosts to make one with
  *   why             what signing in is for, said first ("Sign in, then pick something to help with.")
  */
-export function openSignIn({ handle = '', person = null, to = '/', forges = null, adding = null, making = false, why = '' } = {}){
+export function openSignIn({ handle = '', person = null, to = '/', forges = null, adding = null, refreshing = null, making = false, why = '' } = {}){
   ensure();
   const out = skipped();
-  st = { at: null, to, why, adding, want: new Set(forges || FORGES.filter(f => !out.includes(f))), turn: 0, who: null, person: null, did: null, host: null, blind: false, busy: false, offer: null, making: null, create: false };
+  st = { at: null, to, why, adding, refreshing: refreshing && !adding ? refreshing : null, want: new Set(forges || FORGES.filter(f => !out.includes(f))), turn: 0, who: null, person: null, did: null, host: null, blind: false, busy: false, offer: null, making: null, create: false };
   const who = person?.did || normalizeHandle(handle);
   // (Asked to open again while it was closing: it stays.)
   dlg.classList.remove('rs-closing');
@@ -228,15 +240,16 @@ function ask(msg = '', typed = ''){
 // The second step: the account, what's asked for, and where it's about to send you.
 function confirm(who, person = null){
   Object.assign(st, { turn: st.turn + 1, who, person, did: null, host: null, blind: false, busy: false, offer: null, making: null });
-  const adding = st.adding;
+  const adding = st.adding, again = st.refreshing, newer = (again || []).map(k => NEWER[k]).filter(Boolean);
   paintStep('confirm', `<div class="si-step">
-      ${head(adding ? `Connect ${ASKS[adding]?.[0] || adding}` : 'Is this you?')}
+      ${head(adding ? `Connect ${ASKS[adding]?.[0] || adding}` : again ? 'Sign in again' : 'Is this you?')}
+      ${again ? `<p class="si-lede">Rainshare does more than it did when you signed in. Say yes to it where your account lives${newer.length ? ', so it can:' : '.'}</p>${newer.length ? `<ul class="si-new">${newer.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}` : ''}
       <div class="si-card">${card(person || (isDid(who) ? { did: who } : { handle: who }))}</div>
       ${asks()}
       <p class="si-err" role="alert" hidden></p>
       <button class="si-go" type="button" data-si-go></button>
       <p class="si-next" aria-live="polite"></p>
-      <p class="si-foot">${adding ? '<button class="si-link" type="button" data-si-close>Not now</button>' : '<button class="si-link" type="button" data-si-back>Not you?</button>'}<span>Rainshare never sees your password.</span></p>
+      <p class="si-foot">${adding || again ? '<button class="si-link" type="button" data-si-close>Not now</button>' : '<button class="si-link" type="button" data-si-back>Not you?</button>'}<span>Rainshare never sees your password.</span></p>
     </div>`);
   paintGo();
   focusStep();
@@ -306,6 +319,7 @@ function paintGo(){
   b.toggleAttribute('data-busy', st.busy);
   b.innerHTML = !known ? 'Finding where you sign in…' : st.busy ? `${RAIN}Opening ${host ? esc(host) : 'where you sign in'}…` : `<span>Continue${host ? ' at ' + esc(host) : ''}</span>${OUT}`;
   next.innerHTML = !known ? '' : st.adding ? `You’ll approve this${at} where your account lives, then come back to what you wrote.`
+    : st.refreshing ? `You’ll approve this${at} where your account lives, then come back to where you were.`
     : `You’ll sign in${at} where your account lives, then come straight back.`;
 }
 // How long to wait to find where an account signs in, and how long before asking once more
@@ -319,7 +333,7 @@ async function find(turn){
     try { at = await within(oauth.whereTo(mine.who), LOOK); }
     catch (e) {
       if (!live()) return;
-      if (e?.name === 'NoSuchAccount' && !mine.adding) return ask(`We couldn’t find ${isDid(mine.who) ? 'that account' : '@' + mine.who}. Check the spelling.`, mine.who);
+      if (e?.name === 'NoSuchAccount' && !mine.adding && !mine.refreshing) return ask(`We couldn’t find ${isDid(mine.who) ? 'that account' : '@' + mine.who}. Check the spelling.`, mine.who);
       console.warn('sign-in: where this account signs in', e);
       if (e?.name === 'TimeoutError' || tries) break;
       await pause(AGAIN);

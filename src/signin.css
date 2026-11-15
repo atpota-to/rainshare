@@ -100,3 +100,6 @@
   .si-head h2{font-size:22px}
 }
 @media (prefers-reduced-motion:reduce){.si-box,.si::backdrop{animation:none}.si-go,.si-ask input,.si-ask input::after,.si-host{transition:none}}
+
+/* signing in again: what's new since you last did */
+.si-new{margin:-4px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:4px;font-size:15px;line-height:1.4}
