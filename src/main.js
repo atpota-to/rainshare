@@ -5,7 +5,7 @@
 //                   signed in, the board
 //   /board          the board on its own, signed in or out (the bar's "Help someone")
 //   /new            asking for help (the bar's "Ask for help")
-//   /example/…      the example circle, kept in this browser (linked from the landing)
+//   /example/…      the example circle, kept in this browser (nothing in the app links to it)
 //   /seed/…, /new, /me, /settings, /profile/…, /agents, /feedback, /terms, /privacy   Rainshare's own screens (see ../ui/rainshare.js)
 //   /signed-in      where your server sends you back after signing in
 //
@@ -18,7 +18,6 @@ import { createSource } from '../core/source.js';
 import { createDemoSource } from '../core/demo.js';
 import { BOARD, GROUPS, MODERATOR } from '../core/ns.js';
 import { canModerate, canFollow } from './scope.js';
-import { closeTo } from '../core/route.js';
 import { profiles } from '../core/net.js';
 // The spaces alpha's plumbing (credentials, signed reads, writes into a space) and the group
 // host's methods, for private seeds.
@@ -208,15 +207,14 @@ function toBoard(){
 function route(){
   showMenu(false);
   const path = location.pathname, kind = isExample(path) ? 'example' : 'real', sub = subOf(path);
-  // A slip of the keys on the way to the example circle still gets there.
-  const [head, ...rest] = sub.split('/'), h = head.toLowerCase();
-  if (kind === 'real' && head && (h === 'example' || ['examples', 'demo'].includes(h) || closeTo(h, 'example'))) return navigate([EXAMPLE, ...rest].join('/'), { replace: true });
   $('#example').hidden = kind !== 'example';
   $('#circle').hidden = kind !== 'real';
   const landing = (ready || visitor) && kind === 'real' && !session && !sub;
   $('#landing').hidden = !landing;
-  // The example circle is reached from the landing. Its tab shows only while you're in it,
-  // so every one of its pages says where you are.
+  // Nothing in the app leads to the example circle: its people and asks are made up, and its
+  // pages look enough like real ones to be taken for them. It's there at /example for whoever
+  // has the address. Its tab shows only while you're in it, so every one of its pages says
+  // where you are.
   $('[data-tab="example"]').hidden = kind !== 'example';
   landing ? showLanding() : hideLanding();
   // The bar has the two things to do here: help someone (the board, and an ask's page) and ask
