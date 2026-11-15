@@ -78,7 +78,8 @@ index up before (or with) the change that brings it:
 
 ```bash
 # 1. The schema: supabase/migrations/20261115210000_rainshare_index.sql, then
-#    20261115230000_rainshare_review_post_or_send.sql (the approver's POST and SEND), applied to
+#    20261115230000_rainshare_review_post_or_send.sql (the approver's POST and SEND) and
+#    20261117090000_rainshare_index_excluded.sql (the accounts left out of the index), applied to
 #    the Supabase project "atpota.to" (zdzjtziydmwkxbzlkwxv), before the code that uses them.
 
 # 2. The index's data folder, with the same Supabase values as the garden's index.

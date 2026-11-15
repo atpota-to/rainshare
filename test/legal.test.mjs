@@ -9,7 +9,7 @@ import { LEGAL, TERMS, PRIVACY, LEGAL_VERSION, SAFETY, ASKING, PROVIDER, OPERATO
 import { renderMarkdown } from '../core/markdown.js';
 import { known, reroute } from '../core/route.js';
 import { APPVIEW, RELAYS, PLC, CONSTELLATION } from '../core/net.js';
-import { COLLECTIONS } from '../core/ns.js';
+import { COLLECTIONS, MODERATOR } from '../core/ns.js';
 import { LEDGER } from '../core/agreement.js';
 import { COLLECTIONS as INDEXED } from '../indexer/src/records.js';
 import { FLUSH_MS } from '../indexer/src/indexer.js';
@@ -80,6 +80,14 @@ test('both documents say who runs Rainshare, and the terms say how a dispute goe
   for (const doc of [terms, privacy]) assert.doesNotMatch(doc, /arbitrat/i);
   assert.match(disputes, /not to bring or join a class, consolidated or representative action/);
   assert.match(section('Governing law'), /laws of the State of Delaware[\s\S]*state and federal courts located in Delaware[\s\S]*mandatory consumer-protection laws of the place you live/);
+  // What can be hidden: what breaks the terms, what goes against the community guidelines, and what puts people at
+  // risk. Going against the guidelines is no breach of the terms by itself, so the guidelines can change on their own.
+  assert.match(section('Moderation'), /when we think it breaks these terms, goes against our \[community guidelines\]\(https:\/\/[^)\s]+\/guidelines\) or puts people at risk/);
+  assert.match(section('Moderation'), /they can change without a new date on these terms\. Going against them means that what you posted can be hidden, or that @rainshare\.dev won’t pass it on\. It isn’t a breach of these terms unless these terms rule the same thing out/);
+  // A new line in the Terms is a new version, and every version from 2026-11-16 on is the Terms alone: the ledger's
+  // cutoff (supabase/migrations/…_rainshare_terms_document.sql) stays where it is.
+  assert.ok(LEGAL_VERSION >= '2026-11-17');
+  assert.equal((readFileSync(new URL('../supabase/migrations/20261116090000_rainshare_terms_document.sql', import.meta.url), 'utf8').match(/policy_version >= '2026-11-16'/g) || []).length, 3);
   assert.match(section('Moderation'), /copyright agent: atpotato, LLC, 8595 Pelham Road[\s\S]*we’ll hide what you named[\s\S]*accounts that infringe repeatedly, when the circumstances call for it/);
   // The Privacy Policy: who to write to, the rights anyone can ask for, and Europe’s.
   assert.match(privacy, /\*\*Data controller:\*\* atpotato, LLC, 8595 Pelham Road, Suite 400 #747, Greenville, SC 29615, USA/);
@@ -143,7 +151,7 @@ test('the Privacy Policy says what the index and the review queue keep, who can 
   const collected = section('What we collect'), sends = section('What @rainshare.dev posts and sends'), deleting = section('Deleting, and how long things last'), rights = section('Your rights');
   const sql = readFileSync(new URL('../supabase/migrations/20261115210000_rainshare_index.sql', import.meta.url), 'utf8');
   const later = readFileSync(new URL('../supabase/migrations/20261115230000_rainshare_review_post_or_send.sql', import.meta.url), 'utf8');
-  const columnsOf = table => [...sql.match(new RegExp(`create table if not exists public\\.${table} \\(([\\s\\S]*?)\\n\\);`))[1].matchAll(/^  ([a-z_]+)\s+(?:text|jsonb|timestamptz)\b/gm)].map(m => m[1]);
+  const columnsOf = (table, from = sql) => [...from.match(new RegExp(`create table if not exists public\\.${table} \\(([\\s\\S]*?)\\n\\);`))[1].matchAll(/^  ([a-z_]+)\s+(?:text|jsonb|timestamptz)\b/gm)].map(m => m[1]);
 
   // The copy (indexer/, rainshare_records): which kinds of record, and what a row holds, column for column.
   const kinds = { seed: /asks,/, take: /notes that someone’s agent is working on an ask/, delivery: /work turned in/, comment: /comments,/, profile: /Rainshare profiles and settings/, preferences: /Rainshare profiles and settings/, moderation: /@rainshare\.dev’s own decisions to hide things/ };
@@ -218,12 +226,39 @@ test('the Privacy Policy says what the index and the review queue keep, who can 
 
   // What we hold, for anyone who asks, and the basis for each in Europe: both under legitimate interests.
   assert.match(rights, /What we hold ourselves is our copy of your Rainshare records, the review note for each of your asks, our note that you agreed to the terms/);
-  assert.match(rights, /what it sent the reviewer about your asks, and the log on its server/);
-  assert.match(rights, /Deleting only our row wouldn’t last while the record is still in your account, because the server would copy it again at its next check/);
-  assert.match(rights, /For the rest we rely on our legitimate interests:[\s\S]*\n- keeping a copy of Rainshare’s public records, so @rainshare\.dev’s server can read the board from one place[^\n]*\n- having a person answer about each new ask before @rainshare\.dev passes it on, and keeping that answer, so that we choose what our own account spreads\n/);
+  assert.match(rights, /what it sent the reviewer about your asks, the log on its server/);
+  assert.match(rights, /To have our copies deleted, delete the records, or ask us to leave your account out of the copy: we then delete what the copy has of yours and keep it from being copied again/);
+  assert.match(rights, /and your account’s ID on the list that keeps your records out of our copy, if you’ve asked for that/);
+  assert.match(rights, /For our copy of your records, stopping means leaving your account out of it/);
+  assert.doesNotMatch(all, /wouldn’t last/);
+  assert.match(rights, /For the rest we rely on our legitimate interests:[\s\S]*\n- keeping a copy of Rainshare’s public records, so @rainshare\.dev’s server can read the board from one place[^\n]*\n- having a person answer about each new ask before @rainshare\.dev passes it on, and keeping that answer, so that we choose what our own account spreads\n- keeping the list of accounts that asked to be left out of our copy, so that their records stay out\n/);
+
+  // Being left out of the copy (supabase/migrations/…_rainshare_index_excluded.sql): a list of accounts, by DID, that
+  // the database itself keeps out. The policy says what the list holds, column for column, and what it does.
+  const out = readFileSync(new URL('../supabase/migrations/20261117090000_rainshare_index_excluded.sql', import.meta.url), 'utf8');
+  assert.deepEqual(columnsOf('rainshare_index_excluded', out), ['did', 'reason', 'added_at'], 'a new column belongs in the policy, then here');
+  assert.match(collected, /\*\*Being left out of the copy\.\*\* You can ask us to keep your records out of our copy while they stay in your account: write to contact@atpota\.to\. We put the account’s ID on a list, with a few words on how you asked and the date/);
+  // Adding an account deletes its rows (and, by the cascade above, the review notes for its asks), and a trigger skips the rest.
+  assert.match(out, /create trigger rainshare_excluded_forget after insert or update of did on public\.rainshare_index_excluded/);
+  assert.match(out, /lock table public\.rainshare_records in share row exclusive mode;\s+delete from public\.rainshare_records where did = new\.did;/);
+  assert.match(out, /create trigger rainshare_skip_excluded before insert or update on public\.rainshare_records/);
+  assert.match(out, /if exists \(select 1 from public\.rainshare_index_excluded x where x\.did = new\.did\) then\s+return null;/);
+  assert.match(collected, /The database then deletes every row it has from that account, with the review notes for its asks, and refuses any record from it from then on/);
+  // Only the service role reads the list, and @rainshare.dev's own account can't be put on it. (No repetition count
+  // above 255 in the pattern: Postgres refuses one, and every insert with it.)
+  assert.match(out, /revoke all on table public\.rainshare_index_excluded from anon, authenticated/);
+  assert.ok(out.includes(`check (did <> '${MODERATOR}')`));
+  for (const [, n] of out.matchAll(/\{\d+,(\d+)\}/g)) assert.ok(+n <= 255, `{…,${n}} in a pattern`);
+  assert.match(collected, /The list is in the same database, and only we and Supabase can read it/);
+  // What it means for them: the site works as before, and @rainshare.dev's server no longer sees their records.
+  assert.match(collected, /The site reads the network, so Rainshare goes on working for you as before/);
+  assert.match(collected, /your asks aren’t passed on, and the direct messages you switched on stop\. Ask, and we’ll take your account off the list/);
+  assert.match(PRIVACY.lead, /If you ask us to keep your records out of that copy, your account’s ID goes on a list there that keeps them out/);
+  assert.match(deleting, /To have our copies deleted while your records stay in your account, ask us to leave your account out of the copy/);
+  assert.match(section('Children'), /and leave their account out of our copy of Rainshare’s records, as quickly as we can/);
 
   // In short, and in the document's own voice: no em dashes.
-  assert.ok(PRIVACY.short.some(x => /keeps a copy of your Rainshare records in a database of its own, and anyone can read that copy\. When you delete a record, our copy of it is deleted too/.test(x)));
+  assert.ok(PRIVACY.short.some(x => /keeps a copy of your Rainshare records in a database of its own, and anyone can read that copy\. When you delete a record, our copy of it is deleted too, and you can ask us to keep your records out of it/.test(x)));
   assert.ok(PRIVACY.short.some(x => /a note for each ask of whether @rainshare\.dev may pass it on, and a note that you agreed to the terms/.test(x)));
   assert.ok(PRIVACY.short.some(x => /once a person on our side has said yes to it/.test(x)));
   for (const doc of [TERMS, PRIVACY]) assert.doesNotMatch(asMarkdown(doc), /—/, `${doc.key}: no em dashes`);

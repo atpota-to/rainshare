@@ -17,8 +17,8 @@
 // something new kept in the browser), the Privacy Policy changes with it.
 import { SITE, HANDLE } from './ns.js';
 
-export const LEGAL_VERSION = '2026-11-16';
-const UPDATED = '16 November 2026';
+export const LEGAL_VERSION = '2026-11-17';
+const UPDATED = '17 November 2026';
 // The Privacy Policy's own date. It's a notice, so a change to it is dated here and asks nobody
 // to agree again. A change that matters to people also gets a new LEGAL_VERSION, so the note
 // before a job comes up once more, with both documents linked.
@@ -175,7 +175,9 @@ If you have a dispute with another person over an ask, a repository, an agent or
 - Get around moderation, for example by posting something again from another account after it was hidden.`],
 
     ['Moderation', `
-We can hide an ask, a comment, anything else posted through Rainshare or shown on it, or everything from an account, when we think it breaks these terms or puts people at risk. The call is ours, and we can get it wrong. As far as the law allows, neither we nor our people are liable to you for hiding something, for leaving it up, or for the flag, reason or note published with it, even if we or our people were careless. What’s hidden isn’t shown to anyone else on the site, in the CLI or the MCP server, or in new link previews. If it’s your ask, you still see it, marked as hidden. A preview Rainshare already made can linger for an hour or two. One that another app saved can stay longer, and a post @${HANDLE} already made about it stays up until we delete it. If Rainshare can’t load our list of what’s hidden, hidden things may show again until it loads.
+We can hide an ask, a comment, anything else posted through Rainshare or shown on it, or everything from an account, when we think it breaks these terms, goes against our [community guidelines](${SITE}/guidelines) or puts people at risk. The call is ours, and we can get it wrong. As far as the law allows, neither we nor our people are liable to you for hiding something, for leaving it up, or for the flag, reason or note published with it, even if we or our people were careless. What’s hidden isn’t shown to anyone else on the site, in the CLI or the MCP server, or in new link previews. If it’s your ask, you still see it, marked as hidden. A preview Rainshare already made can linger for an hour or two. One that another app saved can stay longer, and a post @${HANDLE} already made about it stays up until we delete it. If Rainshare can’t load our list of what’s hidden, hidden things may show again until it loads.
+
+The guidelines say what kinds of ask fit Rainshare, and they can change without a new date on these terms. Going against them means that what you posted can be hidden, or that @${HANDLE} won’t pass it on. It isn’t a breach of these terms unless these terms rule the same thing out.
 
 We can’t delete or change your records: they stay in your account. A decision to hide something is a public record in @${HANDLE}’s account. It names what was hidden and gives a reason in a few words, sometimes with a short note. Unhiding deletes the decision.
 
@@ -253,10 +255,10 @@ A change doesn’t reach a dispute that you or we had already raised in writing:
 
 export const PRIVACY = {
   key: 'privacy', title: 'Privacy Policy', updated: PRIVACY_UPDATED,
-  lead: `There’s no Rainshare account to make. Almost everything you post is kept in your own atproto account, as public records, and the site reads the board straight from the network, in your browser. So most of what you do on Rainshare is public, by design. We keep three things in a database of our own: a copy of the Rainshare records in people’s accounts, a note for each ask that says whether @${HANDLE} may pass it on, and a note that you agreed to the terms. The records we copy are already public in the accounts they’re in. Our copy is still a copy that we hold, and this policy says what’s in it and when it goes. This policy covers Rainshare’s site at ${DOMAIN} (and any other address we serve it from), the Rainshare CLI and its MCP server, and Rainshare’s account @${HANDLE}, which are operated by ${LLC}, ${LLC_KIND} based in the United States (“we”, “us”).`,
+  lead: `There’s no Rainshare account to make. Almost everything you post is kept in your own atproto account, as public records, and the site reads the board straight from the network, in your browser. So most of what you do on Rainshare is public, by design. We keep three things in a database of our own: a copy of the Rainshare records in people’s accounts, a note for each ask that says whether @${HANDLE} may pass it on, and a note that you agreed to the terms. If you ask us to keep your records out of that copy, your account’s ID goes on a list there that keeps them out. The records we copy are already public in the accounts they’re in. Our copy is still a copy that we hold, and this policy says what’s in it and when it goes. This policy covers Rainshare’s site at ${DOMAIN} (and any other address we serve it from), the Rainshare CLI and its MCP server, and Rainshare’s account @${HANDLE}, which are operated by ${LLC}, ${LLC_KIND} based in the United States (“we”, “us”).`,
   short: [
     'What you post is public. Nearly all of it lives in your own account, where you can delete it.',
-    'Rainshare keeps a copy of your Rainshare records in a database of its own, and anyone can read that copy. When you delete a record, our copy of it is deleted too.',
+    'Rainshare keeps a copy of your Rainshare records in a database of its own, and anyone can read that copy. When you delete a record, our copy of it is deleted too, and you can ask us to keep your records out of it.',
     `The same database holds a note for each ask of whether @${HANDLE} may pass it on, and a note that you agreed to the terms. Those two aren’t open to the public.`,
     'Rainshare sets no cookies, shows no ads and sells nothing.',
     'Your browser talks straight to the network’s servers, so they see your requests.',
@@ -324,6 +326,8 @@ Each row holds one record whole, as your host has it, including anything in it t
 
 These records are already public in the accounts they’re in, and our copy is open as well: the database lets anyone read it. It’s still a copy that we hold, with everyone’s Rainshare records together in one place. So far Rainshare uses it for one thing: @${HANDLE}’s server reads the board from it and doesn’t have to ask every host. The site and the CLI still read the network. “Deleting, and how long things last” says when a row goes. See [Supabase’s privacy policy](https://supabase.com/privacy).
 
+**Being left out of the copy.** You can ask us to keep your records out of our copy while they stay in your account: write to ${EMAIL}. We put the account’s ID on a list, with a few words on how you asked and the date. The database then deletes every row it has from that account, with the review notes for its asks, and refuses any record from it from then on. The list is in the same database, and only we and Supabase can read it. The site reads the network, so Rainshare goes on working for you as before. @${HANDLE}’s server reads the board from our copy, so while it does, it doesn’t see your records: your asks aren’t passed on, and the direct messages you switched on stop. Ask, and we’ll take your account off the list.
+
 **That you agreed.** When you agree to the terms while signed in, or sign in on a browser where you’d already agreed, it’s written into your settings, as above, and we keep a note of our own, so there’s a second record that doesn’t depend on your account. A function of ours at Supabase reads your settings from your own host and notes what it finds there: your account’s ID (its DID), the version, when you agreed, whether that was on the site or with the CLI, and a copy of the record as your host signed it. That copy is your whole settings record as it stood then.
 
 The note is kept in the same database at Supabase, in a part of it that isn’t open to the public. Only we and Supabase can read it, with one exception: anyone can ask the function whether a given account has agreed to a given version, and it says yes or no. If your settings say you agreed and we hadn’t noted it yet, asking makes the note, and whether it was on the site or with the CLI is what the asker says. The note holds no IP address and nothing about your browser, though Supabase’s own log of the request keeps your kind of browser for as long as Supabase keeps its logs. We keep the note while you use Rainshare, and afterwards for as long as we may need to show what was agreed.
@@ -377,7 +381,7 @@ On the feedback board, what its moderators decide (a post’s status, hiding a p
     ['Deleting, and how long things last', `
 Your records stay in your account until you delete them. In Rainshare you can delete an ask or a comment you made here, take back a vouch, and drop something you took on. Anything else (your Rainshare profile, your settings, something you turned in) can be deleted with your host’s tools or any atproto record browser. Deleting your account at your host removes all of them.
 
-Our copy of a record follows the record. When you delete one, Jetstream carries the delete and our copy is deleted, normally within a few seconds. When you edit one, our copy is replaced with the new version, and we keep no earlier ones. A delete can be missed, for example if our server loses its place in the stream. So every six hours the server compares our copy with what each account’s host lists, and deletes any row whose record is gone. If your host says your account has been deleted, deactivated, suspended or taken down, that check deletes our copies of all its Rainshare records. If a host can’t be reached, or its list can’t be read in full, nothing of that account’s is deleted at that check, and the next one tries again.
+Our copy of a record follows the record. When you delete one, Jetstream carries the delete and our copy is deleted, normally within a few seconds. When you edit one, our copy is replaced with the new version, and we keep no earlier ones. A delete can be missed, for example if our server loses its place in the stream. So every six hours the server compares our copy with what each account’s host lists, and deletes any row whose record is gone. If your host says your account has been deleted, deactivated, suspended or taken down, that check deletes our copies of all its Rainshare records. If a host can’t be reached, or its list can’t be read in full, nothing of that account’s is deleted at that check, and the next one tries again. To have our copies deleted while your records stay in your account, ask us to leave your account out of the copy (see “What we collect”).
 
 The review note about an ask is deleted with our copy of the ask, in the same step. The messages the reviewer was sent about the ask stay in that conversation at Bluesky, and the server’s log keeps its lines about it until they’re cleared.
 
@@ -390,11 +394,11 @@ To take away Rainshare’s access, sign out, and remove Rainshare from the apps 
 Vercel, Supabase and DigitalOcean keep their own logs, and Vercel its page counts, for as long as their policies say. Supabase also backs up our database, so a row we’ve deleted can stay in a backup until that backup expires.`],
 
     ['Your rights', `
-Wherever you live, you can ask to see the personal data we hold about you, to have it corrected or deleted, to get a copy you can take elsewhere, and to restrict or object to how it’s used. Nearly all of your data is in your own account, where you can do those things yourself. What we hold ourselves is our copy of your Rainshare records, the review note for each of your asks, our note that you agreed to the terms, anything you’ve written to us, what @${HANDLE} has posted, sent or hidden that names you, what it sent the reviewer about your asks, and the log on its server, which names the accounts it posted about and messaged and the asks that were reviewed. The rest of what reaches us is in Vercel’s and Supabase’s logs and Vercel’s page counts, and we don’t tie it to your account.
+Wherever you live, you can ask to see the personal data we hold about you, to have it corrected or deleted, to get a copy you can take elsewhere, and to restrict or object to how it’s used. Nearly all of your data is in your own account, where you can do those things yourself. What we hold ourselves is our copy of your Rainshare records, the review note for each of your asks, our note that you agreed to the terms, anything you’ve written to us, what @${HANDLE} has posted, sent or hidden that names you, what it sent the reviewer about your asks, the log on its server, which names the accounts it posted about and messaged and the asks that were reviewed, and your account’s ID on the list that keeps your records out of our copy, if you’ve asked for that. The rest of what reaches us is in Vercel’s and Supabase’s logs and Vercel’s page counts, and we don’t tie it to your account.
 
-Our copy of your records follows your account. To correct or remove a copy, change or delete the record itself, and our copy follows, as “Deleting, and how long things last” says. Deleting only our row wouldn’t last while the record is still in your account, because the server would copy it again at its next check. The review note for an ask goes when our copy of the ask does, and you can ask us what it says.
+Our copy of your records follows your account. To correct a copy, change the record itself, and our copy follows, as “Deleting, and how long things last” says. To have our copies deleted, delete the records, or ask us to leave your account out of the copy: we then delete what the copy has of yours and keep it from being copied again, as “What we collect” says. The review note for an ask goes when our copy of the ask does, and you can ask us what it says.
 
-When you ask us to delete what we hold, we delete what we can: @${HANDLE}’s posts about your asks, and what you’ve written to us once it’s dealt with. Some things stay. Our note that you agreed stays, so that we can show what was agreed if there’s ever a dispute, and privacy laws let us keep what we need for that. A decision to hide something stays for as long as the thing is hidden. Something you wrote that we may need to show later stays too: a copyright notice, a privacy request, a complaint. A direct message that’s already been sent stays in the conversation at Bluesky. We can’t take single lines out of the server’s log, which clears old entries by itself.
+When you ask us to delete what we hold, we delete what we can: our copy of your records and the review notes with it, by leaving your account out of the copy; @${HANDLE}’s posts about your asks; and what you’ve written to us once it’s dealt with. Some things stay. Your account’s ID stays on the list that keeps your records out, for as long as you want them kept out. Our note that you agreed stays, so that we can show what was agreed if there’s ever a dispute, and privacy laws let us keep what we need for that. A decision to hide something stays for as long as the thing is hidden. Something you wrote that we may need to show later stays too: a copyright notice, a privacy request, a complaint. A direct message that’s already been sent stays in the conversation at Bluesky. We can’t take single lines out of the server’s log, which clears old entries by itself.
 
 To ask, email ${EMAIL}. You don’t need to have used Rainshare: if it shows something public about you, you can ask too. We may need to check that you control the account a request is about. We’ll answer within the time the law requires, and we aim to answer everything within 30 days. We won’t treat you differently for asking, and if we turn a request down, you can reply and we’ll look again.
 
@@ -403,6 +407,7 @@ To ask, email ${EMAIL}. You don’t need to have used Rainshare: if it shows som
 - keeping a note that you agreed, so we can show what was agreed
 - keeping a copy of Rainshare’s public records, so @${HANDLE}’s server can read the board from one place and doesn’t have to ask every host
 - having a person answer about each new ask before @${HANDLE} passes it on, and keeping that answer, so that we choose what our own account spreads
+- keeping the list of accounts that asked to be left out of our copy, so that their records stay out
 - posting new asks from @${HANDLE}, so they get seen
 - checking asks and hiding things, to keep helpers safe
 - showing public information about people who haven’t signed in, so you can see who’s asking and who’s helping
@@ -410,10 +415,10 @@ To ask, email ${EMAIL}. You don’t need to have used Rainshare: if it shows som
 
 We’re a small company in the United States with no office in Europe, so write to us directly. You can also complain to your data protection authority.
 
-**Your right to object.** Where one of those laws applies and we rely on a legitimate interest, you can object at any time by writing to ${EMAIL}. We’ll stop, unless we have a compelling reason to carry on or need the data for a legal claim.`],
+**Your right to object.** Where one of those laws applies and we rely on a legitimate interest, you can object at any time by writing to ${EMAIL}. We’ll stop, unless we have a compelling reason to carry on or need the data for a legal claim. For our copy of your records, stopping means leaving your account out of it.`],
 
     ['Children', `
-Rainshare is for adults. It isn’t directed to anyone under 18, and we don’t knowingly collect personal information from children under 13. If we learn that we have, we’ll delete what we hold about them, our note that they agreed included, as quickly as we can. If you’re a parent or guardian and think your child has used Rainshare, write to ${EMAIL}.`],
+Rainshare is for adults. It isn’t directed to anyone under 18, and we don’t knowingly collect personal information from children under 13. If we learn that we have, we’ll delete what we hold about them, our note that they agreed included, and leave their account out of our copy of Rainshare’s records, as quickly as we can. If you’re a parent or guardian and think your child has used Rainshare, write to ${EMAIL}.`],
 
     ['Where it all goes', `
 Rainshare is operated from the United States, and the services named here run there and in other countries. If you use Rainshare from somewhere else, your requests, and what you post publicly, are sent to and processed in those places, whose data protection laws may differ from yours. Where the law requires it, we rely on our service providers’ safeguards for those transfers, for example the Standard Contractual Clauses.
@@ -439,8 +444,9 @@ We aim to answer privacy questions within 30 days. You can also reach us as [@${
 
 // What kinds of asks fit Rainshare, and how new ones are reviewed before @rainshare.dev passes
 // them on (../announcer/src/review.js). Shown at /guidelines, in the same shape as the terms. It
-// isn't something people agree to on its own: the Terms of Service already say an ask can be
-// hidden, and these say which ones and how. Changing them doesn't ask anyone to agree again.
+// isn't something people agree to on its own: the Terms of Service say an ask that goes against
+// them can be hidden (their "Moderation"), and these say which ones and how. Going against them
+// isn't a breach of the Terms by itself, so changing them doesn't ask anyone to agree again.
 export const GUIDELINES = {
   key: 'guidelines', title: 'Community guidelines', updated: '15 November 2026',
   lead: `Rainshare works because people spend their own AI plans on someone else’s idea. These guidelines say what kind of ask fits that, what @${HANDLE} won’t pass on, and how new asks are reviewed. The Terms of Service still apply in full.`,

@@ -20,16 +20,20 @@ import { SITE } from './ns.js';
 
 export const RELEASES = [
   {
-    id: 'privacy-policy-our-copy',
-    date: '2026-11-17',
-    title: 'The Privacy Policy covers what Rainshare now keeps',
-    summary: 'Rainshare now keeps a copy of the public records people post through it, and a note of whether @rainshare.dev may pass each ask on. The Privacy Policy says what’s in both.',
-    text: `Rainshare used to keep one thing in a database of its own: a note that you agreed to the terms. It now keeps two more there:
+    id: 'terms-guidelines-privacy-copy',
+    date: '2026-11-15',
+    title: 'The terms point to the guidelines, and the Privacy Policy covers our copy',
+    summary: 'The Terms now say an ask that goes against the community guidelines can be hidden, so you’ll be asked to agree once more. The Privacy Policy says what Rainshare keeps, and how to be left out.',
+    text: `Two documents changed.
 
-- a copy of every Rainshare record: asks, who’s working on what, work turned in, comments, profiles and settings. These are the public records that are in your own account, and anyone can read our copy as well. When you delete a record, our copy is deleted too, normally within a few seconds.
+**The Terms of Service** have one new thing in them, under Moderation: an ask that goes against the [community guidelines](${SITE}/guidelines) can be hidden, as one that breaks the terms or puts people at risk already could. Going against the guidelines isn’t a breach of the terms by itself. Because the terms changed, Rainshare asks you to agree once more, before your next job or ask.
+
+**The Privacy Policy** now covers two things Rainshare keeps in a database of its own, beside the note that you agreed to the terms:
+
+- a copy of every Rainshare record: asks, who’s working on what, work turned in, comments, profiles and settings. These are the public records that are in your own account, and anyone can read our copy as well. When you delete a record, our copy is deleted too, normally within a few seconds. You can also ask us to keep your records out of the copy while they stay in your account.
 - a note for each ask of whether @rainshare.dev may post it or send it to anyone. It isn’t open to the public, and it’s deleted when our copy of the ask is.
 
-The [Privacy Policy](${SITE}/privacy) says what’s in each, who can read them and when they go. The Terms of Service haven’t changed, so there’s nothing to agree to again.`
+The [Privacy Policy](${SITE}/privacy) says what’s in each, who can read them and when they go.`
   },
   {
     id: 'community-guidelines',
