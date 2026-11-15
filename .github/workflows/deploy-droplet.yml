@@ -1,12 +1,14 @@
 name: Deploy droplet
 
-# Deploys the announcer (announcer/: @rainshare.dev's posts and messages) to the droplet when a
-# push to main touches what it runs, by asking the droplet to run droplet/deploy.sh. The droplet:
+# Deploys Rainshare's services to the droplet when a push to main touches what they run, by asking
+# the droplet to run droplet/deploy.sh: the announcer (announcer/: @rainshare.dev's posts,
+# messages and the approver's review) and the index (indexer/: every dev.rainshare.* record, in
+# Supabase). The droplet:
 #  - fetches the commit from GitHub itself
-#  - does nothing if the announcer isn't set up there yet (no .env in its data folder)
-#  - does nothing if what it runs didn't change
-#  - runs its tests
-#  - restarts it, checks health, and rolls back on its own if unhealthy
+#  - deploys only the services set up there (a .env in each one's data folder)
+#  - does nothing if what they run didn't change
+#  - runs their tests
+#  - restarts them, checks health, and rolls back on its own if any is unhealthy
 #
 # It's how atpota-to/atpota.to deploys Poe's services to the same droplet, with a key of its own.
 # The DROPLET_DEPLOY_KEY secret can do nothing else: on the droplet it's pinned to
@@ -20,6 +22,7 @@ on:
     branches: [main]
     paths:
       - 'announcer/**'
+      - 'indexer/**'
       - 'core/**'
       - 'lexicons/compat.mjs'
       - 'api/_og/describe.js'
@@ -27,6 +30,8 @@ on:
       - 'test/announce.test.mjs'
       - 'test/messages.test.mjs'
       - 'test/announcer.test.mjs'
+      - 'test/review.test.mjs'
+      - 'test/index-*.test.mjs'
       - 'droplet/**'
       - '.github/workflows/deploy-droplet.yml'
   workflow_dispatch:

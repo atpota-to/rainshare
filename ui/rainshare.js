@@ -2089,14 +2089,14 @@ export function createRainshare({ root, base = '/', host }){
       </div>`;
   }
 
-  /* ---------- the Terms of Service and the Privacy Policy (../core/legal.js) ---------- */
+  /* ---------- the Terms of Service, the Privacy Policy and the community guidelines (../core/legal.js) ---------- */
   function renderLegal(){
     const doc = LEGAL[S.view], other = doc.key === 'terms' ? LEGAL.privacy : LEGAL.terms;
     title(doc.title);
     return `${back()}<article class="rs-panel rs-legal">
       <header class="rs-legal-head"><h1>${esc(doc.title)}</h1><p class="rs-muted">Last changed ${esc(doc.updated)} · ${a(other.key, `Read the ${esc(other.title)}`, 'rs-link')}</p></header>
       <p class="rs-legal-lead">${esc(doc.lead)}</p>
-      <section class="rs-legal-short" aria-labelledby="rsLegalShort"><h2 id="rsLegalShort">In short</h2><ul>${doc.short.map(x => `<li>${esc(x)}</li>`).join('')}</ul><p class="rs-muted">The full text below is what counts.</p></section>
+      <section class="rs-legal-short" aria-labelledby="rsLegalShort"><h2 id="rsLegalShort">In short</h2><ul>${doc.short.map(x => `<li>${esc(x)}</li>`).join('')}</ul><p class="rs-muted">${doc.key === 'guidelines' ? 'The rest of the page says what each one means.' : 'The full text below is what counts.'}</p></section>
       ${doc.sections.map(([h, md], i) => `<section><h2>${i + 1}. ${esc(h)}</h2><div class="rs-spec">${renderMarkdown(md.trim())}</div></section>`).join('')}
     </article>`;
   }
@@ -2362,7 +2362,7 @@ export function createRainshare({ root, base = '/', host }){
   function render(){
     // (Until a screen has been entered with someone to show it to, the address says what to hold its place with.)
     if (!S.source || !S.view) { paint(`<div class="rs">${ahead(S.sub)}</div>`, viewOf(S.sub)); return; }
-    const body = { board: renderBoard, seed: renderSeed, new: renderNew, me: renderMe, settings: renderSettings, person: renderPerson, agents: renderAgents, feedback: renderFeedback, admin: renderAdmin, terms: renderLegal, privacy: renderLegal, releases: renderReleases, lost: renderLost }[S.view]?.() || renderBoard();
+    const body = { board: renderBoard, seed: renderSeed, new: renderNew, me: renderMe, settings: renderSettings, person: renderPerson, agents: renderAgents, feedback: renderFeedback, admin: renderAdmin, terms: renderLegal, privacy: renderLegal, guidelines: renderLegal, releases: renderReleases, lost: renderLost }[S.view]?.() || renderBoard();
     // Redrawing keeps whichever field had focus, and where its cursor was.
     const focus = document.activeElement && root.contains(document.activeElement) ? document.activeElement : null;
     const keep = focus?.name ? { name: focus.name, pos: focus.selectionStart } : null;
@@ -2762,7 +2762,7 @@ export function createRainshare({ root, base = '/', host }){
     else if (sub === 'agents') { S.view = 'agents'; render(); }
     else if (sub === 'feedback') { S.view = 'feedback'; render(); loadFeedback(); }
     else if (sub === 'admin') { S.view = 'admin'; render(); loadAdmin(); }
-    else if (sub === 'terms' || sub === 'privacy') { S.view = sub; render(); }
+    else if (sub === 'terms' || sub === 'privacy' || sub === 'guidelines') { S.view = sub; render(); }
     else if (sub === 'releases') {
       S.view = 'releases'; render();
       // Come from the bell, to one note: it's scrolled to, once the host has put the new page at its top.

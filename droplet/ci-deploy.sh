@@ -3,7 +3,9 @@
 #
 # /root/.ssh/authorized_keys pins that key to this script ("restrict,command=..."), so whatever
 # the client asks to run, this runs instead, with the request in $SSH_ORIGINAL_COMMAND. It accepts
-# exactly "announcer [<full sha>]", where the commit must be on main, and hands it to deploy.sh.
+# exactly "announcer [<full sha>]", where the commit must be on main, and hands it to deploy.sh,
+# which deploys every Rainshare service set up there (the announcer and the index). The word is
+# "announcer" because that's what the workflow has always sent.
 # That fetches the code from GitHub itself: the key can trigger a deploy of what's already on main
 # and nothing else. (Poe's services have a key and a script of their own: atpota-to/atpota.to,
 # droplet/ci-deploy.sh.)

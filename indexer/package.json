@@ -1,0 +1,14 @@
+{
+  "name": "rainshare-index",
+  "private": true,
+  "type": "module",
+  "description": "Every dev.rainshare.* record on the network, kept in Supabase from Jetstream and reconciled against each repo, for the announcer and the review queue. Holds no atproto credential; its only secret is a Supabase service key.",
+  "engines": {
+    "node": ">=22.4"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "backfill": "node --env-file=.env src/backfill-once.js",
+    "test": "cd .. && node --test test/index-*.test.mjs"
+  }
+}

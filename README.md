@@ -469,6 +469,29 @@ The records are public, like everything on atproto, so a note says why in words 
 for anyone to read. If @rainshare.dev's server doesn't answer, nothing is hidden for that minute
 rather than the board going dark; the moderation page says so.
 
+What kinds of asks fit is in the [community guidelines](https://rainshare.dev/guidelines)
+(`/guidelines`, written in `core/legal.js` beside the terms, and `rainshare guidelines` in the CLI).
+In short: work on something you'll build, share or maintain; no paid work passed on to helpers,
+such as bug bounties or client work; no hunting for security holes in software that isn't yours.
+"Against the guidelines" is one of the reasons a hide can give. Two of Rainshare's checks look for
+the first two (`paid` and `vuln-hunting` in `core/scan.js`); like the other "worth a look"
+checks, they only put a note in front of people.
+
+#### Review before anything is passed on
+
+A person reads every new ask before @rainshare.dev posts it or puts it in anyone's direct
+messages. The announcer sends the approver (dame.is, by DID) a direct message about one ask at a
+time: its title, who asked, the start of what it says, and what the checks noticed. They reply:
+
+- **YES**: it's posted, and goes in the next day's new asks for people who asked for them
+- **NO**: it stays on the board, and isn't posted or sent
+- **HIDE** (with an optional reason after it): it's hidden, as the moderation page hides things,
+  with the reason "Against the guidelines". If it was posted already, the post comes down.
+
+A yes holds for that version of the ask only: an edit asks again. Until the approver answers, the
+ask is on the board like any other. The queue lives in the index (below), and without it nothing
+new goes out at all. `announcer/src/review.js` has the details.
+
 ### Feedback
 
 Bugs, requests and ideas about Rainshare itself go on its board on
@@ -685,16 +708,17 @@ which spells it out by hand.
 | `src/mode.js`, `public/mode.js` | day and night: the toggle in the bar, and the small script that picks one before the page is first drawn |
 | `src/hosts.js` | the hosts offered for making an account, for someone who hasn't got one |
 | `src/spaces.js` | group spaces for private asks (switched off) |
-| `ui/` | the app's screens: the board, an ask, profiles, your settings, posting an ask, the first-time welcome (and asking about messages, for someone past it), loading placeholders, the feedback page, the note before a first job, the terms and privacy pages, What's new, the bell's panel (`notices.js`), and @rainshare.dev's moderation page |
+| `ui/` | the app's screens: the board, an ask, profiles, your settings, posting an ask, the first-time welcome (and asking about messages, for someone past it), loading placeholders, the feedback page, the note before a first job, the terms, privacy and community guidelines pages, What's new, the bell's panel (`notices.js`), and @rainshare.dev's moderation page |
 | `core/` | everything the site and the CLI share (below) |
 | `cli/rainshare.mjs` | the CLI and MCP server |
 | `api/` | Vercel functions: the OAuth client metadata, and link previews (`page.js` sets the meta tags, `og.js` draws the image) |
-| `announcer/` | the service that posts new asks to Bluesky and sends people their messages, on the droplet (see [Deploying](#deploying)) |
-| `droplet/` | how the announcer is deployed to the droplet, and set up there |
+| `announcer/` | the service that asks the approver about new asks, posts the ones they say yes to on Bluesky, and sends people their messages, on the droplet (see [Deploying](#deploying)) |
+| `indexer/` | the index: every `dev.rainshare.*` record, from Jetstream to Supabase, on the droplet (see [The index](#the-index)) |
+| `droplet/` | how the announcer and the index are deployed to the droplet, and set up there |
 | `lexicons/` | the record schemas and the sign-in permission set, plus the scripts that publish them and check changes for breakage |
 | `scripts/` | the image scripts above, `feedback.mjs` for the feedback board, and `announce.mjs`, which runs the announcer once by hand (see [Deploying](#deploying)) |
 | `.claude/skills/feedback/` | the feedback routine's instructions |
-| `supabase/` | Rainshare's ledger of who agreed to its terms: the table (`migrations/`) and the function that writes it (`functions/rainshare-agree/`) |
+| `supabase/` | Rainshare's ledger of who agreed to its terms, the index of every record and the review queue (`migrations/`), and the function that writes the ledger (`functions/rainshare-agree/`) |
 | `test/` | `npm test` |
 
 In `core/`:
@@ -759,8 +783,9 @@ with the same variables.
 
 ### Posts and messages on Bluesky
 
-@rainshare.dev posts each new ask on the board, and sends a direct message to everyone who's asked
-for one and has news. A post names who's asking, with a mention so they hear about it, and gives
+@rainshare.dev posts each new ask on the board once the approver has said yes to it (see
+[Review before anything is passed on](#review-before-anything-is-passed-on)), and sends a direct
+message to everyone who's asked for one and has news. A post names who's asking, with a mention so they hear about it, and gives
 the ask's title, with a card that links to its page.
 
 That's the announcer, [`announcer/`](announcer), a small service that stays up on the same
@@ -774,7 +799,8 @@ deploy key and rollbacks, and [`announcer/README.md`](announcer/README.md) how i
 post and send.
 
 It needs an app password for @rainshare.dev made with "Allow access to your direct messages"
-ticked, in the droplet's `/root/rainshare-announcer/.env`, not in Vercel. Without direct messages
+ticked, and the index's Supabase URL and service key, in the droplet's
+`/root/rainshare-announcer/.env`, not in Vercel. Without direct messages
 allowed, the posts still go out, and each run says the messages can't. It starts in `MODE=dry`,
 saying in its log what it would post and send, until that's set to `live`.
 
@@ -792,7 +818,7 @@ So an ask goes out about a quarter of an hour after it's asked, unless someone h
 then, and isn't posted at all once it has. Each run posts at most five, the earliest first, and
 leaves the rest for the next run. If the takes and turn-ins can't be read, nothing is posted.
 
-There's no database, so the account's own posts say what's been posted. An ask that one of its
+The account's own posts say what's been posted, not a database. An ask that one of its
 last 300 posts links to isn't posted again, even if that post was written by hand. Each post also
 takes the ask's own record key, so two runs at once can't post the same ask twice.
 
@@ -800,7 +826,8 @@ Asks from anyone @rainshare.dev blocks aren't posted, and neither are asks from 
 it. To keep someone's asks off the account, block them from it. Nothing it has hidden on the
 moderation page is posted or messaged either, and neither is an ask that Rainshare's checks find
 very likely a trick on helpers' agents. If the list of what it has hidden can't be read, the run
-posts and sends nothing.
+posts and sends nothing. Nor is anything the approver hasn't said yes to, as it is now, and a post
+about an ask that's hidden later is taken down.
 
 #### Messages
 
@@ -815,8 +842,9 @@ There are two kinds, and they can have either or both:
 - **Updates on my asks and my work**: someone's on one of your asks, or has turned in work on it
   (with a link to the pull request); an ask you were on was marked done, with your work or
   someone else's, or was closed.
-- **New asks on the board**: asks meant for everyone that nobody's on yet, as for the posts,
-  except your own.
+- **New asks on the board**: asks meant for everyone that nobody's on yet and the approver has
+  said yes to, as for the posts, except your own. An ask is in the day's news for the day it was
+  said yes to.
 
 The updates are worked out by `core/news.js`, which the bell in the site's bar uses too. Updates
 go out within a minute or two: each run sends someone one message at most, with
@@ -852,6 +880,17 @@ There are three ways to stop them, and any one of them works:
 People someone blocks on Bluesky aren't in their news, and the account doesn't message anyone it
 blocks or who blocks it. Nothing it has hidden is in anyone's news, and it doesn't message an
 account it has hidden.
+
+### The index
+
+[`indexer/`](indexer) is Rainshare's AppView: a second small service on the droplet that keeps
+every `dev.rainshare.*` record on the network in Supabase (the same project as the terms ledger),
+from Jetstream, reconciled against every repo every six hours. It's atpota.to's garden index,
+adapted, and holds no atproto credential. The announcer reads the board from it while its
+heartbeat is fresh, and from every repo otherwise; the review queue lives beside the records. The
+site still reads the network for now. The schema is
+`supabase/migrations/20261115210000_rainshare_index.sql`, and [`indexer/README.md`](indexer/README.md)
+has the rest.
 
 ## Not tried for real yet
 

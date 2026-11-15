@@ -12,7 +12,7 @@
         "properties": {
           "subject": { "type": "string", "format": "at-uri", "description": "What it's about: one record (at://<did>/<collection>/<rkey>), such as an ask, a take, a delivery or a comment, Rainshare's own or one on a forge's issue; or a whole account (at://<did>), which covers everything it writes." },
           "action": { "type": "string", "maxLength": 64, "knownValues": ["hide"], "description": "hide: kept off the board, out of an ask's page and its comments, out of link previews, and away from agents. An app that doesn't know an action ignores the record." },
-          "reason": { "type": "string", "maxLength": 64, "knownValues": ["spam", "unsafe", "harmful", "abuse", "other"], "description": "spam: spam or a scam. unsafe: tries to misuse a helper's agent (instructions hidden from people, reaching for secrets, running code from elsewhere). harmful: asks for something AI plans' usage policies rule out. abuse: harassment, hate or threats." },
+          "reason": { "type": "string", "maxLength": 64, "knownValues": ["spam", "unsafe", "harmful", "abuse", "guidelines", "other"], "description": "spam: spam or a scam. unsafe: tries to misuse a helper's agent (instructions hidden from people, reaching for secrets, running code from elsewhere). harmful: asks for something AI plans' usage policies rule out. abuse: harassment, hate or threats. guidelines: asks for something Rainshare's community guidelines rule out (https://rainshare.dev/guidelines)." },
           "note": { "type": "string", "maxLength": 3000, "maxGraphemes": 300, "description": "Why, in a sentence. Public, like the rest of the record." },
           "createdAt": { "type": "string", "format": "datetime" }
         }

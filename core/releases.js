@@ -16,7 +16,21 @@
 //
 // The bell only lists notes from the last 30 days; the page has them all. `npm test` checks
 // the list (test/notices.test.mjs).
+import { SITE } from './ns.js';
+
 export const RELEASES = [
+  {
+    id: 'community-guidelines',
+    date: '2026-11-15',
+    title: 'Community guidelines',
+    summary: 'There are now community guidelines for what to ask for, and a person reads each new ask before @rainshare.dev shares it.',
+    text: `The [community guidelines](${SITE}/guidelines) say what kinds of asks fit Rainshare. Most of it is what the terms already said. Two things are new and spelled out:
+
+- no paid work passed on to helpers, such as bug bounties or client work
+- no hunting for security holes in software that isn’t yours
+
+A person now reads every new ask before @rainshare.dev posts it on Bluesky or sends it in anyone’s messages. Your ask is on the board straight away, as before. If you edit it, it’s read again.`
+  },
   {
     id: 'notifications',
     date: '2026-11-15',

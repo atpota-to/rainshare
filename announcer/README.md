@@ -1,7 +1,7 @@
 # The announcer
 
-@rainshare.dev's posts about new asks, and the direct messages people ask for, as a service that
-stays up. It runs on the droplet beside Poe's services (atpota-to/atpota.to), in folders and a
+@rainshare.dev's posts about new asks, the direct messages people ask for, and the review that
+comes before both, as a service that stays up. It runs on the droplet beside Poe's services (atpota-to/atpota.to), in folders and a
 unit of its own, and deploys itself when `main` changes: see [`../droplet/`](../droplet).
 
 ## What it does
@@ -11,8 +11,13 @@ records: asks, takes, turn-ins and people's settings (`dev.rainshare.seed`, `.ta
 `.delivery`, `.preferences`). Whenever one is written, a run follows within a minute or two
 (`src/run.js`):
 
-- **Posts** (`src/posts.js`): each new ask that nobody's on yet, once it has settled for 15
-  minutes (in case its title is fixed straight after). Not one that someone has said they're on,
+- **Review** (`src/review.js`): the approver (dame.is) is asked by direct message about each new
+  ask, one at a time, before it goes anywhere. They reply YES (post it and send it), NO (leave it
+  on the board, don't pass it on) or HIDE (hide it, with what follows as the reason, and take down
+  any post about it). Their answer is kept in the review queue in the index
+  ([`../indexer/`](../indexer)), for that version of the ask: an edit asks again.
+- **Posts** (`src/posts.js`): each new ask that nobody's on yet and the approver has said yes
+  to, once it has settled for 15 minutes (in case its title is fixed straight after). Not one that someone has said they're on,
   has turned work in for, or that's done or closed, as the board's "Nobody on it yet" has it.
 - **Messages** (`src/messages.js`): for each person who asked for them in their settings, their
   updates since their last message (someone's on their ask, work's been turned in, an ask they
@@ -23,17 +28,20 @@ It also runs when an ask finishes settling, when someone writes to the account (
 conversations every minute, as Poe does, so a STOP is answered quickly), and every 15 minutes in
 case Jetstream missed something.
 
-There's no database. Every run reads what it needs from the network: the account's own posts say
-what's been posted, and its conversations say what each person has heard and whether they've
-said STOP. So a restart, a move to another machine or a missed event loses nothing: the next run
-picks up where things stand.
+It keeps nothing itself. Every run reads what it needs: the board from the index while the
+index's heartbeat is fresh, and from every repo otherwise; the approver's answers from the review
+queue; what's been posted from the account's own posts; and what each person has heard, and
+whether they've said STOP, from its conversations. So a restart, a move to another machine or a
+missed event loses nothing: the next run picks up where things stand. Without the index's
+Supabase key, nothing new is posted or sent, since nobody can say yes to it.
 
 It keeps one Bluesky session for as long as it's up, and renews it rather than signing in again.
 An account can sign in only 300 times a day, and past that nobody can sign in to it until the day
 is out. A sign-in that fails (a wrong password, say) isn't tried again for half an hour.
 
 Nothing @rainshare.dev has hidden on the moderation page is posted or anyone's news, and nor is an
-ask Rainshare's checks find very likely a trick on helpers' agents. Asks from anyone the account
+ask Rainshare's checks find very likely a trick on helpers' agents. A post about an ask that's
+hidden after it went out is taken down. Asks from anyone the account
 blocks, or who blocks it, aren't posted.
 
 ## Running it
@@ -67,5 +75,5 @@ Don't run it for real in two places at once: two runs can send someone the same 
 ## Tests
 
 `npm test` here runs its tests (`../test/announce.test.mjs`, `messages.test.mjs`,
-`announcer.test.mjs`). They need no network and no packages, only Node 22. The droplet runs them
+`review.test.mjs`, `announcer.test.mjs`). They need no network and no packages, only Node 22. The droplet runs them
 on every deploy before switching.

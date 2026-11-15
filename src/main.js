@@ -6,7 +6,7 @@
 //   /board          the board on its own, signed in or out (the bar's "Help someone")
 //   /new            asking for help (the bar's "Ask for help")
 //   /example/…      the example circle, kept in this browser (nothing in the app links to it)
-//   /seed/…, /new, /me, /settings, /profile/…, /agents, /feedback, /terms, /privacy, /releases   Rainshare's own screens (see ../ui/rainshare.js)
+//   /seed/…, /new, /me, /settings, /profile/…, /agents, /feedback, /terms, /privacy, /guidelines, /releases   Rainshare's own screens (see ../ui/rainshare.js)
 //   /signed-in      where your server sends you back after signing in
 //
 // Signing in is a dialog of its own (./signin.js), opened from here.
