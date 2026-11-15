@@ -106,9 +106,9 @@ test('the Privacy Policy names every service the code asks, and everything kept 
   for (const dir of ['../ui/', '../src/', '../core/', '../public/']) for (const f of readdirSync(new URL(dir, import.meta.url)).filter(f => f.endsWith('.js')))
     for (const [, k] of readFileSync(new URL(dir + f, import.meta.url), 'utf8').matchAll(/['"`](rs:[a-z:-]+)['"`]/g)) if (k !== 'rs:') found.add(k);
   assert.deepEqual([...found].sort(), KEYS);
-  for (const says of [/sets no cookies/, /day or night/, /agreed to the terms/, /forges you chose not to connect/, /vouch for someone/, /example board/, /a copy of your settings for “Send my agent”/, /which plants in your garden you’ve already seen/, /notes and reminders you’ve dismissed/]) assert.match(all, says);
+  for (const says of [/sets no cookies/, /day or night/, /agreed to the terms/, /forges you chose not to connect/, /vouch for someone/, /example board/, /a copy of your settings for “Direct my agent”/, /which plants in your garden you’ve already seen/, /notes and reminders you’ve dismissed/]) assert.match(all, says);
   // Every kind of record Rainshare writes to someone's account is one the policy says is public.
-  const said = { profile: /your Rainshare profile/, seed: /your asks/, take: /your agent is working on an ask/, delivery: /the work you turn in/, comment: /your comments/, preferences: /your settings for “Send my agent”/ };
+  const said = { profile: /your Rainshare profile/, seed: /your asks/, take: /your agent is working on an ask/, delivery: /the work you turn in/, comment: /your comments/, preferences: /your settings for “Direct my agent”/ };
   assert.deepEqual(COLLECTIONS.map(c => c.split('.').pop()).sort(), Object.keys(said).sort(), 'a new kind of record belongs in the policy’s list, then here');
   for (const [kind, says] of Object.entries(said)) assert.match(all, says, kind);
 });
@@ -149,7 +149,7 @@ test('the note before a first job or a first ask: three points, both documents l
   for (const [point, why] of ASKING) assert.ok(asking.includes(point) && asking.includes(why), point);
   assert.match(asking, /<input type="checkbox" name="agree">[\s\S]*data-ag="go" disabled>Agree and continue/);
   const html = agreeHtml(sub => '/base/' + sub);
-  assert.match(html, /Before you send your agent/);
+  assert.match(html, /Before you direct your agent/);
   for (const [point, why] of SAFETY) assert.ok(html.includes(point) && html.includes(why), point);
   assert.match(html, /<input type="checkbox" name="agree">/);
   assert.match(html, /<a href="\/base\/terms" target="_blank" rel="noopener">Terms of Service<\/a> and <a href="\/base\/privacy" target="_blank" rel="noopener">Privacy Policy<\/a>/);

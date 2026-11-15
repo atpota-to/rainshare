@@ -117,7 +117,7 @@ test('an agreement in someone’s settings: written whole, kept through other ch
   const rec = R.preferences({ terms: t });
   assert.deepEqual(rec.terms, t);
   assert.deepEqual(agreedIn(rec), t);
-  // Changing how "Send my agent" works, or which messages are wanted, leaves it be.
+  // Changing how "Direct my agent" works, or which messages are wanted, leaves it be.
   assert.deepEqual(R.preferences({ send: { route: 'brief' }, notify: { updates: true } }, rec).terms, t);
   // Something that isn't one is left out, and doesn't knock out one that's there.
   assert.equal(R.preferences({ terms: { version: 'v2', agreedAt: 'x' } }).terms, undefined);

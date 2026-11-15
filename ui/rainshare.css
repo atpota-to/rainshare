@@ -439,7 +439,7 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-panel>.rs-link{align-self:flex-start}
 .rs-bio{font-size:15px}
 
-/* sending an agent, and turning it in: sections of the ask's own card, not cards of their own */
+/* directing an agent, and turning it in: sections of the ask's own card, not cards of their own */
 .rs-launch,.rs-turn{display:flex;flex-direction:column;gap:10px;scroll-margin-top:16px;min-width:0}
 .rs-launch+.rs-turn{margin-top:10px}
 .rs-l-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
@@ -797,7 +797,7 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-wl .rs-err{font-size:14px}
 /* the way on, and the ways out */
 .rs-wl .rs-primary{width:100%;min-height:52px;font-size:16px}
-/* "Send my agent" (./send.js): a line on what the agent gets under the heading, the agents as
+/* "Direct my agent" (./send.js): a line on what the agent gets under the heading, the agents as
    chips, whether to say you're on it (and for how long), the one button, and the box that skips
    it next time, all on one left edge */
 .rs-sd .rs-chips{flex-wrap:wrap;overflow:visible;padding-right:0;-webkit-mask-image:none;mask-image:none}

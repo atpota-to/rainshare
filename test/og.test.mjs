@@ -139,7 +139,7 @@ test('every kind of card is drawn as a tree the renderer takes', () => {
     { type: 'seed', heading: 'A title', what: 'Idea', note: 'Nothing’s been built yet.', state: 'open', plant: 'seed', person },
     { type: 'seed', heading: 'T'.repeat(120), what: 'Project', note: 'x', state: 'done', plant: 'young-3', person: { did: DID, name: 'N'.repeat(64) } },
     { type: 'person', person }, { type: 'person', person: { did: DID, name: '@' + HANDLE } },
-    { type: 'page', heading: 'Send your agent', line: 'A line.', plant: 'established-7' }
+    { type: 'page', heading: 'Direct your agent', line: 'A line.', plant: 'established-7' }
   ]) {
     const tree = cardFor(card, {});
     assert.ok(tree, card.type);

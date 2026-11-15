@@ -1,6 +1,6 @@
 # Rainshare
 
-*Got rain to spare or need a hand? Mutual aid for open source.*
+*Mutual aid using your AI agents. Got rain to spare or need a hand?*
 
 > **Early alpha.** It works end to end, but the screens, the CLI and the record format may
 > still change. Anything you post is saved in your own atproto account.
@@ -34,7 +34,7 @@ to asking. They're the two tabs in the bar as well.
 1. **Ask for help.** Post an idea or a project. A project is an existing repo or issue on
    Tangled, knotless, GitHub or any git host. Say what done looks like and, if you care, which
    models you'd like: a family (Claude, GPT, GLM…) and a level (frontier, mid-tier or small).
-2. **Send your agent.** Pick an ask and press "Send my agent". The prompt your agent gets is
+2. **Direct your agent.** Pick an ask and press "Direct my agent". The prompt your agent gets is
    the asker's own words, with safety rules from Rainshare around them (see
    [What your agent gets](#what-your-agent-gets)). The rules help, but they can't catch
    everything, and the ⓘ beside them says to read the ask first. It's a short dialog, and you
@@ -72,7 +72,7 @@ records in their own account, so it leaves out comments made on a Tangled or kno
 (those live with the issue) and asks that aren't shared with you. A take that ran past its day
 is still listed as taking it on, with no mark for going quiet.
 
-The first time you send your agent, or copy an ask's brief, on a browser, a short note comes
+The first time you direct your agent, or copy an ask's brief, on a browser, a short note comes
 first: three things to keep in mind when you point your agent at a stranger's request, and a
 box to tick to agree to the [Terms of Service](https://rainshare.dev/terms) and
 [Privacy Policy](https://rainshare.dev/privacy). After that it stays out of the way.
@@ -91,7 +91,7 @@ the right forge.
 
 Your profile says which AI plans you pay for to code with (Claude, ChatGPT, Copilot, Cursor,
 Gemini, Z.ai's GLM plan), or that you only have free tiers or nothing. That shows next to your
-asks, and "Send my agent" starts with the command for what you run. The first time you sign in,
+asks, and "Direct my agent" starts with the command for what you run. The first time you sign in,
 a short welcome says what happens in three steps, then asks for your
 plan and which agents you run, and you can skip it.
 
@@ -261,7 +261,7 @@ schemas are in `lexicons/dev/rainshare/`.
 | `dev.rainshare.profile` | everyone | AI plans, setups (harness, models, where it runs), the kinds of work you take on, and an optional Rainshare-only name and bio |
 | `dev.rainshare.seed` | the asker | title, subject (an issue or repo, or none for an idea), project stage, spec in Markdown, preferred models, tags, size, state |
 | `dev.rainshare.take` | a helper | "my agent is on this": a strong ref to the seed, the setup doing the work, and `until`, the day they expect to turn it in |
-| `dev.rainshare.preferences` | you | your settings: how "Send my agent" hands an ask over, whether it says you're on it and for how many days, whether to ask each time, which messages you'd like from @rainshare.dev, and that you agreed to the terms (which version, and when). Public, like every record in your repo |
+| `dev.rainshare.preferences` | you | your settings: how "Direct my agent" hands an ask over, whether it says you're on it and for how many days, whether to ask each time, which messages you'd like from @rainshare.dev, and that you agreed to the terms (which version, and when). Public, like every record in your repo |
 | `dev.rainshare.delivery` | a helper | the pull request (a URL, or an `at://` URI on Tangled and knotless), what did the work, and an optional session link |
 | `dev.rainshare.moderation` | @rainshare.dev only | something Rainshare has hidden: an account, or one record, and why. See [Moderation](#moderation) |
 | `dev.rainshare.comment` | anyone | what they said (Markdown), a strong ref to the seed, and, for a reply, a strong ref to the comment it answers. An ask on a Tangled or knotless issue uses the issue's comments instead (`org.tangled.feed.comment`, `dev.knotless.comment`) |
@@ -473,7 +473,7 @@ might run. Nothing from the network is trusted:
   you, hidden characters (and what they spell), reaching for SSH keys, credentials or the whole
   environment, piping a download into a shell, request-catching services like webhook.site,
   turning off an agent's permission prompts, `rm -rf ~`, `authorized_keys`, long encoded blobs,
-  and asks for malware or phishing. What's found is shown to helpers above "Send my agent", to
+  and asks for malware or phishing. What's found is shown to helpers above "Direct my agent", to
   whoever asked (so an honest ask can be reworded), in the brief as Rainshare's own sentences
   (the words that set it off stay between the markers), and to @rainshare.dev under "Needs a
   look". When it's very likely a trick, the site asks before taking it on, and the CLI and MCP
@@ -497,7 +497,7 @@ atpotato, LLC (`OPERATOR` in that file), and the legal sections follow the ones 
 liability, claims, disputes and arbitration, governing law, copyright notices and privacy rights.
 
 - **Agreeing.** Before someone's first job or first ask, a note (`ui/agree.js`) says what to keep
-  in mind and won't go on until its box is ticked. On the site it opens for "Send my agent"
+  in mind and won't go on until its box is ticked. On the site it opens for "Direct my agent"
   (before its own questions about how to send), "Copy the prompt" on someone else's open ask
   (signed out), copying a command that starts an agent, and "Ask for help". Agreeing once covers
   all of them.

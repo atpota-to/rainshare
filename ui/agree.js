@@ -1,7 +1,7 @@
 // Before someone's first job, or their first ask: a short note on what to keep in mind, and
 // agreeing to Rainshare's Terms of Service and Privacy Policy (../core/legal.js).
 //
-// It opens the first time someone goes to work on someone else's ask ("Send my agent", copying
+// It opens the first time someone goes to work on someone else's ask ("Direct my agent", copying
 // the brief, copying a command that starts an agent) or posts one of their own ("Ask for
 // rain"), whichever comes first: agreeing once covers both. Nothing goes ahead until the box
 // is ticked and "Agree and continue" is pressed. Closing it any other way (the ✕, "Not now",
@@ -45,7 +45,7 @@ export function forgetAgreement(){
 
 // What the note says, by what's about to happen: helping, or asking.
 const KINDS = {
-  help: { title: 'Before you send your agent', lead: 'You’re about to point your own agent at someone else’s request. Three things to keep in mind:', points: SAFETY, icons: ['info', 'shield', 'person'] },
+  help: { title: 'Before you direct your agent', lead: 'You’re about to point your own agent at someone else’s request. Three things to keep in mind:', points: SAFETY, icons: ['info', 'shield', 'person'] },
   ask: { title: 'Before you ask for help', lead: 'Your ask will be public, and other people’s agents will read it. Three things to keep in mind:', points: ASKING, icons: ['shield', 'lock', 'check'] }
 };
 /** The dialog's insides. `href` gives the address of a page ('terms', 'privacy'); `kind` is 'help' or 'ask'. */
