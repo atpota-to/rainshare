@@ -138,6 +138,10 @@
 .rs-item-who b{color:var(--rs-ink);font-weight:650}
 .rs-item-who .rs-i{width:13px;height:13px;vertical-align:-2px;margin-right:2px}
 .rs-item-top time{margin-left:auto;color:var(--rs-muted);font-size:13px;white-space:nowrap}
+/* posted since you last looked: a word beside when, and a dashed rule under the last of them */
+.rs-new{margin-left:auto;flex:none;padding:1px 8px;border-radius:999px;background:var(--rs-accent-soft);color:var(--rs-accent-text);font-size:12px;font-weight:700;line-height:1.5}
+.rs-new+time{margin-left:0}
+.rs-seen-li{display:flex;flex-direction:column}
 .rs-item-title{font-size:17px;font-weight:650;letter-spacing:-.01em;line-height:1.3;overflow-wrap:anywhere}
 .rs-item-line{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;min-height:18px;font-size:13px;font-weight:500;color:var(--rs-muted)}
 /* where it stands, and who's helping, on a row of its own under the rest, starting where the rest does */
@@ -726,6 +730,8 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-filter-btn{border:0;border-radius:999px;min-height:32px;padding:0 13px 0 11px;font:600 13px var(--rs-font);background:none;color:var(--rs-ink);box-shadow:inset 0 0 0 1.5px var(--rs-line);cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;flex:none}
 .rs-filter-btn .rs-i{width:16px;height:16px}
 .rs-filter-btn[aria-expanded="true"]{background:var(--rs-ink);color:var(--rs-on-ink);box-shadow:none}
+/* the sort button says how it's sorted now; folded out, what that order means is said under the choices */
+.rs-sort-why{margin:0;font-size:13px;line-height:1.45;color:var(--rs-muted)}
 /* what's narrowing it while the filter is folded away: pressing one undoes it */
 .rs-from.rs-filter-on button{color:var(--rs-ink);background:var(--rs-accent-soft);box-shadow:none;padding-right:8px}
 .rs-from.rs-filter-on .rs-i{width:14px;height:14px;opacity:.7}

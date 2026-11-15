@@ -35,7 +35,7 @@ import { tieOf, tieLines, knownText, TIE_SHORT, FROM, fromMatches } from '../cor
 import { wateredText } from '../core/garden.js';
 import { ACTIVITY_KINDS, activityCounts } from '../core/activity.js';
 import { audienceLine } from '../core/circle.js';
-import { rank, fit, join, pretty, wantPhrase } from '../core/rank.js';
+import { fit, join, pretty, wantPhrase, boardOrder, sortsFor } from '../core/rank.js';
 import { whereText, jobAndNotes, modelsText, progressOf, progressShort, relationText, askExcerpt, askSizeText, stateText, pictureOf, stageOf, nounOf, aNoun, whatItIs, planText } from '../core/words.js';
 import { renderMarkdown } from '../core/markdown.js';
 import { threads, talksOn } from '../core/comments.js';
@@ -72,7 +72,7 @@ export function createRainshare({ root, base = '/', host }){
     grew: null,          // what's grown in your garden since you last looked: said once, on the board
     fresh: null,         // the same, once it's been said: marked "New" in your garden for the rest of the visit
     from: 'anyone',      // whose asks the board shows (FROM in ../core/ties.js): anyone, mutuals, people you follow, …
-    sort: null,          // how the board is sorted: 'fit' (best for you, signed in) or 'new' (newest first); null for the usual one
+    sort: null,          // how the board is sorted (SORTS in ../core/rank.js), as picked in this browser; null for the usual one
     show: 'all',         // which open asks the board shows: 'all', or 'free' (nobody's on it yet)
     known: {},           // by DID: which of the people you follow on Bluesky follow them ('loading' while asked)
     reply: null,         // the comment a reply is being written to: its URI, while the reply form is open
@@ -345,6 +345,10 @@ export function createRainshare({ root, base = '/', host }){
   // There's no button to check again: coming back to the board, or to its browser tab, does it
   // (at most once a minute).
   globalThis.document?.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); return; }
+    // (Back after a while away, what's new is told from what the board had when you left.)
+    if (hiddenAt && Date.now() - hiddenAt > AWAY) beforeFor = null;
+    hiddenAt = 0;
     if (document.visibilityState !== 'visible' || root.closest('[hidden]')) return;
     if (S.view === 'board') loadBoard();
     if (signedIn() && Date.now() - gardenAt > 5 * 60e3) loadGarden();
@@ -523,25 +527,46 @@ export function createRainshare({ root, base = '/', host }){
   }
 
   /* ---------- the board: a list of short cards, and the one you pick beside them ---------- */
-  // Everything still open. Signed in (with fit on), it's sorted best first for you unless you'd rather have
-  // the newest first: best first, what someone else asked for comes first, ranked, then what
-  // you asked for yourself, newest first, marked as yours, so the one picked to begin with is
-  // one you could help with; newest first, it's all by date. Signed out, it's newest first.
-  // (What's done is on the page of whoever asked, and all of yours on your own page, which the
-  // board's quiet button leads to.)
+  // Everything still open, in the order picked with Sort (boardOrder in ../core/rank.js). Until
+  // something else is picked, signed in it's newest first, with what suits you less further down
+  // and what you asked for yourself at the end, marked as yours; signed out, it's newest first.
+  // Either way, what's come in since you last looked is at the top, marked new, over a dashed
+  // rule. (What's done is on the page of whoever asked, and all of yours on your own page, which
+  // the board's quiet button leads to.)
   const newest = (a, b) => String(b.value?.createdAt).localeCompare(String(a.value?.createdAt));
-  // (With fit switched off, FEATURES.fit in ../core/ns.js, there's only the one order: newest
-  // first, with your own after everyone else's, since the board is for helping someone else.)
-  const sortBy = () => FEATURES.fit && signedIn() && S.sort !== 'new' ? 'fit' : 'new';
-  function boardItems(){
+  // The sort picked is kept in this browser, so it's still the one next time.
+  const SORT_KEY = 'rs:board-sort';
+  const savedSort = () => { try { return localStorage.getItem(SORT_KEY) || null; } catch (_) { return null; } };
+  const sortChoices = () => sortsFor(signedIn());
+  const sortNow = () => (sortChoices().find(o => o[0] === S.sort) || sortChoices()[0])[0];
+  // What's new since you last looked: the asks the board had then are kept in this browser (for
+  // each account, and for anyone signed out), and whatever's on it now that wasn't is new. That's
+  // read once when you arrive, and again when you come back to the tab after a while away, so
+  // what was new stays marked new while you're here. The very first time, nothing's new: there's
+  // nothing to tell it from. (Your own asks are never new to you.)
+  const BOARD_SEEN = () => 'rs:board-seen:' + `${base}:${viewer() || 'anyone'}`;
+  const AWAY = 30 * 60e3;
+  let before = null, beforeFor = null, markedBoard = null, hiddenAt = 0;
+  function lookAgain(){
+    beforeFor = BOARD_SEEN(); before = null;
+    try { const v = JSON.parse(localStorage.getItem(beforeFor) || 'null'); if (Array.isArray(v)) before = new Set(v); } catch (_) {}
+  }
+  const isNew = it => !!before && it.repo !== viewer() && !before.has(it.uri);
+  function markBoardSeen(items){
+    // (Only once it's been on screen: a board drawn out of sight, behind another page, isn't seen.)
+    if (!S.board || S.board === markedBoard || !items.length || root.closest('[hidden]')) return;
+    markedBoard = S.board;
+    let was = [];
+    try { was = JSON.parse(localStorage.getItem(BOARD_SEEN()) || '[]'); } catch (_) {}
+    try { localStorage.setItem(BOARD_SEEN(), JSON.stringify([...new Set([...items.map(it => it.uri), ...(Array.isArray(was) ? was : [])])].slice(0, 1000))); } catch (_) {}
+  }
+  function boardOrdered(){
+    if (beforeFor !== BOARD_SEEN()) lookAgain();
     // (What Rainshare has hidden is never on the board. Whoever asked sees it on their own page.)
     const open = (S.board?.items || []).filter(it => isOpen(it) && !it.hidden);
-    if (!signedIn()) return open.sort(newest);
-    const others = open.filter(it => it.repo !== viewer()), mine = open.filter(it => it.repo === viewer()).sort(newest);
-    if (!FEATURES.fit) return [...others.sort(newest), ...mine];
-    const ranked = [...rank(others, me()), ...mine];
-    return sortBy() === 'new' ? ranked.sort(newest) : ranked;
+    return boardOrder(open, signedIn() ? me() : null, { sort: sortNow(), isNew });
   }
+  const boardItems = () => boardOrdered().items;
   // Narrowed to who asked, if you chose to. (Anything but "anyone" is about someone else, so
   // what you asked for is left out of it.)
   const fromWho = (k, it) => it.repo !== viewer() && fromMatches(k, it.ties, word(it.repo));
@@ -608,23 +633,28 @@ export function createRainshare({ root, base = '/', host }){
     const rule = '<div class="rs-spare-rule" role="separator"><span>Someone’s already on each of these</span></div>';
     return inList ? `<li class="rs-spare-li">${body}${rule}</li>` : `<div class="rs-spare-alone">${body}</div>`;
   };
-  // Over the list: how it's sorted, and a button that folds out what narrows it (who asked,
-  // and whether anyone's on it). Whatever is narrowing it shows beside the button while it's
-  // folded away, each a press from undone.
+  // Over the list: a button that says how it's sorted and folds out the other ways, and one that
+  // folds out what narrows it (who asked, and whether anyone's on it). Whatever is narrowing it
+  // shows beside that button while it's folded away, each a press from undone. (One folds away
+  // when the other folds out.)
   function tools(all, byFrom){
     const fromLabel = (FROM.find(([k]) => k === S.from) || [])[1], showLabel = (SHOW.find(([k]) => k === S.show) || SHOW[0])[1];
     const on = [
       signedIn() && S.from !== 'anyone' && fromLabel ? `<button type="button" data-rs-from="anyone" aria-label="${esc(`Stop showing only ${fromLabel.toLowerCase()}`)}">${esc(fromLabel)}${ico('close')}</button>` : '',
       S.show !== 'all' ? `<button type="button" data-rs-show="all" aria-label="${esc(`Stop showing only ${showLabel.toLowerCase()}`)}">${esc(showLabel)}${ico('close')}</button>` : ''
     ].filter(Boolean);
-    const open = !!S.open.filters;
+    const open = !!S.open.filters, sorting = !!S.open.sort, cur = sortChoices().find(o => o[0] === sortNow());
     return `<div class="rs-tools">
-        ${signedIn() && FEATURES.fit ? `<div class="rs-from rs-sort" role="group" aria-label="Sort" data-rs-glide="sort">${[['fit', 'Best for you'], ['new', 'Newest']].map(([k, l]) => `<button type="button" data-rs-sort="${k}" aria-pressed="${sortBy() === k}">${l}</button>`).join('')}</div>` : ''}
+        <button type="button" class="rs-filter-btn rs-sort-btn" data-rs-act="sorts" aria-expanded="${sorting}" aria-controls="rsSorts" aria-label="${esc(`Sort: ${cur[1]}`)}">${ico('sort')}${esc(cur[1])}</button>
         <div class="rs-filter-bar">
           ${on.length && !open ? `<div class="rs-from rs-filter-on" data-rs-flip="filter-on">${on.join('')}</div>` : ''}
           <button type="button" class="rs-filter-btn" data-rs-act="filters" aria-expanded="${open}" aria-controls="rsFilters">${ico('filter')}Filter${on.length ? `<span class="rs-from-n" data-rs-count="filters-on">${on.length}</span>` : ''}</button>
         </div>
       </div>
+      ${sorting ? `<div class="rs-filters" id="rsSorts" data-rs-flip="sorts" data-rs-flip-in="open">
+        <div class="rs-filter-row"><span class="rs-from-l">Sort by</span><div class="rs-from" role="group" aria-label="Sort by">${sortChoices().map(([k, l, hint]) => `<button type="button" data-rs-sort="${k}" aria-pressed="${k === cur[0]}" title="${esc(hint)}">${esc(l)}</button>`).join('')}</div></div>
+        <p class="rs-sort-why">${esc(cur[2])}</p>
+      </div>` : ''}
       ${open ? `<div class="rs-filters" id="rsFilters" data-rs-flip="filters" data-rs-flip-in="open">
         ${signedIn() ? `<div class="rs-filter-row"><span class="rs-from-l">Who asked</span>${fromRow(all)}</div>` : ''}
         <div class="rs-filter-row"><span class="rs-from-l">Show</span>${showRow(byFrom)}</div>
@@ -674,7 +704,7 @@ export function createRainshare({ root, base = '/', host }){
   // in their own words, a quiet line (how well it suits you, or that it's yours or done) and where
   // it stands. Where the work is and how big a job it is are in its details, and so is who it's
   // open to unless you know them.
-  function card(it, { nav = false } = {}){
+  function card(it, { nav = false, fresh = false } = {}){
     const sq = it.value || {}, p = it.author || {}, mine = it.repo === viewer(), on = !nav && it.uri === S.pick;
     const rel = mine ? '' : relationText(it, viewer(), { audience: false }), ask = askExcerpt(sq.spec, 180);
     const pr = progressOf(it, viewer()), short = progressShort(it, viewer());
@@ -690,7 +720,7 @@ export function createRainshare({ root, base = '/', host }){
     const taken = !short ? '' : pr.key === 'turned-in' ? `<span class="rs-item-taken rs-turned-in">${faces}<span class="rs-chip">${ico(pr.idea ? 'link' : 'pull')}${esc(short)}</span></span>`
       : `<span class="rs-item-taken rs-${pr.key}">${faces}${esc(short)}</span>`;
     return `<li><a class="rs-item${on ? ' on' : ''}" href="${esc(href(pathOf(it)))}" ${nav ? `data-rs-go="${esc(pathOf(it))}"` : `data-rs-pick="${esc(it.uri)}"`}${on ? ' aria-current="true"' : ''} data-rs-flip="${esc(it.uri)}">
-      <span class="rs-item-top">${face(p, 'xs')}<span class="rs-item-who"><b>${esc(mine ? 'You' : nameOf(p))}</b>${mine ? '' : hat(it.repo)}${rel ? `<span> · ${it.space ? ico('lock') : ''}${esc(rel)}</span>` : ''}</span><time>${esc(ago(sq.createdAt))}</time></span>
+      <span class="rs-item-top">${face(p, 'xs')}<span class="rs-item-who"><b>${esc(mine ? 'You' : nameOf(p))}</b>${mine ? '' : hat(it.repo)}${rel ? `<span> · ${it.space ? ico('lock') : ''}${esc(rel)}</span>` : ''}</span>${fresh ? '<span class="rs-new" title="Posted since you last looked">New</span>' : ''}<time>${esc(ago(sq.createdAt))}</time></span>
       <span class="rs-item-main">
         <span class="rs-item-title" data-rs-vt="title:${esc(it.uri)}">${esc(sq.title)}</span>
         ${ask ? `<span class="rs-item-ask">${esc(ask)}</span>` : ''}
@@ -891,8 +921,14 @@ export function createRainshare({ root, base = '/', host }){
     return '';
   }
   function renderBoard(){
-    const all = S.board ? boardItems() : [], byFrom = narrowFrom(all), items = narrowShow(byFrom);
+    const ord = S.board ? boardOrdered() : { items: [], fresh: 0 }, all = ord.items, byFrom = narrowFrom(all), items = narrowShow(byFrom);
     S.shown = items;
+    markBoardSeen(all);
+    // What's new is at the top (unless it's sorted by what's waiting longest), over a dashed
+    // rule, with what was here when you last looked under it.
+    const fresh = new Set(all.slice(0, ord.fresh).map(it => it.uri)), freshN = items.filter(it => fresh.has(it.uri)).length;
+    const seenRule = '<li class="rs-seen-li"><div class="rs-spare-rule" role="separator"><span>Here when you last looked</span></div></li>';
+    const cards = items.map((it, i) => (i === freshN && freshN ? seenRule : '') + card(it, { fresh: isNew(it) })).join('');
     if (items.length && !items.some(i => i.uri === S.pick)) { S.pick = items[0].uri; S.sheet = false; }
     const sel = items.find(i => i.uri === S.pick), spare = allTaken(all);
     const fc = forecastOf(S.mine?.merged);
@@ -927,7 +963,7 @@ export function createRainshare({ root, base = '/', host }){
       ${S.error ? `<p class="rs-note rs-bad">${plain(S.error)}</p>` : ''}
       ${!S.board ? boardSk({ fit: signedIn() && FEATURES.fit })
         : items.length ? `<div class="rs-split${S.sheet ? ' rs-open' : ''}">
-            <ul class="rs-list" aria-label="Ideas and projects">${spare ? spareCard(true) : ''}${items.map(it => card(it)).join('')}</ul>
+            <ul class="rs-list" aria-label="Ideas and projects">${spare ? spareCard(true) : ''}${cards}</ul>
             <div class="rs-scrim" data-rs-close-sheet aria-hidden="true"></div>
             <aside class="rs-side" aria-label="The one you picked">${sel ? detail(sel) : ''}</aside>
           </div>`
@@ -2193,7 +2229,8 @@ export function createRainshare({ root, base = '/', host }){
     try {
       // Signing in is the host's: it asks who you are and sends you to your server, over this screen.
       if (name === 'signin') { host.signIn?.(S.sub); return; }
-      if (name === 'filters') { const was = snapshot(root); S.open.filters = !S.open.filters; render(); settle(root, was); root.querySelector('[data-rs-act="filters"]')?.focus(); return; }
+      if (name === 'filters') { const was = snapshot(root); S.open.filters = !S.open.filters; S.open.sort = false; render(); settle(root, was); root.querySelector('[data-rs-act="filters"]')?.focus(); return; }
+      if (name === 'sorts') { const was = snapshot(root); S.open.sort = !S.open.sort; S.open.filters = false; render(); settle(root, was); root.querySelector('[data-rs-act="sorts"]')?.focus(); return; }
       if (name === 'exit-demo') return host.onExitDemo?.();
       if (name === 'feedback-again') return loadFeedback(true);
       if (name === 'stage-seen') { stageDismissed = true; try { localStorage.setItem(STAGE_SEEN, '1'); } catch (_) {} root.querySelector('.rs-stage-note')?.remove(); return; }
@@ -2382,7 +2419,8 @@ export function createRainshare({ root, base = '/', host }){
     // (Drawn again, the list shows what moved: ./motion.js.)
     const narrowed = change => { const was = snapshot(root); change(); S.sheet = false; render(); settle(root, was); };
     const fr = t.closest('[data-rs-from]'); if (fr) { narrowed(() => { S.from = fr.dataset.rsFrom; }); refocus(`.rs-filters [data-rs-from="${S.from}"]`); return; }
-    const so = t.closest('[data-rs-sort]'); if (so) { narrowed(() => { S.sort = so.dataset.rsSort; }); refocus(`[data-rs-sort="${S.sort}"]`); return; }
+    // (Picking a sort folds the choices away again, and the focus goes back to the button.)
+    const so = t.closest('[data-rs-sort]'); if (so) { narrowed(() => { S.sort = so.dataset.rsSort; try { localStorage.setItem(SORT_KEY, S.sort); } catch (_) {} S.open.sort = false; }); refocus('[data-rs-act="sorts"]'); return; }
     const sh = t.closest('[data-rs-show]'); if (sh) { narrowed(() => { S.show = sh.dataset.rsShow; }); refocus(`.rs-filters [data-rs-show="${S.show}"]`); return; }
     const sg = t.closest('[data-rs-seg] button');
     // Turning it in by its link, or opening the pull request from here (which asks the forge about the repo the first time).
@@ -2549,7 +2587,7 @@ export function createRainshare({ root, base = '/', host }){
     show,
     /** Hand in a (new) data source: on sign-in, sign-out, or switching to the example circle. */
     async setSource(source){
-      Object.assign(S, { source, board: null, mine: null, follows: undefined, garden: null, buds: null, grew: null, fresh: null, unlinked: null, seed: null, form: null, drafts: {}, pick: null, sheet: false, pull: null, circle: undefined, vouching: null, accepting: null, reply: null, from: 'anyone', sort: null, show: 'all', known: {}, admin: null, found: null, modding: null });
+      Object.assign(S, { source, board: null, mine: null, follows: undefined, garden: null, buds: null, grew: null, fresh: null, unlinked: null, seed: null, form: null, drafts: {}, pick: null, sheet: false, pull: null, circle: undefined, vouching: null, accepting: null, reply: null, from: 'anyone', sort: savedSort(), show: 'all', known: {}, admin: null, found: null, modding: null });
       poster.reset();
       render();
       if (source?.signedIn) { await loadMine(); loadGarden(); welcome(); }

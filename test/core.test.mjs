@@ -5,7 +5,7 @@ import { SEED, SITE, FAMILIES, PLANS, FEATURES, ROUTES, lowBudgetOf } from '../c
 import { parseSubject, describeSubject, cloneUrlOf } from '../core/subjects.js';
 import * as R from '../core/records.js';
 import { meantFor, closeness } from '../core/circle.js';
-import { rank, score, fit } from '../core/rank.js';
+import { rank, score, fit, boardOrder, sortsFor, defaultSort } from '../core/rank.js';
 import { whereText, shortWhere, jobText, jobShort, modelsText, wantsShort, notesText, jobAndNotes, progressOf, progressShort, askExcerpt, askSize, askSizeText, stageOf, nounOf, aNoun, pictureOf, whatItIs, stateText, planText } from '../core/words.js';
 import { wateredBy, wateredText } from '../core/garden.js';
 import { renderMarkdown } from '../core/markdown.js';
@@ -136,6 +136,42 @@ test('ranking puts the people a helper prioritises first, and says why', () => {
   assert.ok(out[1].reasons.some(r => r.tone === 'down'));
   const taken = score({ closeness: 'mutual', value: {}, takes: [{ repo: 'did:other' }] }, me, ON);
   assert.ok(taken.reasons.some(r => r.text === 'Someone’s on it'));
+});
+
+test('the board is newest first, what suits you less further down, and what came in since you last looked on top', () => {
+  const me = { did: 'did:me', profile: { setups: [{ harness: 'claude-code', models: ['claude-opus-5-5'] }] } };
+  const at = d => `2026-01-0${d}T00:00:00Z`;
+  const open = [
+    { uri: 'old-free', repo: 'did:a', value: { createdAt: at(1) } },
+    { uri: 'new-taken', repo: 'did:b', value: { createdAt: at(5) }, takes: [{ repo: 'did:c' }] },
+    { uri: 'mid-gpt', repo: 'did:d', value: { createdAt: at(4), wants: { families: ['gpt'] } } },
+    { uri: 'mid-free', repo: 'did:e', closeness: 'mutual', value: { createdAt: at(3) } },
+    { uri: 'turned-in', repo: 'did:f', value: { createdAt: at(6) }, deliveries: [{ repo: 'did:g' }] },
+    { uri: 'mine', repo: 'did:me', value: { createdAt: at(7) } }
+  ];
+  const uris = r => r.items.map(it => it.uri), FIT = { fit: true };
+  // With fit on, Suggested is the usual one signed in: newest first among what suits you, then the rest, then yours.
+  assert.equal(defaultSort(true, true), 'suggested');
+  assert.deepEqual(uris(boardOrder(open, me, FIT)), ['mid-free', 'old-free', 'turned-in', 'new-taken', 'mid-gpt', 'mine']);
+  assert.equal(boardOrder(open, me, { ...FIT, sort: 'fit' }).items.at(-1).uri, 'mine');
+  // By date, what you asked for yourself is still after everyone else's.
+  assert.deepEqual(uris(boardOrder(open, me, { ...FIT, sort: 'new' })), ['turned-in', 'new-taken', 'mid-gpt', 'mid-free', 'old-free', 'mine']);
+  assert.deepEqual(uris(boardOrder(open, me, { ...FIT, sort: 'old' })), ['old-free', 'mid-free', 'mid-gpt', 'new-taken', 'turned-in', 'mine']);
+  // With fit off, there's nothing to suggest by: newest first, and a sort that needs fit is ignored.
+  assert.deepEqual(sortsFor(true, false).map(s => s[0]), ['new', 'old']);
+  assert.equal(defaultSort(true, false), 'new');
+  assert.deepEqual(uris(boardOrder(open, me, { fit: false, sort: 'suggested' })), ['turned-in', 'new-taken', 'mid-gpt', 'mid-free', 'old-free', 'mine']);
+  // Signed out it's the same two, whatever fit is.
+  assert.deepEqual(sortsFor(false, true).map(s => s[0]), ['new', 'old']);
+  assert.deepEqual(uris(boardOrder(open, null, { ...FIT, sort: 'fit' })), ['mine', 'turned-in', 'new-taken', 'mid-gpt', 'mid-free', 'old-free']);
+  // What's new goes on top, in the same order among itself, and is counted; yours never counts as new.
+  const isNew = it => ['old-free', 'mid-gpt', 'mine'].includes(it.uri);
+  const r = boardOrder(open, me, { ...FIT, isNew });
+  assert.deepEqual(uris(r), ['old-free', 'mid-gpt', 'mid-free', 'turned-in', 'new-taken', 'mine']);
+  assert.equal(r.fresh, 2);
+  assert.deepEqual(uris(boardOrder(open, me, { fit: false, isNew })), ['mid-gpt', 'old-free', 'turned-in', 'new-taken', 'mid-free', 'mine']);
+  // Sorted by what's waiting longest, nothing moves to the top for being new.
+  assert.equal(boardOrder(open, me, { ...FIT, sort: 'old', isNew }).fresh, 0);
 });
 
 test('fit says how well a seed suits a helper, in one sentence', () => {
