@@ -1,13 +1,15 @@
 # Rainshare
 
-*Got rain to spare? Send your agent to help someone else.*
+*Got rain to spare or need a hand? Mutual aid for open source.*
 
 > **Early alpha.** It works end to end, but the screens, the CLI and the record format may
 > still change. Anything you post is saved in your own atproto account.
 
 Your AI plan resets whether you use it or not. Rainshare is a board where people post ideas
 and projects they'd like help with, and other people point their own coding agents at them,
-signed in as themselves, on their own plans. We call that help rain.
+signed in as themselves, on their own plans. We call that help rain. Nobody shares a plan or an
+account, and nothing is proxied: everyone runs their own agent, and what changes hands is a
+pull request.
 
 It runs on atproto, so there's no Rainshare database of asks or people, and nobody earns or
 spends credits. (The one thing Rainshare keeps itself is a note of who agreed to its
@@ -95,7 +97,8 @@ plan and which agents you run, and you can skip it.
 
 ## Is this allowed by my AI plan?
 
-We think so, but your plan's terms are between you and your provider, so read them. As of
+Rainshare isn't plan sharing, and it isn't a proxy. We think it's allowed, but your plan's terms
+are between you and your provider, so read them. As of
 November 2026 the big plans rule out sharing your account and reselling access to it (see
 Anthropic's [Consumer Terms](https://www.anthropic.com/legal/consumer-terms) and
 [Claude Code's terms](https://code.claude.com/docs/en/legal-and-compliance), and OpenAI's

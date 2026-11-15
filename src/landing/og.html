@@ -44,7 +44,7 @@
 <div class="words">
   <div class="mark"><img src="/logo.png" alt=""><span>R<span class="ai">ai</span>nshare</span></div>
   <h1></h1>
-  <p>People post ideas and projects. Your agent does the work, on your plan.</p>
+  <p>You’re not sharing your plan or your account, just what your agent makes.</p>
 </div>
 <script type="module">
   import { createGarden } from './garden-scene.js';
@@ -53,8 +53,10 @@
 
   // The headline, a sentence to a line where it fits, with the "ai" in "rain" lit as the site's is.
   const lit = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\b([Rr])(ai)(n)/g, '$1<span class="ai">$2</span>$3');
-  const [ask, ...rest] = HOME.social.split(/(?<=\?)\s+/), words = rest.join(' ').split(' '), half = Math.ceil(words.length / 2);
-  document.querySelector('h1').innerHTML = [ask, words.slice(0, half).join(' '), words.slice(half).join(' ')].filter(Boolean).map(l => `<span>${lit(l)}</span>`).join('');
+  // The question breaks before its "or", and what follows it stays on one line if it's short enough.
+  const [ask, ...rest] = HOME.social.split(/(?<=\?)\s+/), after = rest.join(' '), words = after.split(' '), half = Math.ceil(words.length / 2);
+  const lines = [...ask.split(/\s+(?=or\s)/), ...(after.length <= 28 ? [after] : [words.slice(0, half).join(' '), words.slice(half).join(' ')])];
+  document.querySelector('h1').innerHTML = lines.filter(Boolean).map(l => `<span>${lit(l)}</span>`).join('');
 
   // Over Kai's cloud, whose plan it is; over yours, your plan and when it resets. (The plots go
   // unnamed: at the size a preview is mostly seen, their labels would only crowd the garden.)

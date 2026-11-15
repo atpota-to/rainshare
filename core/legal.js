@@ -53,6 +53,7 @@ export const TERMS = {
   short: [
     'What you post is public, and it stays in your own account.',
     'You run your own agent, as you, at your own risk. Rainshare’s safety checks help, and they don’t promise anything.',
+    'Rainshare never asks for or sees your AI login, and nobody else uses your plan or your account.',
     'Nobody pays, and nobody gets paid.',
     'Ask honestly. No tricks aimed at other people’s agents.',
     'Rainshare is free and early, and comes with no warranty.',

@@ -544,16 +544,13 @@ export function createRainshare({ root, base = '/', host }){
   const showEmpty = () => `<p class="rs-empty" data-rs-flip="empty">${esc({ free: 'Someone’s on each of these already.', 'on-it': 'Nobody’s in the middle of any of these right now.', 'turned-in': 'Nothing’s been turned in for any of these yet.' }[S.show] || '')} <button class="rs-link" type="button" data-rs-show="all">Show everything open</button></p>`;
   // Once nothing someone else asked for is free (each has someone on it or something turned in,
   // or there's nothing at all), the top of the list offers to tell people on Bluesky that you've
-  // got usage to spare, naming the paid plans your profile says you have (signed out, or with
-  // none, just "AI"). Under it, a dashed rule, and under that what's already being helped with.
+  // got rain to spare. (It doesn't name your plan or offer "usage": what you're offering is your
+  // agent's work, not your plan.) Under it, a dashed rule, and under that what's already being
+  // helped with.
   const allTaken = all => !!S.board && !S.error && !all.some(it => it.repo !== viewer() && standsAs(it) === 'free');
   // (Bluesky's butterfly, filled, as the footer on rainshare.dev draws it.)
   const BSKY = '<svg class="rs-i rs-bsky-i" viewBox="0 0 600 530" aria-hidden="true"><path d="m135.72 44.03c66.496 49.921 138.02 151.14 164.28 205.46 26.262-54.316 97.782-155.54 164.28-205.46 47.98-36.021 125.72-63.892 125.72 24.795 0 17.712-10.155 148.79-16.111 170.07-20.703 73.984-96.144 92.854-163.25 81.433 117.3 19.964 147.14 86.092 82.697 152.22-122.39 125.59-175.91-31.511-189.63-71.766-2.514-7.3797-3.6904-10.832-3.7077-7.8964-0.0174-2.9357-1.1937 0.51669-3.7077 7.8964-13.714 40.255-67.233 197.36-189.63 71.766-64.444-66.128-34.605-132.26 82.697-152.22-67.108 11.421-142.55-7.4491-163.25-81.433-5.9562-21.282-16.111-152.36-16.111-170.07 0-88.687 77.742-60.816 125.72-24.795z"/></svg>';
-  function spareUrl(){
-    const paid = plansIn(S.mine?.merged).filter(p => !UNPAID.includes(p)).map(p => labelOf(PLANS, p));
-    const which = !paid.length ? 'AI' : paid.length === 1 ? paid[0] : `${paid.slice(0, -1).join(', ')} and ${paid.at(-1)}`;
-    return `https://bsky.app/intent/compose?text=${encodeURIComponent(`I’ve got ${which} usage to spare. Post an idea or a project you’d like help with on @${HANDLE} and I’ll send my agent. ${SITE}`)}`;
-  }
+  const spareUrl = () => `https://bsky.app/intent/compose?text=${encodeURIComponent(`I’ve got rain to spare. Post an idea or a project you’d like help with on @${HANDLE} and I’ll send my agent. ${SITE}`)}`;
   const spareCard = inList => {
     const body = `<a class="rs-item rs-spare" href="${esc(spareUrl())}" target="_blank" rel="noopener">
         <span class="rs-item-main">
@@ -1828,7 +1825,7 @@ export function createRainshare({ root, base = '/', host }){
         ${S.source?.canPrivate ? `<p class="rs-note">${ico('lock')}<span>For now the CLI and MCP server reach public ones only. Private, group-only ones are taken on from here, in the app.</span></p>` : ''}
         <section class="rs-panel rs-faq" aria-labelledby="rsAllowed">
           <h2 id="rsAllowed">Is this allowed by my AI plan?</h2>
-          <p class="rs-muted">We think so, but read your plan’s terms to be sure. What the big plans rule out is sharing your account or reselling access to it (<a href="https://www.anthropic.com/legal/consumer-terms" target="_blank" rel="noopener">Anthropic</a>, <a href="https://openai.com/policies/row-terms-of-use/" target="_blank" rel="noopener">OpenAI</a>). Rainshare does neither. You run your own agent, signed in as you, and Rainshare never sees your AI sign-in. The other person gets the work: a pull request, or a repo for an idea. Nobody is paid, and you start each job yourself.</p>
+          <p class="rs-muted"><b>Rainshare isn’t plan sharing, and it isn’t a proxy.</b> We think it’s allowed, but read your plan’s terms to be sure. What the big plans rule out is sharing your account or reselling access to it (<a href="https://www.anthropic.com/legal/consumer-terms" target="_blank" rel="noopener">Anthropic</a>, <a href="https://openai.com/policies/row-terms-of-use/" target="_blank" rel="noopener">OpenAI</a>). Rainshare does neither. You run your own agent, signed in as you, and Rainshare never sees your AI sign-in. The other person gets the work: a pull request, or a repo for an idea. Nobody is paid, and you start each job yourself.</p>
           <p class="rs-muted">Your plan’s usage policy covers everything your agent does, whoever asked for it. Take on only what you’d be comfortable asking it to do for yourself.</p>
         </section>
       </div>`;

@@ -29,9 +29,9 @@ const an = noun => (/^[aeiou]/i.test(noun) ? 'an ' : 'a ') + noun;
 /** The home page's own words (index.html's), for every page there's nothing particular to say about. */
 export const HOME = {
   kind: 'home', path: '/', title: 'Rainshare', heading: 'Rainshare',
-  description: 'People post ideas and projects they want help with. Pick one and send your own AI agent to do the work, with what’s left on your plan before it resets.',
-  social: 'Got rain to spare? Send your agent to help someone else.',
-  alt: 'Rainshare. Got rain to spare? Send your agent to help someone else. Beside the words, a small garden where two clouds are raining on young plants: over one, a meter showing when your AI plan resets, and over the other, Kai’s plan.',
+  description: 'Mutual aid for open source. Your AI plan resets whether you use it all or not, so use your agent to help someone else. You’re not sharing your plan or your account, just what your agent makes as a PR.',
+  social: 'Got rain to spare or need a hand? Mutual aid for open source.',
+  alt: 'Rainshare. Got rain to spare or need a hand? Mutual aid for open source. You’re not sharing your plan or your account, just what your agent makes. Beside the words, a small garden where two clouds are raining on young plants: over one, a meter showing when your AI plan resets, and over the other, Kai’s plan.',
   image: '/og.jpg', card: null
 };
 // Pages that say the same thing to everyone.
