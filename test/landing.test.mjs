@@ -1,11 +1,11 @@
-// The landing's garden: what's planted in it comes from the example circle, so every plot has
-// a page to go and look at, and is drawn there as the plant it is here.
+// The landing's garden: what's planted in it comes from the example circle, and is drawn there
+// as the plant it is here.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PLOTS, FRIEND, GARDEN_PATH } from '../src/landing/plots.js';
+import { PLOTS, FRIEND } from '../src/landing/plots.js';
 import { createDemoSource } from '../core/demo.js';
 import { stageOf, pictureOf, nounOf } from '../core/words.js';
-import { plantKind, pathOf, firstName } from '../ui/bits.js';
+import { plantKind, firstName } from '../ui/bits.js';
 
 test('every plot in the landing\'s garden is an ask in the example circle', async () => {
   const { items } = await createDemoSource().board();
@@ -18,7 +18,6 @@ test('every plot in the landing\'s garden is an ask in the example circle', asyn
     assert.equal(stageOf(it.value), p.stage);
     assert.equal(nounOf(it.value), p.noun);
     assert.equal(p.kind, plantKind(it.uri), 'the same kind of plant as on its own page');
-    assert.equal(p.path, '/example/' + pathOf(it), 'its page in the example circle');
   }
 });
 
@@ -38,7 +37,6 @@ test('the garden has one plot a friend is on, and three in a row for your cloud'
     assert.notEqual(mine.value.state, 'sprouted');
     assert.equal(p.next, pictureOf({ ...mine.value, state: 'sprouted' }));
   }
-  assert.equal(GARDEN_PATH, '/example/profile/' + createDemoSource().viewer);
 });
 
 // The garden is the page's backdrop, and is fitted into the part of it the page keeps clear.

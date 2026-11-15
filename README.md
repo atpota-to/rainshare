@@ -88,6 +88,14 @@ there, and what you write is posted on the issue as you, so the conversation sta
 place and the forge tells people about replies. Tangled has replies; knotless keeps an issue's
 comments as one list.
 
+Signed in, there's a bell beside your face in the bar. Its number is how much has happened since
+you last opened it: someone's on one of your asks or turned in work on it, an ask you were on was
+marked done (with your work or someone else's) or closed, someone commented on one of your asks or
+replied to you, or whoever asked commented on an ask you're helping with. Each one opens the ask,
+at its comments for a comment. When something on Rainshare changes, a note about it is in the bell
+too, and on the [What's new](https://rainshare.dev/releases) page (in the footer). See
+[The bell and what's new](#the-bell-and-whats-new).
+
 An idea doesn't need a repo, or even a developer. The asker picks whether whoever builds it
 keeps it ("Someone else can run with it") or whether the agent should start a repo for them
 ("Start it for me"). Rainshare doesn't create repos itself. It links to the new-repo page on
@@ -99,6 +107,8 @@ asks, and "Direct my agent" starts with the command for what you run. The first 
 a short welcome says what happens in three steps, then asks for your
 plan and which agents you run, and whether you'd like messages from @rainshare.dev (both kinds are
 ticked to begin with; see [Messages](#messages)). You can skip it, which switches nothing on.
+If you were already past the welcome before it asked about messages, or made your profile
+without it, your next visit asks about them on their own, once, unless you have some on.
 
 Your settings are on a page of their own, apart from your profile: **Settings** (`/settings`), in
 the menu under your face. They're how "Direct my agent" works for you, your GitHub username if
@@ -383,6 +393,49 @@ agree: the helper's delivery and the asker's record naming it as the one that fi
 So nobody can add to their own garden. Two friends could still pad each other's, which is why
 there's no leaderboard.
 
+### The bell and what's new
+
+The bell isn't stored anywhere either. `core/notices.js` works it out each time from what the site
+has already read: the board, which has every ask you can see with its takes and turn-ins, and the
+release notes. What's news about your asks and your work is `core/news.js`, the same code
+@rainshare.dev's direct messages use (`announcer/src/messages.js`), so the two always say the same
+things. Comments aren't on the board, so after it's read, the comments on your asks, on the asks
+you're helping with, and on the asks you've commented on lately are found through Constellation,
+as an ask's page finds them (`commentsFor` in `core/source.js`, at most 20 asks). Comments on a
+Tangled or knotless issue are the forge's, and the forge tells people about those. Whoever you
+block and whatever @rainshare.dev has hidden are left out, as on the board.
+
+The bell looks back 30 days. Signed in, the board is read whatever page you're on, and again
+every five minutes while the page is on screen, or when you come back to it after two. Opening
+the bell asks again if it's been a minute.
+
+What you've seen is kept in this browser (`rs:notices-seen:<your DID>`), by what each notice is
+about rather than by when: a record can reach the network a minute or two after it was written,
+by which time you may have opened the bell, and it should still count. The first time, the last
+week counts as new. Opening the bell marks everything in it seen, and what was new stays lit
+while it's open. Opened in one tab, it's cleared in the others. Another browser or device starts
+afresh: keeping it in your account would mean a write, and a Jetstream event for the announcer,
+every time you opened it. On the example board the bell is the example's, and says so.
+
+#### Writing a release note
+
+Release notes are a list in `core/releases.js`, newest first. Write one when something people use
+has changed and they'd want to know. Put it at the top:
+
+```js
+{
+  id: 'quiet-asks',            // lowercase words and dashes; never change or reuse it once it's out
+  date: '2026-12-01',          // the day it goes out; a later day keeps it hidden until then
+  title: 'Asks can be quiet',  // a few words
+  summary: 'One sentence, for the bell.',
+  text: `The rest, in Markdown, for the What's new page. Optional.`
+}
+```
+
+It's in the bell for 30 days from its date, marked new for anyone who hasn't opened the bell
+since, and on `/releases` for good. The bell knows a note by its `id`, so a note that's been
+reworded isn't new again. `npm test` checks the list.
+
 ### Moderation
 
 @rainshare.dev can hide an ask, a take, a delivery, a comment (Rainshare's own or one on a forge's
@@ -624,7 +677,7 @@ which spells it out by hand.
 
 | Path | What's there |
 | --- | --- |
-| `index.html`, `src/main.js` | the page, its routes, and who's signed in |
+| `index.html`, `src/main.js` | the page, its routes, who's signed in, and the bell in the bar |
 | `src/landing/` | the signed-out landing page and its 3D garden (three.js, only loaded on the landing). `src/landing/cycle/` is an older scene, viewable with `?scene=cycle`. |
 | `src/plants/`, `src/logo/` | the 3D plant models, and the animated logo (plain JavaScript, no three.js) |
 | `src/promo/` | pages that pictures for announcements are taken from: `dms.html`, for @rainshare.dev's direct messages |
@@ -632,7 +685,7 @@ which spells it out by hand.
 | `src/mode.js`, `public/mode.js` | day and night: the toggle in the bar, and the small script that picks one before the page is first drawn |
 | `src/hosts.js` | the hosts offered for making an account, for someone who hasn't got one |
 | `src/spaces.js` | group spaces for private asks (switched off) |
-| `ui/` | the app's screens: the board, an ask, profiles, your settings, posting an ask, the first-time welcome, loading placeholders, the feedback page, the note before a first job, the terms and privacy pages, and @rainshare.dev's moderation page |
+| `ui/` | the app's screens: the board, an ask, profiles, your settings, posting an ask, the first-time welcome (and asking about messages, for someone past it), loading placeholders, the feedback page, the note before a first job, the terms and privacy pages, What's new, the bell's panel (`notices.js`), and @rainshare.dev's moderation page |
 | `core/` | everything the site and the CLI share (below) |
 | `cli/rainshare.mjs` | the CLI and MCP server |
 | `api/` | Vercel functions: the OAuth client metadata, and link previews (`page.js` sets the meta tags, `og.js` draws the image) |
@@ -657,6 +710,9 @@ In `core/`:
 | `subjects.js`, `forges.js`, `forgewrite.js` | reads from forges, links to the right page on them, and posts to Tangled and knotless |
 | `ties.js`, `vouch.js`, `circle.js` | follows, vouches and audiences |
 | `garden.js` | works out gardens from records |
+| `news.js` | what's news to someone about their asks and their work, for the bell and @rainshare.dev's messages |
+| `notices.js` | the bell in the bar: what's in it, and what counts as new to whoever's looking |
+| `releases.js` | the release notes, on the What's new page and in the bell |
 | `comments.js` | puts an ask's comments into threads, whether they're Rainshare's or an issue's |
 | `scan.js` | Rainshare's checks on an ask, for what's often used to misuse an agent |
 | `legal.js` | the Terms of Service and Privacy Policy, their version, and the points said before a first job or a first ask |
@@ -750,7 +806,11 @@ posts and sends nothing.
 
 People ask for messages on their Settings page (`/settings`), under "Messages from
 @rainshare.dev", or in the welcome the first time they sign in, where both kinds are ticked to
-begin with. There are two kinds, and they can have either or both:
+begin with. Someone who was past the welcome before it asked (a profile, or the welcome seen on
+that browser), and has none on, is asked about them on their own on their next visit, both ticked
+again. "No thanks" switches nothing on, and either way it's asked once per account on a browser
+(and not while their settings can't be read, since they may have them on).
+There are two kinds, and they can have either or both:
 
 - **Updates on my asks and my work**: someone's on one of your asks, or has turned in work on it
   (with a link to the pull request); an ask you were on was marked done, with your work or
@@ -758,7 +818,8 @@ begin with. There are two kinds, and they can have either or both:
 - **New asks on the board**: asks meant for everyone that nobody's on yet, as for the posts,
   except your own.
 
-Updates go out within a minute or two: each run sends someone one message at most, with
+The updates are worked out by `core/news.js`, which the bell in the site's bar uses too. Updates
+go out within a minute or two: each run sends someone one message at most, with
 everything since their last one, and nothing when there's no news. New asks come once a day, the
 day's together, in the first message after 15:45 UTC. What people have asked for is saved as
 `notify` in their `dev.rainshare.preferences` record, which anyone can read, like every record in
@@ -823,9 +884,13 @@ done for real yet:
   has been posted or sent yet. The Bluesky chat calls have only been tried against a stand-in,
   including whether a STOP reaches the account when its own settings only allow messages from
   people it follows.
-- A real account's first sign-in, and the welcome that follows it.
+- A real account's first sign-in, and the welcome that follows it; and an account with a profile and
+  no messages on, which is asked about messages on its own.
 - Following @rainshare.dev from a real account when messages are switched on, and a real server's
   consent page for the follow permission. It's only been tried against a stand-in PDS and AppView.
+- The bell with a real account's records. It's been driven on the example board in headless
+  Chromium, and its comment lookups are the ones an ask's page already makes, but nobody's had a
+  real notification yet.
 - A server accepting the permission set. That waits for a production build to publish it.
   Until then, bsky.social refuses the set and Rainshare falls back to asking for the records by
   name, which works.

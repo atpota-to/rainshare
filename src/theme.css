@@ -55,7 +55,11 @@ a{color:inherit}
 [data-mode=night] .rs-code,[data-mode=night] .rs-brief pre,[data-mode=night] .rs-cmd pre{background:#060B15}
 
 /* the bar */
-.rd-bar{display:flex;align-items:center;gap:20px;flex-wrap:wrap;max-width:1112px;width:100%;margin:0 auto;padding:18px 16px}
+.rd-bar{display:flex;align-items:center;gap:20px;flex-wrap:wrap;max-width:1112px;width:100%;margin:0 auto;padding:18px 16px;
+  /* Everything in the bar you can press has an edge you can see, so the gaps between them read
+     as even: the tabs sit in a track, and the toggle and the bell in circles, all in the same
+     soft tint of the ink (on the light sky or the dark one), and the same height as your face. */
+  --rd-h:40px; --rd-chip:color-mix(in srgb,var(--ink) 6%,transparent); --rd-chip-edge:color-mix(in srgb,var(--ink) 8%,transparent); --rd-chip-hover:color-mix(in srgb,var(--ink) 11%,transparent)}
 .rd-logo{display:inline-flex;align-items:center;gap:10px;font:900 22px var(--display);letter-spacing:-.01em;text-decoration:none}
 /* The logo, in 3D: a picture of it until the moving one (./logo/live.js) has started, which
    then takes its place. It's drawn a little larger than the row it sits in. */
@@ -73,17 +77,68 @@ a{color:inherit}
 }
 @media (forced-colors:active){.rd-ai{background:none;-webkit-text-fill-color:currentColor;filter:none}}
 .rd-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
-.rd-nav{position:relative;isolation:isolate;display:flex;gap:4px;flex:1;min-width:0;overflow-x:auto}
-/* The tabs: the one you're on is a pill tinted with the ink, so it stands out the same on the
-   light sky and the dark one, and on the glow at the top of the page as much as off it. */
-.rd-nav a{padding:8px 14px;border-radius:999px;font-weight:600;font-size:15px;color:var(--muted);text-decoration:none;white-space:nowrap;transition:background-color .15s,color .15s}
-.rd-nav a:hover{color:var(--ink);background:color-mix(in srgb,var(--ink) 7%,transparent)}
-.rd-nav a[aria-current="true"]{color:var(--ink);background:color-mix(in srgb,var(--ink) 12%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 8%,transparent)}
-@media (forced-colors:active){.rd-nav a[aria-current="true"]{outline:2px solid CanvasText;outline-offset:-2px}}
-/* You, at the end of the bar: "Sign in", or your face, which opens a menu under it (src/main.js) */
+.rd-nav{position:relative;isolation:isolate;display:flex;gap:2px;flex:0 1 auto;min-width:0;overflow-x:auto;scrollbar-width:none;padding:4px;border-radius:999px;background:var(--rd-chip);box-shadow:inset 0 0 0 1px var(--rd-chip-edge)}
+/* The tabs, in their track, the way a segmented control has them, whether you're on one of
+   them or not. The one you're on is raised out of it: the card's own white by day, and by night,
+   when the card is about as dark as the sky, the ink's tint, stronger than the track's. */
+.rd-nav a{display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 14px;border-radius:999px;font-weight:600;font-size:15px;color:var(--muted);text-decoration:none;white-space:nowrap;transition:background-color .15s,color .15s,box-shadow .15s}
+.rd-nav a:hover{color:var(--ink);background:var(--rd-chip-hover)}
+.rd-nav a[aria-current="true"]{color:var(--ink);background:var(--card);box-shadow:0 1px 3px rgba(8,16,40,.14),0 0 0 1px var(--rd-chip-edge)}
+[data-mode=night] .rd-nav a[aria-current="true"]{background:color-mix(in srgb,var(--ink) 15%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 10%,transparent)}
+@media (forced-colors:active){.rd-nav{outline:1px solid CanvasText}.rd-nav a[aria-current="true"]{outline:2px solid CanvasText;outline-offset:-2px}}
+/* The end of the bar, pushed to its far side: the day-or-night toggle, the bell, then you
+   ("Sign in", or your face, which opens a menu under it: src/main.js), as one group with the same
+   small gap between each. The toggle and the bell are tinted circles the size of your face (--rd-h).
+   The bell's panel lines up with the bar's end, as your face's menu does, so on a phone it fits
+   between the gutters. */
+.rd-end{position:relative;display:flex;align-items:center;gap:6px;margin-left:auto}
+.rd-end .rd-mode,.rd-end .rd-bell-btn{width:var(--rd-h);height:var(--rd-h);background:var(--rd-chip);box-shadow:inset 0 0 0 1px var(--rd-chip-edge)}
+.rd-end .rd-mode:hover,.rd-end .rd-bell-btn:hover{background:var(--rd-chip-hover);color:var(--ink)}
+.rd-end .rd-bell-btn[aria-expanded=true]{background:var(--accent-soft);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 22%,transparent);color:var(--ink)}
+.rd-end .rd-who{padding:0}
+.rd-end .rd-who .rs-face{width:var(--rd-h);height:var(--rd-h)}
+.rd-bell-btn{position:relative;flex:none;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;padding:0;border:0;border-radius:50%;background:none;color:var(--muted);cursor:pointer;transition:background-color .15s,color .15s}
+.rd-bell-btn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transform-origin:50% 8%}
+/* how much is new, on the bell's shoulder, ringed in the page's colour so it stands off the bell */
+.rd-bell-count{position:absolute;top:3px;right:1px;min-width:17px;height:17px;padding:0 4.5px;border-radius:999px;background:var(--accent);color:#fff;font:700 10.5px/17px var(--body);text-align:center;box-shadow:0 0 0 2px var(--bg);pointer-events:none;animation:rd-count .3s var(--ease-spring)}
+[data-mode=night] .rd-bell-count{color:#0B1220}
+@keyframes rd-count{from{transform:scale(.4);opacity:0}}
+/* (and when there's more than there was, the bell swings, once) */
+.rd-bell-swing svg{animation:rd-bell-swing .8s var(--ease-out)}
+@keyframes rd-bell-swing{15%{transform:rotate(14deg)}30%{transform:rotate(-12deg)}45%{transform:rotate(8deg)}60%{transform:rotate(-5deg)}75%{transform:rotate(2deg)}}
+@media (prefers-reduced-motion:reduce){.rd-bell-swing svg,.rd-bell-count{animation:none}}
+@media (forced-colors:active){.rd-bell-btn{color:ButtonText}.rd-bell-count{forced-color-adjust:none;background:Highlight;color:HighlightText}}
+.rd-bell-panel{position:absolute;top:calc(100% + 10px);right:0;z-index:30;display:flex;flex-direction:column;width:min(380px,calc(100vw - 32px));max-height:min(560px,calc(100dvh - 110px));overflow:auto;overscroll-behavior:contain;padding:6px;border:1px solid var(--line);border-radius:18px;background:var(--card);box-shadow:0 22px 44px -18px rgba(8,16,40,.45);transform-origin:top right;animation:rd-menu .24s var(--ease-spring)}
+.rd-bell-panel.rd-closing{pointer-events:none;animation:rd-menu-out .14s var(--ease-in) forwards}
+@media (prefers-reduced-motion:reduce){.rd-bell-panel,.rd-bell-panel.rd-closing{animation:none}}
+.rd-bell-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:10px 12px 6px}
+.rd-bell-head h2{margin:0;font-size:17px;font-weight:800}
+.rd-bell-head small{color:var(--muted);font-size:13px;font-weight:600}
+.rd-notices{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.rd-notice{display:flex;gap:12px;align-items:flex-start;padding:10px 12px;border-radius:12px;color:var(--ink);font-size:14.5px;line-height:1.4;text-decoration:none}
+.rd-notice:hover{background:var(--accent-soft)}
+/* what's new since you last looked: tinted, with a dot at its end */
+.rd-notice.rd-new{background:color-mix(in srgb,var(--accent) 7%,transparent)}
+.rd-notice.rd-new:hover{background:var(--accent-soft)}
+.rd-notice .rs-face,.rd-notice-mark{flex:none;width:36px;height:36px;font-size:15px}
+.rd-notice-mark{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:var(--accent-soft);color:var(--accent)}
+.rd-notice-mark svg{width:20px;height:20px;fill:currentColor;stroke:none}
+.rd-notice-words{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0;overflow-wrap:anywhere}
+.rd-notice-words b{font-weight:700}
+.rd-notice-said{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--muted);font-size:13.5px}
+.rd-notice-when{color:var(--muted);font-size:12.5px;font-weight:600}
+.rd-notice-dot{flex:none;width:9px;height:9px;margin-top:6px;border-radius:50%;background:var(--accent)}
+@media (forced-colors:active){.rd-notice.rd-new{outline:1px solid CanvasText}.rd-notice-dot{background:CanvasText}}
+.rd-bell-note{display:flex;align-items:center;gap:10px;margin:0;padding:12px;color:var(--muted);font-size:14px;line-height:1.45}
+.rd-bell-spin{flex:none;width:14px;height:14px;border:2px solid var(--accent-soft);border-top-color:var(--accent);border-radius:50%;animation:rd-spin .9s linear infinite}
+@keyframes rd-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.rd-bell-spin{animation-duration:3s}}
+.rd-bell-foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 16px;margin-top:4px;padding:10px 12px 8px;border-top:1px solid var(--line)}
+.rd-bell-foot a{color:var(--accent-text);font-weight:700;font-size:14px;text-decoration:none}
+.rd-bell-foot a:hover{text-decoration:underline;text-underline-offset:3px}
 .rd-me{position:relative;display:flex;align-items:center}
 .rd-who{display:inline-flex;padding:2px;border:0;border-radius:50%;background:none;cursor:pointer;transition:box-shadow .15s}
-.rd-who .rs-face{width:36px;height:36px;font-size:15px}
+.rd-who .rs-face{font-size:15px}
 .rd-who:hover,.rd-who[aria-expanded=true]{box-shadow:0 0 0 3px var(--accent-soft)}
 .rd-menu{position:absolute;top:calc(100% + 10px);right:0;z-index:30;width:max-content;min-width:230px;max-width:min(320px,calc(100vw - 32px));padding:6px;border:1px solid var(--line);border-radius:18px;background:var(--card);box-shadow:0 22px 44px -18px rgba(8,16,40,.45);transform-origin:top right;animation:rd-menu .24s var(--ease-spring)}
 @keyframes rd-menu{from{opacity:0;transform:translateY(-6px) scale(.94)}}
@@ -102,14 +157,13 @@ a{color:inherit}
 .rd-menu-name b{font-weight:700;font-size:16px}
 .rd-menu-name small{color:var(--muted);font-weight:500;font-size:13px}
 .rd-menu .rd-menu-go{width:18px;height:18px}
-.rd-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:8px 18px;border:0;border-radius:999px;background:var(--accent);color:#fff;font:700 15px var(--body);text-decoration:none;cursor:pointer}
+.rd-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:var(--rd-h,40px);padding:0 18px;border:0;border-radius:999px;background:var(--accent);color:#fff;font:700 15px var(--body);text-decoration:none;cursor:pointer}
 [data-mode=night] .rd-btn{color:#0B1220}
 /* ("Sign in" has its door-and-arrow too, which is all of it on a phone) */
 .rd-btn svg{display:none;flex:none;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 /* Day or night: one round button at the end of the bar, a sun that turns into a crescent moon.
    The moon is the sun's disc grown, with a bite out of it; the rays fold away. */
-.rd-mode{flex:none;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;padding:0;border:0;border-radius:50%;background:none;color:var(--muted);cursor:pointer}
-.rd-mode:hover{background:var(--accent-soft);color:var(--ink)}
+.rd-mode{flex:none;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;padding:0;border:0;border-radius:50%;background:none;color:var(--muted);cursor:pointer;transition:background-color .15s,color .15s}
 .rd-mode svg{width:22px;height:22px;overflow:visible}
 .rd-mode .m-disc{fill:currentColor;transform-origin:12px 12px;transition:transform .5s cubic-bezier(.5,0,.2,1.3)}
 .rd-mode .m-bite{fill:#000;transition:transform .5s cubic-bezier(.5,0,.2,1)}
@@ -142,13 +196,16 @@ a{color:inherit}
 ::view-transition-group(rd-bar),::view-transition-new(rd-bar){animation:none}
 ::view-transition-old(rd-bar){display:none}
 .rd-vt-title{width:fit-content;max-width:100%}
-/* On a phone, two rows: the logo with the toggle and you across the top, and the tabs under them */
+/* On a phone, two rows: the logo with the end of the bar across the top, and the tabs' track
+   under them, the width of the page, its tabs sharing it. (The end's circles are a little smaller
+   there, so they all keep to that top row.) */
 @media (max-width:640px){
-  .rd-bar{gap:10px 6px;padding-top:14px;padding-bottom:12px}
+  .rd-bar{--rd-h:36px;gap:10px 6px;padding-top:14px;padding-bottom:12px}
   .rd-nav{order:3;flex-basis:100%}
+  .rd-nav a{flex:1 1 auto}
   .rd-stage{margin-left:0}
-  .rd-mode{margin-left:auto}
-  .rd-btn{width:40px;padding:0}
+  .rd-end{gap:4px}
+  .rd-btn{width:var(--rd-h);padding:0}
   .rd-btn svg{display:block}
   .rd-btn span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 }
@@ -156,10 +213,12 @@ a{color:inherit}
    tabs closer together, so the example board's third one does too) */
 @media (max-width:359px){
   .rd-bar{column-gap:4px}
-  .rd-nav a{padding:8px 10px;font-size:14px}
-  .rd-logo{font-size:20px;gap:8px}
+  .rd-bar{--rd-h:34px}
+  .rd-nav a{padding:0 8px;font-size:14px}
+  .rd-logo{font-size:20px;gap:6px}
   .rd-stage{padding:2px 7px;font-size:11px}
-  .rd-mode{width:34px}
+  .rd-end{gap:2px}
+  .rd-mode svg,.rd-bell-btn svg{width:20px;height:20px}
 }
 /* under the landing, the board's heading is one of the page's h2s, and sized like them */
 .rs-brand h2{font-size:clamp(24px,3vw,32px);font-weight:700;letter-spacing:-.02em}
