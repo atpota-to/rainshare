@@ -142,7 +142,8 @@ export function rank(items, me, opts){
 
 /**
  * The ways the board can be put in order, each with a few words for when you rest on it. The
- * first two need someone signed in, since they lean on what suits them.
+ * first two need someone signed in and fit switched on (FEATURES.fit in ./ns.js), since they
+ * lean on what suits you.
  *   suggested  newest first, but what suits you less comes after the rest (lesser)
  *   fit        best for you first (rank)
  *   new        newest first, and nothing else
@@ -155,8 +156,8 @@ export const SORTS = [
   ['old', 'Waiting longest', 'The ones that have been open longest first.', false]
 ];
 /** The sorts there are for someone signed in or not, and the one used until they pick another. */
-export const sortsFor = signedIn => SORTS.filter(s => signedIn || !s[3]);
-export const defaultSort = signedIn => signedIn ? 'suggested' : 'new';
+export const sortsFor = (signedIn, fit = FEATURES.fit) => SORTS.filter(s => !s[3] || (signedIn && fit));
+export const defaultSort = (signedIn, fit = FEATURES.fit) => signedIn && fit ? 'suggested' : 'new';
 const byNewest = (a, b) => String(b.value?.createdAt).localeCompare(String(a.value?.createdAt));
 /**
  * Whether an ask suits a helper less than the rest, for the suggested order: its fit says to
@@ -165,23 +166,25 @@ const byNewest = (a, b) => String(b.value?.createdAt).localeCompare(String(a.val
  */
 export const lesser = item => (item.reasons || []).some(r => r.tone === 'down') || (!item.value?.parallel && (item.deliveries || []).length > 0);
 /**
- * The open board in order. Signed in (`me.did`), what someone else asked for comes first,
- * each with its fit, and your own asks after it, newest first. Then, unless it's sorted by
- * what's waiting longest, whatever `isNew` says is new (what's come in since you last looked)
- * is moved to the top, in the same order among itself. Returns { items, fresh }, where
- * `fresh` is how many at the top are new.
+ * The open board in order. Signed in (`me.did`), what someone else asked for comes first (with
+ * its fit, while fit is on) and your own asks after it, in the same order, since the board is for
+ * helping someone else. Then, unless it's sorted by what's waiting longest, whatever `isNew`
+ * says is new (what's come in since you last looked) is moved to the top, in the same order
+ * among itself. Returns { items, fresh, sort }, where `fresh` is how many at the top are new
+ * and `sort` the order used (an unknown or unavailable one falls back to the usual one).
  */
-export function boardOrder(open, me, { sort, isNew = () => false } = {}){
-  const signedIn = !!me?.did, how = sortsFor(signedIn).some(s => s[0] === sort) ? sort : defaultSort(signedIn);
+export function boardOrder(open, me, { sort, isNew = () => false, fit = FEATURES.fit } = {}){
+  const signedIn = !!me?.did, how = sortsFor(signedIn, fit).some(s => s[0] === sort) ? sort : defaultSort(signedIn, fit);
+  const byDate = list => how === 'old' ? [...list].sort(byNewest).reverse() : [...list].sort(byNewest);
   let items;
-  if (!signedIn) items = [...open].sort(byNewest);
+  if (!signedIn) items = byDate(open);
   else {
-    const mine = open.filter(it => it.repo === me.did).sort(byNewest), ranked = rank(open.filter(it => it.repo !== me.did), me);
+    const others = open.filter(it => it.repo !== me.did), mine = byDate(open.filter(it => it.repo === me.did));
+    const ranked = fit ? rank(others, me) : others;
     items = how === 'fit' ? [...ranked, ...mine]
-      : how === 'suggested' ? [...ranked.filter(it => !lesser(it)).sort(byNewest), ...ranked.filter(lesser).sort(byNewest), ...mine]
-        : [...ranked, ...mine].sort(byNewest);
+      : how === 'suggested' ? [...byDate(ranked.filter(it => !lesser(it))), ...byDate(ranked.filter(lesser)), ...mine]
+        : [...byDate(ranked), ...mine];
   }
-  if (how === 'old') items.reverse();
   const fresh = how === 'old' ? [] : items.filter(it => it.repo !== me?.did && isNew(it));
   if (!fresh.length) return { items, fresh: 0, sort: how };
   return { items: [...fresh, ...items.filter(it => !fresh.includes(it))], fresh: fresh.length, sort: how };

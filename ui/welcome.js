@@ -1,7 +1,7 @@
 // The welcome: two short steps for someone signing in for the first time, over whatever page
 // they came back to.
 //
-//   story   what Rainshare is, in three lines
+//   story   what Rainshare is, in three plain steps
 //   basics  your AI plan, and what you run: the two things the board sorts by and "Send my
 //           agent" reads. Your name and picture are already there, from Bluesky.
 //
@@ -12,6 +12,7 @@
 // its own page. Saving writes a profile with just what was picked here.
 import { PLANS, UNPAID, HARNESSES } from '../core/ns.js';
 import { esc, lit, ico, skyIco, lifeIco, face, nameOf, avatarFallback } from './bits.js';
+import { closeSoftly, swapStep } from './motion.js';
 
 const SEEN = did => 'rs:welcomed:' + did;
 const seen = did => { try { return localStorage.getItem(SEEN(did)) === '1'; } catch (_) { return false; } };
@@ -30,11 +31,12 @@ export function shouldWelcome({ source, mine, sub = '' }){
 /** The profile the welcome saves: the plans picked, and a setup for each thing they run. */
 export const welcomeProfile = ({ plans = [], runs = [] } = {}) => ({ plans: [...plans], setups: runs.map(harness => ({ harness, models: [] })) });
 
-// What Rainshare is, as briefly as it can be said. [icon, the line, what it means for you]
+// What Rainshare is, as briefly as it can be said, in the same three steps as the landing.
+// [icon, the step, what it means for you]
 const STORY = [
-  [skyIco('showers'), 'Your AI plan resets whether you use it or not.', 'What’s left before it does is rain to spare.'],
-  [lifeIco('up'), 'People post ideas and projects they’d like help with.', 'That’s asking for rain, and you can too.'],
-  [lifeIco('sprouted'), 'Pick one and send your agent to do the work, on your own plan.', 'When it’s done, it grows in your garden.']
+  [lifeIco('up'), 'People post ideas and projects they’d like help with.', 'You can post your own with “Ask for help”.'],
+  [skyIco('showers'), 'Pick one and direct your agent, on your own plan.', 'It gets their ask in their own words, with safety rules from Rainshare around it. Read it before you start.'],
+  [lifeIco('sprouted'), 'Your agent opens a pull request. Paste its link back here.', 'If it does the job, they accept it, and it grows in your garden.']
 ];
 
 const chips = (name, opts, on) => `<div class="rs-toggles" data-rs-wl="${name}">${opts.map(([v, l]) => `<button type="button" data-v="${esc(v)}" aria-pressed="${on.includes(v)}">${esc(l)}</button>`).join('')}</div>`;
@@ -62,22 +64,23 @@ export function openWelcome({ person, save, saved = () => {}, error = e => e?.me
     <h2 id="rsWlTitle" tabindex="-1">${title}</h2>`;
   const skip = '<button class="rs-link" type="button" data-wl="skip">Skip for now</button>';
 
-  function paint(){
+  // (`dir`: 1 going on to the profile, -1 back to the story; the box slides between them.)
+  function paint(dir = 0){
     if (st.step === 'story') {
-      box.innerHTML = `${top(1, lit('Welcome to Rainshare'))}
+      swapStep(box, `${top(1, lit('Welcome to Rainshare'))}
         <ol class="rs-wl-story">${STORY.map(([i, line, more]) => `<li><span class="rs-wl-ico">${i}</span><p><b>${lit(line)}</b>${lit(more)}</p></li>`).join('')}</ol>
         <button class="rs-btn rs-primary" type="button" data-wl="next">Set up your profile</button>
-        <div class="rs-wl-foot"><span class="rs-muted">It takes a minute.</span>${skip}</div>`;
+        <div class="rs-wl-foot"><span class="rs-muted">It takes a minute.</span>${skip}</div>`, dir);
       box.querySelector('[data-wl="next"]').focus();
       return;
     }
-    box.innerHTML = `${top(2, 'What do you code with?')}
+    swapStep(box, `${top(2, 'What do you code with?')}
       <div class="rs-wl-you">${face(person)}<span><b>${esc(nameOf(person))}</b><small>Your name and picture come from Bluesky.</small></span></div>
       <fieldset><legend>Your AI plan</legend><p class="rs-muted">Any you pay for to code with. It shows beside your asks.</p>${chips('plans', PLANS, st.plans)}</fieldset>
-      <fieldset><legend>What you run</legend><p class="rs-muted">So “Send my agent” copies the right command.</p>${chips('runs', HARNESSES, st.runs)}</fieldset>
+      <fieldset><legend>What you run</legend><p class="rs-muted">So “Direct my agent” copies the right command.</p>${chips('runs', HARNESSES, st.runs)}</fieldset>
       <p class="rs-err" role="alert" hidden></p>
       <button class="rs-btn rs-primary" type="button" data-wl="save">Save my profile</button>
-      <div class="rs-wl-foot"><button class="rs-link" type="button" data-wl="back">${ico('back')}Back</button>${skip}</div>`;
+      <div class="rs-wl-foot"><button class="rs-link" type="button" data-wl="back">${ico('back')}Back</button>${skip}</div>`, dir);
     box.querySelector('[data-rs-wl="plans"] button')?.focus();
   }
   const say = msg => { const p = box.querySelector('.rs-err'); if (p) { p.textContent = msg; p.hidden = !msg; } };
@@ -88,14 +91,14 @@ export function openWelcome({ person, save, saved = () => {}, error = e => e?.me
     st.busy = true; btn.disabled = true; btn.textContent = 'Saving…'; say('');
     try { await save(welcomeProfile(st)); }
     catch (e) { st.busy = false; btn.disabled = false; btn.textContent = 'Save my profile'; say(error(e)); return; }
-    dlg.close();
+    closeSoftly(dlg);
     saved();
   }
 
   dlg.addEventListener('click', e => {
     if (st.busy) return;
     // Outside the box is the same as "Skip for now".
-    if (e.target === dlg) return dlg.close();
+    if (e.target === dlg) return closeSoftly(dlg);
     const b = e.target.closest('button'); if (!b) return;
     const group = b.closest('[data-rs-wl]');
     if (group) {
@@ -112,13 +115,13 @@ export function openWelcome({ person, save, saved = () => {}, error = e => e?.me
       return;
     }
     const act = b.dataset.wl;
-    if (act === 'skip') dlg.close();
-    else if (act === 'next') { st.step = 'basics'; paint(); }
-    else if (act === 'back') { st.step = 'story'; paint(); }
+    if (act === 'skip') closeSoftly(dlg);
+    else if (act === 'next') { st.step = 'basics'; paint(1); }
+    else if (act === 'back') { st.step = 'story'; paint(-1); }
     else if (act === 'save') submit(b);
   });
   // Escape, the ✕, "Skip for now" or a click outside: it's been seen, and won't come back on this browser.
-  dlg.addEventListener('cancel', e => { if (st.busy) e.preventDefault(); });
+  dlg.addEventListener('cancel', e => { if (!e.cancelable) return; e.preventDefault(); if (!st.busy) closeSoftly(dlg); });
   dlg.addEventListener('close', () => { markSeen(did); dlg.remove(); });
 
   paint();

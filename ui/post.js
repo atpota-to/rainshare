@@ -1,4 +1,4 @@
-// Asking for rain, in short steps with a preview beside them of how it will look: what it is
+// Asking for help, in short steps with a preview beside them of how it will look: what it is
 // (an idea, or a project and where it lives), what you'd like done (with how, folded away
 // under "More options"), and, when it's on (FEATURES.audience in ../core/ns.js), who it's
 // for. Then a confirmation that says who can see it and what happens next.
@@ -240,6 +240,9 @@ export function createPoster(ui){
   }
   async function post(){
     for (let s = 1; s <= LAST; s++) { const e = problem(s); if (e) { P.err = e; P.step = s; ui.render(); return; } }
+    // Before a first ask: what to keep in mind, and agreeing to the terms (./agree.js). Closing
+    // that leaves the ask as it was written, unposted.
+    if (ui.agree && !src().demo && !await ui.agree()) return;
     P.busy = true; P.err = ''; ui.render();
     try {
       const g = P.vis === 'group' ? groupNow() : null;
@@ -256,7 +259,7 @@ export function createPoster(ui){
       // The example circle's asks live in this browser, so they have no page anyone else could open.
       P.done = { path: pathOf(item), page: item.space || src().demo ? null : pageOf(item), group: g, issue: opened ? { href: opened.url, forge: FORGE_SAID[writableForge(opened)] } : null };
       // The new issue says where the ask is, so people who find it there can pick it up here.
-      if (opened && P.done.page) src().forgeComment(opened, `I’ve posted this on Rainshare, for anyone who’d like to send their agent to work on it: ${P.done.page}`).catch(e => console.warn('rainshare issue note', e));
+      if (opened && P.done.page) src().forgeComment(opened, `I’ve posted this on Rainshare, for anyone who’d like to direct their agent to work on it: ${P.done.page}`).catch(e => console.warn('rainshare issue note', e));
       P.busy = false;
       ui.onPosted(r);
       ui.render(); arrive();
@@ -373,7 +376,7 @@ export function createPoster(ui){
     // change every few months, and a helper knows which of theirs fit.
     const custom = P.families.filter(f => !FAMILIES.some(([k]) => k === f));
     const lv = LEVELS.find(l => l[0] === P.level);
-    return `<fieldset><legend>Which models would you prefer? ${tip('Frontier is the most capable model a family has, mid-tier a step below, and small is quick and light. Helpers whose plan or setup reaches one of these families see it as a better fit, and their agents get it in the brief.')}</legend>
+    return `<fieldset><legend>Which models would you prefer? ${tip('Frontier is the most capable model a family has, mid-tier a step below, and small is quick and light. ' + (FEATURES.fit ? 'Helpers whose plan or setup reaches one of these families see it as a better fit, and their agents get it in the prompt.' : 'Helpers see it before they start, and their agent’s prompt says it too.'))}</legend>
         <div class="rs-toggles" data-rs-families aria-label="Model family">
           <button type="button" data-rs-family="" aria-pressed="${!P.families.length}">Any model</button>
           ${[...FAMILIES, ...custom.map(f => [f, f])].map(([k, l]) => `<button type="button" data-rs-family="${esc(k)}" aria-pressed="${P.families.includes(k)}">${esc(l)}</button>`).join('')}
@@ -417,7 +420,7 @@ export function createPoster(ui){
     }
     // Groups are coming (GROUPS in ../core/ns.js): until then there's nothing to choose between.
     const vis = GROUPS ? `<div class="rs-tiles rs-tiles-2" role="radiogroup" aria-label="Public or private">
-        ${tile('data-rs-vis', 'public', P.vis === 'public', 'Public, for my circle', 'Uses who you follow on Bluesky')}
+        ${tile('data-rs-vis', 'public', P.vis === 'public', 'Public, for people I know', 'Uses who you follow on Bluesky')}
         ${tile('data-rs-vis', 'group', P.vis === 'group', 'Private, in a group', src().canPrivate ? 'Only its members can read it' : 'Needs groups, which this app can’t reach here', src().canPrivate ? '' : ' disabled')}
       </div>` : '';
     return `<h1 tabindex="-1">Who’s it for?</h1>
@@ -451,7 +454,7 @@ export function createPoster(ui){
       <div class="rs-mini rs-mini-open">
         <div class="rs-mini-top">${face(me, 'xs')}<b>You</b><span>· ${esc(whoFor())} · just now</span></div>
         <b class="rs-mini-title">${esc(sq.title.trim() || 'Your title goes here')}</b>
-        <span class="rs-mini-fit">Each helper sees how well it suits them here, from their own profile and yours.</span>
+        ${FEATURES.fit ? '<span class="rs-mini-fit">Each helper sees how well it suits them here, from their own profile and yours.</span>' : ''}
         <dl class="rs-facts rs-facts-sm"><dt>Where</dt><dd>${esc(whereText(sq))}</dd><dt>The job</dt><dd>${esc(jobAndNotes(sq))}</dd><dt>Models</dt><dd>${esc(modelsText(sq))}</dd></dl>
       </div>
       <p class="rs-muted">${esc(reachText())}</p>`;
@@ -485,10 +488,10 @@ export function createPoster(ui){
       ${pub && P.bsky ? `<div class="rs-bsky">
         <b>Tell people on Bluesky</b>
         <p>${esc(bskyText())} <span class="rs-muted">${esc(d.page || '')}</span></p>
-        ${src().demo ? '<small>This is the example circle, so nothing goes to Bluesky.</small>' : intent ? `<a class="rs-btn rs-primary" href="${esc(intent)}" target="_blank" rel="noopener">${ico('sky')}Post it on Bluesky</a>` : ''}
+        ${src().demo ? '<small>This is the example board, so nothing goes to Bluesky.</small>' : intent ? `<a class="rs-btn rs-primary" href="${esc(intent)}" target="_blank" rel="noopener">${ico('sky')}Post it on Bluesky</a>` : ''}
       </div>` : ''}
       <div class="rs-next"><h2>What happens next</h2><ol>
-        <li><b>Someone sends their agent.</b> <span>You’ll see who’s on it, and what they’re running.</span></li>
+        <li><b>Someone directs their agent.</b> <span>You’ll see who’s on it, and what they’re running.</span></li>
         ${P.kind === 'idea' ? '<li><b>They turn in what they built.</b> <span>A link to it shows up on its page, with the model that did the work.</span></li>'
           : '<li><b>They turn in a pull request.</b> <span>It shows up on its page, with the model that did the work.</span></li>'}
         <li><b>You mark it done.</b> <span>And thank them on Bluesky, if you like.</span></li>
@@ -498,12 +501,12 @@ export function createPoster(ui){
   }
 
   function view(){
-    ui.title('Ask for rain');
+    ui.title('Ask for help');
     if (P.done) return `<div class="rs-post">${done()}</div>`;
     const body = [, stepWhere, stepWhat, stepWho][P.step]();
-    const next = P.step === LAST ? (P.busy ? 'Asking…' : 'Ask for rain') : { 1: P.stage === 'seed' ? 'Next: the idea' : 'Next: what you’d like done', 2: 'Next: who it’s for' }[P.step];
+    const next = P.step === LAST ? (P.busy ? 'Asking…' : 'Ask for help') : { 1: P.stage === 'seed' ? 'Next: the idea' : 'Next: what you’d like done', 2: 'Next: who it’s for' }[P.step];
     return `<div class="rs-post">
-      <header class="rs-post-head"><span>Ask for rain</span><button class="rs-link" type="button" data-rs-post-cancel>Cancel</button></header>
+      <header class="rs-post-head"><span>Ask for help</span><button class="rs-link" type="button" data-rs-post-cancel>Cancel</button></header>
       <ol class="rs-stepper" aria-label="Steps">${STEPS.map((l, i) => {
         const n = i + 1, state = n < P.step ? 'done' : n === P.step ? 'on' : '';
         return `<li class="${state}"><button type="button" data-rs-step="${n}"${n > P.reached ? ' disabled' : ''}${n === P.step ? ' aria-current="step"' : ''}><span class="rs-step-n" aria-hidden="true">${n < P.step ? ico('check') : n}</span><span>${l}</span></button></li>`;
@@ -513,6 +516,9 @@ export function createPoster(ui){
           ${body}
           <p class="rs-err" role="alert"${P.err ? '' : ' hidden'}>${esc(P.err)}</p>
           <div class="rs-post-nav">${P.step > 1 ? '<button class="rs-btn rs-quiet" type="button" data-rs-back>Back</button>' : ''}<button class="rs-btn rs-primary" type="submit"${P.busy ? ' disabled' : ''}>${next}</button></div>
+          ${
+            // What an ask may and mustn't be is in the terms (../core/legal.js): said where it's posted, and opened beside what's been written.
+            P.step === LAST && !src().demo && ui.href ? `<p class="rs-muted rs-post-terms">Asking for rain means you agree to Rainshare’s <a class="rs-link" href="${esc(ui.href('terms'))}" target="_blank" rel="noopener">Terms of Service</a> and <a class="rs-link" href="${esc(ui.href('privacy'))}" target="_blank" rel="noopener">Privacy Policy</a>. It’s public, and other people’s agents will read it.</p>` : ''}
         </form>
         <aside class="rs-post-side" aria-label="Preview">${side()}</aside>
       </div>

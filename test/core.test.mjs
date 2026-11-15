@@ -1,7 +1,7 @@
 // Run with: npm test (node --test, no dependencies)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SEED, SITE, FAMILIES, PLANS, lowBudgetOf } from '../core/ns.js';
+import { SEED, SITE, FAMILIES, PLANS, FEATURES, ROUTES, lowBudgetOf } from '../core/ns.js';
 import { parseSubject, describeSubject, cloneUrlOf } from '../core/subjects.js';
 import * as R from '../core/records.js';
 import { meantFor, closeness } from '../core/circle.js';
@@ -13,7 +13,7 @@ import { brief, launchers, handBack, readHandBack, readBranchBack, handBackBranc
 import { createDemoSource } from '../core/demo.js';
 import { splitSpaceUri, shown } from '../core/source.js';
 import { lifeOf } from '../ui/bits.js';
-import { sendSummary, dayChoices } from '../ui/send.js';
+import { sendSummary, dayChoices, splitWays, pasteWords } from '../ui/send.js';
 import { standing, since, carry } from '../core/status.js';
 import { dueOf, lapsed, activeTakes, untilIn } from '../core/takes.js';
 import { newRepoPlaces, placesFor, repoNameFor } from '../core/forges.js';
@@ -149,23 +149,29 @@ test('the board is newest first, what suits you less further down, and what came
     { uri: 'turned-in', repo: 'did:f', value: { createdAt: at(6) }, deliveries: [{ repo: 'did:g' }] },
     { uri: 'mine', repo: 'did:me', value: { createdAt: at(7) } }
   ];
-  const uris = r => r.items.map(it => it.uri);
-  // Suggested, the usual one signed in: newest first among what suits you, then the rest, then yours.
-  assert.equal(defaultSort(true), 'suggested');
-  assert.deepEqual(uris(boardOrder(open, me, {})), ['mid-free', 'old-free', 'turned-in', 'new-taken', 'mid-gpt', 'mine']);
-  assert.deepEqual(uris(boardOrder(open, me, { sort: 'new' })), ['mine', 'turned-in', 'new-taken', 'mid-gpt', 'mid-free', 'old-free']);
-  assert.deepEqual(uris(boardOrder(open, me, { sort: 'old' })), ['old-free', 'mid-free', 'mid-gpt', 'new-taken', 'turned-in', 'mine']);
-  assert.equal(boardOrder(open, me, { sort: 'fit' }).items.at(-1).uri, 'mine');
-  // Signed out there's no fit to go by: newest unless asked otherwise, and a sort that needs you is ignored.
-  assert.deepEqual(sortsFor(false).map(s => s[0]), ['new', 'old']);
-  assert.deepEqual(uris(boardOrder(open, null, { sort: 'fit' })), ['mine', 'turned-in', 'new-taken', 'mid-gpt', 'mid-free', 'old-free']);
+  const uris = r => r.items.map(it => it.uri), FIT = { fit: true };
+  // With fit on, Suggested is the usual one signed in: newest first among what suits you, then the rest, then yours.
+  assert.equal(defaultSort(true, true), 'suggested');
+  assert.deepEqual(uris(boardOrder(open, me, FIT)), ['mid-free', 'old-free', 'turned-in', 'new-taken', 'mid-gpt', 'mine']);
+  assert.equal(boardOrder(open, me, { ...FIT, sort: 'fit' }).items.at(-1).uri, 'mine');
+  // By date, what you asked for yourself is still after everyone else's.
+  assert.deepEqual(uris(boardOrder(open, me, { ...FIT, sort: 'new' })), ['turned-in', 'new-taken', 'mid-gpt', 'mid-free', 'old-free', 'mine']);
+  assert.deepEqual(uris(boardOrder(open, me, { ...FIT, sort: 'old' })), ['old-free', 'mid-free', 'mid-gpt', 'new-taken', 'turned-in', 'mine']);
+  // With fit off, there's nothing to suggest by: newest first, and a sort that needs fit is ignored.
+  assert.deepEqual(sortsFor(true, false).map(s => s[0]), ['new', 'old']);
+  assert.equal(defaultSort(true, false), 'new');
+  assert.deepEqual(uris(boardOrder(open, me, { fit: false, sort: 'suggested' })), ['turned-in', 'new-taken', 'mid-gpt', 'mid-free', 'old-free', 'mine']);
+  // Signed out it's the same two, whatever fit is.
+  assert.deepEqual(sortsFor(false, true).map(s => s[0]), ['new', 'old']);
+  assert.deepEqual(uris(boardOrder(open, null, { ...FIT, sort: 'fit' })), ['mine', 'turned-in', 'new-taken', 'mid-gpt', 'mid-free', 'old-free']);
   // What's new goes on top, in the same order among itself, and is counted; yours never counts as new.
   const isNew = it => ['old-free', 'mid-gpt', 'mine'].includes(it.uri);
-  const r = boardOrder(open, me, { isNew });
+  const r = boardOrder(open, me, { ...FIT, isNew });
   assert.deepEqual(uris(r), ['old-free', 'mid-gpt', 'mid-free', 'turned-in', 'new-taken', 'mine']);
   assert.equal(r.fresh, 2);
+  assert.deepEqual(uris(boardOrder(open, me, { fit: false, isNew })), ['mid-gpt', 'old-free', 'turned-in', 'new-taken', 'mid-free', 'mine']);
   // Sorted by what's waiting longest, nothing moves to the top for being new.
-  assert.equal(boardOrder(open, me, { sort: 'old', isNew }).fresh, 0);
+  assert.equal(boardOrder(open, me, { ...FIT, sort: 'old', isNew }).fresh, 0);
 });
 
 test('fit says how well a seed suits a helper, in one sentence', () => {
@@ -652,12 +658,42 @@ test('the example keeps your settings, and a take with its day and more time', a
 });
 
 test('the send dialog says what it will do in words', () => {
-  const names = { brief: 'Paste a brief', claude: 'Claude Code' };
+  const names = { brief: 'Any agent', claude: 'Claude Code' };
   assert.equal(sendSummary({ route: 'claude', claim: true, days: 3 }, names), 'Claude Code, and says you’re on it for 3 days');
   assert.equal(sendSummary({ route: 'claude', claim: true, days: 7 }, names), 'Claude Code, and says you’re on it for a week');
-  assert.equal(sendSummary({ route: 'mcp', claim: false, days: 3 }, names), 'Paste a brief, without saying you’re on it');
+  assert.equal(sendSummary({ route: 'mcp', claim: false, days: 3 }, names), 'Any agent, without saying you’re on it');
   assert.deepEqual(dayChoices(3).map(d => d[0]), [1, 3, 7, 14]);
   assert.deepEqual(dayChoices(5).map(d => d[0]), [1, 3, 5, 7, 14]);
+});
+
+test('the send dialog shows the way picked and the prompt, and folds the rest away', () => {
+  const ways = ['brief', 'claude', 'cloud', 'codex', 'cli', 'mcp'].map(id => ({ id }));
+  const ids = ({ first, rest }) => [first.map(w => w.id), rest.map(w => w.id)];
+  assert.deepEqual(ids(splitWays(ways, 'claude')), [['claude', 'brief'], ['cloud', 'codex', 'cli', 'mcp']]);
+  // Picking the prompt, it's the only one showing.
+  assert.deepEqual(ids(splitWays(ways, 'brief')), [['brief'], ['claude', 'cloud', 'codex', 'cli', 'mcp']]);
+  // An idea has no cloud: whatever isn't on offer isn't shown.
+  assert.deepEqual(ids(splitWays(ways.filter(w => w.id !== 'cloud'), 'codex')), [['codex', 'brief'], ['claude', 'cli', 'mcp']]);
+  // On screen it's "the prompt", not "the brief".
+  assert.equal(ROUTES.find(r => r[0] === 'brief')[1], 'The prompt, for any agent');
+});
+
+test('once it\'s copied, the dialog says where it goes and what happens next, for the way it went', () => {
+  // The prompt goes into an agent, a command into a terminal (with what it does).
+  assert.match(pasteWords({ id: 'brief' }, 'Kai').lede, /^Paste it into your agent/);
+  assert.equal(pasteWords({ id: 'claude', note: 'Clones the repo and starts Claude Code with the prompt.' }, 'Kai').lede, 'Paste it in a terminal. Clones the repo and starts Claude Code with the prompt.');
+  // Pasted by hand, the agent hands back a link to the ask; the CLI and MCP turn it in themselves.
+  assert.equal(pasteWords({ id: 'codex' }, 'Kai').next, 'When it’s done, your agent gives you a link back to Kai’s ask. Open it to turn the work in.');
+  assert.match(pasteWords({ id: 'cli' }, 'Kai').next, /the CLI offers to turn the work in/);
+  assert.match(pasteWords({ id: 'mcp' }, 'Kai').next, /turns it in itself/);
+});
+
+test('how well an ask suits you is switched off on the site, and still works when it\'s on', () => {
+  // (Turning it back on is FEATURES.fit in core/ns.js. rank() and fit() don't read the switch:
+  // the CLI and MCP server use them either way.)
+  assert.equal(FEATURES.fit, false);
+  const me = { did: 'did:me', profile: { setups: [{ harness: 'claude-code', models: ['claude-sonnet-5-5'] }] } };
+  assert.ok(fit({ closeness: 'mutual', author: { displayName: 'Mo' }, value: {} }, me).label);
 });
 
 test('where a seed stands says whether it’s clear to start, and why not', () => {
@@ -915,7 +951,7 @@ test('an idea or a project, said plainly and drawn as how far along it is', () =
   assert.deepEqual([{ state: 'sprouted' }, { subject: repo, stage: 'seedling', state: 'sprouted' }, { subject: repo, stage: 'established', state: 'sprouted' }].map(pictureOf), ['seedling', 'young', 'established']);
   // The brief leads with what it is.
   const item = v => ({ uri: 'at://did:plc:abc/dev.rainshare.seed/3k1', repo: 'did:plc:abc', author: { handle: 'friend.example' }, value: { title: 'Fix it', ...v } });
-  assert.match(brief(item({ subject: repo, stage: 'established' })), /^# Project: Fix it\n\nOn Rainshare, people post ideas and projects they want help with, and others send their own agents to do the work\. @friend\.example is asking for help with this project \(established: people use it and rely on it\): https:\/\/[a-z.]+\/seed\/friend\.example\/3k1\./);
+  assert.match(brief(item({ subject: repo, stage: 'established' })), /^# Project: Fix it\n\nOn Rainshare, people post ideas and projects they want help with, and others direct their own agents to do the work\. @friend\.example is asking for help with this project \(established: people use it and rely on it\): https:\/\/[a-z.]+\/seed\/friend\.example\/3k1\./);
   assert.match(brief(item({ owner: 'helper' })), /^# Idea: Fix it\n\n[^\n]*@friend\.example is asking for help with this idea \(nothing’s been built yet\): https/);
   assert.match(brief(item({ subject: repo })), /^# Project: Fix it\n\n[^\n]*is asking for help with this project \(it works, and it’s still taking shape\)/);
 });

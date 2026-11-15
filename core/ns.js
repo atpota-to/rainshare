@@ -2,7 +2,7 @@
 // browser apps and the CLI and MCP server read the same lists.
 export const NS = 'dev.rainshare';
 export const PROFILE = NS + '.profile', SEED = NS + '.seed', TAKE = NS + '.take', DELIVERY = NS + '.delivery', COMMENT = NS + '.comment';
-// Your settings: how "Send my agent" works for you. One record, kept in your own repo.
+// Your settings: how "Direct my agent" works for you. One record, kept in your own repo.
 export const PREFERENCES = NS + '.preferences';
 export const COLLECTIONS = [PROFILE, SEED, TAKE, DELIVERY, COMMENT, PREFERENCES];
 // Rainshare's own moderation: what @rainshare.dev has hidden (./moderation.js). Only records in
@@ -33,7 +33,7 @@ export const STAGE = 'alpha';
 // Rainshare's own account on Bluesky, @-mentioned in what people share from the site.
 export const HANDLE = 'rainshare.dev';
 // The direct messages someone can ask it for (`notify` in their dev.rainshare.preferences,
-// sent by ../api/_messages.js). [value, what people read]
+// sent by ../announcer/src/messages.js). [value, what people read]
 export const NOTIFY = [['updates', 'Updates on my asks and my work'], ['newAsks', 'New asks on the board']];
 // Private seeds in a group's space. Spaces are still an alpha on the group host, so for now
 // every seed is public: sign-in asks only for Rainshare's own records, and the app shows
@@ -51,7 +51,11 @@ export const GROUPS = false;
 //                Rainshare sticks to the facts of a job for now: where, how big, which models.
 //   circumstances  "About them" (a student, between jobs, a maintainer…): on profiles, and its
 //                say in a board's order
-export const FEATURES = { audience: false, seedValues: false, priorities: false, forecast: false, values: false, circumstances: false };
+//   fit          how well an ask suits you (./rank.js), on the site: the drops and "Good fit" on
+//                a card, the box that says why on an ask, and the board's "Best for you" order.
+//                Off, the board is newest first, and how you know whoever asked is what's shown.
+//                The CLI and MCP server still rank by it, since an agent picking work uses the reasons.
+export const FEATURES = { audience: false, seedValues: false, priorities: false, forecast: false, values: false, circumstances: false, fit: false };
 
 export const HARNESSES = [
   ['claude-code', 'Claude Code'], ['codex', 'Codex'], ['cursor', 'Cursor'], ['gemini-cli', 'Gemini CLI'],
@@ -159,12 +163,12 @@ export const AUDIENCES = [
   ['list', 'A list', 'People on one of your Bluesky lists'],
   ['anyone', 'Everyone', 'Anyone who comes across it']
 ];
-// How long a helper gives themselves to turn an ask in, in days: the choices "Send my agent"
+// How long a helper gives themselves to turn an ask in, in days: the choices "Direct my agent"
 // offers, the one it starts on, and the most a take can hold an ask (./takes.js).
 export const TAKE_DAYS = [[1, 'A day'], [3, '3 days'], [7, 'A week'], [14, '2 weeks']];
 export const TAKE_DAYS_DEFAULT = 1;
-// The ways "Send my agent" can hand an ask over (../core/brief.js has the commands).
-export const ROUTES = [['brief', 'Paste a brief'], ['claude', 'Claude Code'], ['cloud', 'Claude Code, cloud'], ['codex', 'Codex'], ['cli', 'Rainshare CLI'], ['mcp', 'MCP']];
+// The ways "Direct my agent" can hand an ask over (../core/brief.js has the commands).
+export const ROUTES = [['brief', 'The prompt, for any agent'], ['claude', 'Claude Code'], ['cloud', 'Claude Code in the cloud'], ['codex', 'Codex'], ['cli', 'Rainshare CLI'], ['mcp', 'MCP']];
 export const TESTS = [['required', 'Tests required'], ['welcome', 'Tests welcome'], ['none', 'No tests needed']];
 export const SIZES = [['tiny', 'Tiny'], ['small', 'Small'], ['medium', 'Medium'], ['large', 'Large']];
 // What's being asked about, by how far along it is: an idea (no repo), or a project that

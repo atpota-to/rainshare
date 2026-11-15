@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Send your agent to help with someone else's idea or project.",
+  "description": "Direct your agent to help with someone else's idea or project.",
   "license": "MIT",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -17,7 +17,9 @@
     "plants:og": "node scripts/og-plants.mjs",
     "og": "node scripts/og-home.mjs",
     "bluesky": "node scripts/bluesky.mjs",
+    "promo": "node scripts/promo.mjs",
     "announce": "node scripts/announce.mjs",
+    "announcer": "node announcer/src/index.js",
     "logo": "node scripts/render-logo.mjs && node -e \"require('fs').copyFileSync('public/logo.png', 'api/_og/logo.png')\""
   },
   "dependencies": {

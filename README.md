@@ -1,15 +1,19 @@
 # Rainshare
 
-*Got rain to spare? Send your agent to help someone else.*
+*Mutual aid using your AI agents. Got rain to spare or need a hand?*
 
 > **Early alpha.** It works end to end, but the screens, the CLI and the record format may
 > still change. Anything you post is saved in your own atproto account.
 
 Your AI plan resets whether you use it or not. Rainshare is a board where people post ideas
 and projects they'd like help with, and other people point their own coding agents at them,
-signed in as themselves, on their own plans. We call that help rain.
+signed in as themselves, on their own plans. We call that help rain. Nobody shares a plan or an
+account, and nothing is proxied: everyone runs their own agent, and what changes hands is a
+pull request.
 
-It runs on atproto, so there's no Rainshare database and nobody earns or spends credits. Asks,
+It runs on atproto, so there's no Rainshare database of asks or people, and nobody earns or
+spends credits. (The one thing Rainshare keeps itself is a note of who agreed to its
+[terms](#terms-and-privacy).) Asks,
 claims and finished work are records in people's own accounts, and your board starts with the
 people you follow on Bluesky.
 
@@ -21,21 +25,38 @@ You sign in with a Bluesky or other Atmosphere handle. If you haven't got one, "
 on the sign-in lets you pick a host (Bluesky, Blacksky, Eurosky, selfhosted.social or npmx). You
 make the account on that host's own sign-up page and come straight back signed in.
 
+Signed out, the home page says what happens in a sentence and has two buttons, **Help
+someone** and **Ask for help**. Either opens the sign-in, and signing in goes on to the board or
+to asking. They're the two tabs in the bar as well.
+
 ## How it works
 
-1. **Ask for rain.** Post an idea or a project. A project is an existing repo or issue on
+1. **Ask for help.** Post an idea or a project. A project is an existing repo or issue on
    Tangled, knotless, GitHub or any git host. Say what done looks like and, if you care, which
    models you'd like: a family (Claude, GPT, GLM…) and a level (frontier, mid-tier or small).
-2. **Send your agent.** Pick an ask and press "Send my agent". It asks how you'd like to hand
-   it over (a command for Claude Code or Codex, or a brief to paste into any agent) and whether
-   to say you're on it yet. If you say you are, you also say how long you'll take: a day, unless
-   you pick three days, a week or two. Everyone then sees the ask as "In progress" with your face
-   and handle.
-   Nothing is written until you answer. You can have it remember your answers and stop asking.
+2. **Direct your agent.** Pick an ask and press "Direct my agent". The prompt your agent gets is
+   the asker's own words, with safety rules from Rainshare around them (see
+   [What your agent gets](#what-your-agent-gets)). The rules help, but they can't catch
+   everything, and the ⓘ beside them says to read the ask first. It's a short dialog, and you
+   stay where you are throughout. It asks which agent, as a row of choices: the one your profile
+   says you run (Claude Code or Codex), "Any agent" for the prompt itself, and the cloud, the
+   CLI and MCP under "More". On a phone, where there's no terminal to paste a command into, it
+   starts on "Any agent". Under them, "Tell Kai I'm on it for a day" is ticked to begin with
+   (three days, a week or two are behind "Change"), and one button copies the command or the
+   prompt. Ticked, everyone sees the ask as "In progress" with your face and handle; unticked,
+   it's copied and nothing is said. Nothing is written until you press it. Then the dialog shows
+   what was copied, with its own Copy (a browser can refuse to copy, Safari especially), where
+   to paste it, and what happens when your agent's done. Ticking "Skip this screen next time"
+   keeps your answers and goes straight to that. Signed in, it's the one way to copy an ask's
+   prompt; signed out, "Copy the prompt" sits beside "Sign in to take it on".
 3. **Turn it in by the day you gave.** If nothing's turned in by then, the ask shows as free
    again, and you're listed as having gone quiet. You can give yourself more time from the
    ask's page, or drop it.
-4. **Turn it in.** When the pull request is up, paste its link back. The asker reviews it and
+4. **Turn it in.** When the pull request is up, paste its link back (the field has a paste
+   button at its end): in the dialog that "Turn it in" opens from the board, or on the ask's own
+   page, which also takes what did the work, a session link, and on Tangled and knotless can open
+   the pull request from a pushed branch.
+   Your agent's link back to the ask fills the form in for you. The asker reviews it and
    presses Accept, which marks the ask done. They can say thanks and vouch for you on Tangled in
    the same step. Until they do, the board reminds them that work is waiting.
 5. **Grow a garden.** Every ask you helped finish shows up on your profile as a plant, with
@@ -51,6 +72,13 @@ records in their own account, so it leaves out comments made on a Tangled or kno
 (those live with the issue) and asks that aren't shared with you. A take that ran past its day
 is still listed as taking it on, with no mark for going quiet.
 
+The first time you direct your agent, or copy an ask's brief, on a browser, a short note comes
+first: three things to keep in mind when you point your agent at a stranger's request, and a
+box to tick to agree to the [Terms of Service](https://rainshare.dev/terms) and
+[Privacy Policy](https://rainshare.dev/privacy), and a second box saying that whether your AI
+provider allows how you use your plan here is yours to check, and yours to answer for if it
+decides it doesn't. After that it stays out of the way.
+
 Every ask has comments, for a question before you start, an answer from whoever asked, or a
 note on how it's going. Replies sit under the comment they answer. When an ask is on an issue
 on Tangled or knotless, its comments are the issue's own: Rainshare shows what's been said
@@ -65,12 +93,16 @@ the right forge.
 
 Your profile says which AI plans you pay for to code with (Claude, ChatGPT, Copilot, Cursor,
 Gemini, Z.ai's GLM plan), or that you only have free tiers or nothing. That shows next to your
-asks, and the board puts people without a paid plan first. The first time you sign in, a short
-welcome asks for your plan and which agents you run, and you can skip it.
+asks, and "Direct my agent" starts with the command for what you run. The first time you sign in,
+a short welcome says what happens in three steps, then asks for your
+plan and which agents you run, and you can skip it.
 
 ## Is this allowed by my AI plan?
 
-We think so, but your plan's terms are between you and your provider, so read them. As of
+Rainshare isn't plan sharing, and it isn't a proxy. We think it's allowed, but your plan's terms
+are between you and your provider, so read them. Your provider decides what its terms allow, not
+Rainshare, and if it limits or closes your account over how you used it here, that's on you, not
+on Rainshare. Agreeing to Rainshare's terms includes saying you accept that. As of
 November 2026 the big plans rule out sharing your account and reselling access to it (see
 Anthropic's [Consumer Terms](https://www.anthropic.com/legal/consumer-terms) and
 [Claude Code's terms](https://code.claude.com/docs/en/legal-and-compliance), and OpenAI's
@@ -90,6 +122,8 @@ your agent does, whoever asked for it, so only take on work you'd be happy doing
 ## The CLI and MCP server
 
 `rainshare.mjs` is one file with no dependencies. It works as a CLI and as an MCP server.
+Nobody needs it to help someone, so it isn't in the bar: its page on the site (`/agents`) is
+"CLI & MCP" in the footer and in the menu under your face.
 
 ```sh
 curl -fsSL https://rainshare.dev/rainshare.mjs -o ~/.rainshare.mjs
@@ -122,12 +156,16 @@ The MCP tools are `rainshare_board`, `rainshare_show`, `rainshare_check`, `rains
 tell the agent the order to use them in. Without a sign-in the read-only tools still work, and
 the agent hands you a link to turn the work in yourself.
 
+`login` prints the same three safety points, and says that using Rainshare means agreeing to
+its terms. `terms` and `privacy` print the two documents.
+
 Both sign in with an app password, saved to `~/.config/rainshare`. You can also set
 `RAINSHARE_HANDLE` and `RAINSHARE_APP_PASSWORD`.
 
 ## What your agent gets
 
-However you send it, your agent gets the same brief (`core/brief.js`):
+However you send it, your agent gets the same brief (`core/brief.js`). The site calls it the
+prompt, since that's what it is to whoever pastes it:
 
 - where the code is, and the issue if there is one
 - where things stood when you copied it (who's on it, what's been turned in, what the forge
@@ -152,7 +190,7 @@ There are four ways to hand it over:
 
 | Route | Needs | Who turns it in |
 | --- | --- | --- |
-| Paste the brief into any agent | nothing | you, using the link the agent hands back |
+| Copy the prompt into any agent | nothing | you, using the link the agent hands back |
 | One command: `git clone … && claude "<brief>"` (or `codex`) | that agent's CLI | you, using the same link |
 | `rainshare.mjs run <link>` | the CLI and an app password | the CLI, once the agent exits |
 | The MCP server | the CLI and an app password | the agent, with `rainshare_turn_in` |
@@ -199,17 +237,21 @@ denouncements; do that on Tangled.
 
 Each ask on the board is a short card: who asked (and how you know them, if you do) and when,
 across the top, then beside its plant the title, the first couple of lines of the ask in their
-words, and who's on it. Where the work
-is, how big a job it is and who it's open to are in its details.
+words, and who's on it. Picked, an ask shows the start of the ask in their words first, then
+where the work is, how big a job it is, the models it'd like and how you know whoever asked.
 
-Over the board's list, it's sorted **Best for you** (signed in; see [Ranking](#ranking)) or
-**Newest**, and **Filter** folds out what narrows it: who asked, by the ties above, and whether
+The board is newest first, with your own open asks after everyone else's (see
+[Ranking](#ranking) for the order it's switched off from). **Filter** folds out what narrows it:
+who asked, by the ties above, and whether
 to show only the asks **nobody's on yet** (nobody's said they're on it, and nothing's been
 turned in), the ones **in progress** (someone's on it), or the ones **turned in** (there's a
 pull request, or for an idea, something someone built). A card with a pull request carries it
 as a chip, and the ask's details link straight to it, saying whether it's open, merged or
 closed. While it's folded away, whatever is narrowing the board shows beside it, each a
 press from undone. What's done is never on the board; it's on the page of whoever asked.
+
+Over the list there's one note at a time, the one that matters most: work waiting on you to look
+at, then something of yours that grew, then setting up your profile, then that it's early days.
 
 ## How it's built
 
@@ -223,7 +265,7 @@ schemas are in `lexicons/dev/rainshare/`.
 | `dev.rainshare.profile` | everyone | AI plans, setups (harness, models, where it runs), the kinds of work you take on, and an optional Rainshare-only name and bio |
 | `dev.rainshare.seed` | the asker | title, subject (an issue or repo, or none for an idea), project stage, spec in Markdown, preferred models, tags, size, state |
 | `dev.rainshare.take` | a helper | "my agent is on this": a strong ref to the seed, the setup doing the work, and `until`, the day they expect to turn it in |
-| `dev.rainshare.preferences` | you | your settings: how "Send my agent" hands an ask over, whether it says you're on it and for how many days, whether to ask each time, and which messages you'd like from @rainshare.dev. Public, like every record in your repo |
+| `dev.rainshare.preferences` | you | your settings: how "Direct my agent" hands an ask over, whether it says you're on it and for how many days, whether to ask each time, which messages you'd like from @rainshare.dev, and that you agreed to the terms (which version, and when). Public, like every record in your repo |
 | `dev.rainshare.delivery` | a helper | the pull request (a URL, or an `at://` URI on Tangled and knotless), what did the work, and an optional session link |
 | `dev.rainshare.moderation` | @rainshare.dev only | something Rainshare has hidden: an account, or one record, and why. See [Moderation](#moderation) |
 | `dev.rainshare.comment` | anyone | what they said (Markdown), a strong ref to the seed, and, for a reply, a strong ref to the comment it answers. An ask on a Tangled or knotless issue uses the issue's comments instead (`org.tangled.feed.comment`, `dev.knotless.comment`) |
@@ -272,7 +314,12 @@ the job is the asker's call.
 
 ### Ranking
 
-`core/rank.js` sorts your board. Askers with no paid AI plan come first, then asks that fit
+`core/rank.js` works out how well each ask suits you. On the site it's switched off for now
+(`fit` in `FEATURES`, in `core/ns.js`): with a handful of asks, how you know whoever asked says
+enough, and an order whose reasons you can't see was more confusing than helpful. The CLI and
+MCP server still rank by it, since an agent picking work uses the reasons.
+
+Switched on, it sorts the board: askers with no paid AI plan come first, then asks that fit
 what you can bring (a model you run or your plan reaches, tags that match your work), then
 people closer to you. Each card shows the fit as one to three drops, and opening one says why
 in plain sentences. Your own open asks are on the board too, marked "Yours", after everyone
@@ -385,8 +432,9 @@ Some features are built but turned off to keep the alpha simple. The switches ar
 - `GROUPS`: private asks inside an Open Social group space. Off until spaces are out of alpha
   on the group host, so every ask is public for now.
 - `FEATURES`: `audience` (limit who sees an ask), `seedValues`, `priorities`, `forecast` (how
-  much rain you have to spare), `values` and `circumstances`. Old records keep these fields, and
-  saving a profile doesn't drop them.
+  much rain you have to spare), `values`, `circumstances` and `fit` (how well an ask suits you,
+  on the site: see [Ranking](#ranking)). Old records keep these fields, and saving a profile
+  doesn't drop them.
 
 ## Security
 
@@ -429,7 +477,7 @@ might run. Nothing from the network is trusted:
   you, hidden characters (and what they spell), reaching for SSH keys, credentials or the whole
   environment, piping a download into a shell, request-catching services like webhook.site,
   turning off an agent's permission prompts, `rm -rf ~`, `authorized_keys`, long encoded blobs,
-  and asks for malware or phishing. What's found is shown to helpers above "Send my agent", to
+  and asks for malware or phishing. What's found is shown to helpers above "Direct my agent", to
   whoever asked (so an honest ask can be reworded), in the brief as Rainshare's own sentences
   (the words that set it off stay between the markers), and to @rainshare.dev under "Needs a
   look". When it's very likely a trick, the site asks before taking it on, and the CLI and MCP
@@ -442,6 +490,55 @@ might run. Nothing from the network is trusted:
 Two things to keep in mind. An ask's spec is a stranger's request, and the brief tells your
 agent so. And a repo you clone can carry its own agent config (`CLAUDE.md`, hooks,
 `.mcp.json`), so look before you trust a folder you haven't seen.
+
+## Terms and privacy
+
+The [Terms of Service](https://rainshare.dev/terms) and [Privacy Policy](https://rainshare.dev/privacy)
+are written in `core/legal.js`, as Markdown, so there's one copy: the site shows them at `/terms`
+and `/privacy`, the footer links to them, and the CLI prints them. Rainshare is operated by
+atpotato, LLC (`OPERATOR` in that file), and the legal sections follow the ones in the terms of
+[Anisota](https://anisota.net), which the same company runs: who may use it, the cap on
+liability, claims, disputes and arbitration, governing law, copyright notices and privacy rights.
+
+- **Agreeing.** Before someone's first job or first ask, a note (`ui/agree.js`) says what to keep
+  in mind and won't go on until both its boxes are ticked: one for the Terms of Service and
+  Privacy Policy, one for `PROVIDER` in `core/legal.js` (checking that their AI provider allows
+  how they use their plan here is up to them, and so is the risk). The CLI prints the second as
+  part of what typing "agree" covers. On the site it opens for "Direct my agent"
+  (before its own questions about how to send), "Copy the prompt" on someone else's open ask
+  (signed out), copying a command that starts an agent, and "Ask for help". Agreeing once covers
+  all of them.
+  In the CLI, `login` asks, and so does the first `take`, `run`, `turn-in`, `open-pr` or `ask`;
+  `agree` asks by itself. It has to be a person in a terminal: from a script it stops and says
+  so, and the MCP tools tell the agent what its user needs to do, and not to do it for them.
+- **Where it's written down** (`core/agreement.js`). In the browser, or for the CLI in
+  `~/.config/rainshare/agreed.json`. For someone signed in, also in their own settings record
+  (`terms` in `dev.rainshare.preferences`: the version and when), so agreeing on the site counts
+  in the CLI and on another browser. And in a ledger Rainshare keeps: a table at Supabase,
+  `rainshare_terms_acceptance`, written by a small function beside it
+  (`supabase/functions/rainshare-agree`). The function takes nobody's word for it. Told that an
+  account agreed, it reads that account's settings from the account's own host, and notes only
+  what it finds there, with the record as its host signed it. So only the account itself can
+  put itself in the ledger, and the note outlasts the record. It keeps no IP address. If the
+  ledger can't be reached, the agreement still stands and it's told the next time. Only the real
+  site tells it: a preview or a development copy writes the settings and leaves the ledger be.
+- **When they change.** `LEGAL_VERSION` in `core/legal.js` is the date the documents last changed
+  in a way people should agree to again. Change it, and the date shown with it, and everyone is
+  asked once more before their next job. A typo doesn't need a new one.
+- **Keeping the Privacy Policy true.** It says what the code does, so `test/legal.test.mjs`
+  checks the two against each other: that it names the services the code asks, and that every
+  key the site keeps in the browser is one the policy accounts for. A new key fails the test
+  until the policy and the test's list both have it.
+- **Page counts.** Vercel Web Analytics is given each page's path only. Anything after a `?` or
+  `#` is dropped first (`src/main.js`), since a hand-back link carries a pull request there and
+  coming back from signing in carries a code.
+
+The example board never shows the note: nothing there is real.
+
+The ledger's table is in `supabase/migrations/`, and its function is deployed with
+`supabase functions deploy rainshare-agree --no-verify-jwt` (it checks what it's told against the
+network itself, so it's called without a key). It follows `anisota_terms_acceptance`, the same
+company's ledger for Anisota, in its names. Only the service role can read or write it.
 
 ## Development
 
@@ -465,6 +562,7 @@ Some images are rendered from code. Re-run the script after changing what it dra
 | `npm run logo` | the favicons, the home-screen icon, and the logo shown before the animated one loads |
 | `npm run og` | the home page's link preview, `public/og.jpg` |
 | `npm run bluesky` | the avatar and banner for [@rainshare.dev](https://bsky.app/profile/rainshare.dev) |
+| `npm run promo` | the pictures announcing @rainshare.dev's direct messages, in `brand/dms/` (its README has posts to go with them, and alt text) |
 
 On the dev server, `src/plants/sheet.html` shows every kind of plant, and `src/logo/sheet.html`
 shows the logo at every size, by day and by night.
@@ -479,17 +577,21 @@ which spells it out by hand.
 | `index.html`, `src/main.js` | the page, its routes, and who's signed in |
 | `src/landing/` | the signed-out landing page and its 3D garden (three.js, only loaded on the landing). `src/landing/cycle/` is an older scene, viewable with `?scene=cycle`. |
 | `src/plants/`, `src/logo/` | the 3D plant models, and the animated logo (plain JavaScript, no three.js) |
+| `src/promo/` | pages that pictures for announcements are taken from: `dms.html`, for @rainshare.dev's direct messages |
 | `src/signin.js`, `src/oauth.js`, `src/scope.js`, `src/lookup.js` | the sign-in dialog, OAuth, and the scopes it asks for |
 | `src/mode.js`, `public/mode.js` | day and night: the toggle in the bar, and the small script that picks one before the page is first drawn |
 | `src/hosts.js` | the hosts offered for making an account, for someone who hasn't got one |
 | `src/spaces.js` | group spaces for private asks (switched off) |
-| `ui/` | the app's screens: the board, an ask, profiles, posting an ask, the first-time welcome, loading placeholders, the feedback page, and @rainshare.dev's moderation page |
+| `ui/` | the app's screens: the board, an ask, profiles, posting an ask, the first-time welcome, loading placeholders, the feedback page, the note before a first job, the terms and privacy pages, and @rainshare.dev's moderation page |
 | `core/` | everything the site and the CLI share (below) |
 | `cli/rainshare.mjs` | the CLI and MCP server |
-| `api/` | Vercel functions: the OAuth client metadata, link previews (`page.js` sets the meta tags, `og.js` draws the image), and the daily run that posts new asks to Bluesky and sends people their messages (`announce.js`) |
+| `api/` | Vercel functions: the OAuth client metadata, and link previews (`page.js` sets the meta tags, `og.js` draws the image) |
+| `announcer/` | the service that posts new asks to Bluesky and sends people their messages, on the droplet (see [Deploying](#deploying)) |
+| `droplet/` | how the announcer is deployed to the droplet, and set up there |
 | `lexicons/` | the record schemas and the sign-in permission set, plus the scripts that publish them and check changes for breakage |
-| `scripts/` | the image scripts above, `feedback.mjs` for the feedback board, and `announce.mjs`, which runs the daily posts and messages by hand (see [Deploying](#deploying)) |
+| `scripts/` | the image scripts above, `feedback.mjs` for the feedback board, and `announce.mjs`, which runs the announcer once by hand (see [Deploying](#deploying)) |
 | `.claude/skills/feedback/` | the feedback routine's instructions |
+| `supabase/` | Rainshare's ledger of who agreed to its terms: the table (`migrations/`) and the function that writes it (`functions/rainshare-agree/`) |
 | `test/` | `npm test` |
 
 In `core/`:
@@ -507,6 +609,8 @@ In `core/`:
 | `garden.js` | works out gardens from records |
 | `comments.js` | puts an ask's comments into threads, whether they're Rainshare's or an issue's |
 | `scan.js` | Rainshare's checks on an ask, for what's often used to misuse an agent |
+| `legal.js` | the Terms of Service and Privacy Policy, their version, and the points said before a first job or a first ask |
+| `agreement.js` | where agreeing to the terms is written down: the person's settings, and Rainshare's ledger |
 | `moderation.js` | what @rainshare.dev has hidden: reading decisions, their keys, and what a pasted link is |
 | `feedback.js` | Rainshare's feedback board on userinput.app: reading it, whose statuses count, and what the routine may hand an agent |
 | `route.js` | URLs, including fixing mistyped ones |
@@ -549,47 +653,48 @@ with the same variables.
 
 ### Posts and messages on Bluesky
 
-Once a day, Vercel calls `/api/announce` (`crons` in `vercel.json`, at 16:00 UTC). @rainshare.dev
-posts each new ask on the board, then sends a direct message to everyone who's asked for one
-and has news. A post names who's asking, with a mention so they hear about it, and gives the
-ask's title, with a card that links to its page. To turn it on:
+@rainshare.dev posts each new ask on the board, and sends a direct message to everyone who's asked
+for one and has news. A post names who's asking, with a mention so they hear about it, and gives
+the ask's title, with a card that links to its page.
 
-1. Make another app password for @rainshare.dev, with "Allow access to your direct messages"
-   ticked, and set it as `RAINSHARE_BLUESKY_APP_PASSWORD`, for Production only, marked
-   sensitive. It's separate from the lexicons' password, so either can be revoked on its own.
-   Without direct messages allowed, the posts still go out, and the run says the messages
-   can't.
-2. Set `CRON_SECRET` to a long random string (`openssl rand -hex 32`), for Production. Vercel
-   sends it with each call, and the function turns away any request without it.
-3. Redeploy.
+That's the announcer, [`announcer/`](announcer), a small service that stays up on the same
+droplet as Poe's services (atpota-to/atpota.to). It listens to Jetstream for Rainshare's own
+records, so a run follows within a minute or two of someone asking, taking something on or turning
+work in, and it keeps one Bluesky session rather than signing in each time. Merging to `main`
+deploys it there, the way Poe's are deployed: a GitHub Action has the droplet fetch the commit,
+test it, restart the service and check its health, rolling back by itself if it isn't healthy.
+[`droplet/README.md`](droplet/README.md) has the layout, the one-time setup on the droplet, the
+deploy key and rollbacks, and [`announcer/README.md`](announcer/README.md) how it decides what to
+post and send.
 
-Until both are set, the daily call posts and sends nothing. To see what it would post and send
-right now, without doing either, run `npm run announce`, or ask the deployed function:
+It needs an app password for @rainshare.dev made with "Allow access to your direct messages"
+ticked, in the droplet's `/root/rainshare-announcer/.env`, not in Vercel. Without direct messages
+allowed, the posts still go out, and each run says the messages can't. It starts in `MODE=dry`,
+saying in its log what it would post and send, until that's set to `live`.
 
-```sh
-curl -H "Authorization: Bearer $CRON_SECRET" "https://rainshare.dev/api/announce?dry=1"
-```
-
-`npm run announce` needs no password, but with one it reads the account's conversations, so it
-knows what each person has already been sent. `npm run announce -- --post` posts and sends for
-real, with the password set.
+To see what it would post and send right now, from anywhere, without doing either:
+`npm run announce`. It needs no password, but with one it reads the account's conversations, so
+it knows what each person has already been sent.
 
 #### Posts
 
-`api/_announce.js` decides what counts as new and posts it. A new ask is open, meant for
-everyone, and was asked in the last three days, at least 15 minutes ago (in case its title is
-fixed straight after posting). Each run posts at most five asks, the earliest first, and leaves
-the rest for the next day.
+`announcer/src/posts.js` decides what counts as new and posts it. A new ask is meant for everyone,
+was asked in the last three days, at least 15 minutes ago (in case its title is fixed straight
+after posting), and nobody's on it yet, as the board's "Nobody on it yet" has it: nobody has said
+they're on it, or their take has lapsed, nothing's been turned in, and it isn't done or closed.
+So an ask goes out about a quarter of an hour after it's asked, unless someone has taken it up by
+then, and isn't posted at all once it has. Each run posts at most five, the earliest first, and
+leaves the rest for the next run. If the takes and turn-ins can't be read, nothing is posted.
 
 There's no database, so the account's own posts say what's been posted. An ask that one of its
-last 300 posts links to isn't posted again, even if that post was written by hand. Each post
-also takes the ask's own record key, so two runs at once can't post the same ask twice.
+last 300 posts links to isn't posted again, even if that post was written by hand. Each post also
+takes the ask's own record key, so two runs at once can't post the same ask twice.
 
-Asks from anyone @rainshare.dev blocks aren't posted, and neither are asks from anyone who
-blocks it. To keep someone's asks off the account, block them from it. Nothing it has hidden on
-the moderation page is posted or messaged either, and neither is an ask that Rainshare's checks
-find very likely a trick on helpers' agents. If the list of what it has hidden can't be read,
-the run posts and sends nothing.
+Asks from anyone @rainshare.dev blocks aren't posted, and neither are asks from anyone who blocks
+it. To keep someone's asks off the account, block them from it. Nothing it has hidden on the
+moderation page is posted or messaged either, and neither is an ask that Rainshare's checks find
+very likely a trick on helpers' agents. If the list of what it has hidden can't be read, the run
+posts and sends nothing.
 
 #### Messages
 
@@ -599,36 +704,38 @@ People ask for messages in their settings beside their profile, under "Messages 
 - **Updates on my asks and my work**: someone's on one of your asks, or has turned in work on it
   (with a link to the pull request); an ask you were on was marked done, with your work or
   someone else's, or was closed.
-- **New asks on the board**: open asks meant for everyone, except your own.
+- **New asks on the board**: asks meant for everyone that nobody's on yet, as for the posts,
+  except your own.
 
-Each person gets one message a day at most, listing everything since the last one, and nothing
-on a day with no news. What they've asked for is saved as `notify` in their
-`dev.rainshare.preferences` record, which anyone can read, like every record in their repo. A
-sign-in from before Rainshare had settings can only keep them in the browser, where the daily
-run can't see them, and the panel says so. `api/_messages.js` works out who gets what.
+Updates go out within a minute or two: each run sends someone one message at most, with
+everything since their last one, and nothing when there's no news. New asks come once a day, the
+day's together, in the first message after 15:45 UTC. What people have asked for is saved as
+`notify` in their `dev.rainshare.preferences` record, which anyone can read, like every record in
+their repo. A sign-in from before Rainshare had settings can only keep them in the browser, where
+the announcer can't see them, and the panel says so. `announcer/src/messages.js` works out who
+gets what.
 
 Bluesky only lets accounts someone follows message them, unless they've changed that, so the
-settings ask people to follow @rainshare.dev. The run skips anyone it can't message and
-says why.
+settings ask people to follow @rainshare.dev. The announcer skips anyone it can't message and says
+why.
 
-There's no database here either. Each message covers whole days, from 15:45 UTC to 15:45 UTC (a
-quarter of an hour before the cron). The last message the account sent someone says which days
-they've heard about, so a run that's missed is caught up the next day, for up to three days.
+There's no database here either. Each message covers whole minutes for updates, and whole days
+from 15:45 UTC for new asks. The last message the account sent someone says how far they've heard,
+so a restart or a missed run is caught up by the next, for up to three days. Runs start half a
+minute past a minute and stop sending before the next, so no message lands in a period it didn't
+cover. Someone's first message catches up on the day before.
 
 There are three ways to stop them, and any one of them works:
 
 - Untick them in their settings.
-- Reply STOP to any message, and the account answers once to say it worked. START turns them
-  back on. Whichever of the two someone sent last is what counts.
+- Reply STOP to any message, and the account answers once to say it worked. START turns them back
+  on. Whichever of the two someone sent last is what counts. The announcer looks at its
+  conversations every minute, so a STOP is answered quickly.
 - Use Bluesky's own settings: leave the conversation, or stop letting @rainshare.dev message you.
 
-People someone blocks on Bluesky aren't in their news, and the account doesn't message anyone
-it blocks or who blocks it. Nothing it has hidden is in anyone's news, and it doesn't message an
+People someone blocks on Bluesky aren't in their news, and the account doesn't message anyone it
+blocks or who blocks it. Nothing it has hidden is in anyone's news, and it doesn't message an
 account it has hidden.
-
-On Vercel's Hobby plan, a daily cron can run at any point in its hour. To change the time, edit
-the schedule in `vercel.json`, and keep `BOUNDARY` in `api/_messages.js` a little before it. On
-Pro the cron can run more often. Make `PERIOD` match, and messages go out that often too.
 
 ## Not tried for real yet
 
@@ -655,10 +762,12 @@ done for real yet:
 - Moderating as @rainshare.dev for real. The moderation page has only been driven against a fake
   source in headless Chromium, and no server has been asked for its extra scope yet.
 - Link previews as Bluesky and other sites render them in production.
-- Posting new asks to @rainshare.dev, and sending messages. The dry run has read the real board
-  and worked out what it would post, but nothing has been posted or sent yet. The Bluesky chat
-  calls have only been tried against a stand-in, including whether a STOP reaches the account
-  when its own settings only allow messages from people it follows.
+- The announcer on the droplet, and its deploy. It has run here against the live network in
+  `MODE=dry`, listening to Jetstream and working out what it would post, and `droplet/deploy.sh`
+  has been run against a stand-in droplet, but it hasn't been set up on the real one, and nothing
+  has been posted or sent yet. The Bluesky chat calls have only been tried against a stand-in,
+  including whether a STOP reaches the account when its own settings only allow messages from
+  people it follows.
 - A real account's first sign-in, and the welcome that follows it.
 - A server accepting the permission set. That waits for a production build to publish it.
   Until then, bsky.social refuses the set and Rainshare falls back to asking for the records by

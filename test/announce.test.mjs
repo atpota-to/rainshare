@@ -1,11 +1,10 @@
-// Posting new asks to @rainshare.dev (api/_announce.js, api/announce.js), against a stand-in
+// Posting new asks to @rainshare.dev (announcer/src/posts.js), against a stand-in
 // network: a relay, the PLC directory, one PDS that holds everyone's repo (the account's too),
 // Bluesky's AppView, and the site's link preview pictures.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { announce, compose, isNew, askAt, linksIn, ACCOUNT, WINDOW, SETTLE } from '../api/_announce.js';
-import handler, { allowed } from '../api/announce.js';
-import { SEED, PROFILE, MODERATION, SITE } from '../core/ns.js';
+import { announce, compose, isNew, askAt, linksIn, reader, ACCOUNT, WINDOW, SETTLE } from '../announcer/src/posts.js';
+import { SEED, TAKE, DELIVERY, PROFILE, MODERATION, SITE } from '../core/ns.js';
 
 const NOW = Date.parse('2026-11-13T16:00:00Z'), ago = ms => new Date(NOW - ms).toISOString();
 const HOUR = 3600e3, DAY = 24 * HOUR;
@@ -123,6 +122,29 @@ test('what the account has hidden isn’t posted, nor an ask that’s very likel
   await assert.rejects(announce({ password: 'app-pass', now: NOW, log: quiet, read: Object.assign(() => Promise.resolve([]), { hidden: () => Promise.reject(new Error('down')) }) }), /down/, 'and if what it hid can’t be read, nothing is posted');
 });
 
+test('only an ask nobody’s on yet is posted: not one someone’s taken, nor one with work turned in', async () => {
+  const GAIL = 'did:plc:gail', HAL = 'did:plc:hal', on = rkey => ({ uri: `at://${rkey === A1 ? ALICE : BOB}/${SEED}/${rkey}`, cid: 'bafy' + rkey });
+  // Gail says she's on Alice's ask until tomorrow, and Hal has turned in work for Bob's.
+  repos[GAIL] = { [TAKE]: { g1: { $type: TAKE, seed: on(A1), until: ago(-DAY), createdAt: ago(HOUR) } } };
+  repos[HAL] = { [DELIVERY]: { h1: { $type: DELIVERY, seed: on(B1), url: 'https://github.com/bob/weather/pull/2', createdAt: ago(HOUR) } } };
+  let out = await run();
+  assert.deepEqual([created.length, out.found, out.skipped], [0, 6, 6], 'both are taken up, and the other four as before');
+
+  // Hal's turn-in goes, and the only take on Bob's ask is one that lapsed half an hour ago, so it's free again.
+  delete repos[HAL];
+  repos[GAIL][TAKE].g2 = { $type: TAKE, seed: on(B1), until: ago(HOUR / 2), createdAt: ago(HOUR + 1) };
+  // A take from someone the account blocks (Carol) doesn't hold an ask either, as on the board.
+  repos[CAROL][TAKE] = { c2: { $type: TAKE, seed: on(B1), until: ago(-DAY), createdAt: ago(HOUR) } };
+  out = await run();
+  assert.deepEqual(created.map(c => c.rkey), [B1], 'Bob’s is posted, and Alice’s, which Gail is still on, isn’t');
+});
+
+test('if who’s on what can’t be read, nothing is posted', async () => {
+  const read = Object.assign(c => c === TAKE ? Promise.reject(new Error('relay down')) : reader()(c), { hidden: () => Promise.resolve(new Map()) });
+  await assert.rejects(run({ read }), /relay down/);
+  assert.equal(created.length, 0);
+});
+
 test('a dry run says what it would post and posts nothing, with no password', async () => {
   const lines = [];
   const out = await announce({ post: false, password: '', now: NOW, log: s => lines.push(s) });
@@ -226,26 +248,4 @@ test('a post’s links are read wherever they are, and matched to an ask by path
   }).map(askAt), ['carol.test 3k3', 'did:plc:bob 3k2', 'alice.test 3k1'], 'the card, then the text’s links, then what’s written out');
   assert.equal(askAt('https://rainshare.dev/seed/s/abc123'), null, 'a share code isn’t an ask');
   assert.equal(askAt('https://rainshare.dev/profile/alice.test'), null);
-});
-
-test('the daily call needs CRON_SECRET, and ?dry=1 posts nothing', async () => {
-  const req = (authorization, query = {}) => ({ headers: authorization ? { authorization } : {}, query });
-  assert.equal(allowed(req('Bearer s3cret'), ''), false, 'with no secret set, nothing gets in');
-  assert.equal(allowed(req('Bearer nope'), 's3cret'), false);
-  assert.equal(allowed(req('Bearer s3cret'), 's3cret'), true);
-
-  const call = async (r, env) => {
-    const before = { ...process.env };
-    Object.assign(process.env, env);
-    const res = { headers: {}, setHeader(k, v){ this.headers[k.toLowerCase()] = v; }, end(b){ this.body = JSON.parse(b); } };
-    try { await handler(r, res); } finally { for (const k of Object.keys(env)) if (k in before) process.env[k] = before[k]; else delete process.env[k]; }
-    return res;
-  };
-  const env = { CRON_SECRET: 's3cret', RAINSHARE_BLUESKY_APP_PASSWORD: 'app-pass' };
-  assert.equal((await call(req('Bearer nope'), env)).statusCode, 401);
-  assert.equal((await call(req('Bearer s3cret'), { RAINSHARE_BLUESKY_APP_PASSWORD: 'app-pass' })).statusCode, 401, 'switched off without CRON_SECRET');
-  assert.equal(asked.length, 0, 'and nothing was read');
-
-  const dry = await call(req('Bearer s3cret', { dry: '1' }), env);
-  assert.deepEqual([dry.statusCode, dry.headers['cache-control'], dry.body.posts.dryRun, dry.body.messages.dryRun, created.length], [200, 'no-store', true, true, 0]);
 });

@@ -39,6 +39,7 @@ const ICON = {
   link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
   copy: '<rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  paste: '<rect x="5.5" y="5" width="13" height="16" rx="2.5"/><path d="M9 5V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V5"/><path d="M9 12h6M9 15.5h4"/>',
   filter: '<path d="M4 7h16M7 12h10M10 17h4"/>',
   sort: '<path d="M8 19V5M4.5 8.5L8 5l3.5 3.5M16 5v14M12.5 15.5L16 19l3.5-3.5"/>',
   refresh: '<path d="M19.5 12a7.5 7.5 0 0 1-13.2 4.9M4.5 12a7.5 7.5 0 0 1 13.2-4.9"/><path d="M18 3.5v3.8h-3.8M6 20.5v-3.8h3.8"/>',
@@ -96,9 +97,10 @@ export function plantKind(key){
 export const plantFile = (stage, kind = 0) => `${stage}${kind ? '-' + kind : ''}.webp`;
 let plantBase = '/plants/';
 export const setPlantBase = base => { plantBase = base; };
-export const plantPic = (stage, px = 40, { live = false, cls = '', key = '' } = {}) => {
+// (`vt` marks a plant that travels between pages, as the same ask's: data-rs-vt, ../src/main.js.)
+export const plantPic = (stage, px = 40, { live = false, cls = '', key = '', vt = '' } = {}) => {
   const kind = plantKind(key);
-  return `<span class="rs-plant${cls ? ' ' + cls : ''}" style="--rs-plant:${px}px">${live ? `<canvas data-rs-plant="${esc(stage)}" data-rs-kind="${kind}" aria-hidden="true"></canvas>` : ''}<img src="${esc(plantBase + plantFile(stage, kind))}" width="${px}" height="${px}" alt="" decoding="async"></span>`;
+  return `<span class="rs-plant${cls ? ' ' + cls : ''}" style="--rs-plant:${px}px"${vt ? ` data-rs-vt="${esc(vt)}"` : ''}>${live ? `<canvas data-rs-plant="${esc(stage)}" data-rs-kind="${kind}" aria-hidden="true"></canvas>` : ''}<img src="${esc(plantBase + plantFile(stage, kind))}" width="${px}" height="${px}" alt="" decoding="async"></span>`;
 };
 export const forgeIco = f => `<svg class="rs-i rs-forge" viewBox="0 0 24 24" aria-hidden="true">${FORGE_ICON[f] || FORGE_ICON.other}</svg>`;
 
@@ -116,6 +118,26 @@ export function avatarFallback(root){
     if (img?.tagName === 'IMG' && img.dataset.rsInitial) { const s = document.createElement('span'); s.textContent = img.dataset.rsInitial; img.replaceWith(s); }
   }, true);
 }
+/*
+ * A field with a paste button at its right end, for a link copied from somewhere else (the pull
+ * request your agent opened). Reading what was copied needs a press, and Safari asks first, with
+ * a "Paste" bubble of its own. Where a browser can't read it at all there's no button, and
+ * pasting into the field the usual way still works.
+ */
+export const canPaste = () => !!globalThis.navigator?.clipboard?.readText;
+export const pasteField = input => canPaste() ? `<span class="rs-paste-field">${input}<button type="button" class="rs-paste" data-rs-paste aria-label="Paste what you copied" title="Paste">${ico('paste')}</button></span>` : input;
+/** Put what was copied into the field beside `btn`. Gives back whether it could (it couldn't if the browser said no, or nothing was copied). */
+export async function pasteInto(btn){
+  const input = btn?.parentElement?.querySelector('input');
+  if (!input) return false;
+  try {
+    const t = String(await navigator.clipboard.readText()).trim();
+    if (!t) { input.focus(); return false; }
+    input.value = t; input.dispatchEvent(new Event('input', { bubbles: true })); input.focus();
+    return true;
+  } catch (_) { input.focus(); return false; }
+}
+export const PASTE_REFUSED = 'Couldn’t read what you copied. Paste it into the box instead.';
 /** How well a seed suits you, as one to three filled drops. */
 export const drops = level => `<span class="rs-drops" aria-hidden="true">${[1, 2, 3].map(n => `<svg viewBox="0 0 24 24"${n <= level ? ' class="on"' : ''}>${ICON.drop}</svg>`).join('')}</span>`;
 

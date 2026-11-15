@@ -43,7 +43,7 @@ export function mount(figure){
   /* where the garden goes in the backdrop, and how far it has sunk */
   // Under 880px the pitch is over the garden, not beside it, and the garden has the window's width (./landing.css).
   const stacked = matchMedia('(max-width:880px)'), calm = matchMedia('(prefers-reduced-motion: reduce)'), touch = matchMedia('(pointer:coarse)');
-  const land = figure.parentElement, base = $('.rd-base', figure), bar = $('.rd-bar'), pitch = $('.rd-pitch', land), signIn = $('.rd-signin', land);
+  const land = figure.parentElement, base = $('.rd-base', figure), bar = $('.rd-bar'), pitch = $('.rd-pitch', land), signIn = $('.rd-ctas', land);
   let frame = null, sunk = 0, deep = 0, stood = 0;
   function layout(){
     const f = figure.getBoundingClientRect();
@@ -72,7 +72,7 @@ export function mount(figure){
     frame = { x: x0, y: f.top - at.top, w: x1 - x0, h: base.getBoundingClientRect().top - room - f.top, close };
     scene?.setFrame(frame);
     // Beside the garden, the pitch stands on its horizon: the heading and what's under it in
-    // the sky, and the sign-in on the line of the far woods. It's moved from where the page's
+    // the sky, and its two buttons on the line of the far woods. It's moved from where the page's
     // layout centres it, as far as the landing has room for.
     // (The horizon is known from the frame alone, so this doesn't wait for the scene.)
     let to = 0;

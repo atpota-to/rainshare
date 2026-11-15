@@ -49,7 +49,7 @@ const MARKUP = `
     </article>
     <article class="rd-note" id="note2" hidden>
       <h2>Precipitation</h2>
-      <p>Pick a friend’s idea or project and send your agent after it. That’s the rain.</p>
+      <p>Pick a friend’s idea or project and direct your agent at it. That’s the rain.</p>
       <a href="/example/seed/did:example:mo/3sq-mo-idea" data-nav>See an idea</a>
     </article>
     <article class="rd-note" id="note3" hidden>
