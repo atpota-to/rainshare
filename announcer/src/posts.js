@@ -54,19 +54,28 @@ export const passable = v => forAll(v) && !alarming(concerns(v));
 // Who says yes to an ask before the account passes it on (./review.js): dame.is, by DID, so a new
 // handle changes nothing. RAINSHARE_APPROVER in the announcer's .env names someone else.
 export const APPROVER = isDid(process.env.RAINSHARE_APPROVER) ? process.env.RAINSHARE_APPROVER : 'did:plc:gq4fo3u6tqzzdkjlwzpb23tj';
+// The approver's answers that let the account pass an ask on, by way (./review.js): YES is both,
+// POST only the account's post, SEND only the new asks in people's direct messages.
+export const ALLOWS = { post: ['approved', 'post_only'], send: ['approved', 'send_only'] };
 /**
- * Whether the account may pass an ask on: the approver said yes to the version of it that's
- * there now (`reviews`, from read.reviews()). The approver's own asks, and the account's, need
- * nobody's yes. With no queue to read (`reviews` null), nothing else is.
+ * Whether the account may pass an ask on `way` ('post' or 'send'): the approver said yes to it
+ * that way, for the version of it that's there now (`reviews`, from read.reviews()). Without a
+ * way, only a yes to both counts. The approver's own asks, and the account's, need nobody's yes.
+ * With no queue to read (`reviews` null), nothing else is.
  */
-export function cleared(ask, reviews, approver = APPROVER){
+export function cleared(ask, reviews, way = null, approver = APPROVER){
   if (ask?.repo === ACCOUNT || ask?.repo === approver) return true;
   const r = reviews?.get(ask?.uri);
-  return !!r && r.status === 'approved' && !!ask.cid && r.cid === ask.cid;
+  return !!r && (ALLOWS[way] || ['approved']).includes(r.status) && !!ask.cid && r.cid === ask.cid;
+}
+/** Whether the approver has answered about the version of an ask that's there now, whatever they said. */
+export function decided(ask, reviews){
+  const r = reviews?.get(ask?.uri);
+  return !!r && r.status !== 'pending' && !!ask?.cid && r.cid === ask.cid;
 }
 /** When an ask was passed on: when it was asked, or when it was said yes to, if that was later (ms). */
 export function clearedAt(ask, reviews){
-  const asked = Date.parse(ask?.value?.createdAt), r = reviews?.get(ask?.uri), yes = r?.status === 'approved' ? Date.parse(r.decided_at) : NaN;
+  const asked = Date.parse(ask?.value?.createdAt), r = reviews?.get(ask?.uri), yes = [...ALLOWS.post, ...ALLOWS.send].includes(r?.status) ? Date.parse(r.decided_at) : NaN;
   return Number.isFinite(yes) && !(yes <= asked) ? yes : asked;
 }
 /** Whether an ask is one to post about at `now`: passable, and asked between WINDOW and SETTLE ago. */
@@ -308,7 +317,7 @@ async function thumbnail(url, upload){
  *
  * { setUp, dryRun, found, skipped, waiting, posts: [{ ask, text, link, uri, error }], later, takenDown }:
  * `found` is how many asks were new, `skipped` how many of them were posted already, blocked or
- * taken up, `waiting` how many are waiting for the approver's yes (./review.js), `later` how many
+ * taken up, `waiting` how many are waiting for the approver's answer (./review.js), `later` how many
  * are left for the next run, and `takenDown` the posts about asks hidden since: [{ ask, uri, error }].
  */
 export async function announce({ post = true, password = process.env.RAINSHARE_BLUESKY_APP_PASSWORD, now = Date.now(), max = MAX_POSTS, log = console.log, read = reader(), as = session(password) } = {}){
@@ -317,7 +326,8 @@ export async function announce({ post = true, password = process.env.RAINSHARE_B
     return { setUp: false, dryRun: false, found: 0, skipped: 0, waiting: 0, posts: [], later: 0, takenDown: [] };
   }
   const asks = await newAsks(now, read), todo = await unposted(asks, { read, now }), reviews = read.reviews ? await read.reviews() : null;
-  const ready = todo.filter(a => cleared(a, reviews)), waiting = todo.length - ready.length;
+  // Ready: the approver said YES or POST. Waiting: they haven't answered yet. The rest (NO, SEND) aren't posted.
+  const ready = todo.filter(a => cleared(a, reviews, 'post')), waiting = todo.filter(a => !cleared(a, reviews, 'post') && !decided(a, reviews)).length;
   const posts = ready.slice(0, max).map(a => ({ ask: a.uri, rkey: a.rkey, ...compose(a, a.who), uri: null, error: null }));
   const down = hiddenPosts(todo.done.posts, todo.hidden).map(d => ({ ...d, uri: net.recordUri(ACCOUNT, POST, d.rkey), error: null }));
   const result = () => ({ setUp: !!password, dryRun: !post, found: asks.length, skipped: asks.length - todo.length, waiting,

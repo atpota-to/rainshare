@@ -28,6 +28,8 @@ a few minutes old and `backfilled_at` is set, and reads every repo otherwise.
 
 The schema, functions and grants are
 [`../supabase/migrations/20261115210000_rainshare_index.sql`](../supabase/migrations/20261115210000_rainshare_index.sql),
+with the approver's POST and SEND added by
+[`../supabase/migrations/20261115230000_rainshare_review_post_or_send.sql`](../supabase/migrations/20261115230000_rainshare_review_post_or_send.sql),
 in the Supabase project `atpota.to` (zdzjtziydmwkxbzlkwxv), beside the terms ledger and the
 garden's index.
 

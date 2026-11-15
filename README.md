@@ -484,6 +484,8 @@ messages. The announcer sends the approver (dame.is, by DID) a direct message ab
 time: its title, who asked, the start of what it says, and what the checks noticed. They reply:
 
 - **YES**: it's posted, and goes in the next day's new asks for people who asked for them
+- **POST**: it's posted, and isn't sent to anyone
+- **SEND** (or **DM**): it goes in the next day's new asks, and isn't posted
 - **NO**: it stays on the board, and isn't posted or sent
 - **HIDE** (with an optional reason after it): it's hidden, as the moderation page hides things,
   with the reason "Against the guidelines". If it was posted already, the post comes down.
@@ -843,8 +845,8 @@ There are two kinds, and they can have either or both:
   (with a link to the pull request); an ask you were on was marked done, with your work or
   someone else's, or was closed.
 - **New asks on the board**: asks meant for everyone that nobody's on yet and the approver has
-  said yes to, as for the posts, except your own. An ask is in the day's news for the day it was
-  said yes to.
+  said YES or SEND to, except your own. An ask is in the day's news for the day it was said yes
+  to.
 
 The updates are worked out by `core/news.js`, which the bell in the site's bar uses too. Updates
 go out within a minute or two: each run sends someone one message at most, with

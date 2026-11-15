@@ -271,10 +271,16 @@ test('nothing is posted until the approver has said yes to it, as it is now', as
   let out = await run();
   assert.deepEqual([created.length, out.waiting, out.found, out.skipped], [0, 2, 6, 4]);
 
-  // Declined stays declined; said yes to as it is now, it goes.
+  // Declined stays declined, and isn't waiting any more; said yes to as it is now, it goes.
   verdict = (uri, rkey) => rkey === A1 ? 'declined' : 'approved';
   out = await run();
-  assert.deepEqual([created.map(c => c.rkey), out.waiting], [[B1], 1]);
+  assert.deepEqual([created.map(c => c.rkey), out.waiting], [[B1], 0]);
+});
+
+test('POST is posted, SEND isn’t, and neither is waiting', async () => {
+  verdict = (uri, rkey) => rkey === A1 ? 'send_only' : 'post_only';
+  const out = await run();
+  assert.deepEqual([created.map(c => c.rkey), out.waiting], [[B1], 0]);
 });
 
 test('without the review queue, nothing new is posted at all', async () => {
@@ -295,6 +301,11 @@ test('what the approver and the account ask needs nobody’s yes', () => {
   const ask = { uri: `at://${ALICE}/${SEED}/x`, repo: ALICE, cid: 'c', value: { createdAt: ago(DAY) } };
   assert.equal(clearedAt(ask, new Map([[ask.uri, { status: 'approved', cid: 'c', decided_at: ago(HOUR) }]])), NOW - HOUR, 'passed on when it was said yes to');
   assert.equal(clearedAt(ask, new Map()), NOW - DAY);
+  const said = status => new Map([[ask.uri, { status, cid: 'c', decided_at: ago(HOUR) }]]);
+  assert.deepEqual(['approved', 'post_only', 'send_only', 'declined', 'pending'].map(s => [s, cleared(ask, said(s), 'post'), cleared(ask, said(s), 'send'), cleared(ask, said(s))]), [
+    ['approved', true, true, true], ['post_only', true, false, false], ['send_only', false, true, false], ['declined', false, false, false], ['pending', false, false, false]
+  ], 'which answers let it be posted, sent, or (with no way named) both');
+  assert.equal(clearedAt(ask, said('send_only')), NOW - HOUR);
 });
 
 test('a post about an ask that’s since been hidden comes down, and nothing written by hand does', async () => {

@@ -22,7 +22,7 @@
 //
 // Nothing the account has hidden (../core/moderation.js) is in anyone's news, and it doesn't
 // message an account it has hidden. A new ask is only in the day's news once the approver has
-// said yes to it (./review.js), and it's the day's news for the day it was said yes to.
+// said YES or SEND to it (./review.js), and it's the day's news for the day they did.
 //
 // Stopping, three ways, and any one does it:
 //   - switch them off in their settings (/settings)
@@ -146,7 +146,7 @@ const inside = (x, from, to) => x >= from && x < to;
  * who they block, whose doings aren't news to them; `ourBlocks` is who the account blocks,
  * whose asks it doesn't pass on; `hidden` is what it has hidden (decisions from
  * ../core/moderation.js), which is nobody's news. A new ask is only news while nobody's on it
- * (`free`, ./posts.js), as of `now`, and once the approver has said yes to it (`reviews`, from
+ * (`free`, ./posts.js), as of `now`, and once the approver has said YES or SEND to it (`reviews`, from
  * the review queue: without it, no new ask is news), from when they did.
  */
 export function newsFor(r, { seeds, takes, deliveries, from, to, theirBlocks = new Set(), ourBlocks = new Set(), hidden = new Map(), reviews = null, now = Date.now() }){
@@ -156,7 +156,7 @@ export function newsFor(r, { seeds, takes, deliveries, from, to, theirBlocks = n
   // site's bar says the same things.)
   const updates = r.updates ? updatesFor(r.did, { seeds, takes, deliveries, from, to, theirBlocks }) : [], at = x => Date.parse(x.value?.createdAt);
   const blocks = new Set([...theirBlocks, ...ourBlocks]);
-  const fresh = !r.newAsks ? [] : seeds.filter(s => s.repo !== r.did && !blocks.has(s.repo) && passable(s.value) && cleared(s, reviews) && inside(clearedAt(s, reviews), from, to) && free(s, { takes, deliveries, blocks, now }))
+  const fresh = !r.newAsks ? [] : seeds.filter(s => s.repo !== r.did && !blocks.has(s.repo) && passable(s.value) && cleared(s, reviews, 'send') && inside(clearedAt(s, reviews), from, to) && free(s, { takes, deliveries, blocks, now }))
     .map(s => ({ kind: 'new', seed: s, by: s.repo, at: clearedAt(s, reviews) }));
   const order = (a, b) => a.at - b.at;
   return { updates: updates.sort(order), fresh: fresh.sort(order) };
@@ -218,7 +218,7 @@ export async function message({ post = true, password = process.env.RAINSHARE_BL
   // All of these are needed to know what's news and what's free: if any can't be read, nothing is sent this run.
   const [seeds, takes, deliveries, hidden, reviews] = await Promise.all([read(SEED), read(TAKE), read(DELIVERY), read.hidden(), read.reviews ? read.reviews() : null]);
   // Who the account won't deal with: those it blocks or who block it, among the people asking and anyone whose new ask it could pass on.
-  const askers = seeds.filter(s => passable(s.value) && cleared(s, reviews) && inside(clearedAt(s, reviews), today - LOOKBACK, today)).map(s => s.repo);
+  const askers = seeds.filter(s => passable(s.value) && cleared(s, reviews, 'send') && inside(clearedAt(s, reviews), today - LOOKBACK, today)).map(s => s.repo);
   const ourBlocks = await blocked([...new Set([...people.map(p => p.did), ...askers])]);
   const skip = (p, why) => { out.skipped.push({ to: p.did, why }); log(`Not messaging ${p.did}: ${why}`); };
   if (password) await as.signIn();

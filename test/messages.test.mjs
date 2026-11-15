@@ -336,4 +336,6 @@ test('without a yes, or without the queue, no new ask is news', () => {
   assert.deepEqual(newsFor(r, { ...common, reviews: new Map([[seeds[0].uri, { cid: 'bafyn', status: 'pending' }]]) }).fresh, []);
   assert.deepEqual(newsFor(r, { ...common, reviews: new Map([[seeds[0].uri, { cid: 'bafy-old', status: 'approved', decided_at: '2026-11-14T11:00:00Z' }]]) }).fresh, [], 'a yes to the version before an edit');
   assert.equal(newsFor(r, { ...common, reviews: new Map([[seeds[0].uri, { cid: 'bafyn', status: 'approved', decided_at: '2026-11-14T11:00:00Z' }]]) }).fresh.length, 1);
+  const said = status => newsFor(r, { ...common, reviews: new Map([[seeds[0].uri, { cid: 'bafyn', status, decided_at: '2026-11-14T11:00:00Z' }]]) }).fresh.length;
+  assert.deepEqual([said('send_only'), said('post_only'), said('declined')], [1, 0, 0], 'SEND is news, POST and NO aren’t');
 });

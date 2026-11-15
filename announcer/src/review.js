@@ -9,6 +9,8 @@
 //   1. If the approver has been asked about an ask and has answered since, the answer is written
 //      to the queue:
 //        YES   it's posted and sent, from the next post on
+//        POST  it's posted, and not sent
+//        SEND  it's sent (in the day's new asks), and not posted
 //        NO    it stays on the board, and isn't posted or sent
 //        HIDE  it's hidden from Rainshare, as the moderation page hides things: a public
 //              moderation record in the account's repo, with what follows HIDE as the note. If
@@ -40,11 +42,13 @@ export const GUIDELINES = SITE + '/guidelines';
 
 // What a reply's first word means. Anything after HIDE is the reason, kept with the record.
 const WORDS = {
-  approved: ['yes', 'y', 'yep', 'yeah', 'yup', 'ok', 'okay', 'approve', 'approved', '👍', '✅'],
+  approved: ['yes', 'y', 'yep', 'yeah', 'yup', 'ok', 'okay', 'approve', 'approved', 'both', '👍', '✅'],
+  post_only: ['post', 'post-only', 'postonly'],
+  send_only: ['send', 'send-only', 'sendonly', 'dm', 'dms'],
   declined: ['no', 'n', 'nope', 'decline', 'declined', 'skip', 'pass', '👎'],
   hidden: ['hide', 'hidden']
 };
-/** What a reply says: { status: 'approved' | 'declined' | 'hidden', note } or {} for anything else. */
+/** What a reply says: { status: 'approved' | 'post_only' | 'send_only' | 'declined' | 'hidden', note } or {} for anything else. */
 export function answerOf(text){
   const m = String(text ?? '').trim().match(/^(\S+)\s*([\s\S]*)$/);
   if (!m) return {};
@@ -59,12 +63,16 @@ export function answerOf(text){
 const titleOf = s => clean(s?.value?.title, 120) || 'An ask with no title';
 const pageOf = (s, who) => `${SITE}/seed/${who?.handle || s.repo}/${s.rkey}`;
 const quoted = (r, s, who) => r.add('“').link(titleOf(s), pageOf(s, who)).add('”');
-export const HELP = 'Reply YES, NO or HIDE to the ask above.';
+export const HELP = 'Reply YES, POST, SEND, NO or HIDE to the ask above.';
+/** What the approver replied, as a word, for the journal. */
+export const REPLY = { approved: 'YES', post_only: 'POST', send_only: 'SEND', declined: 'NO', hidden: 'HIDE' };
 
 /** What's said about an answer, before the next ask. */
 export function acked(r, { status, stale }, s, who){
   if (stale) { r.add('It changed after you were asked about '); quoted(r, s, who); return r.add(', so you’ll be asked about the new version.'); }
   if (status === 'approved') { r.add('Okay: '); quoted(r, s, who); return r.add(' goes out.'); }
+  if (status === 'post_only') { r.add('Okay: '); quoted(r, s, who); return r.add(' gets posted, and not sent to anyone.'); }
+  if (status === 'send_only') { r.add('Okay: '); quoted(r, s, who); return r.add(' goes in the day’s new asks, and isn’t posted.'); }
   if (status === 'declined') { r.add('Okay: '); quoted(r, s, who); return r.add(' stays on the board, and won’t be posted or sent.'); }
   r.add('Hidden: '); quoted(r, s, who); return r.add('. If it was posted, the post comes down too.');
 }
@@ -83,7 +91,7 @@ export function composeRequest(s, who, { before = [], more = 0 } = {}){
     const said = clean(askExcerpt(typeof s.value?.spec === 'string' ? s.value.spec : '', excerptMax), excerptMax + 1);
     if (said && excerptMax > 0) r.add('\n\n' + said);
     r.add(flags.length ? `\n\nRainshare’s checks noticed: ${flags.join(' ')}` : '\n\nRainshare’s checks noticed nothing.');
-    r.add('\n\nReply YES to post it and send it out, NO to leave it on the board without passing it on, or HIDE to hide it (anything after HIDE is kept as the reason). ');
+    r.add('\n\nReply YES to post it and send it out, POST to only post it, SEND to only send it, NO to leave it on the board without passing it on, or HIDE to hide it (anything after HIDE is kept as the reason). ');
     r.link('The guidelines', GUIDELINES).add('.');
     if (more) r.add(` ${more} more ${more === 1 ? 'is' : 'are'} waiting.`);
     return r;
@@ -153,7 +161,7 @@ export async function review({ post = true, password = process.env.RAINSHARE_BLU
     const answer = since.map(m => answerOf(m.text)).find(a => a.status);
     if (answer) {
       const d = { ask: s.uri, status: answer.status, note: answer.note, stale: false };
-      if (!post) log(`Would take the approver’s ${answer.status === 'approved' ? 'YES' : answer.status === 'declined' ? 'NO' : 'HIDE'} for ${s.uri}${answer.note ? ` (“${answer.note}”)` : ''}.`);
+      if (!post) log(`Would take the approver’s ${REPLY[answer.status]} for ${s.uri}${answer.note ? ` (“${answer.note}”)` : ''}.`);
       else {
         try {
           if (answer.status === 'hidden') {

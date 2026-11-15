@@ -79,7 +79,7 @@ test('the approver is asked about one ask at a time, the oldest first, and nothi
   const m = sent[0].text;
   assert.match(m, /^Waiting for your OK before @rainshare\.dev posts it or sends it to anyone:\n\n“Mozilla Firefox hardening” from Alice \(@alice\.test\)/);
   assert.match(m, /Find sec-high bugs in Firefox/);
-  assert.match(m, /Reply YES to post it and send it out, NO to leave it on the board without passing it on, or HIDE to hide it/);
+  assert.match(m, /Reply YES to post it and send it out, POST to only post it, SEND to only send it, NO to leave it on the board without passing it on, or HIDE to hide it/);
   assert.match(m, /1 more is waiting\.$/);
   const links = sent[0].facets.flatMap(f => f.features.map(x => x.uri || x.did));
   assert.ok(links.includes(`${SITE}/seed/alice.test/a1`) && links.includes(ALICE) && links.includes(`${SITE}/guidelines`));
@@ -118,6 +118,20 @@ test('NO keeps it on the board and never passes it on', async () => {
   await go();
   assert.equal(queue.get(A).status, 'declined');
   assert.match(sent[1].text, /^Okay: “Mozilla Firefox hardening” stays on the board, and won’t be posted or sent\./);
+});
+
+test('POST and SEND say yes one way only', async () => {
+  await go();
+  reply('post');
+  let out = await go();
+  assert.deepEqual(out.decided.map(d => d.status), ['post_only']);
+  assert.equal(queue.get(A).status, 'post_only');
+  assert.match(sent[1].text, /^Okay: “Mozilla Firefox hardening” gets posted, and not sent to anyone./);
+  reply('DM');
+  out = await go();
+  assert.deepEqual(out.decided.map(d => d.status), ['send_only']);
+  assert.equal(queue.get(B).status, 'send_only');
+  assert.match(sent[2].text, /^Okay: “A tiny weather app” goes in the day’s new asks, and isn’t posted./);
 });
 
 test('a reply that isn’t an answer gets told what to say, once', async () => {
@@ -168,9 +182,12 @@ test('if the approver can’t be messaged, or there’s no queue, it says so and
 test('what a reply says', () => {
   for (const t of ['yes', 'YES', 'Yes!', ' y ', 'ok', 'Okay.', '👍', '👍️', 'approve']) assert.equal(answerOf(t).status, 'approved', t);
   for (const t of ['no', 'No.', 'nope', 'skip', '👎']) assert.equal(answerOf(t).status, 'declined', t);
+  for (const t of ['post', 'POST', 'Post.', 'post-only', 'post it']) assert.equal(answerOf(t).status, 'post_only', t);
+  for (const t of ['send', 'SEND!', 'dm', 'DMs', 'send-only']) assert.equal(answerOf(t).status, 'send_only', t);
+  assert.equal(answerOf('both').status, 'approved');
   assert.deepEqual(answerOf('HIDE - against the guidelines'), { status: 'hidden', note: 'against the guidelines' });
   assert.deepEqual(answerOf('hide'), { status: 'hidden', note: '' });
-  for (const t of ['', 'what?', 'yesterday', 'not sure', 'hidey ho']) assert.deepEqual(answerOf(t), {}, t);
+  for (const t of ['', 'what?', 'yesterday', 'not sure', 'hidey ho', 'poster', 'sending?', 'message me']) assert.deepEqual(answerOf(t), {}, t);
 });
 
 test('a request fits in a message, however long the ask', () => {
