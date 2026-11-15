@@ -152,7 +152,7 @@ async function hasAgreed(src, session){
 const agreeHow = () => `run \`${SELF} agree\` in a terminal (it’s for a person to do, not a script or an agent), or agree on the site: press “Send my agent” or “Ask for help” at ${SITE}`;
 /** The note and the question, in a terminal. True once they've agreed and it's written down. */
 async function askToAgree(src, session, kind = 'help'){
-  err(['', kind === 'ask' ? 'Before you ask for rain:' : 'Before you send your agent to work on someone else’s ask:',
+  err(['', kind === 'ask' ? 'Before you ask for help:' : 'Before you send your agent to work on someone else’s ask:',
     ...(kind === 'ask' ? ASKING : SAFETY).map(([point, why]) => `  - ${point} ${why}`), '',
     `Terms of Service: ${SITE}/terms   (here: ${SELF} terms)`, `Privacy Policy:   ${SITE}/privacy (here: ${SELF} privacy)`, ''].join('\n'));
   if (!/^\s*(i\s+)?agree\W*$/i.test(await ask('Type "agree" to say you’re 18 or older and agree to the Terms of Service, or anything else to leave it: '))) return false;
@@ -491,7 +491,7 @@ async function doctor(){
     'So, from here:',
     `  board, show, check, brief   ${reach ? 'work' : 'need the network'}`,
     `  take, turn-in, ask          ${s ? 'work' : 'need a sign-in (or do them on its Rainshare page)'}`,
-    `  run                         ${s && tool('git') && (tool('claude') || tool('codex')) ? `works${ghIn ? ', and turns the pull request in by itself' : '; it will ask for the pull request’s address at the end'}` : 'needs a sign-in, git, and Claude Code or Codex'}`,
+    `  run                         ${s && tool('git') && (tool('claude') || tool('codex')) ? `works${ghIn ? ', and offers to turn the pull request in' : '; it will ask for the pull request’s address at the end'}` : 'needs a sign-in, git, and Claude Code or Codex'}`,
     `  run --with cloud            ${s && ghIn && tool('claude') ? 'works' : 'needs a sign-in, Claude Code and the GitHub CLI signed in'}`
   ].join('\n');
 }
@@ -614,7 +614,7 @@ Commands and records may still change.
   drop <link>
   run <link> [--with claude|codex|cloud|none] [--dir d] [--days n] [--anyway]
                              check it, take it on, clone the repo, start your agent with the brief,
-                             and turn the pull request in when the agent's done
+                             and offer to turn the pull request in when the agent's done
   turn-in <link> --url <pull request> [--model m] [--harness h] [--session url] [--note n]
   open-pr <link> --branch <pushed branch> [--from <fork>] [--base b] [--title t] [--body text | --body-file f]
         [--model m] [--harness h] [--session url] [--note n]
@@ -644,6 +644,8 @@ async function main(){
     case 'help': case '--help': case '-h': return out(HELP);
     case 'version': case '--version': return out(`${VERSION} (${STAGE})`);
     case 'login': {
+      // Signing in is agreeing to the terms, here as on the site (src/signin.js): said before the password is asked for.
+      err(`By signing in you agree to Rainshare’s Terms of Service: ${SITE}/terms\nIts Privacy Policy says what happens to data: ${SITE}/privacy`);
       const handle = pos[0] || await ask('Your handle: ');
       const password = process.env.RAINSHARE_APP_PASSWORD || await ask('An app password (Bluesky: Settings → Privacy and security → App passwords): ', { hidden: true });
       const s = await createSession(handle, password);
@@ -652,7 +654,7 @@ async function main(){
       // What the site asks before someone's first job or ask (../ui/agree.js), asked here once too.
       const { src, session } = await source();
       if (await hasAgreed(src, session)) return out('You’ve already agreed to Rainshare’s terms, so you’re all set.');
-      const later = `Reading the board needs nothing more. Before your first job or ask, agree to Rainshare’s terms: ${SELF} agree`;
+      const later = `You can read the board now. Before your first job or ask, say you agree to Rainshare’s terms: ${SELF} agree`;
       if (!process.stdin.isTTY || !process.stderr.isTTY) return out(later);
       if (!await askToAgree(src, session)) out(later);
       return;

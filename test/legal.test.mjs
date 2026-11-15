@@ -24,7 +24,8 @@ test('both documents are whole: a date, a lead, a summary, and sections that say
   for (const doc of [TERMS, PRIVACY]) {
     assert.ok(doc.title && doc.lead.length > 100 && doc.short.length >= 3, doc.key);
     assert.match(doc.updated, /^\d{1,2} [A-Z][a-z]+ \d{4}$/);
-    assert.equal(new Date(doc.updated + ' UTC').toISOString().slice(0, 10), LEGAL_VERSION, 'the date shown is the version agreed to');
+    // The Terms' date is the version people agree to. The Privacy Policy is a notice with a date of its own.
+    if (doc === TERMS) assert.equal(new Date(doc.updated + ' UTC').toISOString().slice(0, 10), LEGAL_VERSION, 'the date on the Terms is the version agreed to');
     assert.ok(doc.sections.length >= 8, doc.key);
     assert.equal(doc.sections.at(-1)[0], 'Contact');
     for (const [h, md] of doc.sections) {
@@ -52,7 +53,7 @@ test('both documents say who runs Rainshare, and the terms say how a dispute goe
   const terms = asMarkdown(TERMS), privacy = asMarkdown(PRIVACY);
   for (const doc of [terms, privacy]) assert.match(doc, /operated by (\*\*)?atpotato, LLC(\*\*)?, a Delaware limited liability company/);
   // Up front, before the sections: how a dispute goes. One at a time, in court, with no jury.
-  assert.match(TERMS.lead, /disputes are settled one at a time, in small-claims court or the courts in Delaware, with no jury/);
+  assert.match(TERMS.lead, /disputes with us are settled one at a time, in small-claims court or the courts in Delaware, with no jury/);
   assert.ok(TERMS.short.some(x => /one at a time, in small-claims court or in Delaware’s courts, with no jury/.test(x)));
   const section = name => TERMS.sections.find(([h]) => h === name)[1];
   // Who may use it.
@@ -95,10 +96,10 @@ test('the Privacy Policy names every service the code asks, and everything kept 
   assert.ok(existsSync(new URL('../announcer/src/posts.js', import.meta.url)) && existsSync(new URL('../announcer/src/messages.js', import.meta.url)));
   assert.match(readFileSync(new URL('../announcer/src/index.js', import.meta.url), 'utf8'), /wss:\/\/jetstream\.us-east\.bsky\.network/);
   for (const says of [/posted once on Bluesky by @rainshare\.dev, with its title and a mention of whoever asked/, /nobody has taken up yet/, /block it on Bluesky/,
-    /only when there’s news: about your asks and what you’ve helped with, within a minute or two, and about new asks, once a day/,
+    /only when there’s news\. News about your asks and what you’ve helped with comes within a minute or two\. New asks come once a day/,
     /reads that conversation to see what it last sent you, and whether you replied STOP or START/, /whether you’ve asked for direct messages from @rainshare\.dev/,
     /listens to Bluesky’s Jetstream/, /a small server of ours at DigitalOcean/, /its log of what it posted and whom it messaged/]) assert.match(all, says);
-  // The one thing Rainshare keeps itself: its note of who agreed (core/agreement.js, supabase/). The
+  // The one record Rainshare keeps in a database of its own: its note of who agreed (core/agreement.js, supabase/). The
   // policy says where it is and what's in it, column for column, and what isn't.
   assert.match(new URL(LEDGER).host, /\.supabase\.co$/);
   const ledger = readFileSync(new URL('../supabase/migrations/20261114190000_rainshare_terms_acceptance.sql', import.meta.url), 'utf8');
@@ -163,6 +164,10 @@ test('the note before a first job or a first ask: three points, both documents l
   assert.match(html, /I’m 18 or older, and I agree to Rainshare’s <a href="\/base\/terms" target="_blank" rel="noopener">Terms of Service<\/a>\. Its <a href="\/base\/privacy" target="_blank" rel="noopener">Privacy Policy<\/a> says what happens to data\./);
   assert.match(html, /<button class="rs-btn rs-primary" type="button" data-ag="go" disabled>Agree and continue<\/button>/);
   assert.match(html, /data-ag="cancel">Not now</);
+  // Signing in says so too, just above the button, on both steps that send you to a host.
+  const signin = readFileSync(new URL('../src/signin.js', import.meta.url), 'utf8');
+  assert.match(signin, /By continuing you agree to Rainshare’s <a href="\/terms" target="_blank" rel="noopener">Terms of Service<\/a>\. Its <a href="\/privacy"/);
+  assert.equal((signin.match(/TERMS_NOTE\}\n\s+<button class="si-go"/g) || []).length, 2);
 });
 
 test('the two pages have addresses, and the words people reach for lead to them', () => {

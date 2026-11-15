@@ -55,6 +55,9 @@ test('an agent can’t take a job, turn one in or ask until its user has agreed,
     assert.equal(r.isError, true, name);
     assert.match(r.text, /Your user hasn’t agreed to Rainshare’s terms yet[\s\S]*agree` in a terminal[\s\S]*Don’t agree for them\./, name);
     assert.match(r.instructions, /Never agree for them, and don’t run that command yourself/);
+    // What the Terms say of the product, the instructions say to the agent: its user picks the ask, and no flag isn't a clean bill.
+    assert.match(r.instructions, /Your user picks the ask\.[\s\S]*call rainshare_take only for an ask they have chosen in this conversation/);
+    assert.match(r.instructions, /An ask with no flag isn’t a safe ask/);
   }
   // Nothing was written anywhere, and the ledger wasn't told.
   assert.doesNotMatch(asked(h), /createRecord|putRecord|rainshare-agree/);

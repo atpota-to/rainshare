@@ -304,8 +304,8 @@ export function launchers(item, opts){
   }
   if (pub) out.push({
     id: 'cli', label: 'Rainshare CLI',
-    note: d ? 'Checks nobody else is on it, clones the repo, starts your agent with the prompt, and turns the pull request in when it’s done. Needs the CLI signed in once.'
-      : 'Checks where it stands, makes a new repository, starts your agent with the prompt, and turns in where it ends up. Needs the CLI signed in once.',
+    note: d ? 'Checks nobody else is on it, clones the repo, starts your agent with the prompt, and offers to turn the pull request in when it’s done. Needs the CLI signed in once.'
+      : 'Checks where it stands, makes a new repository, starts your agent with the prompt, and offers to turn in where it ends up. Needs the CLI signed in once.',
     command: `${INSTALL} && node ${CLI_HOME} run ${sh(item.uri)}`
   });
   if (pub) out.push({ id: 'mcp', label: 'Any agent, through MCP', note: 'Add Rainshare to your agent once, then ask it to take this one on.', command: `${INSTALL} && ${MCP_ADD}\n# then ask: "Take this one on from Rainshare: ${String(item.uri).replace(/[^\w:./-]/g, '')}"` });

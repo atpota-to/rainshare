@@ -1,9 +1,9 @@
 // Before someone's first job, or their first ask: a short note on what to keep in mind, and
-// agreeing to Rainshare's Terms of Service and Privacy Policy (../core/legal.js).
+// agreeing to Rainshare's Terms of Service, with the Privacy Policy linked beside it (../core/legal.js).
 //
 // It opens the first time someone goes to work on someone else's ask ("Send my agent", copying
 // the brief, copying a command that starts an agent) or posts one of their own ("Ask for
-// rain"), whichever comes first: agreeing once covers both. Nothing goes ahead until the box
+// help"), whichever comes first: agreeing once covers both. Nothing goes ahead until the box
 // is ticked and "Agree and continue" is pressed. Closing it any other way (the ✕, "Not now",
 // Escape, a click outside) leaves things as they were, and it's asked again next time.
 //

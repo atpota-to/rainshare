@@ -10,8 +10,8 @@ and projects they'd like help with, and other people point their own coding agen
 signed in as themselves, on their own plans. We call that help rain.
 
 It runs on atproto, so there's no Rainshare database of asks or people, and nobody earns or
-spends credits. (The one thing Rainshare keeps itself is a note of who agreed to its
-[terms](#terms-and-privacy).) Asks,
+spends credits. (The one record Rainshare keeps in a database of its own is a note of who agreed
+to its [terms](#terms-and-privacy).) Asks,
 claims and finished work are records in people's own accounts, and your board starts with the
 people you follow on Bluesky.
 
@@ -95,9 +95,9 @@ plan and which agents you run, and you can skip it.
 
 ## Is this allowed by my AI plan?
 
-We can't tell you. It depends on your plan, its terms are between you and your provider, and
-they change. Read them before you help. Nothing here is advice about your plan, and naming a
-plan on Rainshare doesn't mean its provider has approved this use. If you're on a Claude plan,
+We can't tell you. It depends on your plan. The plan's terms are between you and your provider,
+and they change, so read them before you help. Nothing here is advice about your plan, and
+naming a plan on Rainshare doesn't mean its provider has approved this use. If you're on a Claude plan,
 start with Anthropic's [Consumer Terms](https://www.anthropic.com/legal/consumer-terms),
 [Usage Policy](https://www.anthropic.com/legal/aup) and
 [Claude Code's terms](https://code.claude.com/docs/en/legal-and-compliance). Other providers
@@ -106,8 +106,8 @@ publish theirs too.
 What we can tell you is how Rainshare works, so you can hold it up against those terms:
 
 - You run your own agent, signed in as you, on your own machine or cloud session. Nobody else
-  gets your login, and Rainshare never sees it. It only signs in to your atproto account. No
-  request to a model goes through Rainshare.
+  gets your AI login, and Rainshare never sees it. Rainshare only signs in to your atproto
+  account. No request to a model goes through Rainshare.
 - What you hand over is a pull request (or a new repo, for an idea), the same as contributing
   to any open-source project.
 - Nobody gets paid. There are no credits or tips.
@@ -122,10 +122,10 @@ What to look for in your plan's terms:
 - what its usage limits assume (some say one person's ordinary use)
 
 If your plan doesn't allow this, don't use it here. A provider can limit or close an account
-without warning, whatever we think.
+without warning, whatever this page says.
 
-That's also why Rainshare won't run agents on its own servers, hold anyone's AI login, pay
-helpers, or work through asks unattended. Your plan's usage policy still applies to whatever
+Providers' terms are the reason Rainshare won't run agents on its own servers, hold anyone's
+AI login, pay helpers, or work through asks unattended. Your plan's usage policy still applies to whatever
 your agent does, whoever asked for it, so only take on work you'd be happy doing for yourself.
 
 ## The CLI and MCP server
@@ -165,8 +165,8 @@ The MCP tools are `rainshare_board`, `rainshare_show`, `rainshare_check`, `rains
 tell the agent the order to use them in. Without a sign-in the read-only tools still work, and
 the agent hands you a link to turn the work in yourself.
 
-`login` prints the same three safety points, and says that using Rainshare means agreeing to
-its terms. `terms` and `privacy` print the two documents.
+`login` says that signing in means agreeing to the Terms of Service, prints the same three
+safety points, and asks you to type "agree". `terms` and `privacy` print the two documents.
 
 Both sign in with an app password, saved to `~/.config/rainshare`. You can also set
 `RAINSHARE_HANDLE` and `RAINSHARE_APP_PASSWORD`.
@@ -361,7 +361,10 @@ decision up by that key, through Slingshot, since they can't list a repo.
 Signed in as @rainshare.dev, the menu under your face has **Moderation** (`/admin`). It has:
 
 - **Hide something**: paste an ask's or a person's link, an at:// address (a comment's, say) or
-  a handle, see what it is, then pick a reason and add an optional note.
+  a handle, see what it is, then pick a reason and add an optional note. The reason and the note
+  are public, in Rainshare's own name, about a named account: keep the note to what was posted,
+  never to what kind of person posted it. When hiding an account because of its owner's age,
+  pick "Something else" and leave the note empty.
 - **Needs a look**: open asks on the board that the checks below flagged, likeliest tricks first.
 - **Hidden**: every decision, with what it's about and an Unhide button.
 
@@ -480,8 +483,10 @@ might run. Nothing from the network is trusted:
   the CLI and MCP server print. They're how instructions get hidden in plain sight.
 - In the brief, the asker's words (the spec and their notes) sit between two markers, and the
   tag is one that appears nowhere in their words after anything invisible is taken out, so
-  nothing inside can close it early and pass for Rainshare's own text. Guidelines are only
-  printed when they're values Rainshare knows.
+  nothing inside can close it early and pass for Rainshare's own text. Of the guidelines, the tests
+  line and the size are only printed when they're values Rainshare knows. Tags, and the tools
+  and models an ask names, are printed as written, outside the markers, and the checks don't
+  read them.
 - Every ask is read for what's often used to misuse an agent (`core/scan.js`): talk that tries
   to change an agent's rules (fake system messages included), asking it to keep things from
   you, hidden characters (and what they spell), reaching for SSH keys, credentials or the whole
@@ -531,11 +536,15 @@ to the Terms. The Privacy Policy is a notice, and nobody is asked to agree to it
   put itself in the ledger, and the note outlasts the record. It keeps no IP address. If the
   ledger can't be reached, the agreement still stands and it's told the next time. Only the real
   site tells it: a preview or a development copy writes the settings and leaves the ledger be.
-- **When they change.** `LEGAL_VERSION` in `core/legal.js` is the date the documents last changed
+- **When they change.** `LEGAL_VERSION` in `core/legal.js` is the date the Terms last changed
   in a way people should agree to again. Change it, and the date shown with it, and everyone is
   asked once more before their next job. A typo doesn't need a new one. Anything that changes
   what the Terms mean does: agreement is matched on that string alone, so new words under an
-  old date are never put to anyone.
+  old date are never put to anyone. A CLI copy saved before the change keeps the version it was
+  built with until it's downloaded again. The Privacy Policy has a date of its own
+  (`PRIVACY_UPDATED`): change it whenever the policy changes. If the change matters to people
+  (something new kept, a new company that gets it), give the Terms a new `LEGAL_VERSION` too, so
+  the note comes up again with both links. The tick is still for the Terms alone.
 - **Keeping the Privacy Policy true.** It says what the code does, so `test/legal.test.mjs`
   checks the two against each other: that it names the services the code asks, and that every
   key the site keeps in the browser is one the policy accounts for. A new key fails the test
