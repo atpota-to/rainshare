@@ -81,9 +81,13 @@ a{color:inherit}
 .rd-nav a[aria-current="true"]{color:var(--ink);background:color-mix(in srgb,var(--ink) 12%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 8%,transparent)}
 @media (forced-colors:active){.rd-nav a[aria-current="true"]{outline:2px solid CanvasText;outline-offset:-2px}}
 /* You, at the end of the bar: "Sign in", or your face, which opens a menu under it (src/main.js) */
-/* you, at the end of the bar: the bell, then your face. The bell's panel lines up with the bar's
-   end, as your face's menu does, so on a phone it fits between the gutters. */
-.rd-you{position:relative;display:flex;align-items:center;gap:6px}
+/* The end of the bar: the day-or-night toggle, the bell, then you, as one group with the same
+   small gap between each. They're all circles of one size (--rd-end), and so are their hover and
+   open backgrounds. The bell's panel lines up with the bar's end, as your face's menu does, so on
+   a phone it fits between the gutters. */
+.rd-end{--rd-end:40px;position:relative;display:flex;align-items:center;gap:4px}
+.rd-end .rd-mode,.rd-end .rd-bell-btn{width:var(--rd-end);height:var(--rd-end)}
+.rd-end .rd-who .rs-face{width:calc(var(--rd-end) - 4px);height:calc(var(--rd-end) - 4px)}
 .rd-bell-btn{position:relative;flex:none;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;padding:0;border:0;border-radius:50%;background:none;color:var(--muted);cursor:pointer;transition:background-color .15s,color .15s}
 .rd-bell-btn:hover,.rd-bell-btn[aria-expanded=true]{background:var(--accent-soft);color:var(--ink)}
 .rd-bell-btn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transform-origin:50% 8%}
@@ -126,7 +130,7 @@ a{color:inherit}
 .rd-bell-foot a:hover{text-decoration:underline;text-underline-offset:3px}
 .rd-me{position:relative;display:flex;align-items:center}
 .rd-who{display:inline-flex;padding:2px;border:0;border-radius:50%;background:none;cursor:pointer;transition:box-shadow .15s}
-.rd-who .rs-face{width:36px;height:36px;font-size:15px}
+.rd-who .rs-face{font-size:15px}
 .rd-who:hover,.rd-who[aria-expanded=true]{box-shadow:0 0 0 3px var(--accent-soft)}
 .rd-menu{position:absolute;top:calc(100% + 10px);right:0;z-index:30;width:max-content;min-width:230px;max-width:min(320px,calc(100vw - 32px));padding:6px;border:1px solid var(--line);border-radius:18px;background:var(--card);box-shadow:0 22px 44px -18px rgba(8,16,40,.45);transform-origin:top right;animation:rd-menu .24s var(--ease-spring)}
 @keyframes rd-menu{from{opacity:0;transform:translateY(-6px) scale(.94)}}
@@ -185,16 +189,14 @@ a{color:inherit}
 ::view-transition-group(rd-bar),::view-transition-new(rd-bar){animation:none}
 ::view-transition-old(rd-bar){display:none}
 .rd-vt-title{width:fit-content;max-width:100%}
-/* On a phone, two rows: the logo with the toggle and you across the top, and the tabs under them.
-   (The toggle and the bell are a little narrower, so you and the bell keep to that top row.) */
+/* On a phone, two rows: the logo with the end of the bar across the top, and the tabs under them.
+   (The end's circles are a little smaller there, so they all keep to that top row.) */
 @media (max-width:640px){
   .rd-bar{gap:10px 6px;padding-top:14px;padding-bottom:12px}
   .rd-nav{order:3;flex-basis:100%}
   .rd-stage{margin-left:0}
-  .rd-mode{margin-left:auto;width:36px}
-  .rd-you{gap:2px}
-  .rd-bell-btn{width:36px}
-  .rd-btn{width:40px;padding:0}
+  .rd-end{--rd-end:36px;margin-left:auto;gap:2px}
+  .rd-btn{width:var(--rd-end);min-height:0;height:var(--rd-end);padding:0}
   .rd-btn svg{display:block}
   .rd-btn span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 }
@@ -205,8 +207,8 @@ a{color:inherit}
   .rd-nav a{padding:8px 10px;font-size:14px}
   .rd-logo{font-size:20px;gap:6px}
   .rd-stage{padding:2px 7px;font-size:11px}
-  .rd-mode,.rd-bell-btn{width:30px}
-  .rd-you{gap:0}
+  .rd-end{--rd-end:34px}
+  .rd-mode svg,.rd-bell-btn svg{width:20px;height:20px}
 }
 /* under the landing, the board's heading is one of the page's h2s, and sized like them */
 .rs-brand h2{font-size:clamp(24px,3vw,32px);font-weight:700;letter-spacing:-.02em}
