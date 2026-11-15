@@ -562,6 +562,7 @@ Some images are rendered from code. Re-run the script after changing what it dra
 | `npm run logo` | the favicons, the home-screen icon, and the logo shown before the animated one loads |
 | `npm run og` | the home page's link preview, `public/og.jpg` |
 | `npm run bluesky` | the avatar and banner for [@rainshare.dev](https://bsky.app/profile/rainshare.dev) |
+| `npm run promo` | the pictures announcing @rainshare.dev's direct messages, in `brand/dms/` (its README has posts to go with them, and alt text) |
 
 On the dev server, `src/plants/sheet.html` shows every kind of plant, and `src/logo/sheet.html`
 shows the logo at every size, by day and by night.
@@ -576,6 +577,7 @@ which spells it out by hand.
 | `index.html`, `src/main.js` | the page, its routes, and who's signed in |
 | `src/landing/` | the signed-out landing page and its 3D garden (three.js, only loaded on the landing). `src/landing/cycle/` is an older scene, viewable with `?scene=cycle`. |
 | `src/plants/`, `src/logo/` | the 3D plant models, and the animated logo (plain JavaScript, no three.js) |
+| `src/promo/` | pages that pictures for announcements are taken from: `dms.html`, for @rainshare.dev's direct messages |
 | `src/signin.js`, `src/oauth.js`, `src/scope.js`, `src/lookup.js` | the sign-in dialog, OAuth, and the scopes it asks for |
 | `src/mode.js`, `public/mode.js` | day and night: the toggle in the bar, and the small script that picks one before the page is first drawn |
 | `src/hosts.js` | the hosts offered for making an account, for someone who hasn't got one |
