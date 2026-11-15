@@ -480,9 +480,11 @@ userinput.app itself, so signing in to Rainshare doesn't ask for anything more. 
 page reads the board through Constellation, the same way the board here reads asks, and groups
 the posts by status (`core/feedback.js`).
 
-Until @rainshare.dev makes a board, the page says so and points to issues on GitHub and Tangled.
-It uses the first board that account made. To pin a different one, set `SPACE_KEY` in
-`core/feedback.js` to its record key.
+The board is [Rainshare on userinput.app](https://userinput.app/s/did:plc:cmkittusvczhnei4gjt3asiv/3n2eeq4jt3s2w),
+pinned by its record key (`SPACE_KEY` in `core/feedback.js`), so a board @rainshare.dev makes
+later doesn't replace it. With `SPACE_KEY` set to `null`, the page uses the first board that
+account made. If there's no board to read, the page says so and points to issues on GitHub and
+Tangled.
 
 The maintainers run a Claude Code routine on their own plan that turns planned posts into draft
 pull requests (`.claude/skills/feedback/SKILL.md`). Each run, it:
