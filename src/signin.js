@@ -22,14 +22,15 @@ import * as oauth from './oauth.js';
 import { FORGES } from './scope.js';
 import { within } from './lookup.js';
 import { HOSTS, hostById, domainOf } from './hosts.js';
-import { GROUPS } from '../core/ns.js';
+import { GROUPS, HANDLE } from '../core/ns.js';
 import { suggestPeople, profiles, isHandle, isDid, normalizeHandle } from '../core/net.js';
 import { esc, face, ico, avatarFallback } from '../ui/bits.js';
 import { closeSoftly, swapStep } from '../ui/motion.js';
 
 // What's asked for, as it's said beside each tick box. Your server words the same list its own
 // way on the page it shows.
-const OWN = `Your asks, what you take on and your profile${GROUPS ? ', and your groups’ private asks' : ''}, kept in your own account.`;
+// (And following @rainshare.dev, which every sign-in asks for too: it's only done when you switch its messages on.)
+const OWN = `Your asks, what you take on and your profile${GROUPS ? ', and your groups’ private asks' : ''}, kept in your own account, and following @${HANDLE} if you switch on its messages.`;
 const ASKS = {
   tangled: ['Tangled', 'Issues, comments, pull requests and vouches, only when you say so.'],
   knotless: ['knotless', 'Issues, comments and pull requests, only when you say so.']

@@ -35,6 +35,12 @@ export const HANDLE = 'rainshare.dev';
 // The direct messages someone can ask it for (`notify` in their dev.rainshare.preferences,
 // sent by ../announcer/src/messages.js). [value, what people read]
 export const NOTIFY = [['updates', 'Updates on my asks and my work'], ['newAsks', 'New asks on the board']];
+// Bluesky only lets accounts someone follows message them (unless they've changed that), so
+// switching messages on follows @rainshare.dev for you: a Bluesky follow record in your own
+// repo, whose subject is the account's DID (MODERATOR, above). Sign-in asks to create one
+// (../src/scope.js); it never unfollows, so switching messages off leaves the follow be.
+export const FOLLOW = 'app.bsky.graph.follow';
+export const FOLLOW_SCOPE = `repo:${FOLLOW}?action=create`;
 // Private seeds in a group's space. Spaces are still an alpha on the group host, so for now
 // every seed is public: sign-in asks only for Rainshare's own records, and the app shows
 // groups as coming. Turning this on brings back everything private (src/scope.js, the

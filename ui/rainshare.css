@@ -138,6 +138,10 @@
 .rs-item-who b{color:var(--rs-ink);font-weight:650}
 .rs-item-who .rs-i{width:13px;height:13px;vertical-align:-2px;margin-right:2px}
 .rs-item-top time{margin-left:auto;color:var(--rs-muted);font-size:13px;white-space:nowrap}
+/* posted since you last looked: a word beside when, and a dashed rule under the last of them */
+.rs-new{margin-left:auto;flex:none;padding:1px 8px;border-radius:999px;background:var(--rs-accent-soft);color:var(--rs-accent-text);font-size:12px;font-weight:700;line-height:1.5}
+.rs-new+time{margin-left:0}
+.rs-seen-li{display:flex;flex-direction:column}
 .rs-item-title{font-size:17px;font-weight:650;letter-spacing:-.01em;line-height:1.3;overflow-wrap:anywhere}
 .rs-item-line{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;min-height:18px;font-size:13px;font-weight:500;color:var(--rs-muted)}
 /* where it stands, and who's helping, on a row of its own under the rest, starting where the rest does */
@@ -299,13 +303,13 @@ span.rs-helper-pull{color:var(--rs-muted)}
 @keyframes rs-sk-out{to{opacity:0}}
 @keyframes rs-in{from{opacity:0;transform:translateY(10px)}}
 /* (Each region's start is kept on the box as --rs-at-<region>, counted back from now, so a redraw part-way through carries on from where it was.) */
-[data-rs-in] :is(.rs-list>li,.rs-side>.rs-detail,.rs-seed-main,.rs-seed-side>*,.rs-person>*,.rs-garden>li,.rs-activity>li,.rs-me-wrap>*){--rs-i:0s}
-[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side)>:nth-child(2){--rs-i:.05s}
-[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side)>:nth-child(3){--rs-i:.1s}
-[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side)>:nth-child(4){--rs-i:.15s}
-[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side)>:nth-child(5){--rs-i:.2s}
-[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side)>:nth-child(6){--rs-i:.25s}
-[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side)>:nth-child(n+7){--rs-i:.3s}
+[data-rs-in] :is(.rs-list>li,.rs-side>.rs-detail,.rs-seed-main,.rs-seed-side>*,.rs-person>*,.rs-garden>li,.rs-activity>li,.rs-me-wrap>*,.rs-settings>*){--rs-i:0s}
+[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side,.rs-settings)>:nth-child(2){--rs-i:.05s}
+[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side,.rs-settings)>:nth-child(3){--rs-i:.1s}
+[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side,.rs-settings)>:nth-child(4){--rs-i:.15s}
+[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side,.rs-settings)>:nth-child(5){--rs-i:.2s}
+[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side,.rs-settings)>:nth-child(6){--rs-i:.25s}
+[data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side,.rs-settings)>:nth-child(n+7){--rs-i:.3s}
 [data-rs-in] :is(.rs-side>.rs-detail,.rs-seed-side>*,.rs-me-side){--rs-i:.08s}
 [data-rs-in~="board"] :is(.rs-split>.rs-list>li,.rs-side>.rs-detail){animation:rs-in .5s var(--rs-ease) calc(var(--rs-at-board,0s) + var(--rs-i)) backwards}
 [data-rs-in~="seed"] :is(.rs-seed-main,.rs-seed-side>*){animation:rs-in .5s var(--rs-ease) calc(var(--rs-at-seed,0s) + var(--rs-i)) backwards}
@@ -314,6 +318,7 @@ span.rs-helper-pull{color:var(--rs-muted)}
 [data-rs-in~="garden"] .rs-garden>li{animation:rs-in .5s var(--rs-ease) calc(var(--rs-at-garden,0s) + var(--rs-i)) backwards}
 [data-rs-in~="activity"] .rs-activity>li{animation:rs-in .5s var(--rs-ease) calc(var(--rs-at-activity,0s) + var(--rs-i)) backwards}
 [data-rs-in~="me"] .rs-me-wrap>*{animation:rs-in .5s var(--rs-ease) calc(var(--rs-at-me,0s) + var(--rs-i)) backwards}
+[data-rs-in~="settings"] .rs-settings>*{animation:rs-in .5s var(--rs-ease) calc(var(--rs-at-settings,0s) + var(--rs-i)) backwards}
 @media (prefers-reduced-motion:reduce){.rs-sk{animation:none}.rs-sk-out{display:none}[data-rs-in] *{animation:none!important}}
 /* A word for someone who came by a link, signed out */
 .rs-newhere{align-items:center}
@@ -510,7 +515,11 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-me-wrap>.rs-form{max-width:none}
 .rs-me-side{position:sticky;top:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
 .rs-me-side>.rs-link{align-self:flex-start;margin-left:4px}
-.rs-mysend h2{font-size:18px;margin:0}
+/* Your settings: a column of panels on a page of their own */
+.rs-settings{display:flex;flex-direction:column;gap:14px;max-width:640px;min-width:0}
+.rs-settings .rs-panel h2{font-size:18px;margin:0}
+.rs-settings>.rs-muted{margin-left:4px}
+.rs-prefs .rs-note{margin:2px 0}
 .rs-prefs{display:flex;flex-direction:column;gap:10px}
 .rs-prefs>label:not(.rs-check){display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:14px}
 .rs-prefs .rs-check{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14px}
@@ -721,6 +730,8 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-filter-btn{border:0;border-radius:999px;min-height:32px;padding:0 13px 0 11px;font:600 13px var(--rs-font);background:none;color:var(--rs-ink);box-shadow:inset 0 0 0 1.5px var(--rs-line);cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;flex:none}
 .rs-filter-btn .rs-i{width:16px;height:16px}
 .rs-filter-btn[aria-expanded="true"]{background:var(--rs-ink);color:var(--rs-on-ink);box-shadow:none}
+/* the sort button says how it's sorted now; folded out, what that order means is said under the choices */
+.rs-sort-why{margin:0;font-size:13px;line-height:1.45;color:var(--rs-muted)}
 /* what's narrowing it while the filter is folded away: pressing one undoes it */
 .rs-from.rs-filter-on button{color:var(--rs-ink);background:var(--rs-accent-soft);box-shadow:none;padding-right:8px}
 .rs-from.rs-filter-on .rs-i{width:14px;height:14px;opacity:.7}
@@ -795,6 +806,7 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-wl .rs-toggles{gap:6px}
 .rs-wl .rs-toggles button{padding:7px 12px}
 .rs-wl .rs-err{font-size:14px}
+.rs-wl .rs-check{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px}
 /* the way on, and the ways out */
 .rs-wl .rs-primary{width:100%;min-height:52px;font-size:16px}
 /* "Direct my agent" (./send.js): a line on what the agent gets under the heading, the agents as

@@ -31,7 +31,7 @@ export const RELEASES = [
 
 Notes like this one are in it too, when something on Rainshare changes. They’re all on this page.
 
-Comments on a Tangled or knotless issue stay with the issue, so the forge tells you about those. What you’ve seen is kept in this browser, so another browser or device starts afresh. To hear about your asks and your work on Bluesky as well, turn on messages from @rainshare.dev in your settings, beside your profile.`
+Comments on a Tangled or knotless issue stay with the issue, so the forge tells you about those. What you’ve seen is kept in this browser, so another browser or device starts afresh. To hear about your asks and your work on Bluesky as well, turn on messages from @rainshare.dev in your settings.`
   }
 ];
 

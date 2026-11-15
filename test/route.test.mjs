@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { known, reroute, closeTo, editDistance } from '../core/route.js';
 
 test('the addresses the app has', () => {
-  for (const sub of ['', 'board', 'new', 'me', 'agents', 'feedback', 'releases', 'profile/did:plc:abc', 'profile/someone.example', 'seed/someone.example/3k1', 'seed/did:plc:abc/3k1', 'seed/s/YXQ6Ly9z']) assert.ok(known(sub), sub);
+  for (const sub of ['', 'board', 'new', 'me', 'settings', 'agents', 'feedback', 'releases', 'profile/did:plc:abc', 'profile/someone.example', 'seed/someone.example/3k1', 'seed/did:plc:abc/3k1', 'seed/s/YXQ6Ly9z']) assert.ok(known(sub), sub);
   for (const sub of ['nope', 'seed', 'seed/someone.example', 'profile/a/b', 'u', 'u/did:plc:abc', 'u/a/b', 'seed/a/b/c', 'New', 'Board', 'board/x', 'agents/x', 'seed/s/not valid!']) assert.ok(!known(sub), sub);
 });
 
@@ -38,7 +38,9 @@ test('a link that was cut short, or picked something up on the way, still arrive
     'u/@someone.example': 'profile/someone.example',
     'user/someone.example': 'profile/someone.example',
     'u/did:example:kai': 'profile/did:example:kai',
-    'ask': 'new', 'post': 'new', 'profile': 'me', 'settings': 'me', 'cli': 'agents', 'mcp': 'agents', 'home': '', 'index.html': '',
+    'ask': 'new', 'post': 'new', 'profile': 'me', 'cli': 'agents', 'mcp': 'agents', 'home': '', 'index.html': '',
+    // your settings are a page of their own, not your profile
+    'Settings': 'settings', 'settings/': 'settings', 'setings': 'settings', 'preferences': 'settings', 'notifications': 'settings', 'messages': 'settings',
     // the board has an address of its own, and the other words for it lead there
     'Board': 'board', 'board/': 'board', 'board.': 'board', 'feed': 'board', 'circle': 'board', 'boards': 'board',
     // a slip of the keys
@@ -56,7 +58,7 @@ test('where there’s no telling, it says so instead of guessing', () => {
   // what comes back is only ever a word from the lists or a DID, a handle or a record key: nothing typed is passed along
   for (const typed of ['<script>alert(1)</script>', 'javascript:alert(1)', '//evil.example/x', 'seed/"><img src=x>/3k1', '%00', '%E0%A4%A']) {
     const to = reroute(typed);
-    assert.ok(to === null || /^(profile\/[a-z0-9.:%_-]+|seed\/[a-z0-9.:%_-]+\/[A-Za-z0-9._:~-]+|board|new|me|agents|feedback|releases|)$/.test(to), `${typed} -> ${to}`);
+    assert.ok(to === null || /^(profile\/[a-z0-9.:%_-]+|seed\/[a-z0-9.:%_-]+\/[A-Za-z0-9._:~-]+|board|new|me|settings|agents|feedback|releases|)$/.test(to), `${typed} -> ${to}`);
   }
 });
 

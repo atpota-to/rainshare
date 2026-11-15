@@ -8,7 +8,7 @@
 //             they're for is checked against the Bluesky graph (getRelationships, lists).
 //   private   records in a group's Rainshare space, through `spaces` and `groups`, which
 //             the site supplies (src/spaces.js and the group host). Members only.
-import { PROFILE, SEED, TAKE, DELIVERY, COMMENT, PREFERENCES, MODERATION, MODERATOR } from './ns.js';
+import { PROFILE, SEED, TAKE, DELIVERY, COMMENT, PREFERENCES, MODERATION, MODERATOR, FOLLOW } from './ns.js';
 import { decisionsFrom, hiddenBy, keyOf, moderationRecord, subjectFrom, subjectOf, kindOf as subjectKind } from './moderation.js';
 import * as net from './net.js';
 import * as R from './records.js';
@@ -484,16 +484,36 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
   }
   const mine = list => (list || []).filter(r => r.repo === viewer);
   /* ---------- your settings ---------- */
-  // One record, dev.rainshare.preferences/self. Null when there isn't one (or it can't be read).
+  // One record, dev.rainshare.preferences/self. Null when there isn't one; when it can't be read,
+  // it throws, so that isn't taken for having none (the messages aren't asked about again over it).
   async function preferences(){
     if (!viewer) return null;
-    return (await net.getRecordOrNull(viewer, PREFERENCES, 'self').catch(() => null))?.value || null;
+    return (await net.getRecordOrNull(viewer, PREFERENCES, 'self'))?.value || null;
   }
   async function savePreferences(input){
     if (!viewer) throw new SourceError('NotSignedIn', 'Sign in first.');
-    const record = R.preferences(input, await preferences());
+    const record = R.preferences(input, await preferences().catch(() => null));
     await put(PREFERENCES, 'self', record);
     return record;
+  }
+
+  // Whether you follow @rainshare.dev on Bluesky, which its messages need: true, false, or null
+  // when Bluesky didn't say. (Bluesky's AppView takes a moment to hear of a new follow, so one
+  // written here counts at once.)
+  let followed = false;
+  async function followsRainshare(){
+    if (!viewer) return null;
+    if (followed || viewer === MODERATOR) return true;
+    const r = await net.relationships(viewer, [MODERATOR]).catch(() => null);
+    return r ? !!r.get(MODERATOR)?.following : null;
+  }
+  /** Follow @rainshare.dev, unless you already do. Says whether a follow was written. */
+  async function followRainshare(){
+    if (!viewer) throw new SourceError('NotSignedIn', 'Sign in first.');
+    if (await followsRainshare()) return { followed: false };
+    await create(FOLLOW, R.followRainshare());
+    followed = true;
+    return { followed: true };
   }
 
   // `days`: how long you give yourself to turn it in (the take's `until`: ./takes.js).
@@ -596,7 +616,7 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
       list: listDecisions, hide, unhide, about,
       subjectFrom: input => subjectFrom(input, { resolve: net.resolveHandle })
     } : null,
-    board, seed, profileOf, saveProfile, preferences, savePreferences, plant, update, remove, take: takeOn, moreTime, drop, turnIn, comment, uncomment,
+    board, seed, profileOf, saveProfile, preferences, savePreferences, followsRainshare, followRainshare, plant, update, remove, take: takeOn, moreTime, drop, turnIn, comment, uncomment,
     forget: () => forget(),
     groups: () => myGroups(),
     addToGroup: async did => { const space = await groups.add(did); forget('groups'); return space; },

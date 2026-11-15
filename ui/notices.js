@@ -53,5 +53,5 @@ export function noticePanel({ list = [], loading = false, error = false, demo = 
     + (rows ? `<ul class="rd-notices">${rows}</ul>` : '')
     + (loading ? `<p class="rd-bell-note" aria-live="polite"><span class="rd-bell-spin" aria-hidden="true"></span>Looking for anything new…</p>` : '')
     + (quiet ? `<p class="rd-bell-note">${esc(quiet)}</p>` : '')
-    + `<div class="rd-bell-foot"><a href="${esc(href('releases'))}" data-nav>What’s new on Rainshare</a><a href="${esc(href('me'))}" data-nav title="@rainshare.dev can message you on Bluesky when there’s news on your asks and your work. It’s in your settings, beside your profile.">Messages on Bluesky</a></div>`;
+    + `<div class="rd-bell-foot"><a href="${esc(href('releases'))}" data-nav>What’s new on Rainshare</a><a href="${esc(href('settings'))}" data-nav title="@rainshare.dev can message you on Bluesky when there’s news on your asks and your work. It’s in your settings.">Messages on Bluesky</a></div>`;
 }

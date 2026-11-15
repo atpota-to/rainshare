@@ -103,7 +103,14 @@ Your profile says which AI plans you pay for to code with (Claude, ChatGPT, Copi
 Gemini, Z.ai's GLM plan), or that you only have free tiers or nothing. That shows next to your
 asks, and "Direct my agent" starts with the command for what you run. The first time you sign in,
 a short welcome says what happens in three steps, then asks for your
-plan and which agents you run, and you can skip it.
+plan and which agents you run, and whether you'd like messages from @rainshare.dev (both kinds are
+ticked to begin with; see [Messages](#messages)). You can skip it, which switches nothing on.
+If you were already past the welcome before it asked about messages, or made your profile
+without it, your next visit asks about them on their own, once, unless you have some on.
+
+Your settings are on a page of their own, apart from your profile: **Settings** (`/settings`), in
+the menu under your face. They're how "Direct my agent" works for you, and which messages you'd
+like from @rainshare.dev.
 
 ## Is this allowed by my AI plan?
 
@@ -296,7 +303,10 @@ Sign-in asks for these record types through a permission set, `dev.rainshare.aut
 (`lexicons/dev/rainshare/authFull.json`). A server that can look the set up shows "Your
 Rainshare records" on its consent page instead of listing each collection. If a server can't,
 Rainshare asks again for the records by name. Tangled and knotless permissions are always listed
-separately, because a set can only grant what's under its own name.
+separately, because a set can only grant what's under its own name, and so is the one Bluesky
+permission: creating a follow (`repo:app.bsky.graph.follow?action=create`), so that switching
+on messages can follow @rainshare.dev for you (see [Messages](#messages)). It never asks to delete
+one.
 
 ### No index server
 
@@ -633,7 +643,7 @@ which spells it out by hand.
 | `src/mode.js`, `public/mode.js` | day and night: the toggle in the bar, and the small script that picks one before the page is first drawn |
 | `src/hosts.js` | the hosts offered for making an account, for someone who hasn't got one |
 | `src/spaces.js` | group spaces for private asks (switched off) |
-| `ui/` | the app's screens: the board, an ask, profiles, posting an ask, the first-time welcome, loading placeholders, the feedback page, the note before a first job, the terms and privacy pages, What's new, the bell's panel (`notices.js`), and @rainshare.dev's moderation page |
+| `ui/` | the app's screens: the board, an ask, profiles, your settings, posting an ask, the first-time welcome (and asking about messages, for someone past it), loading placeholders, the feedback page, the note before a first job, the terms and privacy pages, What's new, the bell's panel (`notices.js`), and @rainshare.dev's moderation page |
 | `core/` | everything the site and the CLI share (below) |
 | `cli/rainshare.mjs` | the CLI and MCP server |
 | `api/` | Vercel functions: the OAuth client metadata, and link previews (`page.js` sets the meta tags, `og.js` draws the image) |
@@ -752,8 +762,13 @@ posts and sends nothing.
 
 #### Messages
 
-People ask for messages in their settings beside their profile, under "Messages from
-@rainshare.dev". There are two kinds, and they can have either or both:
+People ask for messages on their Settings page (`/settings`), under "Messages from
+@rainshare.dev", or in the welcome the first time they sign in, where both kinds are ticked to
+begin with. Someone who was past the welcome before it asked (a profile, or the welcome seen on
+that browser), and has none on, is asked about them on their own on their next visit, both ticked
+again. "No thanks" switches nothing on, and either way it's asked once per account on a browser
+(and not while their settings can't be read, since they may have them on).
+There are two kinds, and they can have either or both:
 
 - **Updates on my asks and my work**: someone's on one of your asks, or has turned in work on it
   (with a link to the pull request); an ask you were on was marked done, with your work or
@@ -770,9 +785,13 @@ their repo. A sign-in from before Rainshare had settings can only keep them in t
 the announcer can't see them, and the panel says so. `announcer/src/messages.js` works out who
 gets what.
 
-Bluesky only lets accounts someone follows message them, unless they've changed that, so the
-settings ask people to follow @rainshare.dev. The announcer skips anyone it can't message and says
-why.
+Bluesky only lets accounts someone follows message them, unless they've changed that, so
+switching messages on (in the welcome or in Settings) follows @rainshare.dev for them, unless they
+already do: an `app.bsky.graph.follow` record in their own repo, the one Bluesky record Rainshare
+writes. Switching messages off doesn't unfollow. Settings say whether you follow it, and with
+messages on and no follow, offer a button to follow it. A sign-in from before Rainshare asked to
+follow is pointed to Bluesky to do it by hand instead. The announcer skips anyone it can't message
+and says why.
 
 There's no database here either. Each message covers whole minutes for updates, and whole days
 from 15:45 UTC for new asks. The last message the account sent someone says how far they've heard,
@@ -823,7 +842,10 @@ done for real yet:
   has been posted or sent yet. The Bluesky chat calls have only been tried against a stand-in,
   including whether a STOP reaches the account when its own settings only allow messages from
   people it follows.
-- A real account's first sign-in, and the welcome that follows it.
+- A real account's first sign-in, and the welcome that follows it; and an account with a profile and
+  no messages on, which is asked about messages on its own.
+- Following @rainshare.dev from a real account when messages are switched on, and a real server's
+  consent page for the follow permission. It's only been tried against a stand-in PDS and AppView.
 - The bell with a real account's records. It's been driven on the example board in headless
   Chromium, and its comment lookups are the ones an ask's page already makes, but nobody's had a
   real notification yet.
