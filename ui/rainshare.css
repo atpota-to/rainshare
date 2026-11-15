@@ -905,6 +905,10 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-legal .rs-spec li+li{margin-top:0}
 .rs-legal .rs-spec a{color:var(--rs-accent-text)}
 @media (max-width:820px){.rs-panel.rs-legal{padding:18px}}
+/* what's new: each release note under the one after it, with its day over its title */
+.rs-release{scroll-margin-top:24px}
+.rs-release+.rs-release{padding-top:22px;border-top:1px solid var(--rs-line)}
+.rs-release .rs-release-day{margin:0;font-size:14px;font-weight:600}
 .rs-agree>.rs-wl-box>.rs-muted{margin-top:-6px;font-size:15px}
 .rs-agree-check{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:var(--rs-radius-sm);background:var(--rs-sunk);font-size:15px;line-height:1.45;cursor:pointer}
 .rs-agree-check input{flex:none;width:20px;height:20px;margin:1px 0 0;accent-color:var(--rs-accent)}

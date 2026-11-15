@@ -19,6 +19,7 @@
 //   agents             the CLI and MCP server, for sending agents from a terminal
 //   feedback           bugs, requests and ideas about Rainshare itself: its board on userinput.app
 //   terms, privacy     the Terms of Service and the Privacy Policy (../core/legal.js)
+//   releases           what's new on Rainshare: the release notes (../core/releases.js)
 //   admin              @rainshare.dev's moderation page: what's hidden, what the checks flagged,
 //                      and hiding something. To anyone else it's as if nothing were there.
 //
@@ -46,6 +47,8 @@ import { resolveHandle, knownPerson, parseUri, profiles, pool } from '../core/ne
 import { concerns, alarming } from '../core/scan.js';
 import { REASONS, reasonName, isAccount, kindOf as subjectKind } from '../core/moderation.js';
 import { readBoard, groupOf, stateWord, GROUPS as FEEDBACK_GROUPS } from '../core/feedback.js';
+import { noticesFor } from '../core/notices.js';
+import { releasesBy } from '../core/releases.js';
 import { esc, lit, unb64url, ago, until, shortDay, nameOf, firstName, ico, forgeIco, skyIco, lifeIco, face, drops, pathOf, plantPic, avatarFallback, tip, tipLink, toggleTip, pasteField, pasteInto, PASTE_REFUSED } from './bits.js';
 import { createPoster } from './post.js';
 import { openWelcome, shouldWelcome, anyMessages, openMessages, shouldAskMessages } from './welcome.js';
@@ -83,6 +86,7 @@ export function createRainshare({ root, base = '/', host }){
     feedback: null,      // Rainshare's feedback board (../core/feedback.js): { board, at, loading, error }
     moment: null,        // something that just happened to an ask, for its next drawings to play: { uri, what, at } (see moment())
     freshComment: null,  // the comment you just posted, lit for a moment: { key, at }
+    talk: null,          // comments read for the bell in the bar (../core/notices.js): on your asks, and the ones you're helping with or talking on
     open: {}   // which optional parts are showing (the turn-in's details, the comment form…), so a redraw leaves them be
   };
   const signedIn = () => !!S.source?.signedIn;
@@ -338,6 +342,8 @@ export function createRainshare({ root, base = '/', host }){
         // The host hears what's open on the board (null if it couldn't be read): rainshare.dev's
         // landing points down to it with the faces of whoever's asking.
         host.onBoard?.(S.board ? boardItems() : null);
+        // And the bell in its bar hears what's happened, from the same reads.
+        tellNotices(); loadTalk();
       });
     if (S.view === 'board' && (!S.board || erred)) render();
     return S.loading;
@@ -352,7 +358,46 @@ export function createRainshare({ root, base = '/', host }){
     if (document.visibilityState !== 'visible' || root.closest('[hidden]')) return;
     if (S.view === 'board') loadBoard();
     if (signedIn() && Date.now() - gardenAt > 5 * 60e3) loadGarden();
+    // (Wherever you are, the bell in the bar is brought up to date after a couple of minutes away.)
+    bellCheck(NOTICES_AGAIN);
   });
+  /* ---------- the bell in the host's bar: what's happened on your asks and your work ---------- */
+  // Worked out from the board (../core/notices.js), so it's read once you're signed in, whatever
+  // you're looking at, and again every few minutes while the page is on screen, or when you come
+  // back to it. Comments aren't on the board: the ones the bell needs are read after it (loadTalk).
+  // The host shows it and keeps what's been seen; this hands it what there is:
+  //   { viewer, list, loading, error, demo }: `list` from noticesFor; `loading` while the board,
+  //   or the comments after it, are still being read for the first time; `error` if the board
+  //   couldn't be read, so there's only the release notes to show.
+  const NOTICES_AGAIN = 2 * 60e3, NOTICES_EVERY = 5 * 60e3;
+  let talking = null, talkAt = 0, bellAt = 0;
+  // (Counted from the last try as well as the last board read, so a network that isn't answering is asked no more often.)
+  function bellCheck(gap){
+    if (!signedIn() || Date.now() - Math.max(S.boardAt, bellAt) < gap) return;
+    bellAt = Date.now(); loadBoard();
+  }
+  function tellNotices(){
+    if (!host.onNotices) return;
+    const who = signedIn() ? viewer() : null;
+    host.onNotices({
+      viewer: who, demo: !!S.source?.demo,
+      list: noticesFor(who, { items: who && S.board ? S.board.items : [], comments: S.talk || [] }),
+      loading: !!who && ((!S.board && !S.error) || (!!S.source?.commentsFor && !S.talk && !!talking)),
+      error: !!who && !S.board && !!S.error
+    });
+  }
+  function loadTalk(){
+    if (!signedIn() || !S.board || !S.source.commentsFor || talking || Date.now() - talkAt < 60e3) return;
+    const src = S.source, me = viewer(), when = x => String(x.value?.updatedAt || x.value?.createdAt || '');
+    const latest = list => [...list].sort((a, b) => when(b).localeCompare(when(a))).map(x => x.uri);
+    const mine = latest(S.board.items.filter(it => it.repo === me && !it.space));
+    const helping = latest(S.board.items.filter(it => it.repo !== me && !it.space && [...(it.takes || []), ...(it.deliveries || [])].some(r => r.repo === me)));
+    talking = src.commentsFor(me, { asks: [...mine.slice(0, 12), ...helping.slice(0, 8)] })
+      .then(c => { if (S.source === src) { S.talk = c; talkAt = Date.now(); } }, e => { console.warn('rainshare comments for the bell', e); if (S.source === src) S.talk ||= []; })
+      .finally(() => { talking = null; if (S.source === src) tellNotices(); });
+    tellNotices();
+  }
+  globalThis.setInterval?.(() => { if (globalThis.document?.visibilityState === 'visible') bellCheck(NOTICES_EVERY); }, 60e3)?.unref?.();
   // What you've watered: worked out once you're known, and again when you come back to the tab
   // a while later, since a plant grows when someone else accepts your work. Anything new since
   // you last looked is said once, on the board (grewNote).
@@ -1969,6 +2014,24 @@ export function createRainshare({ root, base = '/', host }){
     </article>`;
   }
 
+  /* ---------- what's new: the release notes (../core/releases.js) ---------- */
+  // Every note that's out, newest first, for anyone, signed in or not. The bell in the bar lists
+  // the last month's and marks the ones you haven't seen; each one there opens its place here.
+  const releaseDay = d => new Date(d + 'T00:00:00Z').toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+  function renderReleases(){
+    title('What’s new');
+    const list = releasesBy();
+    return `${back()}<article class="rs-panel rs-legal rs-releases">
+      <header class="rs-legal-head"><h1>What’s new</h1><p class="rs-muted">What’s changed on Rainshare, newest first.${signedIn() ? ' The bell in the bar says when there’s something new here.' : ''}</p></header>
+      ${list.length ? list.map(r => `<section class="rs-release" id="${esc(r.id)}">
+        <p class="rs-muted rs-release-day"><time datetime="${esc(r.date)}">${esc(releaseDay(r.date))}</time></p>
+        <h2>${esc(r.title)}</h2>
+        <p class="rs-legal-lead">${esc(r.summary)}</p>
+        ${r.text ? `<div class="rs-spec">${renderMarkdown(r.text.trim())}</div>` : ''}
+      </section>`).join('') : '<p class="rs-muted">Nothing yet.</p>'}
+    </article>`;
+  }
+
   /* ---------- feedback: Rainshare's own board, on userinput.app ---------- */
   // Bugs, requests and ideas about Rainshare itself (../core/feedback.js). People post and vote
   // on userinput.app, so this page reads the board and links there: signing in here isn't
@@ -2212,7 +2275,7 @@ export function createRainshare({ root, base = '/', host }){
   function render(){
     // (Until a screen has been entered with someone to show it to, the address says what to hold its place with.)
     if (!S.source || !S.view) { paint(`<div class="rs">${ahead(S.sub)}</div>`, viewOf(S.sub)); return; }
-    const body = { board: renderBoard, seed: renderSeed, new: renderNew, me: renderMe, settings: renderSettings, person: renderPerson, agents: renderAgents, feedback: renderFeedback, admin: renderAdmin, terms: renderLegal, privacy: renderLegal, lost: renderLost }[S.view]?.() || renderBoard();
+    const body = { board: renderBoard, seed: renderSeed, new: renderNew, me: renderMe, settings: renderSettings, person: renderPerson, agents: renderAgents, feedback: renderFeedback, admin: renderAdmin, terms: renderLegal, privacy: renderLegal, releases: renderReleases, lost: renderLost }[S.view]?.() || renderBoard();
     // Redrawing keeps whichever field had focus, and where its cursor was.
     const focus = document.activeElement && root.contains(document.activeElement) ? document.activeElement : null;
     const keep = focus?.name ? { name: focus.name, pos: focus.selectionStart } : null;
@@ -2592,6 +2655,13 @@ export function createRainshare({ root, base = '/', host }){
     else if (sub === 'feedback') { S.view = 'feedback'; render(); loadFeedback(); }
     else if (sub === 'admin') { S.view = 'admin'; render(); loadAdmin(); }
     else if (sub === 'terms' || sub === 'privacy') { S.view = sub; render(); }
+    else if (sub === 'releases') {
+      S.view = 'releases'; render();
+      // Come from the bell, to one note: it's scrolled to, once the host has put the new page at its top.
+      const id = typeof location !== 'undefined' ? decode(location.hash.slice(1)) : '';
+      await null;
+      if (id && S.sub === sub) root.querySelector(`[id="${CSS.escape(id)}"]`)?.scrollIntoView({ block: 'start' });
+    }
     else if (/^profile\//.test(sub)) { S.view = 'person'; render(); loadCircle(); loadPerson(sub); }
     else if (/^seed\//.test(sub)) {
       S.view = 'seed'; render(); loadCircle(); await loadSeed(sub);
@@ -2611,13 +2681,19 @@ export function createRainshare({ root, base = '/', host }){
     show,
     /** Hand in a (new) data source: on sign-in, sign-out, or switching to the example circle. */
     async setSource(source){
-      Object.assign(S, { source, board: null, mine: null, follows: undefined, garden: null, buds: null, grew: null, fresh: null, unlinked: null, seed: null, form: null, drafts: {}, pick: null, sheet: false, pull: null, circle: undefined, vouching: null, accepting: null, reply: null, from: 'anyone', sort: savedSort(), show: 'all', known: {}, admin: null, found: null, modding: null });
+      Object.assign(S, { source, board: null, talk: null, mine: null, follows: undefined, garden: null, buds: null, grew: null, fresh: null, unlinked: null, seed: null, form: null, drafts: {}, pick: null, sheet: false, pull: null, circle: undefined, vouching: null, accepting: null, reply: null, from: 'anyone', sort: savedSort(), show: 'all', known: {}, admin: null, found: null, modding: null });
       poster.reset();
+      talkAt = 0;
       render();
+      tellNotices();
       if (source?.signedIn) { await loadMine(); loadGarden(); welcome(); askMessages(); }
       show(S.sub);
+      // (The bell needs the board whichever screen this is.)
+      if (source?.signedIn) loadBoard();
     },
     refresh: () => loadBoard(true),
+    /** Bring the bell up to date, if it's been a minute: the host asks as it's opened. */
+    checkNotices: () => { if (signedIn()) loadBoard(); },
     get source(){ return S.source; }
   };
 }

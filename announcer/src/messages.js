@@ -31,6 +31,7 @@
 import { SEED, TAKE, DELIVERY, PREFERENCES, SITE } from '../../core/ns.js';
 import * as net from '../../core/net.js';
 import { aNoun } from '../../core/words.js';
+import { updatesFor } from '../../core/news.js';
 import { ACCOUNT, passable, free, isHidden, reader, session, blocked, whoAre, graphemes, bytes } from './posts.js';
 import { clean } from '../../api/_og/describe.js';
 
@@ -149,22 +150,9 @@ const within = (t, from, to) => { const x = Date.parse(t); return x >= from && x
 export function newsFor(r, { seeds, takes, deliveries, from, to, theirBlocks = new Set(), ourBlocks = new Set(), hidden = new Map(), now = Date.now() }){
   const shown = list => list.filter(x => !isHidden(hidden, x));
   [seeds, takes, deliveries] = [shown(seeds), shown(takes), shown(deliveries)];
-  const updates = [], bySeed = new Map(seeds.map(s => [s.uri, s])), at = x => Date.parse(x.value?.createdAt);
-  if (r.updates) {
-    const onMine = list => list.filter(x => bySeed.get(x.value?.seed?.uri)?.repo === r.did && x.repo !== r.did && !theirBlocks.has(x.repo) && within(x.value?.createdAt, from, to));
-    const turnedIn = onMine(deliveries);
-    for (const d of turnedIn) updates.push({ kind: 'delivery', seed: bySeed.get(d.value.seed.uri), by: d.repo, url: /^https?:\/\//.test(d.value?.url || '') ? d.value.url : null, at: at(d) });
-    // Someone who's turned in work is on it, so that's said once.
-    for (const t of onMine(takes)) if (!turnedIn.some(d => d.repo === t.repo && d.value.seed.uri === t.value.seed.uri)) updates.push({ kind: 'take', seed: bySeed.get(t.value.seed.uri), by: t.repo, at: at(t) });
-    // Asks they've been on that were marked done or closed in the time.
-    const mine = list => list.filter(x => x.repo === r.did);
-    for (const uri of new Set([...mine(takes), ...mine(deliveries)].map(x => x.value?.seed?.uri))) {
-      const sq = bySeed.get(uri), state = sq?.value?.state;
-      if (!sq || sq.repo === r.did || theirBlocks.has(sq.repo) || !['sprouted', 'closed'].includes(state) || !within(sq.value.updatedAt, from, to)) continue;
-      const theirs = new Set(mine(deliveries).map(d => d.uri)), withTheirs = (sq.value.sproutedWith || []).some(ref => theirs.has(ref?.uri));
-      updates.push({ kind: state === 'closed' ? 'closed' : withTheirs ? 'done-yours' : 'done', seed: sq, by: sq.repo, at: Date.parse(sq.value.updatedAt) });
-    }
-  }
+  // (What's news about their own asks and their work is ../../core/news.js, so the bell in the
+  // site's bar says the same things.)
+  const updates = r.updates ? updatesFor(r.did, { seeds, takes, deliveries, from, to, theirBlocks }) : [], at = x => Date.parse(x.value?.createdAt);
   const blocks = new Set([...theirBlocks, ...ourBlocks]);
   const fresh = !r.newAsks ? [] : seeds.filter(s => s.repo !== r.did && !blocks.has(s.repo) && passable(s.value) && within(s.value.createdAt, from, to) && free(s, { takes, deliveries, blocks, now }))
     .map(s => ({ kind: 'new', seed: s, by: s.repo, at: at(s) }));

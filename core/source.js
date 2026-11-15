@@ -400,6 +400,26 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     return stories;
   });
 
+  /**
+   * Comments for the bell in the bar (./notices.js): every comment on each of `asks` (the
+   * board's URIs for yours and the ones you're helping with), and on the asks `did` has
+   * commented on in the last 30 days, at most `max` asks, the ones handed in first. Each ask's
+   * are found through Constellation, as its page finds them, and each comment is read from its
+   * writer's own server. Comments from people you block, and what Rainshare has hidden, are left
+   * out. Public asks only: a group's are in its space, and come with the board.
+   */
+  async function commentsFor(did, { asks = [], max = 20 } = {}){
+    const [mine, blocked, mod] = await Promise.all([recordsOf(did, COMMENT), myBlocks(), decisions()]);
+    const since = Date.now() - 30 * 864e5, at = c => Date.parse(c.value?.createdAt);
+    const talked = mine.filter(c => at(c) >= since).sort((a, b) => at(b) - at(a)).map(c => c.value?.seed?.uri);
+    const uris = [...new Set([...asks, ...talked])].filter(u => net.parseUri(u)?.collection === SEED && !splitSpaceUri(u)).slice(0, max);
+    // (Without Constellation, pointingAt reads everyone's comments, so each list is narrowed to its ask.)
+    const lists = await net.pool(uris, 4, u => pointingAt(u, COMMENT).then(l => l.filter(c => c.value?.seed?.uri === u), () => []));
+    const out = [...new Map(lists.flat().map(c => [c.uri, c])).values()].filter(c => !blocked.has(c.repo) && !hiddenBy(mod, c.uri, c.repo));
+    const names = await whoAre(out.map(c => c.repo));
+    return out.map(c => ({ ...c, author: names.get(c.repo) || { did: c.repo } }));
+  }
+
   /** Someone's profile: the public copy, made fuller by any group copy you can read. */
   async function profileOf(did, { force } = {}){
     if (force) forget('profile:' + did);
@@ -611,7 +631,7 @@ export function createSource({ agent = null, spaces = null, groups = null } = {}
     tangledIssues,
     knotlessRepos: () => viewer ? knotlessRepos(viewer) : Promise.resolve([]),
     knotlessIssues,
-    gardenOf, buddingOf, activityOf: activityFor,
+    gardenOf, buddingOf, activityOf: activityFor, commentsFor,
     // Posting to knotless or Tangled as you: an issue on a repo, a comment on an issue, or a
     // pull request from a branch that's been pushed (./forgewrite.js).
     forgeIssue: (subject, input) => forgeIssue(agent, subject, input),
