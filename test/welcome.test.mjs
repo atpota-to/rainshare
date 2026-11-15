@@ -2,7 +2,8 @@
 // sure of first, that someone really has no profile (and not that their server didn't answer).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { shouldWelcome, welcomeProfile, welcomeMessages, anyMessages } from '../ui/welcome.js';
+import { shouldWelcome, welcomeProfile, welcomeMessages, anyMessages, shouldAskMessages } from '../ui/welcome.js';
+import { MODERATOR } from '../core/ns.js';
 import * as R from '../core/records.js';
 import { createSource } from '../core/source.js';
 
@@ -62,6 +63,61 @@ test('the welcome starts with every kind of message from @rainshare.dev ticked, 
   assert.equal(anyMessages({ newAsks: 'yes' }), false, 'only a real tick counts');
   // What it saves is what the settings keep.
   assert.deepEqual(R.preferences({ notify: welcomeMessages() }).notify, { updates: true, newAsks: true });
+});
+
+test('someone past the welcome before it asked about messages is asked on its own, once, while they have none on', () => {
+  kept.clear();
+  const did = 'did:plc:oldtimer1', source = { signedIn: true, viewer: did }, profile = { merged: { plans: ['claude'] }, unread: false };
+  const ask = (o = {}) => shouldAskMessages({ source, mine: profile, prefs: null, sub: '', ...o });
+  assert.equal(ask(), true, 'a profile and no settings');
+  assert.equal(ask({ prefs: { send: { route: 'codex' } } }), true, 'settings, but no messages');
+  assert.equal(ask({ prefs: { notify: { updates: true } } }), false, 'they have some on');
+  assert.equal(ask({ prefs: { notify: { newAsks: true } } }), false);
+  assert.equal(ask({ prefsUnread: true }), false, 'their settings couldn’t be read: they may well have them on');
+  assert.equal(ask({ sub: 'settings' }), false, 'already where they’re set');
+  assert.equal(ask({ sub: 'seed/did:plc:x/3kabc' }), true, 'over whatever page they came back to');
+  assert.equal(ask({ mine: { merged: null, unread: true } }), false, 'their profile couldn’t be read');
+  assert.equal(ask({ mine: null }), false, 'not read yet');
+  // No profile: only once the welcome's been seen here. Until then it's to come, and it asks.
+  assert.equal(ask({ mine: { merged: null, unread: false } }), false);
+  localStorage.setItem('rs:welcomed:' + did, '1');
+  assert.equal(ask({ mine: { merged: null, unread: false } }), true, 'skipped the welcome before it asked');
+  assert.equal(ask({ source: { ...source, demo: true } }), false, 'the example circle');
+  assert.equal(ask({ source: { signedIn: false, viewer: null } }), false, 'signed out');
+  assert.equal(ask({ source: { signedIn: true, viewer: MODERATOR } }), false, '@rainshare.dev itself');
+  // Asked once (turned on, "No thanks" or closed), on this browser. Someone else is still asked.
+  localStorage.setItem('rs:messages-asked:' + did, '1');
+  assert.equal(ask(), false);
+  assert.equal(ask({ source: { signedIn: true, viewer: 'did:plc:oldtimer2' } }), true);
+  // Storage that can't be read can't remember the answer, so it doesn't ask on every visit.
+  const was = globalThis.localStorage;
+  globalThis.localStorage = { getItem(){ throw new Error('blocked'); } };
+  try { assert.equal(ask({ source: { signedIn: true, viewer: 'did:plc:oldtimer2' } }), false); } finally { globalThis.localStorage = was; }
+});
+
+test('settings that aren’t there and ones that couldn’t be read are told apart', async () => {
+  const DID = 'did:plc:prefsread1', PDS = 'https://pds.prefs.test';
+  let answer = 'missing';
+  const real = globalThis.fetch;
+  globalThis.fetch = async input => {
+    const u = new URL(String(input)), method = u.pathname.split('/xrpc/')[1];
+    const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+    if (u.host === 'plc.directory') return json({ id: DID, alsoKnownAs: ['at://prefs.example'], service: [{ id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: PDS }] });
+    if (u.origin === PDS && method === 'com.atproto.repo.getRecord') {
+      if (answer === 'missing') return json({ error: 'RecordNotFound', message: 'Could not locate record' }, 400);
+      if (answer === 'down') return json({ error: 'InternalServerError' }, 502);
+      return json({ uri: `at://${DID}/dev.rainshare.preferences/self`, cid: 'bafyprefs', value: { $type: 'dev.rainshare.preferences', notify: { updates: true }, createdAt: '2026-11-14T00:00:00Z' } });
+    }
+    return json({ error: 'NotFound' }, 404);
+  };
+  try {
+    const src = () => createSource({ agent: { did: DID } });
+    assert.equal(await src().preferences(), null, 'there are none');
+    answer = 'down';
+    await assert.rejects(src().preferences(), 'their server didn’t answer');
+    answer = 'there';
+    assert.deepEqual((await src().preferences()).notify, { updates: true });
+  } finally { globalThis.fetch = real; }
 });
 
 test('a profile that isn’t there and one that couldn’t be read are told apart', async () => {
