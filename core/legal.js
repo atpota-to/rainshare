@@ -262,6 +262,7 @@ Rainshare sets no cookies. It keeps a few things in your browser’s own storage
 - small choices you’ve made: day or night, which forges you chose not to connect, and whether you last chose to vouch for someone as you accepted their work
 - a copy of your settings for “Direct my agent”, which are saved to your account as well
 - which plants in your garden you’ve already seen, so a new one can be pointed out
+- which notifications in the bell you’ve already seen, so it can count the new ones
 - notes and reminders you’ve dismissed, that you’ve seen the welcome, and that you agreed to the terms (and which version)
 - what you were writing, while you’re sent to your host and back
 - the example board’s made-up data

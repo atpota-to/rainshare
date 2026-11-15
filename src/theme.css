@@ -81,6 +81,49 @@ a{color:inherit}
 .rd-nav a[aria-current="true"]{color:var(--ink);background:color-mix(in srgb,var(--ink) 12%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 8%,transparent)}
 @media (forced-colors:active){.rd-nav a[aria-current="true"]{outline:2px solid CanvasText;outline-offset:-2px}}
 /* You, at the end of the bar: "Sign in", or your face, which opens a menu under it (src/main.js) */
+/* you, at the end of the bar: the bell, then your face. The bell's panel lines up with the bar's
+   end, as your face's menu does, so on a phone it fits between the gutters. */
+.rd-you{position:relative;display:flex;align-items:center;gap:6px}
+.rd-bell-btn{position:relative;flex:none;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;padding:0;border:0;border-radius:50%;background:none;color:var(--muted);cursor:pointer;transition:background-color .15s,color .15s}
+.rd-bell-btn:hover,.rd-bell-btn[aria-expanded=true]{background:var(--accent-soft);color:var(--ink)}
+.rd-bell-btn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transform-origin:50% 8%}
+/* how much is new, on the bell's shoulder, ringed in the page's colour so it stands off the bell */
+.rd-bell-count{position:absolute;top:3px;right:1px;min-width:17px;height:17px;padding:0 4.5px;border-radius:999px;background:var(--accent);color:#fff;font:700 10.5px/17px var(--body);text-align:center;box-shadow:0 0 0 2px var(--bg);pointer-events:none;animation:rd-count .3s var(--ease-spring)}
+[data-mode=night] .rd-bell-count{color:#0B1220}
+@keyframes rd-count{from{transform:scale(.4);opacity:0}}
+/* (and when there's more than there was, the bell swings, once) */
+.rd-bell-swing svg{animation:rd-bell-swing .8s var(--ease-out)}
+@keyframes rd-bell-swing{15%{transform:rotate(14deg)}30%{transform:rotate(-12deg)}45%{transform:rotate(8deg)}60%{transform:rotate(-5deg)}75%{transform:rotate(2deg)}}
+@media (prefers-reduced-motion:reduce){.rd-bell-swing svg,.rd-bell-count{animation:none}}
+@media (forced-colors:active){.rd-bell-btn{color:ButtonText}.rd-bell-count{forced-color-adjust:none;background:Highlight;color:HighlightText}}
+.rd-bell-panel{position:absolute;top:calc(100% + 10px);right:0;z-index:30;display:flex;flex-direction:column;width:min(380px,calc(100vw - 32px));max-height:min(560px,calc(100dvh - 110px));overflow:auto;overscroll-behavior:contain;padding:6px;border:1px solid var(--line);border-radius:18px;background:var(--card);box-shadow:0 22px 44px -18px rgba(8,16,40,.45);transform-origin:top right;animation:rd-menu .24s var(--ease-spring)}
+.rd-bell-panel.rd-closing{pointer-events:none;animation:rd-menu-out .14s var(--ease-in) forwards}
+@media (prefers-reduced-motion:reduce){.rd-bell-panel,.rd-bell-panel.rd-closing{animation:none}}
+.rd-bell-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:10px 12px 6px}
+.rd-bell-head h2{margin:0;font-size:17px;font-weight:800}
+.rd-bell-head small{color:var(--muted);font-size:13px;font-weight:600}
+.rd-notices{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.rd-notice{display:flex;gap:12px;align-items:flex-start;padding:10px 12px;border-radius:12px;color:var(--ink);font-size:14.5px;line-height:1.4;text-decoration:none}
+.rd-notice:hover{background:var(--accent-soft)}
+/* what's new since you last looked: tinted, with a dot at its end */
+.rd-notice.rd-new{background:color-mix(in srgb,var(--accent) 7%,transparent)}
+.rd-notice.rd-new:hover{background:var(--accent-soft)}
+.rd-notice .rs-face,.rd-notice-mark{flex:none;width:36px;height:36px;font-size:15px}
+.rd-notice-mark{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:var(--accent-soft);color:var(--accent)}
+.rd-notice-mark svg{width:20px;height:20px;fill:currentColor;stroke:none}
+.rd-notice-words{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0;overflow-wrap:anywhere}
+.rd-notice-words b{font-weight:700}
+.rd-notice-said{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--muted);font-size:13.5px}
+.rd-notice-when{color:var(--muted);font-size:12.5px;font-weight:600}
+.rd-notice-dot{flex:none;width:9px;height:9px;margin-top:6px;border-radius:50%;background:var(--accent)}
+@media (forced-colors:active){.rd-notice.rd-new{outline:1px solid CanvasText}.rd-notice-dot{background:CanvasText}}
+.rd-bell-note{display:flex;align-items:center;gap:10px;margin:0;padding:12px;color:var(--muted);font-size:14px;line-height:1.45}
+.rd-bell-spin{flex:none;width:14px;height:14px;border:2px solid var(--accent-soft);border-top-color:var(--accent);border-radius:50%;animation:rd-spin .9s linear infinite}
+@keyframes rd-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.rd-bell-spin{animation-duration:3s}}
+.rd-bell-foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 16px;margin-top:4px;padding:10px 12px 8px;border-top:1px solid var(--line)}
+.rd-bell-foot a{color:var(--accent-text);font-weight:700;font-size:14px;text-decoration:none}
+.rd-bell-foot a:hover{text-decoration:underline;text-underline-offset:3px}
 .rd-me{position:relative;display:flex;align-items:center}
 .rd-who{display:inline-flex;padding:2px;border:0;border-radius:50%;background:none;cursor:pointer;transition:box-shadow .15s}
 .rd-who .rs-face{width:36px;height:36px;font-size:15px}
@@ -142,12 +185,15 @@ a{color:inherit}
 ::view-transition-group(rd-bar),::view-transition-new(rd-bar){animation:none}
 ::view-transition-old(rd-bar){display:none}
 .rd-vt-title{width:fit-content;max-width:100%}
-/* On a phone, two rows: the logo with the toggle and you across the top, and the tabs under them */
+/* On a phone, two rows: the logo with the toggle and you across the top, and the tabs under them.
+   (The toggle and the bell are a little narrower, so you and the bell keep to that top row.) */
 @media (max-width:640px){
   .rd-bar{gap:10px 6px;padding-top:14px;padding-bottom:12px}
   .rd-nav{order:3;flex-basis:100%}
   .rd-stage{margin-left:0}
-  .rd-mode{margin-left:auto}
+  .rd-mode{margin-left:auto;width:36px}
+  .rd-you{gap:2px}
+  .rd-bell-btn{width:36px}
   .rd-btn{width:40px;padding:0}
   .rd-btn svg{display:block}
   .rd-btn span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
@@ -157,9 +203,10 @@ a{color:inherit}
 @media (max-width:359px){
   .rd-bar{column-gap:4px}
   .rd-nav a{padding:8px 10px;font-size:14px}
-  .rd-logo{font-size:20px;gap:8px}
+  .rd-logo{font-size:20px;gap:6px}
   .rd-stage{padding:2px 7px;font-size:11px}
-  .rd-mode{width:34px}
+  .rd-mode,.rd-bell-btn{width:30px}
+  .rd-you{gap:0}
 }
 /* under the landing, the board's heading is one of the page's h2s, and sized like them */
 .rs-brand h2{font-size:clamp(24px,3vw,32px);font-weight:700;letter-spacing:-.02em}

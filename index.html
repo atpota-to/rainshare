@@ -39,8 +39,12 @@
       <path class="m-rays" d="M12 1.6v2.6M12 19.8v2.6M1.6 12h2.6M19.8 12h2.6M4.65 4.65l1.85 1.85M17.5 17.5l1.85 1.85M4.65 19.35l1.85-1.85M17.5 6.5l1.85-1.85"/>
     </svg>
   </button>
-  <!-- Signed out, "Sign in". Signed in, your face, which opens a little menu: your profile, and signing out (src/main.js) -->
-  <div class="rd-me" id="rdMe"></div>
+  <div class="rd-you">
+    <!-- Signed in, the bell: how much has happened on your asks and your work since you last looked, and what's new on Rainshare. It opens a panel of them (src/main.js, ui/notices.js) -->
+    <div class="rd-bell" id="rdBell" hidden></div>
+    <!-- Signed out, "Sign in". Signed in, your face, which opens a little menu: your profile, and signing out (src/main.js) -->
+    <div class="rd-me" id="rdMe"></div>
+  </div>
 </header>
 
 <main class="rd-main">
@@ -121,6 +125,7 @@
   <nav aria-label="More">
     <a href="/agents" data-nav>CLI &amp; MCP</a>
     <a href="/feedback" data-nav>Feedback</a>
+    <a href="/releases" data-nav>What’s new</a>
     <a href="/terms" data-nav>Terms</a>
     <a href="/privacy" data-nav>Privacy</a>
     <!-- Where Rainshare's code lives (on Tangled and GitHub), and Rainshare on Bluesky: Tangled's own mark (dolly), GitHub's octocat, and Bluesky's butterfly -->
