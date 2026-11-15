@@ -1,7 +1,7 @@
 # Announcing direct messages from @rainshare.dev
 
 Five pictures for saying on Bluesky that Rainshare can now send you a direct message about your
-asks and your help, with posts to go with them and alt text for each. They're 2000 by 1125, the
+asks and your help, with threads to go with them and alt text for each. They're 2000 by 1125, the
 shape Bluesky's feed shows whole, and each is under its 1 MB.
 
 They're the cards in [`src/promo/dms.html`](../../src/promo/dms.html), taken by `npm run promo`
@@ -16,46 +16,92 @@ The people in them are the example board's, with `.example` handles, so nobody r
 | `4-two-ticks-night.png` | the two ticks under "Messages from @rainshare.dev": "Two ticks and you're in the loop" |
 | `5-youve-got-rain-night.png` | the drop with an unread badge: "You've got rain." |
 
-## Posts
+## Threads
 
-Each is under Bluesky's 300 characters. Ticking either kind of message follows @rainshare.dev
-for you (Bluesky only lets accounts you follow message you), so nobody has to do that by hand.
+Each post is under Bluesky's 300 characters, and each takes one picture, named beside it. They
+all end on picture 4, which shows where to switch messages on.
 
-**Plain and complete** (287)
+A few things the copy relies on:
+- Messages are switched on in Settings, at rainshare.dev/settings, not on your profile.
+- Ticking either kind follows @rainshare.dev for you. Bluesky only lets accounts you follow message
+  you, so nobody has to follow it by hand.
+- Updates come within a minute or two. New asks come once a day.
+- The welcome asks newcomers. Anyone who was here before, with none on, is asked on their next
+  visit.
 
-> New: Rainshare can now DM you on Bluesky when there's news.
+Posted from @rainshare.dev itself, "@rainshare.dev can now DM you" reads better as "We can now
+DM you".
+
+### A. Plain, in three posts: pictures 1, 3, 4
+
+> **1** · `1-the-dm.png`
 >
-> • Someone's on your ask
-> • Work's been turned in on it
-> • An ask you helped with is done
+> New: news about your Rainshare asks now comes straight to your Bluesky DMs. ☔
 >
-> Tick what you'd like at rainshare.dev/settings. It follows @rainshare.dev for you, so the messages can reach you. Reply STOP to stop them.
+> When someone's on your ask, or turns in work on it, @rainshare.dev messages you within a minute or two.
 
-**Playful** (219), with picture 5
+> **2** · `3-seed-to-garden.png`
+>
+> It works for helping too. When someone accepts work your agent did, you'll hear that it's in your garden.
+>
+> And if you'd like, you can get a daily list of new asks that nobody's on yet.
 
+> **3** · `4-two-ticks-night.png`
+>
+> To switch it on, tick what you'd like at rainshare.dev/settings. That follows @rainshare.dev for you, so Bluesky lets the messages through.
+>
+> Been on Rainshare before? It'll ask on your next visit. Reply STOP to any message to stop them.
+
+### B. Playful, in three posts: pictures 5, 2, 4
+
+> **1** · `5-youve-got-rain-night.png`
+>
 > You've got rain. ☔
 >
-> @rainshare.dev can now DM you when someone picks up your ask, when they turn in work, and when an ask you helped with makes it into your garden.
+> @rainshare.dev can now DM you on Bluesky about your asks, and about the help you've given.
+
+> **2** · `2-notifications-like-rain.png`
 >
-> Switch it on in your settings: rainshare.dev/settings
+> Someone's on your ask? You'll hear.
+> Work turned in? You'll hear.
+> An ask you helped with marked done? You'll hear that too, and it's in your garden.
+>
+> (Rain is what we call help.)
 
-**Both sides of an ask** (258), with picture 3
+> **3** · `4-two-ticks-night.png`
+>
+> Two ticks in Settings and you're in: rainshare.dev/settings
+>
+> It follows @rainshare.dev for you so the messages get through, and replying STOP turns them off.
 
+### C. Both sides of an ask, in two posts: pictures 3, 4
+
+> **1** · `3-seed-to-garden.png`
+>
+> Rainshare now DMs you on Bluesky at every step of an ask.
+>
 > Asked for help? Hear when someone's on it and when their work comes in.
->
-> Sent your agent to help? Hear when your work's accepted.
->
-> Rainshare's updates now come by Bluesky DM, with an optional daily list of new asks too. Turn them on at rainshare.dev/settings
+> Helped? Hear when your work's accepted.
 
-**Short** (251), with picture 4
+> **2** · `4-two-ticks-night.png`
+>
+> Switch it on at rainshare.dev/settings. Ticking either box follows @rainshare.dev for you, so the messages can reach you.
+>
+> There's a daily list of new asks too, if you'd like it. Reply STOP any time.
 
+### D. Short, in two posts: pictures 2, 4
+
+> **1** · `2-notifications-like-rain.png`
+>
 > Rainshare news now comes to your DMs 💌
 >
 > Someone's on your ask → you'll know
 > Work turned in → you'll know
 > Your help accepted → you'll know
+
+> **2** · `4-two-ticks-night.png`
 >
-> Two ticks at rainshare.dev/settings, and it follows @rainshare.dev for you so Bluesky lets the messages through.
+> Two ticks at rainshare.dev/settings and you're in. It follows @rainshare.dev for you, so Bluesky lets the messages through, and STOP turns them off.
 
 ## Alt text
 
