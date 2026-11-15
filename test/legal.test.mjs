@@ -57,7 +57,7 @@ test('both documents say who runs Rainshare, and the terms say how a dispute goe
   assert.ok(TERMS.short.some(x => /one at a time, in small-claims court or in Delaware’s courts, with no jury/.test(x)));
   const section = name => TERMS.sections.find(([h]) => h === name)[1];
   // Who may use it.
-  assert.match(section('Who runs Rainshare, and who can use it'), /at least 18 years old[\s\S]*U\.S\. Government embargo/);
+  assert.match(section('Who runs Rainshare, and who can use it'), /at least 18 years old, or the age of majority where you live/);
   // The cap, a claim, a dispute, and whose law.
   assert.match(section('Limits on our responsibility'), /indirect, incidental, special, consequential, punitive or exemplary damages[\s\S]*the greater of what you paid us in the twelve months before the claim, or fifty US dollars \(US\$50\)/);
   assert.match(section('If something you do leads to a claim'), /defend, indemnify and hold harmless atpotato, LLC/);
@@ -69,10 +69,10 @@ test('both documents say who runs Rainshare, and the terms say how a dispute goe
   for (const doc of [terms, privacy]) assert.doesNotMatch(doc, /arbitrat/i);
   assert.match(disputes, /not to bring or join a class, consolidated or representative action/);
   assert.match(section('Governing law'), /laws of the State of Delaware[\s\S]*state and federal courts located in Delaware[\s\S]*mandatory consumer-protection laws of the place you live/);
-  assert.match(section('Moderation'), /copyright agent: atpotato, LLC, 8595 Pelham Road[\s\S]*under penalty of perjury[\s\S]*counter-notice/);
+  assert.match(section('Moderation'), /copyright agent: atpotato, LLC, 8595 Pelham Road[\s\S]*we’ll hide it[\s\S]*accounts that infringe repeatedly/);
   // The Privacy Policy: who to write to, and the rights that depend on where someone lives.
   assert.match(privacy, /\*\*Data controller:\*\* atpotato, LLC, 8595 Pelham Road, Suite 400 #747, Greenville, SC 29615, USA/);
-  assert.match(privacy, /California and other U\.S\. states[\s\S]*Privacy appeal[\s\S]*Europe, the UK and Switzerland[\s\S]*no office in Europe, so write to us directly/);
+  assert.match(privacy, /Wherever you live, you can ask to see the personal data we hold about you[\s\S]*Europe, the UK and Switzerland[\s\S]*no office in Europe, so write to us directly/);
   assert.match(privacy, /isn’t directed to anyone under 18/);
   // People agree to the Terms. The Privacy Policy is a notice, and each document says so.
   assert.match(terms, /it isn’t part of this agreement/);
