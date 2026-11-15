@@ -1,7 +1,7 @@
 // How you and someone else are connected, said from your side: who follows whom on Bluesky
 // and on Tangled, and which of the people you follow on Bluesky follow them. (What your
 // Tangled circle has vouched is in ./vouch.js.) It's shown beside the people who ask and the
-// people who help, as something to weigh before you send an agent to their repo or merge what
+// people who help, as something to weigh before you direct an agent to their repo or merge what
 // theirs sent, and it can narrow the board to people you know. None of it changes who an ask
 // is for, or who can take it on: that's the ask's own audience (./circle.js).
 //

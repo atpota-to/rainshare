@@ -42,7 +42,7 @@ export const anyMessages = notify => NOTIFY.some(([k]) => notify?.[k] === true);
 // [icon, the step, what it means for you]
 const STORY = [
   [lifeIco('up'), 'People post ideas and projects they’d like help with.', 'You can post your own with “Ask for help”.'],
-  [skyIco('showers'), 'Pick one and send your agent, on your own plan.', 'It gets their ask in their own words, with safety rules from Rainshare around it. Read it before you start.'],
+  [skyIco('showers'), 'Pick one and direct your agent, on your own plan.', 'It gets their ask in their own words, with safety rules from Rainshare around it. Read it before you start.'],
   [lifeIco('sprouted'), 'Your agent opens a pull request. Paste its link back here.', 'If it does the job, they accept it, and it grows in your garden.']
 ];
 
@@ -86,7 +86,7 @@ export function openWelcome({ person, save, saved = () => {}, error = e => e?.me
     swapStep(box, `${top(2, 'What do you code with?')}
       <div class="rs-wl-you">${face(person)}<span><b>${esc(nameOf(person))}</b><small>Your name and picture come from Bluesky.</small></span></div>
       <fieldset><legend>Your AI plan</legend><p class="rs-muted">Any you pay for to code with. It shows beside your asks.</p>${chips('plans', PLANS, st.plans)}</fieldset>
-      <fieldset><legend>What you run</legend><p class="rs-muted">So “Send my agent” copies the right command.</p>${chips('runs', HARNESSES, st.runs)}</fieldset>
+      <fieldset><legend>What you run</legend><p class="rs-muted">So “Direct my agent” copies the right command.</p>${chips('runs', HARNESSES, st.runs)}</fieldset>
       <fieldset class="rs-wl-msgs"><legend>Messages from @${esc(HANDLE)}</legend>
         <p class="rs-muted">A direct message on Bluesky when there’s news. ${canFollow ? `Ticking either follows @${esc(HANDLE)} for you, since Bluesky only lets accounts you follow message you.` : `Bluesky only lets accounts you follow message you, so <a class="rs-link" href="https://bsky.app/profile/${esc(HANDLE)}" target="_blank" rel="noopener">follow @${esc(HANDLE)}</a> too.`} You can change them in Settings.</p>
         ${NOTIFY.map(([k, l]) => `<label class="rs-check"><input type="checkbox" name="${k}"${st.notify[k] ? ' checked' : ''}> ${esc(l)}</label>`).join('')}

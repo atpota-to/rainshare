@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { LEGAL, TERMS, PRIVACY, LEGAL_VERSION, SAFETY, ASKING, OPERATOR, asMarkdown } from '../core/legal.js';
+import { LEGAL, TERMS, PRIVACY, LEGAL_VERSION, SAFETY, ASKING, PROVIDER, OPERATOR, asMarkdown } from '../core/legal.js';
 import { renderMarkdown } from '../core/markdown.js';
 import { known, reroute } from '../core/route.js';
 import { APPVIEW, RELAYS, PLC, CONSTELLATION } from '../core/net.js';
@@ -106,9 +106,9 @@ test('the Privacy Policy names every service the code asks, and everything kept 
   for (const dir of ['../ui/', '../src/', '../core/', '../public/']) for (const f of readdirSync(new URL(dir, import.meta.url)).filter(f => f.endsWith('.js')))
     for (const [, k] of readFileSync(new URL(dir + f, import.meta.url), 'utf8').matchAll(/['"`](rs:[a-z:-]+)['"`]/g)) if (k !== 'rs:') found.add(k);
   assert.deepEqual([...found].sort(), KEYS);
-  for (const says of [/sets no cookies/, /day or night/, /agreed to the terms/, /forges you chose not to connect/, /vouch for someone/, /example board/, /a copy of your settings for “Send my agent”/, /which plants in your garden you’ve already seen/, /notes and reminders you’ve dismissed/]) assert.match(all, says);
+  for (const says of [/sets no cookies/, /day or night/, /agreed to the terms/, /forges you chose not to connect/, /vouch for someone/, /example board/, /a copy of your settings for “Direct my agent”/, /which plants in your garden you’ve already seen/, /notes and reminders you’ve dismissed/]) assert.match(all, says);
   // Every kind of record Rainshare writes to someone's account is one the policy says is public.
-  const said = { profile: /your Rainshare profile/, seed: /your asks/, take: /your agent is working on an ask/, delivery: /the work you turn in/, comment: /your comments/, preferences: /your settings for “Send my agent”/ };
+  const said = { profile: /your Rainshare profile/, seed: /your asks/, take: /your agent is working on an ask/, delivery: /the work you turn in/, comment: /your comments/, preferences: /your settings for “Direct my agent”/ };
   assert.deepEqual(COLLECTIONS.map(c => c.split('.').pop()).sort(), Object.keys(said).sort(), 'a new kind of record belongs in the policy’s list, then here');
   for (const [kind, says] of Object.entries(said)) assert.match(all, says, kind);
 });
@@ -149,12 +149,23 @@ test('the note before a first job or a first ask: three points, both documents l
   for (const [point, why] of ASKING) assert.ok(asking.includes(point) && asking.includes(why), point);
   assert.match(asking, /<input type="checkbox" name="agree">[\s\S]*data-ag="go" disabled>Agree and continue/);
   const html = agreeHtml(sub => '/base/' + sub);
-  assert.match(html, /Before you send your agent/);
+  assert.match(html, /Before you direct your agent/);
   for (const [point, why] of SAFETY) assert.ok(html.includes(point) && html.includes(why), point);
   assert.match(html, /<input type="checkbox" name="agree">/);
   assert.match(html, /<a href="\/base\/terms" target="_blank" rel="noopener">Terms of Service<\/a> and <a href="\/base\/privacy" target="_blank" rel="noopener">Privacy Policy<\/a>/);
   assert.match(html, /<button class="rs-btn rs-primary" type="button" data-ag="go" disabled>Agree and continue<\/button>/);
   assert.match(html, /data-ag="cancel">Not now</);
+  // A second box, in both: what their AI provider allows is theirs to check, and theirs to answer for.
+  for (const h of [html, asking]) {
+    assert.ok(h.includes(`<input type="checkbox" name="provider"><span>${PROVIDER}</span>`));
+    assert.ok(h.indexOf('name="provider"') < h.indexOf('data-ag="go"'));
+  }
+  assert.match(PROVIDER, /up to me to check/);
+  assert.match(PROVIDER, /my responsibility, not Rainshare’s/);
+  // And the terms say the same, in the section on helping.
+  const helping = TERMS.sections.find(([h]) => /^Helping/.test(h))[1];
+  assert.match(helping, /Your provider decides for itself what its terms allow/);
+  assert.match(helping, /we aren’t responsible for it/);
 });
 
 test('the two pages have addresses, and the words people reach for lead to them', () => {

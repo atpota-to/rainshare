@@ -1,0 +1,276 @@
+<!doctype html>
+<!-- Not part of the site: scripts/promo.mjs opens this through the dev server to take the five
+     pictures announcing @rainshare.dev's direct messages (brand/dms/). Each card is laid out at
+     1200 by 675 and taken at 2000 by 1125: Bluesky's feed shows a picture that shape whole, and
+     keeps it no bigger than 2000 across.
+
+     1  the message itself, as the account sends it (../../announcer/src/messages.js)
+     2  three of them falling like rain from a cloud onto a plant
+     3  an ask from seed to flower, with what the person who asked and the one who helped hear
+     4  the two ticks under "Messages from @rainshare.dev", by night
+     5  "You've got rain.": the drop with an unread badge, by night
+
+     The people are the example board's (../../core/demo.js), with .example handles, so nobody
+     real is named. The drops are drawn by ../logo/drop.js; the plants are ../../public/plants/.
+     Open it yourself to see them before taking the pictures. -->
+<meta charset="utf-8">
+<title>Rainshare's DM announcement</title>
+<link rel="stylesheet" href="../fonts.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#8A93A6;display:flex;flex-direction:column;gap:60px;padding:60px;align-items:flex-start;font-family:'Zen Maru Gothic',sans-serif;-webkit-font-smoothing:antialiased}
+
+/* 60px apart and from the edge: whole pixels at the 5/3 the pictures are taken at, so no edge picks up the grey */
+.card{width:1200px;height:675px;position:relative;overflow:hidden;flex:none}
+.day{color:#12203A;--muted:#56627A;--accent:#2F63F0;--accent-text:#2450C8;--card:#fff;--bubble:#EEF2F8;
+  background:radial-gradient(90% 70% at 75% -15%,#C4D7FF,transparent 65%),linear-gradient(180deg,#D9E5FF 0%,#EDF2FD 55%,#F3F6FC 100%)}
+.night{color:#E7EDF8;--muted:#9AA7BD;--accent:#6E95FF;--accent-text:#A9C1FF;--card:#131C2E;--bubble:#1D2940;
+  background:radial-gradient(90% 70% at 70% -15%,#22356B,transparent 65%),linear-gradient(180deg,#15244A 0%,#0F1A33 50%,#0B1220 100%)}
+
+.abs{position:absolute}
+.lockup{display:flex;align-items:center;gap:10px;font-weight:900;font-size:30px;letter-spacing:-.01em}
+.lockup canvas{width:52px;height:52px;margin:-6px -4px -6px -8px}
+.lit{background:linear-gradient(180deg,#8DBBFF 6%,#4A82FF 40%,#2558EE 64%,#1A3CC8 96%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 .05em .18em rgba(47,99,240,.38))}
+.night .lit{background-image:linear-gradient(180deg,#C4D6FF 6%,#95B3FF 40%,#7596FF 64%,#5A7FF5 96%);filter:drop-shadow(0 0 .24em rgba(110,149,255,.8))}
+h1{font-weight:700;letter-spacing:-.025em;line-height:1.08;text-wrap:balance}
+.sub{color:var(--muted);font-size:23px;line-height:1.45;font-weight:500;text-wrap:pretty}
+.pill{display:inline-flex;align-items:center;gap:10px;border-radius:999px;font-weight:700;font-size:19px;padding:12px 22px 13px;background:var(--accent);color:#fff;box-shadow:0 10px 24px -10px rgba(47,99,240,.7)}
+.night .pill{color:#0B1220;box-shadow:0 10px 30px -8px rgba(110,149,255,.7)}
+.pill.ghost{background:rgba(255,255,255,.7);color:var(--accent-text);box-shadow:0 1px 0 rgba(255,255,255,.8) inset,0 8px 20px -12px rgba(18,32,58,.35);border:1px solid rgba(18,32,58,.06)}
+.a{color:var(--accent-text);font-weight:700}
+.av{border-radius:50%;background:url(/brand/bluesky-avatar.png) center/cover;flex:none;box-shadow:0 0 0 1px rgba(18,32,58,.06)}
+.night .av{background-image:url(/brand/bluesky-avatar-night.png);box-shadow:0 0 0 1px rgba(255,255,255,.08)}
+.face{border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:900;flex:none;box-shadow:inset 0 -3px 6px rgba(0,0,0,.08),0 0 0 3px #fff}
+
+/* clouds: overlapping lit puffs on a flat base */
+.cloud{position:absolute;filter:drop-shadow(0 14px 22px rgba(40,60,120,.16))}
+.cloud i{position:absolute;border-radius:50%;background:radial-gradient(circle at 38% 30%,#fff 0%,#F7F9FE 40%,#E2E8F5 72%,#CBD4E8 100%)}
+.night .cloud{filter:drop-shadow(0 14px 26px rgba(0,0,0,.45))}
+.night .cloud i{background:radial-gradient(circle at 38% 28%,#EEF1FA 0%,#C9D0E6 42%,#8E99BE 78%,#6C78A2 100%)}
+.streak{position:absolute;width:2px;border-radius:2px;background:linear-gradient(180deg,rgba(80,120,240,0),rgba(70,115,240,.55))}
+.streak.g{background:linear-gradient(180deg,rgba(245,184,61,0),rgba(245,184,61,.75))}
+.night .streak{background:linear-gradient(180deg,rgba(140,170,255,0),rgba(150,180,255,.6))}
+.night .streak.g{background:linear-gradient(180deg,rgba(255,200,87,0),rgba(255,200,87,.8))}
+.star{position:absolute;border-radius:50%;background:#fff}
+.plant{position:absolute;background-size:contain;background-repeat:no-repeat;background-position:center bottom}
+
+/* chat bits */
+.bubble{background:var(--bubble);border-radius:22px 22px 22px 6px;padding:14px 18px 15px;font-size:17px;line-height:1.48;font-weight:500}
+.bubble ul{list-style:none}
+.bubble li{position:relative;padding-left:16px;margin-top:6px}
+.bubble li::before{content:'•';position:absolute;left:1px;top:0}
+.bubble .foot{color:var(--muted);margin-top:12px;font-size:15.5px}
+
+/* ---------- 1: the DM ---------- */
+#c1 .hill{position:absolute;left:-200px;right:-200px;bottom:-330px;height:470px;border-radius:50%;background:radial-gradient(ellipse at 50% 20%,#D5E8C9,#C3DDB4 60%,#B4D4A3)}
+#c1 .hill2{position:absolute;left:520px;right:-400px;bottom:-380px;height:470px;border-radius:50%;background:radial-gradient(ellipse at 40% 20%,#CBE2BD,#B9D9A8 60%)}
+#c1 .win{left:636px;top:120px;width:500px;background:var(--card);border-radius:30px;box-shadow:0 1px 2px rgba(18,32,58,.06),0 40px 70px -30px rgba(18,32,58,.45),0 0 0 1px rgba(18,32,58,.05);overflow:hidden;display:flex;flex-direction:column}
+#c1 .head{display:flex;align-items:center;gap:13px;padding:18px 22px;border-bottom:1px solid rgba(18,32,58,.08)}
+#c1 .head b{display:block;font-size:19px;font-weight:700;line-height:1.2}
+#c1 .head span{display:block;font-size:15px;color:var(--muted);font-weight:500}
+#c1 .chev{font-size:26px;color:var(--muted);margin-right:-2px;font-weight:500}
+#c1 .body{flex:1;min-height:0;overflow:hidden;padding:16px 22px;display:flex;flex-direction:column;gap:10px;justify-content:flex-end;}
+#c1 .body>*{flex:none}
+#c1 .when{align-self:center;font-size:13.5px;color:var(--muted);font-weight:500;margin-bottom:2px}
+#c1 .row{display:flex;gap:10px;align-items:flex-end}
+#c1 .input{margin:6px 18px 18px;border-radius:999px;background:#F1F4F9;padding:13px 20px;color:#8D97AA;font-size:16px;font-weight:500;display:flex;justify-content:space-between}
+
+/* ---------- 2: notifications falling as rain ---------- */
+#c2 .note{position:absolute;width:468px;background:rgba(255,255,255,.88);backdrop-filter:blur(14px);border-radius:24px;padding:15px 18px 16px;display:flex;gap:14px;box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 24px 44px -24px rgba(18,32,58,.5),0 0 0 1px rgba(18,32,58,.05)}
+#c2 .note .icon{width:46px;height:46px;border-radius:12px;background:url(/brand/bluesky-avatar.png) center/cover;flex:none}
+#c2 .note .top{display:flex;justify-content:space-between;font-size:15px;font-weight:700;line-height:1.3}
+#c2 .note .top span{color:var(--muted);font-weight:500}
+#c2 .note p{font-size:16.5px;line-height:1.38;font-weight:500;margin-top:2px}
+#c2 .hill{position:absolute;left:-300px;width:1100px;bottom:-360px;height:470px;border-radius:50%;background:radial-gradient(ellipse at 50% 20%,#D5E8C9,#C3DDB4 60%,#B4D4A3)}
+
+/* ---------- 3: seed to garden ---------- */
+#c3 .ground{position:absolute;left:-100px;right:-100px;bottom:-60px;height:170px;border-radius:50% 50% 0 0/40% 40% 0 0;background:linear-gradient(180deg,#D3E6C6,#BFDCAE)}
+#c3 .col{position:absolute;top:262px;width:330px;display:flex;flex-direction:column;align-items:center}
+#c3 .tag{font-size:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-text);background:rgba(47,99,240,.1);padding:5px 12px 6px;border-radius:999px;margin-bottom:10px}
+#c3 .tag.h{color:#0B7D6E;background:rgba(14,143,126,.13)}
+#c3 .bubble{background:var(--card);box-shadow:0 1px 2px rgba(18,32,58,.06),0 18px 34px -20px rgba(18,32,58,.45);font-size:16.5px;width:100%;position:relative;padding:13px 16px 14px;border-radius:20px}
+#c3 .bubble .who{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700;color:var(--muted);margin-bottom:5px}
+#c3 .bubble::after{content:'';position:absolute;left:50%;bottom:-9px;margin-left:-10px;width:20px;height:20px;background:var(--card);transform:rotate(45deg);border-radius:3px}
+#c3 .arrow{position:absolute;font-size:44px;color:#5F84E8;font-weight:900;opacity:.75}
+
+/* ---------- 4: two ticks ---------- */
+#c4 .panel{left:618px;top:92px;width:520px;background:var(--card);border-radius:26px;padding:28px 30px 26px;box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 40px 70px -30px rgba(0,0,0,.9),0 0 0 1px rgba(255,255,255,.07)}
+#c4 .panel h2{font-size:24px;font-weight:700;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+#c4 .panel h2 .i{width:22px;height:22px;border-radius:50%;border:2px solid var(--muted);color:var(--muted);font-size:13px;display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+#c4 .chk{display:flex;align-items:center;gap:14px;font-size:19px;font-weight:500;margin-top:18px;padding:14px 16px;border-radius:16px;background:rgba(255,255,255,.035)}
+#c4 .box{width:28px;height:28px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 4px rgba(110,149,255,.18)}
+#c4 .box svg{width:18px;height:18px}
+#c4 .panel p{color:var(--muted);font-size:15.5px;line-height:1.5;margin-top:18px;font-weight:500}
+#c4 .save{display:inline-block;margin-top:18px;border-radius:999px;background:rgba(255,255,255,.07);padding:10px 20px;font-weight:700;font-size:15.5px}
+#c4 .dm{left:742px;top:452px;width:430px;background:#1F2D48;border-radius:22px 22px 6px 22px;padding:14px 18px 15px;box-shadow:0 30px 60px -20px rgba(0,0,0,.9),0 0 0 1px rgba(255,255,255,.08);font-size:16.5px;line-height:1.45;font-weight:500}
+#c4 .dm .who{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:700;color:var(--muted);margin-bottom:6px}
+#c4 .cursor{left:688px;top:286px;width:34px;filter:drop-shadow(0 4px 6px rgba(0,0,0,.5))}
+
+/* ---------- 5: you've got rain ---------- */
+#c5 .glow{position:absolute;left:40px;top:60px;width:560px;height:560px;border-radius:50%;background:radial-gradient(circle,rgba(110,149,255,.35),rgba(110,149,255,.08) 45%,transparent 70%)}
+#c5 .drop{left:70px;top:80px;width:520px;height:520px}
+#c5 .typing{left:58px;top:150px;background:#fff;border-radius:30px 30px 8px 30px;padding:20px 26px;display:flex;gap:10px;box-shadow:0 20px 40px -14px rgba(0,0,0,.7)}
+#c5 .typing i{width:15px;height:15px;border-radius:50%;background:#7C95D8}
+#c5 .typing i:nth-child(2){background:#5677D6}
+#c5 .typing i:nth-child(3){background:#2F58D6}
+#c5 .badge{left:404px;top:372px;min-width:66px;height:66px;border-radius:999px;background:linear-gradient(180deg,#FF9A8B,#F2594B);color:#fff;font-weight:900;font-size:34px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 6px #0F1A33,0 12px 26px -6px rgba(242,89,75,.8)}
+#c5 .hl{font-size:84px;letter-spacing:-.035em;line-height:1}
+</style>
+<body>
+
+<!-- 1 ─ the DM itself -->
+<section class="card day" id="c1">
+  <div class="hill"></div><div class="hill2"></div>
+  <div class="cloud" id="c1cloud" style="left:930px;top:50px;width:260px;height:110px"></div>
+  <div id="c1rain"></div>
+  <div class="abs lockup" style="left:72px;top:66px"><canvas class="logo" data-look="day"></canvas><span>R<span class="lit">ai</span>nshare</span></div>
+  <h1 class="abs" style="left:72px;top:160px;width:520px;font-size:58px">Updates on your asks, straight to your DMs</h1>
+  <p class="abs sub" style="left:72px;top:368px;width:500px">@rainshare.dev can now message you on Bluesky when someone’s on your ask, turns in work, or marks your help done.</p>
+  <div class="abs" style="left:72px;top:530px"><span class="pill">Turn it on at rainshare.dev/me</span></div>
+
+  <div class="abs win">
+    <div class="head"><span class="chev">‹</span><div class="av" style="width:46px;height:46px"></div><div><b>Rainshare</b><span>@rainshare.dev</span></div></div>
+    <div class="body">
+      <div class="when">Today, 2:14 PM</div>
+      <div class="row">
+        <div class="av" style="width:32px;height:32px"></div>
+        <div class="bubble">
+          News from Rainshare:
+          <ul>
+            <li><span class="a">Kai (@kai.example)</span> is on your ask “<span class="a">Dark mode for the carbon calculator</span>”.</li>
+            <li><span class="a">Priya (@priya.example)</span> turned in work on your ask “<span class="a">Fix the flaky timezone test</span>”: <span class="a">github.com/amara/tides/pull/18</span></li>
+          </ul>
+          <div class="foot">Reply STOP to stop these, or choose what you get at <span class="a">rainshare.dev/me</span>.</div>
+        </div>
+      </div>
+    </div>
+    <div class="input"><span>Write a message</span><span style="color:#B5BDCC">➤</span></div>
+  </div>
+  <div class="plant" style="left:1062px;top:500px;width:170px;height:170px;background-image:url(/plants/young-5.webp)"></div>
+</section>
+
+<!-- 2 ─ notifications falling like rain -->
+<section class="card day" id="c2">
+  <div class="hill"></div>
+  <div id="c2rain"></div>
+  <div class="cloud" id="c2cloud" style="left:120px;top:16px;width:400px;height:130px"></div>
+  <div class="note" style="left:50px;top:166px;transform:rotate(-1.6deg)"><div class="icon"></div><div style="flex:1"><div class="top">Rainshare <span>now</span></div><p>Kai (@kai.example) is on your ask “Dark mode for the carbon calculator”.</p></div></div>
+  <div class="note" style="left:118px;top:300px;transform:rotate(1.2deg)"><div class="icon"></div><div style="flex:1"><div class="top">Rainshare <span>2h ago</span></div><p>Kai turned in work on your ask “Dark mode for the carbon calculator”: github.com/amara/carbon/pull/7</p></div></div>
+  <div class="note" style="left:62px;top:458px;transform:rotate(-.8deg)"><div class="icon"></div><div style="flex:1"><div class="top">Rainshare <span>yesterday</span></div><p>Amara marked “Fix the flaky timezone test” done with your work. It’s in your garden now.</p></div></div>
+  <div class="plant" style="left:470px;top:470px;width:190px;height:190px;background-image:url(/plants/established-3.webp)"></div>
+
+  <div class="abs lockup" style="left:686px;top:66px"><canvas class="logo" data-look="day"></canvas><span>R<span class="lit">ai</span>nshare</span></div>
+  <h1 class="abs" style="left:686px;top:156px;width:460px;font-size:60px">Hear the moment it starts to rain</h1>
+  <p class="abs sub" style="left:686px;top:308px;width:450px">Rainshare can now DM you on Bluesky when someone’s on your ask, when work’s turned in, and when an ask you helped with is done.</p>
+  <div class="abs" style="left:686px;top:476px"><span class="pill">Turn it on at rainshare.dev/me</span></div>
+  <p class="abs" style="left:688px;top:556px;font-size:17px;color:var(--muted);font-weight:500">(Rain is what we call help.)</p>
+</section>
+
+<!-- 3 ─ seed to garden -->
+<section class="card day" id="c3">
+  <div class="ground"></div>
+  <div class="abs lockup" style="left:0;right:0;top:40px;justify-content:center;font-size:26px"><canvas class="logo" data-look="day" style="width:44px;height:44px"></canvas><span>R<span class="lit">ai</span>nshare</span></div>
+  <h1 class="abs" style="left:0;right:0;top:100px;text-align:center;font-size:52px">Every step of an ask, in your DMs</h1>
+  <p class="abs sub" style="left:0;right:0;top:172px;text-align:center;font-size:22px">Whether you asked or you helped, @rainshare.dev can message you on Bluesky.</p>
+
+  <div class="col" style="left:45px">
+    <span class="tag">You asked</span>
+    <div class="bubble"><div class="who"><div class="av" style="width:22px;height:22px"></div>@rainshare.dev</div><span class="a">Kai</span> is on your ask “<span class="a">Dark mode for the carbon calculator</span>”.</div>
+  </div>
+  <div class="col" style="left:435px">
+    <span class="tag">You asked</span>
+    <div class="bubble"><div class="who"><div class="av" style="width:22px;height:22px"></div>@rainshare.dev</div><span class="a">Kai</span> turned in work on your ask: <span class="a">github.com/amara/carbon/pull/7</span></div>
+  </div>
+  <div class="col" style="left:825px">
+    <span class="tag h">You helped</span>
+    <div class="bubble"><div class="who"><div class="av" style="width:22px;height:22px"></div>@rainshare.dev</div><span class="a">Amara</span> marked “<span class="a">Dark mode…</span>” done with your work. It’s in your garden now.</div>
+  </div>
+  <div class="plant" style="left:120px;top:440px;width:180px;height:180px;background-image:url(/plants/seedling.webp)"></div>
+  <div class="plant" style="left:510px;top:430px;width:190px;height:190px;background-image:url(/plants/young.webp)"></div>
+  <div class="plant" style="left:895px;top:418px;width:205px;height:205px;background-image:url(/plants/established.webp)"></div>
+  <div class="arrow" style="left:375px;top:510px">→</div>
+  <div class="arrow" style="left:765px;top:510px">→</div>
+</section>
+
+<!-- 4 ─ two ticks -->
+<section class="card night" id="c4">
+  <div id="c4stars"></div>
+  <div class="abs lockup" style="left:72px;top:66px"><canvas class="logo" data-look="night"></canvas><span>R<span class="lit">ai</span>nshare</span></div>
+  <h1 class="abs" style="left:72px;top:160px;width:500px;font-size:62px">Two ticks and you’re in the loop</h1>
+  <p class="abs sub" style="left:72px;top:370px;width:480px">Choose your messages on your profile at rainshare.dev, and follow @rainshare.dev so Bluesky lets them through.</p>
+  <div class="abs" style="left:72px;top:530px"><span class="pill">rainshare.dev/me</span></div>
+
+  <div class="abs panel">
+    <h2>Messages from @rainshare.dev <span class="i">i</span></h2>
+    <div class="chk"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="#0B1220" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>Updates on my asks and my work</div>
+    <div class="chk"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="#0B1220" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>New asks on the board</div>
+    <p>To stop them, untick these, or reply STOP to any message.</p>
+    <span class="save">Save</span>
+  </div>
+  <svg class="abs cursor" viewBox="0 0 24 24"><path d="M4 2.5l15 10.2-6.6 1.3 3.8 7.2-3 1.5-3.7-7.3L4 20z" fill="#fff" stroke="#0B1220" stroke-width="1.4" stroke-linejoin="round"/></svg>
+  <div class="abs dm">
+    <div class="who"><div class="av" style="width:24px;height:24px"></div>@rainshare.dev · just now</div>
+    News from Rainshare:<br>• <span class="a">Juniper</span> is on your ask “<span class="a">Export volunteer shifts to a calendar file</span>”.
+  </div>
+</section>
+
+<!-- 5 ─ you've got rain -->
+<section class="card night" id="c5">
+  <div id="c5stars"></div>
+  <div id="c5rain"></div>
+  <div class="glow"></div>
+  <canvas class="abs drop logo" data-look="night"></canvas>
+  <div class="abs typing"><i></i><i></i><i></i></div>
+  <div class="abs badge">1</div>
+
+  <div class="abs lockup" style="left:640px;top:96px;font-size:26px"><canvas class="logo" data-look="night" style="width:44px;height:44px"></canvas><span>R<span class="lit">ai</span>nshare</span></div>
+  <h1 class="abs hl" style="left:640px;top:178px;width:540px">You’ve got rain.</h1>
+  <p class="abs sub" style="left:640px;top:290px;width:500px;font-size:24px">Rainshare can now send you a Bluesky DM when someone’s on your ask, turns in work, or your help is accepted.</p>
+  <div class="abs" style="left:640px;top:470px"><span class="pill">Turn it on at rainshare.dev/me</span></div>
+</section>
+
+<script>
+// a fixed random, so every render is the same
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+function cloud(el, puffs){ for (const [x,y,r] of puffs){ const i = document.createElement('i'); Object.assign(i.style,{left:(x-r)+'px',top:(y-r)+'px',width:2*r+'px',height:2*r+'px'}); el.appendChild(i);} }
+function rain(host, {x0,x1,y0,y1,n,len=[40,110],gold=.12}){
+  const box = document.getElementById(host);
+  for (let k=0;k<n;k++){ const s=document.createElement('div'); s.className='streak'+(rnd()<gold?' g':''); const L=len[0]+rnd()*(len[1]-len[0]);
+    Object.assign(s.style,{left:(x0+rnd()*(x1-x0))+'px',top:(y0+rnd()*(y1-y0))+'px',height:L+'px',opacity:.45+rnd()*.55}); box.appendChild(s);} }
+function stars(host,n,h=675){ const box=document.getElementById(host); for(let k=0;k<n;k++){ const s=document.createElement('div'); s.className='star'; const r=rnd()<.15?3:rnd()<.5?2:1.4;
+  Object.assign(s.style,{left:rnd()*1200+'px',top:rnd()*h*.75+'px',width:r+'px',height:r+'px',opacity:.25+rnd()*.6}); box.appendChild(s);} }
+
+cloud(document.getElementById('c1cloud'), [[50,78,34],[100,56,50],[160,48,56],[214,74,36],[130,84,30]]);
+rain('c1rain',{x0:960,x1:1175,y0:150,y1:540,n:46});
+cloud(document.getElementById('c2cloud'), [[70,96,40],[140,70,62],[225,56,74],[305,80,52],[360,104,30],[200,104,32]]);
+rain('c2rain',{x0:110,x1:540,y0:130,y1:560,n:80,len:[50,130]});
+stars('c4stars',70); stars('c5stars',90);
+rain('c5rain',{x0:10,x1:600,y0:-80,y1:640,n:44,len:[60,150],gold:.15});
+</script>
+<script type="module">
+  // The drops: drawn three times as fine as they're shown and brought down, as
+  // ../../scripts/render-logo.mjs takes the logo's pictures, so their edges are smooth.
+  import { drawLogo, LOOKS, FRAMES } from '../logo/drop.js';
+  function still(canvas, fine = 3){
+    const n = Math.round(canvas.clientWidth * (window.devicePixelRatio || 1)), N = n * fine;
+    const big = new Uint8ClampedArray(N * N * 4);
+    drawLogo(big, N, { look: LOOKS[canvas.dataset.look], frame: FRAMES.mark });
+    canvas.width = canvas.height = n;
+    const ctx = canvas.getContext('2d'), img = ctx.createImageData(n, n), px = img.data;
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      let r = 0, g = 0, b = 0, a = 0;
+      for (let j = 0; j < fine; j++) for (let i = 0; i < fine; i++) {
+        const k = ((y * fine + j) * N + x * fine + i) * 4, w = big[k + 3] / 255;
+        r += big[k] * w; g += big[k + 1] * w; b += big[k + 2] * w; a += w;
+      }
+      const o = (y * n + x) * 4;
+      if (a > 0) { px[o] = r / a; px[o + 1] = g / a; px[o + 2] = b / a; }
+      px[o + 3] = a / (fine * fine) * 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+  for (const c of document.querySelectorAll('canvas.logo')) still(c);
+  await document.fonts.ready;
+  window.cardsReady = true;          // what ../../scripts/promo.mjs waits for
+</script>
+</body>

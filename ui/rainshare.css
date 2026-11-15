@@ -440,7 +440,7 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-panel>.rs-link{align-self:flex-start}
 .rs-bio{font-size:15px}
 
-/* sending an agent, and turning it in: sections of the ask's own card, not cards of their own */
+/* directing an agent, and turning it in: sections of the ask's own card, not cards of their own */
 .rs-launch,.rs-turn{display:flex;flex-direction:column;gap:10px;scroll-margin-top:16px;min-width:0}
 .rs-launch+.rs-turn{margin-top:10px}
 .rs-l-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
@@ -803,7 +803,7 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-wl .rs-check{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px}
 /* the way on, and the ways out */
 .rs-wl .rs-primary{width:100%;min-height:52px;font-size:16px}
-/* "Send my agent" (./send.js): a line on what the agent gets under the heading, the agents as
+/* "Direct my agent" (./send.js): a line on what the agent gets under the heading, the agents as
    chips, whether to say you're on it (and for how long), the one button, and the box that skips
    it next time, all on one left edge */
 .rs-sd .rs-chips{flex-wrap:wrap;overflow:visible;padding-right:0;-webkit-mask-image:none;mask-image:none}
@@ -903,7 +903,9 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-agree-check{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:var(--rs-radius-sm);background:var(--rs-sunk);font-size:15px;line-height:1.45;cursor:pointer}
 .rs-agree-check input{flex:none;width:20px;height:20px;margin:1px 0 0;accent-color:var(--rs-accent)}
 .rs-agree-check a{color:var(--rs-accent-text);font-weight:600}
-.rs-agree .rs-primary:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+/* Here disabled means "tick the boxes first", not "working on it": the label stays, without the rain a busy button shows */
+.rs-agree .rs-primary:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none;color:var(--rs-btn-ink)}
+.rs-agree .rs-primary:disabled::after{display:none}
 .rs-post-terms{font-size:13px}
 
 /* ---------- motion that's moved from script (./motion.js) ---------- */

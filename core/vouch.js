@@ -3,7 +3,7 @@
 // (org.tangled.graph.vouch), keyed by the DID of the person it's about. Tangled shows a mark
 // beside someone only when the word comes from your own circle: you, or someone you vouched
 // for. Rainshare shows the same beside the people who ask and the people who help, since
-// "do people I trust know this person?" is worth knowing before you send an agent to their
+// "do people I trust know this person?" is worth knowing before you direct an agent to their
 // repo, or merge what theirs sent.
 //
 //   reading   needs no sign-in. The records are public, so a circle is worked out from them:

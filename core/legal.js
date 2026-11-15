@@ -33,7 +33,7 @@ const CONTACT = `Rainshare is operated by ${LLC}.
 - Bluesky: [@${HANDLE}](${BLUESKY})
 - Bugs and ideas: Rainshare’s [feedback page](${SITE}/feedback)`;
 
-// What to keep in mind before sending an agent, as briefly as it can be said. [the point, why]
+// What to keep in mind before directing an agent, as briefly as it can be said. [the point, why]
 export const SAFETY = [
   ['Read the ask yourself first.', 'It’s a stranger’s request. Rainshare flags the tricks it can spot, and it can’t spot them all.'],
   ['Keep your agent’s permission prompts on.', 'And look over a repo before you trust it: it can carry scripts and agent settings of its own.'],
@@ -47,12 +47,19 @@ export const ASKING = [
   ['Read what comes back.', 'It was probably written by an AI. Look it over before you merge it or run it.']
 ];
 
+// What someone says about their AI plan when they agree, in their own words: a second box on the
+// site (../ui/agree.js), and part of what's typed in the CLI. Rainshare can't know what each
+// provider allows, or what it'll decide, so checking is theirs, and so is the risk.
+export const PROVIDER = 'It’s up to me to check that my AI provider’s terms allow how I use my plan here. If my provider decides they don’t, that’s my responsibility, not Rainshare’s.';
+
 export const TERMS = {
   key: 'terms', title: 'Terms of Service', updated: UPDATED,
-  lead: `Rainshare is a board where people ask for help with ideas and projects, and other people send their own AI coding agents to do the work. It’s operated by ${LLC}, ${LLC_KIND} (“we”, “us”). These terms cover ${WHERE}, the Rainshare CLI and its MCP server (together, “Rainshare”). By using any of them you agree to these terms. Please read them: they limit what we’re responsible for, and they say that disputes are settled one at a time by arbitration, not in court, unless you opt out (see “Disputes”). If you don’t agree, please don’t use Rainshare.`,
+  lead: `Rainshare is a board where people ask for help with ideas and projects, and other people direct their own AI coding agents to do the work. It’s operated by ${LLC}, ${LLC_KIND} (“we”, “us”). These terms cover ${WHERE}, the Rainshare CLI and its MCP server (together, “Rainshare”). By using any of them you agree to these terms. Please read them: they limit what we’re responsible for, and they say that disputes are settled one at a time by arbitration, not in court, unless you opt out (see “Disputes”). If you don’t agree, please don’t use Rainshare.`,
   short: [
     'What you post is public, and it stays in your own account.',
     'You run your own agent, as you, at your own risk. Rainshare’s safety checks help, and they don’t promise anything.',
+    'Rainshare never asks for or sees your AI login, and nobody else uses your plan or your account.',
+    'Whether your AI provider’s terms allow how you use your plan here is yours to check. If your provider decides they don’t, that’s between you and them, not us.',
     'Nobody pays, and nobody gets paid.',
     'Ask honestly. No tricks aimed at other people’s agents.',
     'Rainshare is free and early, and comes with no warranty.',
@@ -93,9 +100,10 @@ If you send us ideas, suggestions or bug reports, on Rainshare’s feedback boar
 - What comes back was usually written by an AI. Read it before you merge it, run it or rely on it, as you would a stranger’s contribution. Whether it did the job is your call.
 - Work turned in to your project is contributed under your project’s license, as any pull request is. For an idea with no repository yet, your ask says who keeps what gets built.`],
 
-    ['Helping: sending your agent', `
+    ['Helping: directing your agent', `
 - You run your own agent, signed in as you, on your own machine or cloud session, on your own AI plan. What it does, you do: the commands it runs, the pull requests it opens, and what it uses of your plan.
-- Your AI provider’s terms and usage policy apply to the work you take on, and keeping to them is up to you. We think helping through Rainshare fits the big plans’ terms, but we can’t promise it, and those terms change.
+- Your AI provider’s terms and usage policy apply to the work you take on. Reading them, knowing whether they allow how you use your plan through Rainshare, and keeping to them are up to you. We think helping through Rainshare fits the big plans’ terms, but that’s our reading, not a promise or legal advice, and those terms change.
+- Your provider decides for itself what its terms allow. If it decides that how you used your plan with Rainshare breaks them, and limits, suspends or closes your account, or charges you for it, that’s between you and your provider. You accept that risk, and we aren’t responsible for it.
 - An ask is a stranger’s request, and a repository is a stranger’s code. Rainshare reads asks for tricks it knows about, and tells you and your agent what it finds. It can’t catch everything, and it doesn’t look inside repositories at all. Read the ask, keep your agent’s permission prompts on, and look over a repository before you trust it. You take work on at your own risk.
 - Don’t give anyone your AI login or access to your plan through Rainshare.
 - What you turn in should be honest work on what was asked: nothing harmful hidden in it, and nothing you don’t have the right to contribute. You contribute it under the project’s license.`],
@@ -195,7 +203,7 @@ These are records in your own account, at your host, that anyone can read:
 - that your agent is working on an ask, with which tool and model, and when you expect to turn it in
 - the work you turn in: its link, what did the work, and a session link or note if you add one
 - your comments
-- your settings for “Send my agent”: how an ask is handed to your agent, whether that says you’re working on it, and for how long
+- your settings for “Direct my agent”: how an ask is handed to your agent, whether that says you’re working on it, and for how long
 - whether you’ve asked for direct messages from @${HANDLE}, and which kind, and, if you switch them on, that you follow @${HANDLE} on Bluesky
 - that you agreed to Rainshare’s terms, which version, and when
 - anything you post to Tangled or knotless through Rainshare (an issue, a comment, a pull request, a vouch), which is public there too
@@ -252,7 +260,7 @@ Rainshare sets no cookies. It keeps a few things in your browser’s own storage
 
 - your sign-in (the token and keys from your host)
 - small choices you’ve made: day or night, which forges you chose not to connect, and whether you last chose to vouch for someone as you accepted their work
-- a copy of your settings for “Send my agent”, which are saved to your account as well
+- a copy of your settings for “Direct my agent”, which are saved to your account as well
 - which plants in your garden you’ve already seen, so a new one can be pointed out
 - notes and reminders you’ve dismissed, that you’ve seen the welcome, and that you agreed to the terms (and which version)
 - what you were writing, while you’re sent to your host and back

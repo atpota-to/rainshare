@@ -19,6 +19,7 @@
   h1{margin:0;font:900 50px/1.16 'Zen Maru Gothic';letter-spacing:-.025em}
   h1>span{display:block;white-space:nowrap}
   p{margin:0;font:500 23px/1.45 'Zen Maru Gothic';color:#56627A;max-width:400px}
+  p b{font-weight:700;color:#1B2338}
   /* lit as the site has it (../theme.css): as the logo's drop is, with a soft glow */
   .ai{background:linear-gradient(180deg,#8DBBFF 6%,#4A82FF 40%,#2558EE 64%,#1A3CC8 96%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 .05em .18em rgba(47,99,240,.38))}
 
@@ -44,17 +45,17 @@
 <div class="words">
   <div class="mark"><img src="/logo.png" alt=""><span>R<span class="ai">ai</span>nshare</span></div>
   <h1></h1>
-  <p>People post ideas and projects. Your agent does the work, on your plan.</p>
+  <p><b>Got rain to spare or need a hand?</b> You’re not sharing your plan or your account, just what your agent makes.</p>
 </div>
 <script type="module">
   import { createGarden } from './garden-scene.js';
   import { PLOTS, FRIEND } from './plots.js';
   import { HOME } from '../../api/_og/describe.js';
 
-  // The headline, a sentence to a line where it fits, with the "ai" in "rain" lit as the site's is.
-  const lit = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\b([Rr])(ai)(n)/g, '$1<span class="ai">$2</span>$3');
-  const [ask, ...rest] = HOME.social.split(/(?<=\?)\s+/), words = rest.join(' ').split(' '), half = Math.ceil(words.length / 2);
-  document.querySelector('h1').innerHTML = [ask, words.slice(0, half).join(' '), words.slice(half).join(' ')].filter(Boolean).map(l => `<span>${lit(l)}</span>`).join('');
+  // The headline (the first sentence of HOME.social), split across two lines, with "AI" lit as the site's is.
+  const lit = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\bAI\b/g, '<span class="ai">AI</span>');
+  const words = HOME.social.split(/(?<=[.?])\s+/)[0].split(' '), half = Math.ceil(words.length / 2);
+  document.querySelector('h1').innerHTML = [words.slice(0, half).join(' '), words.slice(half).join(' ')].map(l => `<span>${lit(l)}</span>`).join('');
 
   // Over Kai's cloud, whose plan it is; over yours, your plan and when it resets. (The plots go
   // unnamed: at the size a preview is mostly seen, their labels would only crowd the garden.)
