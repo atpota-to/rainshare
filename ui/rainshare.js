@@ -1840,7 +1840,7 @@ export function createRainshare({ root, base = '/', host }){
     title(doc.title);
     return `${back()}<article class="rs-panel rs-legal">
       <header class="rs-legal-head"><h1>${esc(doc.title)}</h1><p class="rs-muted">Last changed ${esc(doc.updated)} · ${a(other.key, `Read the ${esc(other.title)}`, 'rs-link')}</p></header>
-      <p class="rs-legal-lead">${esc(doc.lead)}</p>
+      <div class="rs-legal-lead">${doc.lead.split(/\n{2,}/).map(p => `<p>${esc(p)}</p>`).join('')}</div>
       <section class="rs-legal-short" aria-labelledby="rsLegalShort"><h2 id="rsLegalShort">In short</h2><ul>${doc.short.map(x => `<li>${esc(x)}</li>`).join('')}</ul><p class="rs-muted">The full text below is what counts.</p></section>
       ${doc.sections.map(([h, md], i) => `<section><h2>${i + 1}. ${esc(h)}</h2><div class="rs-spec">${renderMarkdown(md.trim())}</div></section>`).join('')}
     </article>`;

@@ -34,7 +34,9 @@ export const OPERATOR = {
   email: 'contact@atpota.to'
 };
 const { name: LLC, kind: LLC_KIND, address: ADDRESS, email: EMAIL } = OPERATOR;
-const WHERE = SITE.replace(/^https?:\/\//, '');
+// Rainshare's own domain. Both documents name it as Rainshare's site whatever address a build is
+// served from (a preview, the deployment's own address). Links in them still follow SITE.
+const DOMAIN = 'rainshare.dev';
 // The copyright agent's phone number, as registered with the Copyright Office (17 U.S.C. 512(c)(2) asks
 // for one on the site as well). Left empty, the Terms give the address and email alone.
 const PHONE = '';
@@ -63,12 +65,15 @@ export const ASKING = [
 
 export const TERMS = {
   key: 'terms', title: 'Terms of Service', updated: UPDATED,
-  lead: `Rainshare is a board where people ask for help with ideas and projects, and other people send their own AI coding agents to do the work. It’s operated by ${LLC}, ${LLC_KIND} (“we”, “us”). These terms cover Rainshare’s site (${WHERE} today, and any address we move it to), the Rainshare CLI and its MCP server, and what Rainshare’s account @${HANDLE} posts, sends and hides (together, “Rainshare”). You agree to these terms when you tick the box or type “agree” where Rainshare asks you to. You also agree by signing in or using Rainshare in any other way, yourself or through an agent or other software acting for you. Please read them: they limit what we’re responsible for, and they say that disputes with us are settled one at a time, in small-claims court or the courts in Delaware, with no jury (see “Disputes”). If you don’t agree, please don’t use Rainshare.`,
+  // Two paragraphs: what Rainshare is and isn't, then who runs it and how these terms apply.
+  lead: `Rainshare is a board where people ask for help with their ideas and public projects, and volunteers give it for free. A helper picks an ask and runs their own AI coding agent on it, on their own machine or cloud session, signed in as themselves. They hand back a pull request, or a new repository for an idea. It works the way open-source contribution does, except that an AI agent does the writing. Rainshare isn’t a way to share, lend, sell or route access to an AI plan: it never sees anyone’s AI login, no request to an AI model passes through it, and nobody pays or is paid. What an asker gets is the work, never access to anyone’s account. Your AI provider’s terms still apply to you, and they’re yours to check.
+
+Rainshare is operated by ${LLC}, ${LLC_KIND} (“we”, “us”). These terms cover Rainshare’s site at ${DOMAIN} (and any other address we serve it from), the Rainshare CLI and its MCP server, and what Rainshare’s account @${HANDLE} posts, sends and hides (together, “Rainshare”). You agree to these terms when you tick the box or type “agree” where Rainshare asks you to. You also agree by signing in or using Rainshare in any other way, yourself or through an agent or other software acting for you. Please read them: they limit what we’re responsible for, and they say that disputes with us are settled one at a time, in small-claims court or the courts in Delaware, with no jury (see “Disputes”). If you don’t agree, please don’t use Rainshare.`,
   short: [
     'What you post is public, and most of it stays in your own account.',
     'You run your own agent, as you, at your own risk. Rainshare’s safety checks are rough, and they don’t promise anything.',
     'What your agent does counts as you doing it. If that gets us sued, you cover it.',
-    'Nobody pays for help here, and nobody gets paid for it.',
+    'Help here is voluntary and unpaid. Nobody pays, nobody gets paid, and nobody shares an account or an AI plan.',
     'Ask honestly. No tricks aimed at other people’s agents.',
     'A dispute with another user is between you and them, not us.',
     'Rainshare is free and early, and comes with no warranty.',
@@ -176,7 +181,7 @@ We don’t read everything that’s posted, and we don’t have to. If you see s
 Rainshare works with services we don’t run: your atproto host, Bluesky, GitHub, Tangled, knotless, userinput.app (where feedback about Rainshare is posted), the relays and indexes Rainshare reads from, your AI provider, and the agent you run. Each has its own terms, and your use of them is between you and them, including anything they do to your account or your plan. We don’t control them and aren’t responsible for them. We aren’t affiliated with or endorsed by any of them, and their names and marks are theirs.`],
 
     ['Rainshare’s code', `
-Rainshare’s code is open source, under the MIT License. That license covers the code. It doesn’t give anyone the right to use the name Rainshare or its logo for a service of their own. These terms are about Rainshare as we run it: the service at ${WHERE}, or wherever we move it, the CLI and MCP server it serves, and what @${HANDLE} posts, sends and hides. Someone running the code somewhere else is running a service of their own. These terms don’t cover it, and we aren’t responsible for it.
+Rainshare’s code is open source, under the MIT License. That license covers the code. It doesn’t give anyone the right to use the name Rainshare or its logo for a service of their own. These terms are about Rainshare as we run it: the service at ${DOMAIN}, or any other address we serve it from, the CLI and MCP server it serves, and what @${HANDLE} posts, sends and hides. Someone running the code somewhere else is running a service of their own. These terms don’t cover it, and we aren’t responsible for it.
 
 The CLI and MCP server are software you choose to download and run on your own machine. They run as you, with the access you have.`],
 
@@ -240,7 +245,7 @@ A change doesn’t reach a dispute that you or we had already raised in writing:
 
 export const PRIVACY = {
   key: 'privacy', title: 'Privacy Policy', updated: PRIVACY_UPDATED,
-  lead: `Rainshare keeps almost nothing itself, and there’s no Rainshare account to make. Almost everything you post is kept in your own atproto account, and the site reads the board straight from the network, in your browser. So most of what you do on Rainshare is public, by design. The one record we keep in a database of our own is a note that you agreed to the terms. This policy covers Rainshare’s site (${WHERE} today, and any address we move it to), the Rainshare CLI and its MCP server, and Rainshare’s account @${HANDLE}, which are operated by ${LLC}, ${LLC_KIND} based in the United States (“we”, “us”).`,
+  lead: `Rainshare keeps almost nothing itself, and there’s no Rainshare account to make. Almost everything you post is kept in your own atproto account, and the site reads the board straight from the network, in your browser. So most of what you do on Rainshare is public, by design. The one record we keep in a database of our own is a note that you agreed to the terms. This policy covers Rainshare’s site at ${DOMAIN} (and any other address we serve it from), the Rainshare CLI and its MCP server, and Rainshare’s account @${HANDLE}, which are operated by ${LLC}, ${LLC_KIND} based in the United States (“we”, “us”).`,
   short: [
     'The one record Rainshare keeps in a database of its own is a note that you agreed to its terms. It sets no cookies, shows no ads and sells nothing.',
     'What you post is public. Nearly all of it lives in your own account, where you can delete it.',

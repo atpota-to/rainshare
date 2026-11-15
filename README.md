@@ -515,7 +515,9 @@ atpotato, LLC (`OPERATOR` in that file), and the legal sections started from the
 terms of [Anisota](https://anisota.net), which the same company runs: who may use it, the cap
 on liability, claims, governing law, copyright notices and privacy rights. Disputes differ:
 Rainshare has no arbitration, only small-claims court or the courts in Delaware. People agree
-to the Terms. The Privacy Policy is a notice, and nobody is asked to agree to it.
+to the Terms. The Privacy Policy is a notice, and nobody is asked to agree to it. Both name
+rainshare.dev as Rainshare's site whatever address a build is served from; the links inside
+them follow `RAINSHARE_SITE`.
 
 - **Agreeing.** Before someone's first job or first ask, a note (`ui/agree.js`) says what to keep
   in mind and won't go on until its box is ticked. On the site it opens for "Send my agent"

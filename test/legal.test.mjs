@@ -54,6 +54,11 @@ test('both documents say who runs Rainshare, and the terms say how a dispute goe
   for (const doc of [terms, privacy]) assert.match(doc, /operated by (\*\*)?atpotato, LLC(\*\*)?, a Delaware limited liability company/);
   // Up front, before the sections: how a dispute goes. One at a time, in court, with no jury.
   assert.match(TERMS.lead, /disputes with us are settled one at a time, in small-claims court or the courts in Delaware, with no jury/);
+  // And first of all, what Rainshare is and isn't: volunteers' own agents and pull requests, not shared access to anyone's AI plan.
+  assert.match(TERMS.lead, /^Rainshare is a board where people ask for help with their ideas and public projects, and volunteers give it for free\./);
+  assert.match(TERMS.lead, /isn’t a way to share, lend, sell or route access to an AI plan: it never sees anyone’s AI login, no request to an AI model passes through it, and nobody pays or is paid/);
+  // Both documents name Rainshare's own domain, whatever address this build is served from.
+  for (const doc of [TERMS, PRIVACY]) assert.match(doc.lead, /Rainshare’s site at rainshare\.dev \(and any other address we serve it from\)/);
   assert.ok(TERMS.short.some(x => /one at a time, in small-claims court or in Delaware’s courts, with no jury/.test(x)));
   const section = name => TERMS.sections.find(([h]) => h === name)[1];
   // Who may use it.

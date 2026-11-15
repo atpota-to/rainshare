@@ -883,7 +883,7 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-panel.rs-legal{gap:22px;max-width:760px;width:100%;margin:0 auto;padding:28px}
 .rs-legal h1{font-size:clamp(28px,4vw,38px);font-weight:800}
 .rs-legal-head{display:flex;flex-direction:column;gap:8px}
-.rs-legal-lead{font-size:17px;line-height:1.6;text-wrap:pretty}
+.rs-legal-lead{display:flex;flex-direction:column;gap:12px;font-size:17px;line-height:1.6;text-wrap:pretty}
 .rs-legal section{display:flex;flex-direction:column;gap:8px;min-width:0}
 .rs-legal h2{font-size:20px;margin:0}
 .rs-legal-short{padding:16px 18px;border-radius:var(--rs-radius-sm);background:var(--rs-accent-soft)}
