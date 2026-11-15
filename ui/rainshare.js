@@ -23,8 +23,8 @@
 //   admin              @rainshare.dev's moderation page: what's hidden, what the checks flagged,
 //                      and hiding something. To anyone else it's as if nothing were there.
 //
-// A host with a landing of its own at its base address, for people signed out (rainshare.dev,
-// host.landing), shows the board under it there. The board's own address is then 'board', and
+// A host with a landing of its own at its base address (rainshare.dev, host.landing) shows the
+// board under it there, signed in or out. The board's own address is then 'board', and
 // every way back to the board leads there, to the board on its own.
 import { SEED, PROFILE, STAGE, HANDLE, SITE, FEATURES, TAKE_DAYS, TAKE_DAYS_DEFAULT, ROUTES, PLANS, UNPAID, plansIn, HARNESSES, MODELS, RUNS_ON, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, NOTIFY, labelOf, modelName, githubLogin } from '../core/ns.js';
 import { describeSubject, safeHttp, pullState, forkOf, linkedPulls, pullKey, FORGE_NAMES } from '../core/subjects.js';
@@ -103,7 +103,7 @@ export function createRainshare({ root, base = '/', host }){
   // Where the links to the board lead, and whether it's sitting under the host's landing now.
   const BOARD_AT = host.landing ? 'board' : '';
   const isBoard = sub => !sub || sub === 'board';
-  const underLanding = () => !!host.landing && !signedIn() && !S.sub;
+  const underLanding = () => !!host.landing && !S.sub;
   const back = () => a(BOARD_AT, `${ico('back')}Back to the board`, 'rs-back');
   // Nothing's at an address, or what was there is gone: said plainly, with the ways on from it.
   const nothingHere = (what, more = '') => `${back()}<div class="rs-empty rs-need"><p>${what}</p><div class="rs-row">${a(BOARD_AT, 'Go to the board', 'rs-btn rs-primary')}${more}</div></div>`;
@@ -1065,8 +1065,8 @@ export function createRainshare({ root, base = '/', host }){
       <header class="rs-head">
         <div class="rs-brand">${host.brand !== 'rainshare' ? `<span class="rs-logo">${ico('drop')}</span>` : ''}<div>${
           host.brand !== 'rainshare' ? `<h1>Rainshare</h1><p>${lit('Got rain to spare? Pick an idea or a project and direct your agent.')}</p>`
-            : signedIn() ? `<h1>Ideas and projects you can help with</h1><p>${lit('Got rain to spare? Pick one and direct your agent.')}</p>`
-              // Under the landing, which has the page's h1 and says what Rainshare is.
+            // (Under the landing, which has the page's h1 and says what Rainshare is, it's one of its h2s.)
+            : signedIn() ? (underLanding() ? `<h2>Ideas and projects you can help with</h2>` : `<h1>Ideas and projects you can help with</h1>`) + `<p>${lit('Got rain to spare? Pick one and direct your agent.')}</p>`
               : underLanding() ? `<h2>Ideas and projects anyone can help with</h2><p>${signedOutLede}</p>`
                 // On its own, for someone who may have come straight here: the way to what Rainshare is.
                 : `<h1>Ideas and projects anyone can help with</h1><p>${signedOutLede} ${host.landing ? a('', 'How Rainshare works', 'rs-link') : ''}</p>`
