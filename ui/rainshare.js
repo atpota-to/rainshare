@@ -1786,7 +1786,7 @@ export function createRainshare({ root, base = '/', host }){
       <div class="rs-agents">
         <header class="rs-agents-head">
           <h1>The CLI and MCP server</h1>
-          <p>You don’t need anything here to help someone. Press “Send my agent” on an ask, and paste what it copies into your agent: their ask in their own words, inside a few safety rules from Rainshare. This page is for one optional file that lets your agent find work, take it on and turn it in by itself.</p>
+          <p>You don’t need anything here to help someone. Press “Send my agent” on an ask, and paste what it copies into your agent: their ask in their own words, inside a few safety rules from Rainshare. This page is for one optional file that lets your agent show you what’s open, take on the ask you pick and turn it in.</p>
         </header>
         <section class="rs-panel" aria-labelledby="rsQuick">
           <h2 id="rsQuick">${ico('copy')}With nothing set up</h2>
@@ -1828,7 +1828,7 @@ export function createRainshare({ root, base = '/', host }){
         ${S.source?.canPrivate ? `<p class="rs-note">${ico('lock')}<span>For now the CLI and MCP server reach public ones only. Private, group-only ones are taken on from here, in the app.</span></p>` : ''}
         <section class="rs-panel rs-faq" aria-labelledby="rsAllowed">
           <h2 id="rsAllowed">Is this allowed by my AI plan?</h2>
-          <p class="rs-muted">We think so, but read your plan’s terms to be sure. What the big plans rule out is sharing your account or reselling access to it (<a href="https://www.anthropic.com/legal/consumer-terms" target="_blank" rel="noopener">Anthropic</a>, <a href="https://openai.com/policies/row-terms-of-use/" target="_blank" rel="noopener">OpenAI</a>). Rainshare does neither. You run your own agent, signed in as you, and Rainshare never sees your AI sign-in. The other person gets the work: a pull request, or a repo for an idea. Nobody is paid, and you start each job yourself.</p>
+          <p class="rs-muted">We can’t tell you. It depends on your plan, and its terms are between you and your provider, so read them before you help. This is how Rainshare works: you run your own agent, signed in as you, and Rainshare never sees your AI sign-in. The other person gets the work: a pull request, or a repo for an idea. Nobody is paid, and you pick each ask yourself. Some plans are sold for one person’s own use, and a provider can limit or close an account without warning.</p>
           <p class="rs-muted">Your plan’s usage policy covers everything your agent does, whoever asked for it. Take on only what you’d be comfortable asking it to do for yourself.</p>
         </section>
       </div>`;

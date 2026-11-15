@@ -55,7 +55,7 @@ export function agreeHtml(href = sub => '/' + sub, kind = 'help'){
     <h2 id="rsAgreeTitle" tabindex="-1">${esc(k.title)}</h2>
     <p class="rs-muted">${esc(k.lead)}</p>
     <ol class="rs-wl-story">${k.points.map(([point, why], i) => `<li><span class="rs-wl-ico">${ico(k.icons[i] || 'info')}</span><p><b>${esc(point)}</b>${esc(why)}</p></li>`).join('')}</ol>
-    <label class="rs-agree-check"><input type="checkbox" name="agree"><span>I agree to Rainshare’s <a href="${esc(href('terms'))}" target="_blank" rel="noopener">Terms of Service</a> and <a href="${esc(href('privacy'))}" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
+    <label class="rs-agree-check"><input type="checkbox" name="agree"><span>I’m 18 or older, and I agree to Rainshare’s <a href="${esc(href('terms'))}" target="_blank" rel="noopener">Terms of Service</a>. Its <a href="${esc(href('privacy'))}" target="_blank" rel="noopener">Privacy Policy</a> says what happens to data.</span></label>
     <button class="rs-btn rs-primary" type="button" data-ag="go" disabled>Agree and continue</button>
     <div class="rs-wl-foot"><span class="rs-muted">Asked once, and again only if the terms change.</span><button class="rs-link" type="button" data-ag="cancel">Not now</button></div>`;
 }

@@ -72,8 +72,8 @@ is still listed as taking it on, with no mark for going quiet.
 
 The first time you send your agent, or copy an ask's brief, on a browser, a short note comes
 first: three things to keep in mind when you point your agent at a stranger's request, and a
-box to tick to agree to the [Terms of Service](https://rainshare.dev/terms) and
-[Privacy Policy](https://rainshare.dev/privacy). After that it stays out of the way.
+box to tick to agree to the [Terms of Service](https://rainshare.dev/terms), with the
+[Privacy Policy](https://rainshare.dev/privacy) linked beside it. After that it stays out of the way.
 
 Every ask has comments, for a question before you start, an answer from whoever asked, or a
 note on how it's going. Replies sit under the comment they answer. When an ask is on an issue
@@ -95,18 +95,34 @@ plan and which agents you run, and you can skip it.
 
 ## Is this allowed by my AI plan?
 
-We think so, but your plan's terms are between you and your provider, so read them. As of
-November 2026 the big plans rule out sharing your account and reselling access to it (see
-Anthropic's [Consumer Terms](https://www.anthropic.com/legal/consumer-terms) and
-[Claude Code's terms](https://code.claude.com/docs/en/legal-and-compliance), and OpenAI's
-[Terms of Use](https://openai.com/policies/row-terms-of-use/)). Rainshare does neither:
+We can't tell you. It depends on your plan, its terms are between you and your provider, and
+they change. Read them before you help. Nothing here is advice about your plan, and naming a
+plan on Rainshare doesn't mean its provider has approved this use. If you're on a Claude plan,
+start with Anthropic's [Consumer Terms](https://www.anthropic.com/legal/consumer-terms),
+[Usage Policy](https://www.anthropic.com/legal/aup) and
+[Claude Code's terms](https://code.claude.com/docs/en/legal-and-compliance). Other providers
+publish theirs too.
+
+What we can tell you is how Rainshare works, so you can hold it up against those terms:
 
 - You run your own agent, signed in as you, on your own machine or cloud session. Nobody else
-  gets your login, and Rainshare never sees it. It only signs in to your atproto account.
+  gets your login, and Rainshare never sees it. It only signs in to your atproto account. No
+  request to a model goes through Rainshare.
 - What you hand over is a pull request (or a new repo, for an idea), the same as contributing
-  to any open-source project. Both Anthropic's and OpenAI's terms say the output is yours.
-- Nobody gets paid. There are no credits or tips, so nothing is being resold.
-- You choose each job and start the agent yourself.
+  to any open-source project.
+- Nobody gets paid. There are no credits or tips.
+- You pick each ask yourself. The MCP server tells an agent to take on only what its user
+  chose.
+
+What to look for in your plan's terms:
+
+- whether the plan is for your own use only
+- whether you may use it on work someone else asked for, even for free
+- what it says about automated or unattended use
+- what its usage limits assume (some say one person's ordinary use)
+
+If your plan doesn't allow this, don't use it here. A provider can limit or close an account
+without warning, whatever we think.
 
 That's also why Rainshare won't run agents on its own servers, hold anyone's AI login, pay
 helpers, or work through asks unattended. Your plan's usage policy still applies to whatever
@@ -310,7 +326,7 @@ the job is the asker's call.
 `core/rank.js` works out how well each ask suits you. On the site it's switched off for now
 (`fit` in `FEATURES`, in `core/ns.js`): with a handful of asks, how you know whoever asked says
 enough, and an order whose reasons you can't see was more confusing than helpful. The CLI and
-MCP server still rank by it, since an agent picking work uses the reasons.
+MCP server still rank by it, since an agent suggesting work uses the reasons.
 
 Switched on, it sorts the board: askers with no paid AI plan come first, then asks that fit
 what you can bring (a model you run or your plan reaches, tags that match your work), then
@@ -446,8 +462,9 @@ might run. Nothing from the network is trusted:
 - Control characters and text-reordering marks are stripped from briefs and from everything the
   CLI and MCP server print, so a spec can't break out of a bracketed paste or rewrite your
   terminal.
-- The link-preview functions in `api/` only talk to two fixed hosts (Slingshot and Bluesky's
-  AppView), never to a server named in a URL.
+- The link-preview functions in `api/` only talk to fixed hosts (Slingshot, Bluesky's AppView
+  and its picture server, and jsDelivr and Google Fonts for emoji and letters the bundled font
+  lacks), never to a server named in a URL.
 - Takes, deliveries and comments from people you've blocked on Bluesky are hidden, so they
   can't make an ask look taken or fill its comments. A comment can only answer one written
   before it, so no set of records can make a thread loop (`core/comments.js`).
@@ -489,9 +506,11 @@ agent so. And a repo you clone can carry its own agent config (`CLAUDE.md`, hook
 The [Terms of Service](https://rainshare.dev/terms) and [Privacy Policy](https://rainshare.dev/privacy)
 are written in `core/legal.js`, as Markdown, so there's one copy: the site shows them at `/terms`
 and `/privacy`, the footer links to them, and the CLI prints them. Rainshare is operated by
-atpotato, LLC (`OPERATOR` in that file), and the legal sections follow the ones in the terms of
-[Anisota](https://anisota.net), which the same company runs: who may use it, the cap on
-liability, claims, disputes and arbitration, governing law, copyright notices and privacy rights.
+atpotato, LLC (`OPERATOR` in that file), and the legal sections started from the ones in the
+terms of [Anisota](https://anisota.net), which the same company runs: who may use it, the cap
+on liability, claims, governing law, copyright notices and privacy rights. Disputes differ:
+Rainshare has no arbitration, only small-claims court or the courts in Delaware. People agree
+to the Terms. The Privacy Policy is a notice, and nobody is asked to agree to it.
 
 - **Agreeing.** Before someone's first job or first ask, a note (`ui/agree.js`) says what to keep
   in mind and won't go on until its box is ticked. On the site it opens for "Send my agent"
@@ -514,7 +533,9 @@ liability, claims, disputes and arbitration, governing law, copyright notices an
   site tells it: a preview or a development copy writes the settings and leaves the ledger be.
 - **When they change.** `LEGAL_VERSION` in `core/legal.js` is the date the documents last changed
   in a way people should agree to again. Change it, and the date shown with it, and everyone is
-  asked once more before their next job. A typo doesn't need a new one.
+  asked once more before their next job. A typo doesn't need a new one. Anything that changes
+  what the Terms mean does: agreement is matched on that string alone, so new words under an
+  old date are never put to anyone.
 - **Keeping the Privacy Policy true.** It says what the code does, so `test/legal.test.mjs`
   checks the two against each other: that it names the services the code asks, and that every
   key the site keeps in the browser is one the policy accounts for. A new key fails the test

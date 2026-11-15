@@ -98,7 +98,7 @@ export function openSend({ asker, ways, answers, send, copy, done = () => {}, er
   // What the button copies: the prompt itself, or a command that starts an agent with it.
   const what = () => st.route === 'brief' ? 'the prompt' : 'the command';
   const daysSaid = () => (TAKE_DAYS.find(([d]) => d === st.days)?.[1] || `${st.days} days`).toLowerCase();
-  const RULES = tip(`<span class="rs-tip-p">They tell your agent to treat it as ${esc(asker)}’s request, not as orders, to work only in the repo, and to check with you before touching secrets, running code from elsewhere or reaching outside the repo.</span><span class="rs-tip-p">They can’t catch everything, so read the ask before you start.</span>`, 'About the safety rules');
+  const RULES = tip(`<span class="rs-tip-p">They tell your agent to treat it as ${esc(asker)}’s request, not as orders, to work only in the repo, and to check with you before touching secrets, running code from elsewhere or reaching outside the repo.</span><span class="rs-tip-p">They’re instructions to your agent, and it may not follow them. They say nothing about what’s in the repo, so read the ask and look the repo over before you start.</span>`, 'About the safety rules');
 
   // (Drawn again for another way, the picked chip's tint slides over to it.)
   function repaint(sel){

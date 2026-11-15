@@ -44,33 +44,40 @@ test('both documents are whole: a date, a lead, a summary, and sections that say
 test('the terms say what matters here: public records, your own agent, no money, no tricks, moderation', () => {
   const all = asMarkdown(TERMS);
   for (const says of [/public record in your own account/, /You run your own agent, signed in as you/, /at your own risk/, /no credits, tips or payments/,
-    /must not try to trick or misuse a helper’s agent/, /We can’t delete or change your records/, /“as is”/, /at least 13/, /MIT License/, /@rainshare\.dev/]) assert.match(all, says);
+    /must not try to trick or misuse a helper’s agent/, /We can’t delete or change your records/, /“as is”/, /at least 18/, /MIT License/, /@rainshare\.dev/]) assert.match(all, says);
 });
 
 test('both documents say who runs Rainshare, and the terms say how a dispute goes', () => {
   assert.deepEqual(OPERATOR, { name: 'atpotato, LLC', kind: 'a Delaware limited liability company', address: '8595 Pelham Road, Suite 400 #747, Greenville, SC 29615, USA', email: 'contact@atpota.to' });
   const terms = asMarkdown(TERMS), privacy = asMarkdown(PRIVACY);
   for (const doc of [terms, privacy]) assert.match(doc, /operated by (\*\*)?atpotato, LLC(\*\*)?, a Delaware limited liability company/);
-  // Up front, before the sections: that disputes go to arbitration, and that there's a way out of it.
-  assert.match(TERMS.lead, /disputes are settled one at a time by arbitration, not in court, unless you opt out/);
-  assert.ok(TERMS.short.some(x => /arbitration, unless you opt out within 30 days/.test(x)));
+  // Up front, before the sections: how a dispute goes. One at a time, in court, with no jury.
+  assert.match(TERMS.lead, /disputes are settled one at a time, in small-claims court or the courts in Delaware, with no jury/);
+  assert.ok(TERMS.short.some(x => /one at a time, in small-claims court or in Delaware’s courts, with no jury/.test(x)));
   const section = name => TERMS.sections.find(([h]) => h === name)[1];
   // Who may use it.
-  assert.match(section('Who runs Rainshare, and who can use it'), /at least 13 years old[\s\S]*between 13 and 18[\s\S]*parent or guardian[\s\S]*U\.S\. Government embargo/);
+  assert.match(section('Who runs Rainshare, and who can use it'), /at least 18 years old[\s\S]*U\.S\. Government embargo/);
   // The cap, a claim, a dispute, and whose law.
   assert.match(section('Limits on our responsibility'), /indirect, incidental, special, consequential, punitive or exemplary damages[\s\S]*the greater of what you paid us in the twelve months before the claim, or fifty US dollars \(US\$50\)/);
   assert.match(section('If something you do leads to a claim'), /defend, indemnify and hold harmless atpotato, LLC/);
   const disputes = section('Disputes');
   assert.match(disputes, /write to us at contact@atpota\.to and try to settle it informally for at least thirty \(30\) days/);
-  assert.match(disputes, /binding individual arbitration[\s\S]*small-claims court[\s\S]*Federal Arbitration Act[\s\S]*American Arbitration Association \(AAA\)[\s\S]*Consumer Arbitration Rules/);
-  assert.match(disputes, /opt out of arbitration[\s\S]*by emailing contact@atpota\.to within 30 days of first agreeing to these terms/);
+  // There's no arbitration: small claims where they qualify, the courts in Delaware for the rest.
+  assert.match(disputes, /small-claims court if it qualifies[\s\S]*goes to the courts named under “Governing law”, and nowhere else/);
+  assert.match(disputes, /each side gives up the right to a jury trial/);
+  for (const doc of [terms, privacy]) assert.doesNotMatch(doc, /arbitrat/i);
   assert.match(disputes, /not to bring or join a class, consolidated or representative action/);
   assert.match(section('Governing law'), /laws of the State of Delaware[\s\S]*state and federal courts located in Delaware[\s\S]*mandatory consumer-protection laws of the place you live/);
   assert.match(section('Moderation'), /copyright agent: atpotato, LLC, 8595 Pelham Road[\s\S]*under penalty of perjury[\s\S]*counter-notice/);
   // The Privacy Policy: who to write to, and the rights that depend on where someone lives.
   assert.match(privacy, /\*\*Data controller:\*\* atpotato, LLC, 8595 Pelham Road, Suite 400 #747, Greenville, SC 29615, USA/);
-  assert.match(privacy, /California and other U\.S\. states[\s\S]*Privacy appeal[\s\S]*Europe, the UK and Switzerland[\s\S]*hasn’t appointed a representative in the EU or the UK under Article 27/);
-  assert.match(privacy, /isn’t directed to children under 13/);
+  assert.match(privacy, /California and other U\.S\. states[\s\S]*Privacy appeal[\s\S]*Europe, the UK and Switzerland[\s\S]*no office in Europe, so write to us directly/);
+  assert.match(privacy, /isn’t directed to anyone under 18/);
+  // People agree to the Terms. The Privacy Policy is a notice, and each document says so.
+  assert.match(terms, /it isn’t part of this agreement/);
+  assert.match(privacy, /This policy is a notice: you aren’t asked to agree to it/);
+  // Nothing half-written goes out: no placeholder, and no name left as code.
+  for (const doc of [terms, privacy]) assert.doesNotMatch(doc, /\$\{|\[phone/);
 });
 
 test('the Privacy Policy names every service the code asks, and everything kept in the browser', () => {
@@ -98,8 +105,8 @@ test('the Privacy Policy names every service the code asks, and everything kept 
   const columns = [...ledger.matchAll(/^  ([a-z_]+) (?:uuid|text|timestamptz)/gm)].map(m => m[1]);
   assert.deepEqual(columns, ['id', 'did', 'policy_version', 'document', 'accepted_at', 'via', 'record_uri', 'record_cid', 'proof', 'logged_at'], 'a new column belongs in the policy, then here');
   for (const says of [/Supabase, where our note that you agreed to the terms is kept/, /your account’s ID \(its DID\), the version, when you agreed, whether that was on the site or with the CLI, and a copy of the record as your host signed it/,
-    /holds no IP address and nothing about your browser/, /a database at Supabase that only we can read/, /Our own note that you agreed to the terms stays when you delete your record of it/, /that you agreed to Rainshare’s terms, which version, and when/]) assert.match(all, says);
-  assert.match(PRIVACY.lead, /The one thing we keep is a note that you agreed to the terms/);
+    /holds no IP address and nothing about your browser/, /a database at Supabase that isn’t open to the public/, /Our own note that you agreed to the terms stays when you delete your record of it/, /that you agreed to Rainshare’s terms, which version, and when/]) assert.match(all, says);
+  assert.match(PRIVACY.lead, /The one record we keep in a database of our own is a note that you agreed to the terms/);
   // Every key the site keeps in the browser. A new one belongs in the policy's list too, then here.
   const KEYS = ['rs:accept-vouch', 'rs:agreed', 'rs:garden-seen:', 'rs:kept', 'rs:mode', 'rs:prefs:', 'rs:signin', 'rs:signin-skip', 'rs:stage-seen:', 'rs:waiting-later', 'rs:welcomed:'];
   const found = new Set();
@@ -152,7 +159,8 @@ test('the note before a first job or a first ask: three points, both documents l
   assert.match(html, /Before you send your agent/);
   for (const [point, why] of SAFETY) assert.ok(html.includes(point) && html.includes(why), point);
   assert.match(html, /<input type="checkbox" name="agree">/);
-  assert.match(html, /<a href="\/base\/terms" target="_blank" rel="noopener">Terms of Service<\/a> and <a href="\/base\/privacy" target="_blank" rel="noopener">Privacy Policy<\/a>/);
+  // The box is for the Terms, and for saying you're an adult. The policy is linked as something to read.
+  assert.match(html, /I’m 18 or older, and I agree to Rainshare’s <a href="\/base\/terms" target="_blank" rel="noopener">Terms of Service<\/a>\. Its <a href="\/base\/privacy" target="_blank" rel="noopener">Privacy Policy<\/a> says what happens to data\./);
   assert.match(html, /<button class="rs-btn rs-primary" type="button" data-ag="go" disabled>Agree and continue<\/button>/);
   assert.match(html, /data-ag="cancel">Not now</);
 });

@@ -44,10 +44,10 @@
     },
     "terms": {
       "type": "object",
-      "description": "That you agreed to Rainshare's Terms of Service and Privacy Policy: which version, and when. Written when you agree, on the site or with the CLI. Rainshare keeps a note of its own as well, checked against this record.",
+      "description": "That you agreed to Rainshare's Terms of Service: which version, and when. Written when you agree, on the site or with the CLI. Rainshare keeps a note of its own as well, checked against this record.",
       "required": ["version", "agreedAt"],
       "properties": {
-        "version": { "type": "string", "maxLength": 32, "description": "The version agreed to: the date the two documents last changed, as YYYY-MM-DD." },
+        "version": { "type": "string", "maxLength": 32, "description": "The version agreed to: the date the terms last changed in a way people are asked to agree to again, as YYYY-MM-DD." },
         "agreedAt": { "type": "string", "format": "datetime" }
       }
     }
