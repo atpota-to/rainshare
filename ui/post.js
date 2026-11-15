@@ -5,7 +5,7 @@
 //
 // rainshare.js owns the screen and hands in what this needs as `ui`; this keeps the draft
 // (so it survives leaving and coming back) and draws the steps.
-import { SEED, STAGE, STAGES, FAMILIES, LEVELS, GROUPS, FEATURES } from '../core/ns.js';
+import { SEED, STAGE, STAGES, FAMILIES, LEVELS, GROUPS, FEATURES, HANDLE } from '../core/ns.js';
 import { parseSubject, describeSubject, kindOf, subjectInfo, knotlessIssueSubject, safeHttp } from '../core/subjects.js';
 import { newRepoPlaces } from '../core/forges.js';
 import { specFromIssue } from '../core/records.js';
@@ -198,9 +198,11 @@ export function createPoster(ui){
     return `${P.audience === 'following' ? `The ${people(n)} you follow` : `${cap(FOR[P.audience])}, about ${people(n)}`}. ${one}`;
   }
   // The title in quotes once there is one (the post can be on the same step as the title).
+  // The post names @rainshare.dev, as the other Bluesky posts here do, so it's tagged and
+  // whoever reads it knows where the ask is.
   const quoted = () => P.title.trim() ? `: “${P.title.trim()}”.` : '.';
-  const bskyDefault = () => P.kind === 'idea' && P.owner === 'helper' ? `Got rain to spare? I’d like to see this built${quoted()} Whoever builds it keeps it.`
-    : `Got rain to spare? I’m asking for help with this${quoted()}${P.size ? ` It’s a ${P.size} job${P.tests === 'required' ? ', with tests' : ''}.` : ''}`;
+  const bskyDefault = () => P.kind === 'idea' && P.owner === 'helper' ? `Got rain to spare? I’ve put an idea on @${HANDLE} I’d like to see built${quoted()} Whoever builds it keeps it.`
+    : `Got rain to spare? I’m asking for help with this on @${HANDLE}${quoted()}${P.size ? ` It’s a ${P.size} job${P.tests === 'required' ? ', with tests' : ''}.` : ''}`;
   const bskyText = () => (P.bskyText ?? bskyDefault()).trim();
 
   /* ---------- moving between steps ---------- */
