@@ -69,5 +69,8 @@ test('the page and the sign-in ask for pictures that are there', () => {
   const html = readFileSync(here('../index.html'), 'utf8'), taken = new Set(STILLS.map(s => '/' + s.file));
   const asked = [...html.matchAll(/(?:href|src|srcset)="(\/[^"]+\.png)"/g)].map(m => m[1]);
   assert.deepEqual([...new Set(asked)].sort(), [...taken].sort());
-  assert.ok(taken.has(new URL(clientMetadata('https://rainshare.dev').logo_uri).pathname));
+  const doc = clientMetadata('https://rainshare.dev');
+  assert.ok(taken.has(new URL(doc.logo_uri).pathname));
+  // The sign-in's client document names the terms and the policy, for hosts that show them.
+  assert.deepEqual([doc.tos_uri, doc.policy_uri], ['https://rainshare.dev/terms', 'https://rainshare.dev/privacy']);
 });

@@ -92,6 +92,7 @@ test('a person’s page, and the pages that say the same to everyone', async () 
   for (const kind of ['board', 'agents', 'feedback', 'example']) {
     const f = await describe({ kind });
     assert.equal(f.kind, kind); assert.match(f.title, / · Rainshare$/); assert.equal(f.image, `/api/og?kind=${kind}`); assert.equal(f.card.type, 'page');
+    assert.ok(f.description.length <= 160, `${kind}: the card clamps its line to three, and a longer one is cut off`);
   }
 });
 

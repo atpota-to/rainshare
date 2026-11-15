@@ -1868,7 +1868,7 @@ export function createRainshare({ root, base = '/', host }){
       : on && f === false ? `<p class="rs-note rs-heed">${ico('info')}<span>You don’t follow @${esc(HANDLE)}, so Bluesky may not let its messages through.${can ? '' : ` To get them, ${onBluesky} on Bluesky, or sign out and in again to let Rainshare follow it for you.`}</span>${can ? `<button class="rs-btn rs-quiet rs-sm" type="button" data-rs-act="follow-us">Follow @${esc(HANDLE)}</button>` : ''}</p>`
       : can ? `<p class="rs-muted">Bluesky only lets accounts you follow message you, unless you’ve changed that, so ticking either follows @${esc(HANDLE)} for you.</p>`
       : `<p class="rs-muted">Bluesky only lets accounts you follow message you, unless you’ve changed that, so ${onBluesky}.</p>`;
-    return `<section class="rs-panel rs-mynotify"><div class="rs-hrow"><h2>Messages from @${esc(HANDLE)}</h2>${tip('Rainshare’s Bluesky account can send you a direct message when there’s news: updates within about a quarter of an hour, and new asks once a day. Your settings are saved in your account, where anyone can read them.')}</div>
+    return `<section class="rs-panel rs-mynotify"><div class="rs-hrow"><h2>Messages from @${esc(HANDLE)}</h2>${tip('Rainshare’s Bluesky account can send you a direct message when there’s news: updates within a minute or two, and new asks once a day. Your settings are saved in your account, where anyone can read them.')}</div>
       <form class="rs-prefs" data-rs-form="notify">
         ${NOTIFY.map(([k, l]) => `<label class="rs-check"><input type="checkbox" name="${k}"${n[k] ? ' checked' : ''}> ${esc(l)}</label>`).join('')}
         ${reach}
@@ -2042,7 +2042,7 @@ export function createRainshare({ root, base = '/', host }){
       <div class="rs-agents">
         <header class="rs-agents-head">
           <h1>The CLI and MCP server</h1>
-          <p>You don’t need anything here to help someone. Press “Direct my agent” on an ask, and paste what it copies into your agent: their ask in their own words, inside a few safety rules from Rainshare. This page is for one optional file that lets your agent find work, take it on and turn it in by itself.</p>
+          <p>You don’t need anything here to help someone. Press “Direct my agent” on an ask, and paste what it copies into your agent: their ask in their own words, inside a few safety rules from Rainshare. This page is for one optional file that lets your agent show you what’s open, take on the ask you pick and turn it in.</p>
         </header>
         <section class="rs-panel" aria-labelledby="rsQuick">
           <h2 id="rsQuick">${ico('copy')}With nothing set up</h2>
@@ -2084,7 +2084,7 @@ export function createRainshare({ root, base = '/', host }){
         ${S.source?.canPrivate ? `<p class="rs-note">${ico('lock')}<span>For now the CLI and MCP server reach public ones only. Private, group-only ones are taken on from here, in the app.</span></p>` : ''}
         <section class="rs-panel rs-faq" aria-labelledby="rsAllowed">
           <h2 id="rsAllowed">Is this allowed by my AI plan?</h2>
-          <p class="rs-muted"><b>Rainshare isn’t plan sharing, and it isn’t a proxy.</b> We think it’s allowed, but read your plan’s terms to be sure. What the big plans rule out is sharing your account or reselling access to it (<a href="https://www.anthropic.com/legal/consumer-terms" target="_blank" rel="noopener">Anthropic</a>, <a href="https://openai.com/policies/row-terms-of-use/" target="_blank" rel="noopener">OpenAI</a>). Rainshare does neither. You run your own agent, signed in as you, and Rainshare never sees your AI sign-in. The other person gets the work: a pull request, or a repo for an idea. Nobody is paid, and you start each job yourself.</p>
+          <p class="rs-muted"><b>Rainshare isn’t plan sharing, and it isn’t a proxy.</b> You run your own agent, signed in as you, and Rainshare never sees your AI sign-in. No request to a model goes through Rainshare. The other person gets the work: a pull request, or a repo for an idea. Nobody is paid, and you pick each ask yourself. Whether your plan allows helping someone this way is between you and your provider, and we can’t tell you, so read its terms before you help. Some plans are sold for one person’s own use, and a provider can limit or close an account without warning.</p>
           <p class="rs-muted">Your plan’s usage policy covers everything your agent does, whoever asked for it. Take on only what you’d be comfortable asking it to do for yourself.</p>
         </section>
       </div>`;
@@ -2096,7 +2096,7 @@ export function createRainshare({ root, base = '/', host }){
     title(doc.title);
     return `${back()}<article class="rs-panel rs-legal">
       <header class="rs-legal-head"><h1>${esc(doc.title)}</h1><p class="rs-muted">Last changed ${esc(doc.updated)} · ${a(other.key, `Read the ${esc(other.title)}`, 'rs-link')}</p></header>
-      <p class="rs-legal-lead">${esc(doc.lead)}</p>
+      <div class="rs-legal-lead">${doc.lead.split(/\n{2,}/).map(p => `<p>${esc(p)}</p>`).join('')}</div>
       <section class="rs-legal-short" aria-labelledby="rsLegalShort"><h2 id="rsLegalShort">In short</h2><ul>${doc.short.map(x => `<li>${esc(x)}</li>`).join('')}</ul><p class="rs-muted">The full text below is what counts.</p></section>
       ${doc.sections.map(([h, md], i) => `<section><h2>${i + 1}. ${esc(h)}</h2><div class="rs-spec">${renderMarkdown(md.trim())}</div></section>`).join('')}
     </article>`;

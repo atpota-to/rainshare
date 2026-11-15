@@ -218,6 +218,10 @@ export function openSignIn({ handle = '', person = null, to = '/', forges = null
 }
 const focusStep = () => (box.querySelector('input[name="handle"]') || box.querySelector('[data-si-go]') || box.querySelector('[data-si-host]'))?.focus();
 
+// Said just above the button that sends you to your host: signing in is agreeing to the terms
+// (../core/legal.js says so too), with both documents a click away.
+const TERMS_NOTE = '<p class="si-terms">By continuing you agree to Rainshare’s <a href="/terms" target="_blank" rel="noopener">Terms of Service</a>. Its <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a> says what happens to data.</p>';
+
 // The first step: who's signing in.
 function ask(msg = '', typed = ''){
   Object.assign(st, { turn: st.turn + 1, did: null, host: null, blind: false, busy: false, making: null });
@@ -247,6 +251,7 @@ function confirm(who, person = null){
       <div class="si-card">${card(person || (isDid(who) ? { did: who } : { handle: who }))}</div>
       ${asks()}
       <p class="si-err" role="alert" hidden></p>
+      ${adding ? '' : TERMS_NOTE}
       <button class="si-go" type="button" data-si-go></button>
       <p class="si-next" aria-live="polite"></p>
       <p class="si-foot">${adding || again ? '<button class="si-link" type="button" data-si-close>Not now</button>' : '<button class="si-link" type="button" data-si-back>Not you?</button>'}<span>Rainshare never sees your password.</span></p>
@@ -279,6 +284,7 @@ function make(h){
       <div class="si-card">${hostCard(h)}</div>
       ${asks()}
       <p class="si-err" role="alert" hidden></p>
+      ${TERMS_NOTE}
       <button class="si-go" type="button" data-si-go></button>
       <p class="si-next" aria-live="polite"></p>
       <p class="si-foot"><button class="si-link" type="button" data-si-make>Pick another host</button><span>Rainshare never sees your password.</span></p>

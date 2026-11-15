@@ -64,6 +64,21 @@ npm run announce -- --post             # one run for real (needs RAINSHARE_BLUES
 
 Don't run it for real in two places at once: two runs can send someone the same message.
 
+## Taking a post down
+
+The Terms and the Privacy Policy both say we'll delete a post about someone's ask when they
+ask. Block them from @rainshare.dev first, then delete the post in Bluesky, signed in as
+@rainshare.dev. A run reads the account's blocks every time, so the ask isn't posted again.
+Deleting the post alone doesn't last: nothing else remembers that an ask was posted, so the
+next run posts it again, with a new mention, while the ask is under three days old, open and
+nobody's on it. Once the ask is three days old, closed or taken, the block can come off. A
+block is public, and while it's on their other asks aren't posted and they get no direct
+messages.
+
+Do the same when an ask is hidden or a copyright notice is acted on: the post doesn't go by
+itself. Before `MODE=live`, a small "don't post" list in the announcer would make a deletion
+last without the block.
+
 ## Tests
 
 `npm test` here runs its tests (`../test/announce.test.mjs`, `messages.test.mjs`,

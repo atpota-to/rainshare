@@ -168,7 +168,8 @@ if [[ $healthy -eq 1 ]]; then
 fi
 
 echo "!! $UNIT is not healthy on $short after ${HEALTH_WAIT_S}s" >&2
-journalctl -u "$UNIT" --no-pager -o cat -n 30 >&2 || true
+systemctl status "$UNIT" --no-pager -n 0 >&2 || true
+echo "!! its log names accounts, so it stays on the droplet: journalctl -u $UNIT -n 50" >&2
 if [[ -n $previous ]]; then
   echo "!! rolling back to ${old_sha:0:12}" >&2
   if [[ -s $unit_backup ]] && ! cmp -s "$unit_backup" "$unit_file"; then

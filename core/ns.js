@@ -78,7 +78,7 @@ export const GROUPS = false;
 //   fit          how well an ask suits you (./rank.js), on the site: the drops and "Good fit" on
 //                a card, the box that says why on an ask, and the board's "Best for you" order.
 //                Off, the board is newest first, and how you know whoever asked is what's shown.
-//                The CLI and MCP server still rank by it, since an agent picking work uses the reasons.
+//                The CLI and MCP server still rank by it, since an agent suggesting work uses the reasons.
 export const FEATURES = { audience: false, seedValues: false, priorities: false, forecast: false, values: false, circumstances: false, fit: false };
 
 export const HARNESSES = [

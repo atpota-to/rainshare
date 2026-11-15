@@ -93,6 +93,8 @@
 .si-next{font-size:14px;line-height:1.5;color:var(--muted)}
 .si-next:empty{display:none}
 .si-next b{color:var(--ink);font-weight:700;overflow-wrap:anywhere}
+.si-terms{font-size:14px;line-height:1.5;color:var(--muted)}
+.si-terms a{color:var(--accent-text);font-weight:700;text-decoration:underline;text-underline-offset:3px}
 .si-foot{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px;padding-top:12px;border-top:1px solid var(--line);font-size:14px;color:var(--muted)}
 .si-link{border:0;background:none;padding:4px 0;font:700 15px var(--body);color:var(--accent-text);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 @media (max-width:420px){

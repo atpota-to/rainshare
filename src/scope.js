@@ -172,6 +172,8 @@ export function clientMetadata(origin){
     client_name: 'Rainshare',
     client_uri: origin,
     logo_uri: origin + '/apple-touch-icon.png',
+    tos_uri: origin + '/terms',
+    policy_uri: origin + '/privacy',
     redirect_uris: [origin + REDIRECT_PATH],
     scope: DECLARED_SCOPE,
     grant_types: ['authorization_code', 'refresh_token'],

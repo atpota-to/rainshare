@@ -65,8 +65,8 @@ tried on every phone, so the prompt is always copied as well.
 
 ## Is this allowed by my AI plan?
 
-Rainshare isn't plan sharing, and it isn't a proxy. We think it's allowed, but your plan's terms
-are between you and your provider, so read them. Your provider decides what its terms allow, not
+Rainshare isn't plan sharing, and it isn't a proxy. Whether your plan allows helping this way
+is between you and your provider, and we can't tell you, so read its terms. Your provider decides what its terms allow, not
 Rainshare, and if it limits or closes your account over how you used it here, that's on you.
 Agreeing to Rainshare's terms includes saying you accept that.
 
@@ -306,9 +306,12 @@ runs on a droplet and deploys itself when `main` changes. See
   into draft pull requests, and a person reviews each one (`.claude/skills/feedback/SKILL.md`).
   `node scripts/feedback.mjs` reads the board and sets statuses.
 - **Terms and privacy** are written once, in `core/legal.js`, and shown at `/terms` and `/privacy`.
-  Rainshare is operated by atpotato, LLC. People agree before their first job or first ask, and
-  that's kept in their own settings record and in a ledger at Supabase (`core/agreement.js`,
-  `supabase/`). Change `LEGAL_VERSION` to ask everyone again. `test/legal.test.mjs` checks the
+  Rainshare is operated by atpotato, LLC. People agree to the Terms before their first job or
+  first ask, and that's kept in their own settings record and in a ledger at Supabase
+  (`core/agreement.js`, `supabase/`). The Privacy Policy is a notice with a date of its own
+  (`PRIVACY_UPDATED`), and nobody is asked to agree to it. Change `LEGAL_VERSION` to ask everyone
+  again, and do it whenever the Terms' meaning changes: agreement is matched on that string
+  alone. Disputes go to small-claims court or the courts in Delaware; there's no arbitration. `test/legal.test.mjs` checks the
   Privacy Policy against what the code does. The ledger's function is deployed with
   `supabase functions deploy rainshare-agree --no-verify-jwt`.
 

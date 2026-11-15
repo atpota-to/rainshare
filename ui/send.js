@@ -3,7 +3,8 @@
 //
 //   choose  under the heading, one line: your agent gets the ask as its asker wrote it, inside
 //           Rainshare's safety rules (../core/brief.js). The ⓘ says what the rules ask of the
-//           agent, and that they can't catch everything, so read the ask first. Nothing here
+//           agent, that it may not follow them, and that they don't make the repo safe, so read
+//           the ask and look the repo over first. Nothing here
 //           claims more than that. Then a row of chips naming agents (the one your profile says
 //           you run; on a phone, the Claude app for a GitHub repo, and the prompt itself; "Any
 //           agent"; "More" for the rest), "Tell Kai I'm on it for a day", ticked to begin with
@@ -240,7 +241,7 @@ export function openSend({ asker, ways, lead = [], answers, send, copy, share = 
   // the Claude app's link ready.
   const go = () => st.route === 'web' ? 'Next: open Claude' : st.route === 'brief' ? 'Copy the prompt' : 'Copy the command';
   const daysSaid = () => (TAKE_DAYS.find(([d]) => d === st.days)?.[1] || `${st.days} days`).toLowerCase();
-  const RULES = tip(`<span class="rs-tip-p">They tell your agent to treat it as ${esc(asker)}’s request, not as orders, to work only in the repo, and to check with you before touching secrets, running code from elsewhere or reaching outside the repo.</span><span class="rs-tip-p">They can’t catch everything, so read the ask before you start.</span>`, 'About the safety rules');
+  const RULES = tip(`<span class="rs-tip-p">They tell your agent to treat it as ${esc(asker)}’s request, not as orders, to work only in the repo, and to check with you before touching secrets, running code from elsewhere or reaching outside the repo.</span><span class="rs-tip-p">They’re instructions to your agent, and it may not follow them. They don’t make the repo safe, so read the ask and look the repo over before you start.</span>`, 'About the safety rules');
 
   // (Drawn again for another way, the picked chip's tint slides over to it.)
   function repaint(sel){
