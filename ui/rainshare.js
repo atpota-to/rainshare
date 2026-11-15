@@ -13,6 +13,8 @@
 //   new                plant a seed (./post.js)
 //   me                 your profile: your AI plan, what you run, and who you are to helpers,
 //                      with what you've helped with beside it
+//   settings           your settings: how "Direct my agent" works for you, and the messages you'd
+//                      like from @rainshare.dev (which follows it for you, so they reach you)
 //   profile/<did>      someone's profile and their seeds (a handle works in place of the DID)
 //   agents             the CLI and MCP server, for sending agents from a terminal
 //   feedback           bugs, requests and ideas about Rainshare itself: its board on userinput.app
@@ -46,13 +48,13 @@ import { REASONS, reasonName, isAccount, kindOf as subjectKind } from '../core/m
 import { readBoard, groupOf, stateWord, GROUPS as FEEDBACK_GROUPS } from '../core/feedback.js';
 import { esc, lit, unb64url, ago, until, shortDay, nameOf, firstName, ico, forgeIco, skyIco, lifeIco, face, drops, pathOf, plantPic, avatarFallback, tip, tipLink, toggleTip, pasteField, pasteInto, PASTE_REFUSED } from './bits.js';
 import { createPoster } from './post.js';
-import { openWelcome, shouldWelcome } from './welcome.js';
+import { openWelcome, shouldWelcome, anyMessages } from './welcome.js';
 import { hasAgreed, agreement, rememberAgreement, openAgree } from './agree.js';
 import { agreedIn, agreementNow, recordAgreement } from '../core/agreement.js';
 import { LEGAL } from '../core/legal.js';
 import { openSend, openPasted, pasteWords, sendSummary, dayChoices } from './send.js';
 import { openTurnIn } from './turnin.js';
-import { headSk, boardSk, seedSk, personSk, gardenSk, meSk, listSk, activitySk } from './skeleton.js';
+import { headSk, boardSk, seedSk, personSk, gardenSk, meSk, listSk, activitySk, settingsSk } from './skeleton.js';
 import { known, reroute } from '../core/route.js';
 import { still as stillNow, snapshot, settle, glide, draw } from './motion.js';
 
@@ -62,7 +64,7 @@ export function createRainshare({ root, base = '/', host }){
   const S = {
     source: null, view: null, sub: '',
     board: null, boardAt: 0, loading: false, error: null, shown: [], pick: null, sheet: false,
-    mine: null, prefs: null, prefsLocal: false, garden: null, buds: null, seed: null, seedErr: null, unlinked: null, launch: null, handBack: null, handKind: null, again: null, other: null, form: null, drafts: {},
+    mine: null, prefs: null, prefsLocal: false, follows: undefined, garden: null, buds: null, seed: null, seedErr: null, unlinked: null, launch: null, handBack: null, handKind: null, again: null, other: null, form: null, drafts: {},
     pull: null,          // the pull request form for the ask on screen: { uri, loading, choices, error }
     circle: undefined,   // your Tangled vouch circle (../core/vouch.js): undefined until asked for, null if there's none to show
     vouching: null,      // who a vouch is being written for: { did, evidence }
@@ -449,6 +451,40 @@ export function createRainshare({ root, base = '/', host }){
     try { await S.source.savePreferences?.({ send: next.send, notify: next.notify || { updates: false, newAsks: false } }); S.prefsLocal = false; return 'saved'; }
     catch (e) { console.warn('rainshare preferences', e); S.prefsLocal = true; return 'local'; }
   }
+  /* ---------- messages from @rainshare.dev, and following it so they reach you ---------- */
+  // Bluesky only lets accounts you follow message you (unless you've changed that), so switching
+  // messages on follows @rainshare.dev for you. A sign-in from before Rainshare asked to can't, and
+  // is pointed to Bluesky instead. Switching them off never unfollows.
+  const canFollow = () => signedIn() && !!S.source.followRainshare && (host.canFollow?.() ?? true);
+  // Whether you follow it: undefined until asked, 'loading', true, false, or null if Bluesky didn't say.
+  function loadFollows(){
+    const src = S.source;
+    if (!signedIn() || !src.followsRainshare || S.follows !== undefined) return;
+    S.follows = 'loading';
+    src.followsRainshare().then(f => f, () => null).then(f => { if (S.source !== src) return; S.follows = f; if (S.view === 'settings') rerender(); });
+  }
+  /** Follow @rainshare.dev, unless you do. Says 'followed', 'already', or 'couldnt'. */
+  async function followUs(){
+    if (!canFollow()) return 'couldnt';
+    try { const r = await S.source.followRainshare(); S.follows = true; return r?.followed ? 'followed' : 'already'; }
+    catch (e) { console.warn('rainshare follow', e); return 'couldnt'; }
+  }
+  /**
+   * Save which messages you'd like, and with any on, follow @rainshare.dev. Says { saved, follow }:
+   * `saved` as savePrefs has it, and `follow` as followUs does (null with none on).
+   */
+  async function messagesOn(notify){
+    const saved = await savePrefs({ notify });
+    return { saved, follow: saved === 'saved' && anyMessages(notify) ? await followUs() : null };
+  }
+  // What's said once they're saved: `lead` first ("Saved."), then how they'll reach you.
+  function heardText({ saved, follow }, lead = 'Saved.'){
+    if (saved !== 'saved') return 'Saved in this browser only: sign out and in again for messages';
+    if (follow === 'followed') return `${lead} You follow @${HANDLE} now, so its messages can reach you.`;
+    if (follow === 'couldnt') return `${lead} Follow @${HANDLE} on Bluesky so its messages can reach you.`;
+    return lead;
+  }
+
   // What "Direct my agent" starts with on an ask: your settings, where they suit it. Before
   // there are any, the command for what your profile says you run, and saying you're on it for a
   // day. On a phone there's no terminal to paste a command into, so it starts on the prompt
@@ -469,15 +505,24 @@ export function createRainshare({ root, base = '/', host }){
   function welcome(){
     if (!shouldWelcome({ source: S.source, mine: S.mine, sub: S.sub })) return;
     const source = S.source;
+    let heard = null;   // how switching messages on went, for what's said once the dialog has closed
     openWelcome({
       person: S.mine.bluesky?.did ? S.mine.bluesky : self(),
-      save: p => source.saveProfile(p),
+      // The profile first: that's what the dialog is for, and a failure there is said in it.
+      // Messages after it, only if any are ticked, and never in the way of the profile.
+      async save(p, notify){
+        await source.saveProfile(p);
+        heard = anyMessages(notify) && S.source === source ? await messagesOn(notify).catch(e => { console.warn('rainshare messages', e); return null; }) : null;
+      },
       async saved(){
-        toast(FEATURES.fit ? 'Saved. Your board is sorted to suit you.' : 'Saved. Now pick something to help with.');
+        // (With something to say about the messages, that's said; otherwise what's next, as ever.)
+        const said = heard ? heardText(heard, 'Saved.') : '';
+        toast(said && said !== 'Saved.' ? said : FEATURES.fit ? 'Saved. Your board is sorted to suit you.' : 'Saved. Now pick something to help with.');
         if (S.source !== source) return;
         await loadMine(true); rerender();
       },
-      error: plainText
+      error: plainText,
+      canFollow: canFollow()
     });
   }
 
@@ -1623,14 +1668,27 @@ export function createRainshare({ root, base = '/', host }){
         <p class="rs-err" hidden></p>
       </form>
       <aside class="rs-me-side">
-        ${sendSettings()}
-        ${messageSettings()}
         ${S.source.gardenOf ? `<section class="rs-mygarden"><h2>What you’ve helped with</h2>${gardenBlock(S.garden, 'You', { buds: S.buds, fresh: S.fresh })}</section>` : ''}
         ${a('profile/' + viewer(), 'See your profile as others do', 'rs-link')}
+        ${a('settings', `${ico('settings')}Your settings`, 'rs-link')}
       </aside>
       </div>`;
   }
-  // Your settings for "Direct my agent" (./send.js), beside your profile: they aren't about you, so they're saved on their own.
+  /* ---------- your settings ---------- */
+  // A page of their own, apart from your profile: they aren't about you, so they're saved on
+  // their own (dev.rainshare.preferences), and nobody else sees them on Rainshare.
+  function renderSettings(){
+    if (!signedIn()) return needSignIn('Sign in to change your settings.');
+    if (!S.mine) return back() + settingsSk();
+    return `${back()}
+      <div class="rs-settings">
+        <div class="rs-hrow"><h1>Settings</h1>${tip('How Rainshare works for you. They’re saved in your own account, apart from your profile.', 'About your settings')}</div>
+        ${sendSettings()}
+        ${messageSettings()}
+        <p class="rs-muted">What people see about you is on ${a('me', 'your profile', 'rs-link')}.</p>
+      </div>`;
+  }
+  // Your settings for "Direct my agent" (./send.js).
   function sendSettings(){
     const p = { route: 'brief', claim: true, days: TAKE_DAYS_DEFAULT, askEachTime: true, ...(S.prefs?.send || {}) };
     if (!S.prefs?.send?.route) p.route = { 'claude-code': 'claude', codex: 'codex' }[mySetup()?.harness] || 'brief';
@@ -1646,13 +1704,21 @@ export function createRainshare({ root, base = '/', host }){
     </section>`;
   }
   // The direct messages you'd like from @rainshare.dev (../announcer/src/messages.js). It reads your
-  // settings from your account, so a copy kept only in this browser doesn't reach it.
+  // settings from your account, so a copy kept only in this browser doesn't reach it. Saving
+  // with either ticked follows @rainshare.dev for you, which Bluesky needs for them to arrive.
   function messageSettings(){
-    const n = S.prefs?.notify || {};
+    const n = S.prefs?.notify || {}, on = anyMessages(n), f = S.follows, can = canFollow();
+    const onBluesky = `<a class="rs-link" href="https://bsky.app/profile/${esc(HANDLE)}" target="_blank" rel="noopener">follow @${esc(HANDLE)}</a>`;
+    // How they reach you: you follow the account, or ticking follows it for you, or you're to follow it on Bluesky.
+    const reach = f === true ? `<p class="rs-note rs-on">${ico('check')}<span>You follow @${esc(HANDLE)}, so its messages can reach you.</span></p>`
+      : on && f === false ? `<p class="rs-note rs-heed">${ico('info')}<span>You don’t follow @${esc(HANDLE)}, so Bluesky may not let its messages through.${can ? '' : ` To get them, ${onBluesky} on Bluesky, or sign out and in again to let Rainshare follow it for you.`}</span>${can ? `<button class="rs-btn rs-quiet rs-sm" type="button" data-rs-act="follow-us">Follow @${esc(HANDLE)}</button>` : ''}</p>`
+      : can ? `<p class="rs-muted">Bluesky only lets accounts you follow message you, unless you’ve changed that, so ticking either follows @${esc(HANDLE)} for you.</p>`
+      : `<p class="rs-muted">Bluesky only lets accounts you follow message you, unless you’ve changed that, so ${onBluesky}.</p>`;
     return `<section class="rs-panel rs-mynotify"><div class="rs-hrow"><h2>Messages from @${esc(HANDLE)}</h2>${tip('Rainshare’s Bluesky account can send you a direct message when there’s news: updates within about a quarter of an hour, and new asks once a day. Your settings are saved in your account, where anyone can read them.')}</div>
       <form class="rs-prefs" data-rs-form="notify">
         ${NOTIFY.map(([k, l]) => `<label class="rs-check"><input type="checkbox" name="${k}"${n[k] ? ' checked' : ''}> ${esc(l)}</label>`).join('')}
-        <p class="rs-muted">Bluesky only lets accounts you follow message you, unless you’ve changed that, so <a class="rs-link" href="https://bsky.app/profile/${esc(HANDLE)}" target="_blank" rel="noopener">follow @${esc(HANDLE)}</a>. To stop them, untick these, or reply STOP to any message.</p>
+        ${reach}
+        <p class="rs-muted">To stop them, untick these, or reply STOP to any message. Unticking them doesn’t unfollow @${esc(HANDLE)}.</p>
         ${S.prefsLocal ? `<p class="rs-muted">${ico('lock')} These can’t reach @${esc(HANDLE)} yet: your sign-in is from before Rainshare had settings, so they’re kept in this browser only. Sign out and in again to send them.</p>` : ''}
         <button class="rs-btn rs-quiet rs-sm" type="submit">Save</button>
       </form>
@@ -1661,8 +1727,8 @@ export function createRainshare({ root, base = '/', host }){
   async function submitNotify(form){
     const fd = new FormData(form), btn = form.querySelector('[type=submit]');
     btn.disabled = true;
-    const r = await savePrefs({ notify: Object.fromEntries(NOTIFY.map(([k]) => [k, !!fd.get(k)])) });
-    toast(r === 'saved' ? 'Saved' : 'Saved in this browser only: sign out and in again for messages');
+    const r = await messagesOn(Object.fromEntries(NOTIFY.map(([k]) => [k, !!fd.get(k)])));
+    toast(heardText(r));
     rerender();
   }
   async function submitPrefs(form){
@@ -2122,7 +2188,7 @@ export function createRainshare({ root, base = '/', host }){
   function render(){
     // (Until a screen has been entered with someone to show it to, the address says what to hold its place with.)
     if (!S.source || !S.view) { paint(`<div class="rs">${ahead(S.sub)}</div>`, viewOf(S.sub)); return; }
-    const body = { board: renderBoard, seed: renderSeed, new: renderNew, me: renderMe, person: renderPerson, agents: renderAgents, feedback: renderFeedback, admin: renderAdmin, terms: renderLegal, privacy: renderLegal, lost: renderLost }[S.view]?.() || renderBoard();
+    const body = { board: renderBoard, seed: renderSeed, new: renderNew, me: renderMe, settings: renderSettings, person: renderPerson, agents: renderAgents, feedback: renderFeedback, admin: renderAdmin, terms: renderLegal, privacy: renderLegal, lost: renderLost }[S.view]?.() || renderBoard();
     // Redrawing keeps whichever field had focus, and where its cursor was.
     const focus = document.activeElement && root.contains(document.activeElement) ? document.activeElement : null;
     const keep = focus?.name ? { name: focus.name, pos: focus.selectionStart } : null;
@@ -2190,6 +2256,12 @@ export function createRainshare({ root, base = '/', host }){
         return;
       }
       if (name === 'pull-retry') { stash(); await loadPull(it, true); return; }
+      if (name === 'follow-us') {
+        el.disabled = true;
+        const r = await followUs();
+        toast(r === 'couldnt' ? `That didn’t work. Follow @${HANDLE} on Bluesky instead.` : `You follow @${HANDLE} now, so its messages can reach you.`);
+        rerender(); return;
+      }
       if (name === 'me-more') { S.open['me-more'] = true; const more = root.querySelector('[data-rs-me-more]'); if (more) { more.hidden = false; el.remove(); } return; }
       if (name === 'ask-fold') {
         // Folded and unfolded in place. Folding keeps the button where it was on screen, so a
@@ -2488,6 +2560,10 @@ export function createRainshare({ root, base = '/', host }){
       if (signedIn() && !S.mine) { await loadMine(); render(); }
       if (signedIn() && S.form && S.form.groups === null) { const g = await S.source.groups().catch(() => []); if (S.form) { S.form.groups = g; rerender(); } }
     }
+    else if (sub === 'settings') {
+      S.view = 'settings'; title('Settings'); loadFollows(); render();
+      if (signedIn() && !S.mine) { await loadMine(); render(); }
+    }
     else if (sub === 'agents') { S.view = 'agents'; render(); }
     else if (sub === 'feedback') { S.view = 'feedback'; render(); loadFeedback(); }
     else if (sub === 'admin') { S.view = 'admin'; render(); loadAdmin(); }
@@ -2511,7 +2587,7 @@ export function createRainshare({ root, base = '/', host }){
     show,
     /** Hand in a (new) data source: on sign-in, sign-out, or switching to the example circle. */
     async setSource(source){
-      Object.assign(S, { source, board: null, mine: null, garden: null, buds: null, grew: null, fresh: null, unlinked: null, seed: null, form: null, drafts: {}, pick: null, sheet: false, pull: null, circle: undefined, vouching: null, accepting: null, reply: null, from: 'anyone', sort: savedSort(), show: 'all', known: {}, admin: null, found: null, modding: null });
+      Object.assign(S, { source, board: null, mine: null, follows: undefined, garden: null, buds: null, grew: null, fresh: null, unlinked: null, seed: null, form: null, drafts: {}, pick: null, sheet: false, pull: null, circle: undefined, vouching: null, accepting: null, reply: null, from: 'anyone', sort: savedSort(), show: 'all', known: {}, admin: null, found: null, modding: null });
       poster.reset();
       render();
       if (source?.signedIn) { await loadMine(); loadGarden(); welcome(); }

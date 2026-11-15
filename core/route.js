@@ -3,18 +3,20 @@
 // the app goes there; where it isn't, it says nothing is there and offers the way back.
 //
 // A sub-path is the part after the app's base: '' (home: the board, or on rainshare.dev the
-// landing for someone signed out), 'board' (the board on its own), 'new', 'me', 'agents',
-// 'feedback', 'profile/<who>', 'seed/<who>/<rkey>', 'seed/s/<code>' (see ../ui/rainshare.js). A profile's
+// landing for someone signed out), 'board' (the board on its own), 'new', 'me', 'settings',
+// 'agents', 'feedback', 'profile/<who>', 'seed/<who>/<rkey>', 'seed/s/<code>' (see ../ui/rainshare.js). A profile's
 // address is by DID; a handle works in its place, and the old 'u/<who>' leads there too.
 import { isHandle, isRkey } from './net.js';
 
 // ('admin' is @rainshare.dev's moderation page: to anyone else, it's as if nothing were there.)
 // ('terms' and 'privacy' are the Terms of Service and the Privacy Policy: ./legal.js.)
-const PAGES = ['board', 'new', 'me', 'agents', 'feedback', 'admin', 'terms', 'privacy'];
+// ('settings' is how "Send my agent" works for you, and the messages you'd like from @rainshare.dev.)
+const PAGES = ['board', 'new', 'me', 'settings', 'agents', 'feedback', 'admin', 'terms', 'privacy'];
 // Other words people reach for.
 const ALIAS = {
   ask: 'new', post: 'new', plant: 'new', create: 'new', add: 'new',
-  profile: 'me', settings: 'me', account: 'me', you: 'me',
+  profile: 'me', account: 'me', you: 'me',
+  preferences: 'settings', prefs: 'settings', options: 'settings', notifications: 'settings', messages: 'settings', dms: 'settings',
   agent: 'agents', cli: 'agents', mcp: 'agents', terminal: 'agents', install: 'agents', setup: 'agents', docs: 'agents', help: 'agents', faq: 'agents',
   circle: 'board', feed: 'board', all: 'board', browse: 'board', explore: 'board',
   moderation: 'admin', moderate: 'admin', mod: 'admin',
