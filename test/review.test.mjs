@@ -3,9 +3,9 @@
 // stand-in review queue, as the index keeps it.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { review, answerOf, composeRequest, HELP } from '../announcer/src/review.js';
-import { ACCOUNT, reader } from '../announcer/src/posts.js';
-import { SEED, TAKE, MODERATION, SITE } from '../core/ns.js';
+import { review, answerOf, composeRequest, HELP, DAILY_AT } from '../announcer/src/review.js';
+import { ACCOUNT, reader, announce, session } from '../announcer/src/posts.js';
+import { SEED, TAKE, DELIVERY, MODERATION, SITE } from '../core/ns.js';
 
 const NOW = Date.parse('2026-11-15T18:00:30Z'), HOUR = 3600e3, ago = ms => new Date(NOW - ms).toISOString();
 const PDS = 'https://pds.test', APPROVER = 'did:plc:dame';
@@ -60,6 +60,7 @@ globalThis.fetch = async (input, init = {}) => {
   if (method === 'com.atproto.repo.getRecord') return json({ error: 'RecordNotFound' }, 400);
   if (method === 'com.atproto.server.createSession') return json({ accessJwt: 'access' });
   if (method === 'com.atproto.repo.putRecord') { const b = JSON.parse(init.body); written.push(b); (repos[ACCOUNT] ||= {})[b.collection] = { ...(repos[ACCOUNT]?.[b.collection] || {}), [b.rkey]: b.record }; return json({ uri: uri(ACCOUNT, b.collection, b.rkey) }); }
+  if (method === 'com.atproto.repo.createRecord') { const b = JSON.parse(init.body), rkey = b.rkey || 'auto' + ++seq; (repos[ACCOUNT] ||= {})[b.collection] = { ...(repos[ACCOUNT]?.[b.collection] || {}), [rkey]: b.record }; return json({ uri: uri(ACCOUNT, b.collection, rkey) }); }
   if (method === 'chat.bsky.convo.getConvoForMembers') { assert.deepEqual(q.getAll('members'), [APPROVER]); return chatOpen ? json({ convo: { id: 'c-dame' } }) : json({ error: 'NotFollowedBySender' }, 400); }
   if (method === 'chat.bsky.convo.getMessages') return json({ messages: convo });
   if (method === 'chat.bsky.convo.sendMessage') {
@@ -131,7 +132,109 @@ test('POST and SEND say yes one way only', async () => {
   out = await go();
   assert.deepEqual(out.decided.map(d => d.status), ['send_only']);
   assert.equal(queue.get(B).status, 'send_only');
-  assert.match(sent[2].text, /^Okay: “A tiny weather app” goes in the day’s new asks, and isn’t posted./);
+  assert.match(sent[2].text, /^Okay: “A tiny weather app” goes in the new asks people get by direct message at 15:45 UTC, and isn’t posted\./);
+});
+
+// The posts, as ./run.js has them go between taking the answer and saying what came of it.
+const POST = 'app.bsky.feed.post', postOf = rkey => `at://${ACCOUNT}/${POST}/${rkey}`;
+const GAIL = 'did:plc:gail';
+const take = (seed, rkey = 'g2') => { repos[GAIL][TAKE][rkey] = { seed: { uri: seed, cid: 'bafy' + seed.split('/').pop() }, until: ago(-DAY), createdAt: ago(HOUR / 4) }; };
+const DAY = 24 * HOUR;
+
+test('the reply to a YES comes once the post is up, with its link', async () => {
+  await go();
+  reply('yes');
+  let at = null;
+  const posting = async () => { at = queue.get(A).status; return { posts: [{ ask: A, uri: postOf('3n2post00a1'), error: null }] }; };
+  const out = await go({ posting });
+  assert.equal(at, 'approved', 'the yes is written before the posts go');
+  assert.equal(DAILY_AT, '15:45 UTC');
+  assert.match(sent[1].text, /^Posted “Mozilla Firefox hardening”, and it goes in the new asks people get by direct message at 15:45 UTC: bsky\.app\/profile\/rainshare\.dev\/post\/3n2post00a1\n\nWaiting for your OK/);
+  const links = sent[1].facets.flatMap(f => f.features.map(x => x.uri)).filter(Boolean);
+  assert.ok(links.includes('https://bsky.app/profile/rainshare.dev/post/3n2post00a1'));
+  assert.equal(out.asked, B, 'and the next ask comes with it');
+});
+
+test('with the posts in between, as a run has them, a YES is posted and the reply links to the post', async () => {
+  await go();
+  reply('yes');
+  const read = reader({ db }), as = session('app-pass');
+  await go({ read, as, posting: () => announce({ password: 'app-pass', now: NOW, log: () => {}, read, as }) });
+  const posts = Object.entries(repos[ACCOUNT][POST] || {});
+  assert.deepEqual(posts.map(([, p]) => p.embed.external.title), ['Mozilla Firefox hardening'], 'only the one said yes to');
+  assert.match(sent[1].text, new RegExp(`^Posted “Mozilla Firefox hardening”, and it goes in the new asks people get by direct message at 15:45 UTC: bsky\\.app/profile/rainshare\\.dev/post/${posts[0][0]}\\n\\nWaiting for your OK`));
+});
+
+test('a YES to an ask someone took while the approver was deciding says it isn’t going out, and why', async () => {
+  await go();
+  take(A);
+  repos[GAIL][DELIVERY] = { d1: { seed: { uri: A, cid: 'bafya1' }, url: 'https://example.com/pull/1', createdAt: ago(HOUR / 8) } };
+  reply('YES');
+  const out = await go({ posting: async () => ({ posts: [] }) });
+  assert.equal(queue.get(A).status, 'approved', 'the yes is kept');
+  assert.deepEqual(out.decided.map(d => d.status), ['approved']);
+  assert.match(sent[1].text, /^Okay, but “Mozilla Firefox hardening” isn’t going out: @gail\.test has turned in work on it\. Rainshare only passes on asks nobody’s on yet\./);
+  assert.doesNotMatch(sent[1].text, /goes out\./);
+});
+
+test('one someone’s only on is held back for now', async () => {
+  await go();
+  take(A);
+  reply('post');
+  await go({ posting: async () => ({ posts: [] }) });
+  assert.match(sent[1].text, /^Okay, but “Mozilla Firefox hardening” isn’t going out for now: @gail\.test is on it\./);
+});
+
+test('if the ask waiting for an answer is taken, the next one says never mind, and a reply goes to the next one only', async () => {
+  await go();
+  assert.equal(queue.get(A).request_id, 'm1');
+  take(A);
+  clock += 60e3;
+  let out = await go();
+  assert.equal(out.asked, B, 'the one waiting doesn’t need an answer any more, so the next is asked about');
+  assert.match(sent[1].text, /^Never mind “Mozilla Firefox hardening”: @gail\.test is on it\.\n\nWaiting for your OK.*“A tiny weather app”/s);
+
+  reply('yes');
+  out = await go();
+  assert.deepEqual(out.decided.map(d => d.ask), [B]);
+  assert.deepEqual([queue.get(A).status, queue.get(B).status], ['pending', 'approved']);
+
+  // Gail lets it go: it's asked about again, and the old yes, meant for Bob's, isn't taken for it.
+  delete repos[GAIL][TAKE].g2;
+  clock += 60e3;
+  out = await go();
+  assert.deepEqual([out.decided.length, out.asked, queue.get(A).status], [0, A, 'pending']);
+  assert.match(sent.at(-1).text, /Waiting for your OK.*“Mozilla Firefox hardening”/s);
+});
+
+test('a reply isn’t taken for an earlier ask when the one asked about since has been edited', async () => {
+  await go();
+  take(A);
+  clock += 60e3;
+  await go();   // Bob's, with never mind for Alice's
+  edit(BOB, 'b1', 'A tiny weather app, v2');
+  delete repos[GAIL][TAKE].g2;
+  reply('yes');
+  const out = await go();
+  assert.deepEqual([out.decided.length, queue.get(A).status], [0, 'pending'], 'the yes was about Bob’s');
+});
+
+test('an ask said yes to that’s posted in a later run gets its link then', async () => {
+  queue.get(A).status = 'approved'; queue.get(B).status = 'declined';
+  const posting = async () => ({ posts: [{ ask: A, uri: postOf('3n2post00a1'), error: null }, { ask: uri(APPROVER, SEED, 'd1'), uri: postOf('3n2post00d1'), error: null }] });
+  const out = await go({ posting });
+  assert.deepEqual(out.followedUp, [A], 'not the approver’s own');
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].text, 'Posted “Mozilla Firefox hardening”: bsky.app/profile/rainshare.dev/post/3n2post00a1');
+  await go({ posting: async () => ({ posts: [] }) });
+  assert.equal(sent.length, 1, 'nothing more to say');
+});
+
+test('a post that didn’t work is said, and the link comes when it’s up', async () => {
+  await go();
+  reply('yes');
+  await go({ posting: async () => ({ posts: [{ ask: A, uri: null, error: 'Rate limit exceeded' }] }) });
+  assert.match(sent[1].text, /^Okay: “Mozilla Firefox hardening” goes out, but posting it didn’t work \(Rate limit exceeded\)\. The next run tries again/);
 });
 
 test('a reply that isn’t an answer gets told what to say, once', async () => {

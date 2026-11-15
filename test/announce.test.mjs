@@ -3,7 +3,7 @@
 // Bluesky's AppView, and the site's link preview pictures.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { announce, compose, isNew, askAt, linksIn, reader, hiddenPosts, cleared, clearedAt, ACCOUNT, APPROVER, WINDOW, SETTLE } from '../announcer/src/posts.js';
+import { announce, compose, isNew, isDue, askAt, linksIn, reader, hiddenPosts, cleared, clearedAt, ACCOUNT, APPROVER, WINDOW, SETTLE, ANSWER } from '../announcer/src/posts.js';
 import { SEED, TAKE, DELIVERY, PROFILE, MODERATION, SITE } from '../core/ns.js';
 
 const NOW = Date.parse('2026-11-13T16:00:00Z'), ago = ms => new Date(NOW - ms).toISOString();
@@ -233,6 +233,25 @@ test('what counts as new: open, for everyone, asked in the window and not just n
   assert.equal(at(HOUR, { audience: { $type: `${SEED}#followers` } }), false);
   assert.equal(at(HOUR, { title: '  ' }), false);
   assert.equal(isNew({ title: 'No date', audience: anyone }, NOW), false);
+});
+
+test('a yes late in an ask’s three days still gets it posted, within the day the approver has to answer', async () => {
+  const due = (age, yes, more) => {
+    const a = { uri: `at://${ALICE}/${SEED}/x`, repo: ALICE, cid: 'c', value: ask('Something', ago(age), more) };
+    return isDue(a, new Map(yes == null ? [] : [[a.uri, { status: 'approved', cid: 'c', decided_at: ago(yes) }]]), NOW);
+  };
+  assert.equal(due(WINDOW - HOUR), true);
+  assert.equal(due(SETTLE - 1, 0), false, 'still settling, yes or no');
+  assert.equal(due(WINDOW + HOUR), false, 'with no yes, three days from when it was asked');
+  assert.equal(due(WINDOW + HOUR, HOUR), true, 'said yes to an hour ago');
+  assert.equal(due(WINDOW + HOUR, WINDOW), false, 'a yes from three days ago has had its three days');
+  assert.equal(due(WINDOW + ANSWER + HOUR, HOUR), false, 'and never past the approver’s day to answer');
+  assert.equal(due(WINDOW + HOUR, HOUR, { state: 'closed' }), false);
+
+  repos[ALICE][SEED]['3n2late000002'] = ask('Said yes to late', ago(WINDOW + HOUR));
+  const out = await run();
+  assert.deepEqual(created.map(c => c.record.embed.external.title), ['Said yes to late', 'Fix the flaky test', 'A tiny weather app']);
+  assert.equal(out.found, 7);
 });
 
 test('a post fits, with the mention on the handle whatever comes before it', () => {

@@ -4,10 +4,12 @@
 // happens on the board, and `npm run announce` runs it by hand. Without
 // RAINSHARE_BLUESKY_APP_PASSWORD, an app password for the account, it posts nothing.
 //
-// Which asks are new: open ones meant for everyone, asked in the last three days (WINDOW) and
-// at least a quarter of an hour ago (SETTLE), so a title that's fixed straight after posting is
-// fixed in the post too. A run posts the earliest asked first, at most MAX_POSTS of them, and
-// leaves the rest for the next run.
+// Which asks are new: open ones meant for everyone, asked at least a quarter of an hour ago
+// (SETTLE), so a title that's fixed straight after posting is fixed in the post too, and asked in
+// the last three days (WINDOW), or said yes to in them, if that was later: a yes that takes a
+// while still gets the ask posted, as long as it's in the day after (ANSWER) that the approver
+// has to answer in. A run posts the earliest asked first, at most MAX_POSTS of them, and leaves
+// the rest for the next run.
 //
 // There's no database, so the account itself says what's been posted. An ask that one of its
 // recent posts links to is left alone, whoever wrote the post. And each post takes the ask's own
@@ -40,6 +42,9 @@ import { OWNER } from '../../lexicons/compat.mjs';
 // The brand account, which the lexicons belong to as well. Named by its DID, as there.
 export const ACCOUNT = OWNER;
 export const WINDOW = 3 * 24 * 3600e3, SETTLE = 15 * 60e3, MAX_POSTS = 5;
+// How long the approver has to answer, at least, once they're asked about an ask (./review.js):
+// they're only asked about asks from the last three days, and their answer is taken for a day after.
+export const ANSWER = 24 * 3600e3;
 const POST = 'app.bsky.feed.post', BLOCK = 'app.bsky.graph.block';
 // What a post may hold (app.bsky.feed.post), and how big a card's picture may be (app.bsky.embed.external).
 const MAX_GRAPHEMES = 300, MAX_BYTES = 3000, MAX_THUMB = 1_000_000;
@@ -78,10 +83,19 @@ export function clearedAt(ask, reviews){
   const asked = Date.parse(ask?.value?.createdAt), r = reviews?.get(ask?.uri), yes = [...ALLOWS.post, ...ALLOWS.send].includes(r?.status) ? Date.parse(r.decided_at) : NaN;
   return Number.isFinite(yes) && !(yes <= asked) ? yes : asked;
 }
-/** Whether an ask is one to post about at `now`: passable, and asked between WINDOW and SETTLE ago. */
+/** Whether an ask is one to ask the approver about at `now`: passable, and asked between WINDOW and SETTLE ago. */
 export function isNew(v, now){
   const at = Date.parse(v?.createdAt);
   return passable(v) && at > now - WINDOW && at <= now - SETTLE;
+}
+/**
+ * Whether an ask is one to post about at `now`: passable, asked at least SETTLE ago, and passed
+ * on (clearedAt: asked, or said yes to, if that was later) in the last WINDOW, but never once
+ * it's older than WINDOW and the approver's ANSWER together.
+ */
+export function isDue(ask, reviews, now){
+  const at = Date.parse(ask?.value?.createdAt);
+  return passable(ask?.value) && at <= now - SETTLE && at > now - WINDOW - ANSWER && clearedAt(ask, reviews) > now - WINDOW;
 }
 
 /**
@@ -109,20 +123,20 @@ export function reader({ db = null, log = () => {} } = {}){
   // matters most. If that can't be read, nothing goes out, rather than something it hid.
   let hidden;
   read.hidden = () => hidden ||= net.listRecords(MODERATOR, MODERATION, { pages: 10 }).then(decisionsFrom);
-  // The review queue (./review.js), for asks from the last few days. Null when there's none to
-  // read, and then nothing new is passed on.
+  // The review queue (./review.js), for asks from the last few days: as far back as the approver
+  // can still be answering about. Null when there's none to read, and then nothing new is passed on.
   let reviews;
   read.reviews = () => reviews ||= !db ? Promise.resolve(null)
-    : db.reviews(Date.now() - WINDOW - 24 * 3600e3).catch(e => { log(`The review queue couldn’t be read (${e.message}), so nothing new is passed on this run.`); return null; });
+    : db.reviews(Date.now() - WINDOW - ANSWER).catch(e => { log(`The review queue couldn’t be read (${e.message}), so nothing new is passed on this run.`); return null; });
   return read;
 }
 /** Whether a record (or its whole account) is hidden, by the decisions from read.hidden(). */
 export const isHidden = (decisions, rec) => !!hiddenBy(decisions, rec?.uri, rec?.repo);
 
 /** The new asks on the board, the earliest asked first. */
-async function newAsks(now, read){
+async function newAsks(now, read, reviews){
   const [seeds, hidden] = await Promise.all([read(SEED), read.hidden()]);
-  return seeds.filter(r => isNew(r.value, now) && !isHidden(hidden, r)).sort((a, b) => Date.parse(a.value.createdAt) - Date.parse(b.value.createdAt));
+  return seeds.filter(r => isDue(r, reviews, now) && !isHidden(hidden, r)).sort((a, b) => Date.parse(a.value.createdAt) - Date.parse(b.value.createdAt));
 }
 
 /** Every link in a post: its card's, the links in its text, and any written out in full. */
@@ -194,9 +208,11 @@ async function unposted(asks, { read, now }){
  * and it isn't done or closed. As on the board, a take or turn-in that's hidden, or from someone
  * in `blocks`, doesn't count, so nobody can keep an ask off the account by saying they're on it.
  */
-export function free(ask, { takes = [], deliveries = [], hidden = new Map(), blocks = new Set(), now = Date.now() } = {}){
+export const free = (ask, opts) => progressFor(ask, opts).key === 'open';
+/** How far an ask has got (progressOf, ../core/words.js), counting takes and turn-ins as free() does: { key, helpers, … }. */
+export function progressFor(ask, { takes = [], deliveries = [], hidden = new Map(), blocks = new Set(), now = Date.now() } = {}){
   const on = list => list.filter(r => r.value?.seed?.uri === ask.uri && !isHidden(hidden, r) && !blocks.has(r.repo));
-  return progressOf({ ...ask, takes: on(takes), deliveries: on(deliveries) }, null, now).key === 'open';
+  return progressOf({ ...ask, takes: on(takes), deliveries: on(deliveries) }, null, now);
 }
 
 const segmenter = typeof Intl?.Segmenter === 'function' ? new Intl.Segmenter() : null;
@@ -325,7 +341,7 @@ export async function announce({ post = true, password = process.env.RAINSHARE_B
     log(`RAINSHARE_BLUESKY_APP_PASSWORD isn't set, so nothing was posted. Set it to an app password for ${ACCOUNT} (@rainshare.dev) to post new asks there.`);
     return { setUp: false, dryRun: false, found: 0, skipped: 0, waiting: 0, posts: [], later: 0, takenDown: [] };
   }
-  const asks = await newAsks(now, read), todo = await unposted(asks, { read, now }), reviews = read.reviews ? await read.reviews() : null;
+  const reviews = read.reviews ? await read.reviews() : null, asks = await newAsks(now, read, reviews), todo = await unposted(asks, { read, now });
   // Ready: the approver said YES or POST. Waiting: they haven't answered yet. The rest (NO, SEND) aren't posted.
   const ready = todo.filter(a => cleared(a, reviews, 'post')), waiting = todo.filter(a => !cleared(a, reviews, 'post') && !decided(a, reviews)).length;
   const posts = ready.slice(0, max).map(a => ({ ask: a.uri, rkey: a.rkey, ...compose(a, a.who), uri: null, error: null }));
