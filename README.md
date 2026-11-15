@@ -313,6 +313,10 @@ deploy themselves when `main` changes. See
   **DM** (only send it), **NO** (leave it on the board, don't pass it on), or **HIDE** (hide it,
   with what follows as the reason, and take down any post). An answer holds for that version of
   the ask only. Without the queue, nothing new goes out. See `announcer/src/review.js`.
+- **Leaving someone out of the index.** When someone asks for their records to be kept out of
+  Rainshare's copy (the Privacy Policy says they can), add their DID to `rainshare_index_excluded`
+  in Supabase. The database deletes what the index has of theirs and turns the rest away.
+  [`indexer/README.md`](indexer/README.md) has the SQL, and what it means for them.
 - **Release notes** go at the top of `core/releases.js`, which says how to write one. They show in
   the bell for 30 days and on [What's new](https://rainshare.dev/releases) for good.
 - **Feedback** is

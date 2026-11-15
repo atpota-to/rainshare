@@ -33,6 +33,41 @@ with the approver's POST and SEND added by
 in the Supabase project `atpota.to` (zdzjtziydmwkxbzlkwxv), beside the terms ledger and the
 garden's index.
 
+## Leaving an account out
+
+Someone can ask for their records to be kept out of the index while they stay in their own
+account. The Privacy Policy says they can: an objection to the copy, a request to delete what we
+hold, a child's account. `rainshare_index_excluded` is the list of those accounts, by DID, and the
+database does the work
+([`../supabase/migrations/20261117090000_rainshare_index_excluded.sql`](../supabase/migrations/20261117090000_rainshare_index_excluded.sql)):
+
+- adding a DID deletes every row the index has from that account, and the review notes for its
+  asks, in the same step
+- a trigger on `rainshare_records` skips anything written from it afterwards, so a stream event
+  or a reconcile can't put a row back, and the indexer keeps no list of its own
+- removing a DID lets its records back in, at the next reconcile or the next time one changes
+
+Only the service role can read or write the list. In the Supabase SQL editor, with the account's
+DID (`https://bsky.social/xrpc/com.atproto.identity.resolveHandle?handle=<handle>` gives a
+handle's):
+
+```sql
+-- leave an account out, and delete what the index has of it
+insert into public.rainshare_index_excluded (did, reason) values ('did:plc:…', 'asked by email');
+-- who's left out
+select did, reason, added_at from public.rainshare_index_excluded order by added_at;
+-- let an account back in
+delete from public.rainshare_index_excluded where did = 'did:plc:…';
+```
+
+`reason` is a few words for us (how they asked), never shown to anyone. What being left out means
+for them: the site reads the network, so Rainshare works for them as before. The announcer reads
+the board from the index, so while it does, it doesn't see their records. Their asks get no review
+note, so they're never posted or sent. They get no direct messages. And a take or a turn-in of
+theirs doesn't count, so an ask they're on can still go out as one nobody's on. The reconcile
+still lists their repo every six hours and the database turns the rows away. @rainshare.dev's own
+account can't be left out: the apps hide by its moderation records.
+
 ## How it works
 
 - **The stream.** One Jetstream v2 connection, filtered to `dev.rainshare.*`, with a cursor per
