@@ -7,7 +7,7 @@ import * as R from '../core/records.js';
 import { meantFor, closeness } from '../core/circle.js';
 import { rank, score, fit, boardOrder, sortsFor, defaultSort } from '../core/rank.js';
 import { whereText, shortWhere, jobText, jobShort, modelsText, wantsShort, notesText, jobAndNotes, progressOf, progressShort, askExcerpt, askSize, askSizeText, stageOf, nounOf, aNoun, pictureOf, whatItIs, stateText, planText } from '../core/words.js';
-import { wateredBy, wateredText } from '../core/garden.js';
+import { wateredBy, wateredText, grown } from '../core/garden.js';
 import { renderMarkdown } from '../core/markdown.js';
 import { brief, launchers, handBack, readHandBack, readBranchBack, handBackBranch } from '../core/brief.js';
 import { createDemoSource } from '../core/demo.js';
@@ -1011,4 +1011,20 @@ test('the garden someone has helped grow is what got done with their help, and n
   const yours = (await src.board()).items.find(i => i.rkey === '3sq-you'), by = yours.deliveries[0];
   await src.update(yours, { state: 'sprouted', sproutedWith: [{ uri: by.uri, cid: by.cid }] });
   assert.deepEqual((await src.gardenOf('did:example:juniper')).map(g => [g.stage, g.picture]), [['seedling', 'young']]);
+});
+
+test('what the board shows as done is what grew with someone’s help, newest first', () => {
+  const dl = (id, by) => ({ uri: `at://${by}/dev.rainshare.delivery/${id}`, cid: 'bafy' + id, repo: by });
+  const ask = (rkey, value, deliveries = []) => ({ uri: `at://did:plc:planter/dev.rainshare.seed/${rkey}`, repo: 'did:plc:planter', rkey, value: { title: rkey, createdAt: '2026-11-01T00:00:00Z', ...value }, deliveries });
+  const one = dl('1', 'did:plc:kai'), two = dl('2', 'did:plc:sam'), ref = d => ({ uri: d.uri, cid: d.cid });
+  const items = [
+    ask('older', { state: 'sprouted', sproutedWith: [ref(one)], updatedAt: '2026-11-03T00:00:00Z' }, [one]),
+    ask('newer', { state: 'sprouted', sproutedWith: [ref(two)], updatedAt: '2026-11-09T00:00:00Z' }, [one, two]),
+    ask('alone', { state: 'sprouted', updatedAt: '2026-11-10T00:00:00Z' }),                                  // marked done with nothing accepted
+    ask('made-up', { state: 'sprouted', sproutedWith: [{ uri: 'at://did:plc:kai/dev.rainshare.delivery/gone', cid: 'x' }] }, [one]),   // names work that isn't there
+    ask('open', { sproutedWith: [ref(one)] }, [one]),
+    ask('closed', { state: 'closed', sproutedWith: [ref(one)] }, [one])
+  ];
+  assert.deepEqual(grown(items).map(it => it.rkey), ['newer', 'older']);
+  assert.deepEqual(grown(null), []);
 });

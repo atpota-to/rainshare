@@ -35,6 +35,10 @@ Rainshare database of asks or people. It works with Bluesky, Tangled, knotless a
 4. **Grow a garden.** If the work does the job, the asker accepts it and can say thanks. It grows
    as a plant in your garden, on your profile.
 
+Under the open asks, the board shows what's been done: asks where someone turned in the work and
+whoever asked accepted it, with the thanks they said, if any. Picking one shows how it went, with
+no way to direct an agent at it.
+
 The board is open to read on the home page without signing in. To ask or help, sign in with a
 Bluesky or other Atmosphere handle. If you haven't got one, the sign-in helps you make one on
 Bluesky, Blacksky, Eurosky, selfhosted.social or npmx.

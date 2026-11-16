@@ -118,6 +118,14 @@
 .rs-head-actions{display:flex;gap:10px;flex-wrap:wrap}
 .rs-head-actions:not(:has(*)){display:none}
 .rs-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:22px;align-items:start}
+.rs-lists{display:flex;flex-direction:column;min-width:0}
+/* under what's open, what's been done: over a dashed rule, its heading and a line on what it is, then its cards */
+.rs-board-done{display:flex;flex-direction:column;gap:10px;margin-top:26px;padding-top:22px;border-top:2px dashed var(--rs-line);min-width:0}
+.rs-board-done-head :is(h2,h3){display:flex;align-items:center;gap:8px;font-size:18px;margin:0}
+.rs-board-done-head :is(h2,h3)>span{font-size:15px;font-weight:600;color:var(--rs-muted)}
+.rs-board-done-head .rs-life{width:22px;height:22px}
+.rs-board-done-head p{margin:4px 0 2px;font-size:14px;line-height:1.45;color:var(--rs-muted);text-wrap:pretty}
+.rs-board-done-more{align-self:center}
 .rs-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;min-width:0}
 .rs-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;align-items:center;padding:14px 16px;border-radius:18px;text-decoration:none;color:inherit;background:var(--rs-item);box-shadow:inset 0 0 0 1px var(--rs-card-edge);-webkit-backdrop-filter:var(--rs-blur);backdrop-filter:var(--rs-blur);transition:box-shadow .2s,background .2s}
 .rs-item:hover{background:var(--rs-bg-card)}
@@ -157,6 +165,8 @@
 .rs-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px 3px 7px;border-radius:999px;background:var(--rs-ok-soft);line-height:1.2}
 .rs-chip .rs-i{width:15px;height:15px}
 .rs-item-taken .rs-faces{padding-left:0}
+/* on a done card, what whoever asked said when they accepted it */
+.rs-item-thanks{margin-top:-2px;font-size:14px;line-height:1.45;font-style:italic;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden}
 /* the top of the list once someone's on everything: a card in dashed outline that opens a Bluesky
    post saying you've got usage to spare, then a dashed rule over what's already being helped with */
 .rs-spare-li,.rs-spare-alone{display:flex;flex-direction:column;gap:10px}
@@ -315,7 +325,7 @@ span.rs-helper-pull{color:var(--rs-muted)}
 [data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side,.rs-settings)>:nth-child(6){--rs-i:.25s}
 [data-rs-in] :is(.rs-list,.rs-garden,.rs-activity,.rs-person,.rs-seed-side,.rs-settings)>:nth-child(n+7){--rs-i:.3s}
 [data-rs-in] :is(.rs-side>.rs-detail,.rs-seed-side>*,.rs-me-side){--rs-i:.08s}
-[data-rs-in~="board"] :is(.rs-split>.rs-list>li,.rs-side>.rs-detail){animation:rs-in .5s var(--rs-ease) calc(var(--rs-at-board,0s) + var(--rs-i)) backwards}
+[data-rs-in~="board"] :is(.rs-lists>.rs-list>li,.rs-side>.rs-detail){animation:rs-in .5s var(--rs-ease) calc(var(--rs-at-board,0s) + var(--rs-i)) backwards}
 [data-rs-in~="seed"] :is(.rs-seed-main,.rs-seed-side>*){animation:rs-in .5s var(--rs-ease) calc(var(--rs-at-seed,0s) + var(--rs-i)) backwards}
 [data-rs-in~="person"] .rs-person>*{animation:rs-in .5s var(--rs-ease) calc(var(--rs-at-person,0s) + var(--rs-i)) backwards}
 [data-rs-in~="theirs"] .rs-person>.rs-list>li{animation:rs-in .5s var(--rs-ease) calc(var(--rs-at-theirs,0s) + var(--rs-i)) backwards}

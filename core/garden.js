@@ -43,6 +43,18 @@ export function wateredBy(did, items){
   }).sort(newest);
 }
 
+/** When an ask was accepted, as near as its record says. */
+export const grewAt = it => String(it?.value?.updatedAt || it?.value?.createdAt || '');
+/**
+ * The asks that grew with someone's help, newest first: marked done naming work that was turned
+ * in for it, the same two records a garden counts. One marked done with nothing accepted, or
+ * naming work that isn't there, isn't among them.
+ */
+export function grown(items){
+  return (items || []).filter(it => it?.value?.state === 'sprouted' && (it.deliveries || []).some(d => accepted(it).has(d?.uri)))
+    .sort((a, b) => grewAt(b).localeCompare(grewAt(a)));
+}
+
 /** Whether a pull request's page is on the ask's own repo. One elsewhere proves nothing about this ask. */
 export function onRepo(link, subject){
   const page = repoPageOf(subject), l = String(link || '').toLowerCase();

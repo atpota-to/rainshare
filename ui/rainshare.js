@@ -35,7 +35,7 @@ import { newRepoPlaces, placesFor } from '../core/forges.js';
 import { writableForge, pickSource, pullText, FORGE_SAID } from '../core/forgewrite.js';
 import { wordOn, wordText } from '../core/vouch.js';
 import { tieOf, tieLines, knownText, TIE_SHORT, FROM, fromMatches } from '../core/ties.js';
-import { wateredText } from '../core/garden.js';
+import { wateredText, grown, grewAt } from '../core/garden.js';
 import { ACTIVITY_KINDS, activityCounts } from '../core/activity.js';
 import { audienceLine } from '../core/circle.js';
 import { fit, join, pretty, wantPhrase, boardOrder, sortsFor } from '../core/rank.js';
@@ -610,8 +610,8 @@ export function createRainshare({ root, base = '/', host }){
   // something else is picked, signed in it's newest first, with what suits you less further down
   // and what you asked for yourself at the end, marked as yours; signed out, it's newest first.
   // Either way, what's come in since you last looked is at the top, marked new, over a dashed
-  // rule. (What's done is on the page of whoever asked, and all of yours on your own page, which
-  // the board's quiet button leads to.)
+  // rule. Under all of it, what's been done (doneSection). (What was closed is on the page of
+  // whoever asked, and all of yours on your own page, which the board's quiet button leads to.)
   const newest = (a, b) => String(b.value?.createdAt).localeCompare(String(a.value?.createdAt));
   // The sort picked is kept in this browser, so it's still the one next time.
   const SORT_KEY = 'rs:board-sort';
@@ -825,27 +825,31 @@ export function createRainshare({ root, base = '/', host }){
   // in their own words, a quiet line (how well it suits you, or that it's yours or done) and where
   // it stands. Where the work is and how big a job it is are in its details, and so is who it's
   // open to unless you know them.
-  function card(it, { nav = false, fresh = false } = {}){
+  // In the board's Done section (`done`), when is when it was accepted, the word "Done" is left
+  // to the heading, and what whoever asked said then is quoted under the rest.
+  function card(it, { nav = false, fresh = false, done = false } = {}){
     const sq = it.value || {}, p = it.author || {}, mine = it.repo === viewer(), on = !nav && it.uri === S.pick;
     const rel = mine ? '' : relationText(it, viewer(), { audience: false }), ask = askExcerpt(sq.spec, 180);
     const pr = progressOf(it, viewer()), short = progressShort(it, viewer());
     let line = '';
     if (it.hidden) line = `<span class="rs-state rs-hidden-state">${ico('shield')}Hidden by Rainshare</span>`;
-    else if (!isOpen(it)) line = `<span class="rs-state${sq.state === 'sprouted' ? ' rs-ok' : ''}">${sq.state === 'sprouted' ? lifeIco('sprouted') : ''}${esc(stateText(sq))}</span>`;
+    else if (!isOpen(it)) line = done ? '' : `<span class="rs-state${sq.state === 'sprouted' ? ' rs-ok' : ''}">${sq.state === 'sprouted' ? lifeIco('sprouted') : ''}${esc(stateText(sq))}</span>`;
     // (Yours, with something turned in: it's waiting on you to look, and that's said.)
     else if (mine) line = pr.key === 'turned-in' ? '<span class="rs-yours-wait">Yours: waiting for you</span>' : '<span>Yours</span>';
     else if (FEATURES.fit && it.fit) line = `${drops(it.fit.level)}<span class="rs-fit-l">${esc(it.fit.label)}</span>`;
     const who = pr.helpers.filter(h => pr.key === 'done' ? h.didIt : pr.key === 'turned-in' ? h.turnedIn : true).slice(0, 3);
     // (What's been turned in, a pull request or what someone built, is a chip of its own, so it stands out down the list.)
     const faces = who.length ? `<span class="rs-faces" aria-hidden="true">${who.map(h => face(h.author, 'sm')).join('')}</span>` : '';
+    const thanks = done && typeof sq.thanks === 'string' ? sq.thanks.replace(/\s+/g, ' ').trim() : '';
     const taken = !short ? '' : pr.key === 'turned-in' ? `<span class="rs-item-taken rs-turned-in">${faces}<span class="rs-chip">${ico(pr.idea ? 'link' : 'pull')}${esc(short)}</span></span>`
       : `<span class="rs-item-taken rs-${pr.key}">${faces}${esc(short)}</span>`;
     return `<li><a class="rs-item${on ? ' on' : ''}" href="${esc(href(pathOf(it)))}" ${nav ? `data-rs-go="${esc(pathOf(it))}"` : `data-rs-pick="${esc(it.uri)}"`}${on ? ' aria-current="true"' : ''} data-rs-flip="${esc(it.uri)}">
-      <span class="rs-item-top">${face(p, 'xs')}<span class="rs-item-who"><b>${esc(mine ? 'You' : nameOf(p))}</b>${mine ? '' : hat(it.repo)}${rel ? `<span> · ${it.space ? ico('lock') : ''}${esc(rel)}</span>` : ''}</span>${fresh ? '<span class="rs-new" title="Posted since you last looked">New</span>' : ''}<time>${esc(ago(sq.createdAt))}</time></span>
+      <span class="rs-item-top">${face(p, 'xs')}<span class="rs-item-who"><b>${esc(mine ? 'You' : nameOf(p))}</b>${mine ? '' : hat(it.repo)}${rel ? `<span> · ${it.space ? ico('lock') : ''}${esc(rel)}</span>` : ''}</span>${fresh ? '<span class="rs-new" title="Posted since you last looked">New</span>' : ''}<time${done ? ' title="When it was accepted"' : ''}>${esc(ago(done ? grewAt(it) : sq.createdAt))}</time></span>
       <span class="rs-item-main">
         <span class="rs-item-title" data-rs-vt="title:${esc(it.uri)}">${esc(sq.title)}</span>
         ${ask ? `<span class="rs-item-ask">${esc(ask)}</span>` : ''}
         ${line || taken ? `<span class="rs-item-line">${line}${taken}</span>` : ''}
+        ${thanks ? `<span class="rs-item-thanks">“${esc(thanks)}”</span>` : ''}
       </span>
       ${plantPic(pictureOf(sq), 52, { key: it.uri, vt: 'plant:' + it.uri })}
     </a></li>`;
@@ -1042,19 +1046,40 @@ export function createRainshare({ root, base = '/', host }){
     for (const note of [waitingNote, upNote, grewNote, setup, early]) { const html = note(); if (html) return html; }
     return '';
   }
+  // Under what's open, what's been done: asks whose asker accepted the work someone turned in, so
+  // it grew in their garden (grown, in ../core/garden.js), newest first. It shows what's come of
+  // Rainshare, a few at a time. Picked, one opens beside the list like the rest, with a way to see
+  // how it went and none to direct an agent at it. (Narrowed to who asked, as the rest is, but not
+  // to where it stands: it's all done.)
+  const DONE_FEW = 6;
+  const doneOnBoard = () => S.board ? narrowFrom(grown(S.board.items.filter(it => !it.hidden))) : [];
+  function doneSection(all, shown){
+    if (!all.length) return '';
+    // (A level under the board's own heading, which is an h2 under the landing.)
+    const h = underLanding() && host.brand === 'rainshare' ? 'h3' : 'h2', more = all.length - shown.length;
+    return `<section class="rs-board-done" aria-labelledby="rsDoneH">
+        <div class="rs-board-done-head"><${h} id="rsDoneH">${lifeIco('sprouted')}Done <span>${all.length}</span></${h}>
+          <p>Someone turned in the work, and whoever asked accepted it. Each one grew in a helper’s garden.</p></div>
+        <ul class="rs-list" aria-label="Done">${shown.map(it => card(it, { done: true })).join('')}</ul>
+        ${all.length > DONE_FEW ? `<button class="rs-link rs-board-done-more" type="button" data-rs-act="done-more" aria-expanded="${!!S.open.done}">${S.open.done ? 'Show fewer' : `Show ${more} more`}</button>` : ''}
+      </section>`;
+  }
   function renderBoard(){
     const ord = S.board ? boardOrdered() : { items: [], fresh: 0 }, all = ord.items, byFrom = narrowFrom(all), items = narrowShow(byFrom);
-    S.shown = items;
+    const doneAll = doneOnBoard(), done = S.open.done ? doneAll : doneAll.slice(0, DONE_FEW);
+    S.shown = [...items, ...done];
     markBoardSeen(all);
     // What's new is at the top (unless it's sorted by what's waiting longest), over a dashed
     // rule, with what was here when you last looked under it.
     const fresh = new Set(all.slice(0, ord.fresh).map(it => it.uri)), freshN = items.filter(it => fresh.has(it.uri)).length;
     const seenRule = '<li class="rs-seen-li"><div class="rs-spare-rule" role="separator"><span>Here when you last looked</span></div></li>';
     const cards = items.map((it, i) => (i === freshN && freshN ? seenRule : '') + card(it, { fresh: isNew(it) })).join('');
-    if (items.length && !items.some(i => i.uri === S.pick)) { S.pick = items[0].uri; S.sheet = false; }
-    const sel = items.find(i => i.uri === S.pick), spare = allTaken(all);
+    if (S.shown.length && !S.shown.some(i => i.uri === S.pick)) { S.pick = S.shown[0].uri; S.sheet = false; }
+    const sel = S.shown.find(i => i.uri === S.pick), spare = allTaken(all);
     const fc = forecastOf(S.mine?.merged);
-    const empty = signedIn() ? 'Nothing here yet. When someone you follow asks for help, it shows up here.' : 'Nothing’s open to everyone yet. Sign in and ask for help to post the first one.';
+    const empty = signedIn() ? `${doneAll.length ? 'Nothing’s open right now.' : 'Nothing here yet.'} When someone you follow asks for help, it shows up here.`
+      : doneAll.length ? 'Nothing’s open to everyone right now. Sign in and ask for help.' : 'Nothing’s open to everyone yet. Sign in and ask for help to post the first one.';
+    const openEmpty = () => (byFrom.length ? showEmpty() : all.length ? fromEmpty() : `<p class="rs-empty">${empty}</p>`) + (spare ? spareCard(false) : '');
     const signedOutLede = `Sign in to see the ones from people you follow too${FEATURES.fit ? ', sorted by how well each suits you' : ''}.`;
     // Beside "Ask for rain", the way to your own page: led by your garden once there's one,
     // else by what you've asked for.
@@ -1084,12 +1109,15 @@ export function createRainshare({ root, base = '/', host }){
       ${S.board && all.length ? tools(all, byFrom) : ''}
       ${S.error ? `<p class="rs-note rs-bad">${plain(S.error)}</p>` : ''}
       ${!S.board ? boardSk({ fit: signedIn() && FEATURES.fit })
-        : items.length ? `<div class="rs-split${S.sheet ? ' rs-open' : ''}">
-            <ul class="rs-list" aria-label="Ideas and projects">${spare ? spareCard(true) : ''}${cards}</ul>
+        : S.shown.length ? `<div class="rs-split${S.sheet ? ' rs-open' : ''}">
+            <div class="rs-lists">
+              ${items.length ? `<ul class="rs-list" aria-label="Ideas and projects">${spare ? spareCard(true) : ''}${cards}</ul>` : openEmpty()}
+              ${doneSection(doneAll, done)}
+            </div>
             <div class="rs-scrim" data-rs-close-sheet aria-hidden="true"></div>
             <aside class="rs-side" aria-label="The one you picked">${sel ? detail(sel) : ''}</aside>
           </div>`
-        : (byFrom.length ? showEmpty() : all.length ? fromEmpty() : `<p class="rs-empty">${empty}</p>`) + (spare ? spareCard(false) : '')}
+        : openEmpty()}
       ${(S.board?.notes || []).map(n => `<p class="rs-note">${esc(n)}</p>`).join('')}
       ${
         // rainshare.dev has Agents in its own bar, and says where records live in its footer.
@@ -2345,6 +2373,8 @@ export function createRainshare({ root, base = '/', host }){
       if (name === 'signin') { host.signIn?.(S.sub); return; }
       if (name === 'filters') { const was = snapshot(root); S.open.filters = !S.open.filters; S.open.sort = false; render(); settle(root, was); root.querySelector('[data-rs-act="filters"]')?.focus(); return; }
       if (name === 'sorts') { const was = snapshot(root); S.open.sort = !S.open.sort; S.open.filters = false; render(); settle(root, was); root.querySelector('[data-rs-act="sorts"]')?.focus(); return; }
+      // (Showing more, you stay where you were; showing fewer, the button comes up with the end of the list, and you with it.)
+      if (name === 'done-more') { const was = snapshot(root); S.open.done = !S.open.done; render(); settle(root, was); root.querySelector('[data-rs-act="done-more"]')?.focus({ preventScroll: !!S.open.done }); return; }
       if (name === 'exit-demo') return host.onExitDemo?.();
       if (name === 'feedback-again') return fb.again();
       if (name === 'stage-seen') { stageDismissed = true; try { localStorage.setItem(STAGE_SEEN, '1'); } catch (_) {} root.querySelector('.rs-stage-note')?.remove(); return; }
