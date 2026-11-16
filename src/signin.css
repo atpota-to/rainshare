@@ -40,8 +40,9 @@
 .si-err{font-size:15px;line-height:1.45;font-weight:700;color:#B3261E}
 [data-mode=night] .si-err{color:#FF8A80}
 
-.si-input{width:100%;min-height:54px;border:0;border-radius:16px;padding:12px 16px;font:500 17px var(--body);color:var(--ink);background:var(--card);box-shadow:inset 0 0 0 1.5px var(--line)}
+.si-input{width:100%;min-height:54px;border:0;border-radius:16px;padding:12px 16px;font:500 17px var(--body);color:var(--ink);background:var(--card);box-shadow:inset 0 0 0 1.5px var(--edge)}
 .si-input:focus{outline:none;box-shadow:inset 0 0 0 2px var(--accent)}
+.si-input::placeholder{color:var(--muted);opacity:1}
 [data-mode=night] .si-input{background:#0F1727}
 /* in the dialog the accounts are part of the layout, not over it */
 .si-offer:has(.si-list[hidden]){display:none}

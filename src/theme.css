@@ -4,6 +4,10 @@
 :root{
   color-scheme:light;
   --bg:#F3F6FC; --bg-top:#DCE7FF; --ink:#12203A; --muted:#56627A; --line:rgba(18,32,58,.1); --card:#fff;
+  /* The edge of a field you type in or pick from, which is all that shows where it is: at least
+     3:1 against the card it's on. And a softer one for what you press that's the card's own
+     white, a button or a chip, whose words already say what it is. */
+  --edge:rgba(18,32,58,.5); --edge-soft:rgba(18,32,58,.3);
   --accent:#2F63F0; --accent-soft:rgba(47,99,240,.1); --accent-text:#2450C8;
   /* the "ai" in Rainshare, lit as the logo's drop is: pale at the top, deep at the foot, with a
      soft glow around it. --lit is its one colour, where a gradient can't be drawn in letters. */
@@ -14,7 +18,7 @@
      arriving eases out, a press or a tick springs, and leaving eases in, a little faster */
   --ease-out:cubic-bezier(.2,.8,.2,1); --ease-spring:cubic-bezier(.3,1.45,.5,1); --ease-in:cubic-bezier(.4,0,1,1)
 }
-:root[data-mode=night]{color-scheme:dark;--bg:#0B1220;--bg-top:#15244A;--ink:#E7EDF8;--muted:#9AA7BD;--line:rgba(255,255,255,.1);--card:#131C2E;--accent:#6E95FF;--accent-soft:rgba(110,149,255,.16);--accent-text:#A9C1FF;--lit:#86A8FF;--lit-fill:linear-gradient(180deg,#C4D6FF 6%,#95B3FF 40%,#7596FF 64%,#5A7FF5 96%);--lit-halo:drop-shadow(0 0 .24em rgba(110,149,255,.8))}
+:root[data-mode=night]{color-scheme:dark;--bg:#0B1220;--bg-top:#15244A;--ink:#E7EDF8;--muted:#9AA7BD;--line:rgba(255,255,255,.1);--edge:rgba(231,237,248,.4);--edge-soft:rgba(231,237,248,.22);--card:#131C2E;--accent:#6E95FF;--accent-soft:rgba(110,149,255,.16);--accent-text:#A9C1FF;--lit:#86A8FF;--lit-fill:linear-gradient(180deg,#C4D6FF 6%,#95B3FF 40%,#7596FF 64%,#5A7FF5 96%);--lit-halo:drop-shadow(0 0 .24em rgba(110,149,255,.8))}
 /* Day or night is the data-mode attribute on <html>, set by /mode.js before the first paint and
    kept by ./mode.js: the system's setting, or what was picked with the toggle in the bar.
    While it turns from one to the other the page's colours fade across, in step with the logo
@@ -25,6 +29,8 @@
 @property --ink{syntax:'<color>';inherits:true;initial-value:#12203A}
 @property --muted{syntax:'<color>';inherits:true;initial-value:#56627A}
 @property --line{syntax:'<color>';inherits:true;initial-value:rgba(18,32,58,.1)}
+@property --edge{syntax:'<color>';inherits:true;initial-value:rgba(18,32,58,.5)}
+@property --edge-soft{syntax:'<color>';inherits:true;initial-value:rgba(18,32,58,.3)}
 @property --card{syntax:'<color>';inherits:true;initial-value:#fff}
 @property --accent{syntax:'<color>';inherits:true;initial-value:#2F63F0}
 @property --accent-soft{syntax:'<color>';inherits:true;initial-value:rgba(47,99,240,.1)}
@@ -33,7 +39,7 @@
 /* (and the glass the landing's labels are on: ./landing/landing.css) */
 @property --pin{syntax:'<color>';inherits:true;initial-value:rgba(255,255,255,.84)}
 @property --pin-edge{syntax:'<color>';inherits:true;initial-value:rgba(18,32,58,.1)}
-:root.rd-turning{transition:1.2s ease-in-out;transition-property:--bg,--bg-top,--ink,--muted,--line,--card,--accent,--accent-soft,--accent-text,--lit,--pin,--pin-edge}
+:root.rd-turning{transition:1.2s ease-in-out;transition-property:--bg,--bg-top,--ink,--muted,--line,--edge,--edge-soft,--card,--accent,--accent-soft,--accent-text,--lit,--pin,--pin-edge}
 @media (prefers-reduced-motion:reduce){:root.rd-turning{transition:none}}
 *,*::before,*::after{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -43,13 +49,14 @@ a{color:inherit}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 
 .rs{
-  --rs-ink:var(--ink); --rs-muted:var(--muted); --rs-line:var(--line); --rs-bg-card:var(--card); --rs-field:var(--card);
+  --rs-ink:var(--ink); --rs-muted:var(--muted); --rs-line:var(--line); --rs-edge:var(--edge); --rs-edge-soft:var(--edge-soft); --rs-bg-card:var(--card); --rs-field:var(--card);
   --rs-accent:var(--accent); --rs-accent-soft:var(--accent-soft); --rs-font:var(--body); --rs-display:var(--display);
   --rs-lit:var(--lit); --rs-lit-fill:var(--lit-fill); --rs-lit-halo:var(--lit-halo)
 }
 [data-mode=night] .rs{
   --rs-card-edge:rgba(255,255,255,.07); --rs-shadow:0 1px 0 rgba(255,255,255,.04) inset,0 18px 36px -24px rgba(0,0,0,.8);
   --rs-sunk:rgba(255,255,255,.05); --rs-sk:rgba(255,255,255,.07); --rs-sk-hi:rgba(255,255,255,.09); --rs-field:#0F1727; --rs-item:rgba(255,255,255,.035); --rs-drop-off:rgba(255,255,255,.18); --rs-accent-ink:#0B1220; --rs-accent-text:#A9C1FF; --rs-on-ink:#0B1220;
+  --rs-chevron:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239AA7BD' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 10l5 5 5-5'/%3E%3C/svg%3E");
   --rs-ok:#5ED6BF; --rs-ok-soft:rgba(94,214,191,.14); --rs-up:#FFB27A; --rs-up-soft:rgba(255,178,122,.14); --rs-down:#E6C65A; --rs-down-soft:rgba(230,198,90,.14); --rs-bad:#FF8A80
 }
 [data-mode=night] .rs-code,[data-mode=night] .rs-brief pre,[data-mode=night] .rs-cmd pre{background:#060B15}

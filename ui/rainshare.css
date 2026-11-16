@@ -5,6 +5,10 @@
 :root{--rs-ease:cubic-bezier(.2,.8,.2,1);--rs-spring:cubic-bezier(.3,1.45,.5,1);--rs-ease-in:cubic-bezier(.4,0,1,1)}
 .rs{
   --rs-ink:#12203A; --rs-muted:#56627A; --rs-line:rgba(18,32,58,.1);
+  /* the edge of a field (at least 3:1 against the card), and the softer one of a button or chip the card's own colour */
+  --rs-edge:rgba(18,32,58,.5); --rs-edge-soft:rgba(18,32,58,.3);
+  /* the picker's arrow */
+  --rs-chevron:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2356627A' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 10l5 5 5-5'/%3E%3C/svg%3E");
   --rs-bg-card:#fff; --rs-card-edge:rgba(18,32,58,.08); --rs-shadow:0 1px 2px rgba(18,32,58,.06),0 12px 28px -18px rgba(18,32,58,.35); --rs-blur:none;
   --rs-sunk:rgba(18,32,58,.045); --rs-field:#fff; --rs-item:rgba(255,255,255,.6); --rs-solid:var(--rs-bg-card); --rs-sheet-z:15;
   --rs-accent:#2F63F0; --rs-accent-ink:#fff; --rs-on-ink:#fff; --rs-accent-soft:rgba(47,99,240,.1); --rs-accent-text:#2450C8;
@@ -67,7 +71,7 @@
 @media (forced-colors:active){.rs-btn:disabled{color:GrayText}.rs-btn:disabled::after{display:none}}
 .rs-primary{--rs-btn-ink:var(--rs-accent-ink);background:var(--rs-accent);color:var(--rs-accent-ink);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 10px 22px -12px var(--rs-accent)}
 .rs-primary:hover{transform:translateY(-1px)}
-.rs-quiet{background:var(--rs-bg-card);color:var(--rs-ink);box-shadow:inset 0 0 0 1px var(--rs-card-edge),0 4px 12px -10px rgba(0,0,0,.4)}
+.rs-quiet{background:var(--rs-bg-card);color:var(--rs-ink);box-shadow:inset 0 0 0 1.5px var(--rs-edge-soft),0 4px 12px -10px rgba(0,0,0,.4)}
 .rs-sm{min-height:36px;padding:6px 14px;font-size:13px}
 .rs-big{min-height:54px;padding:14px 26px;font-size:17px}
 .rs-big .rs-i{width:20px;height:20px}
@@ -487,9 +491,15 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-form label>small{margin-left:4px}
 .rs-field{display:flex;flex-direction:column;gap:6px;font-weight:700;font-size:14px;min-width:0}
 .rs-field>span{font-weight:700;font-size:14px}
-.rs-form input:not([type=checkbox]),.rs-form textarea,.rs-form select,.rs-prefs select{font:500 16px var(--rs-font);color:var(--rs-ink);background:var(--rs-field);border:0;border-radius:12px;padding:11px 13px;min-height:46px;width:100%;box-shadow:inset 0 0 0 1.5px var(--rs-line)}
+.rs-form input:not([type=checkbox]),.rs-form textarea,.rs-form select,.rs-prefs select{font:500 16px var(--rs-font);color:var(--rs-ink);background-color:var(--rs-field);border:0;border-radius:12px;padding:11px 13px;min-height:46px;width:100%;box-shadow:inset 0 0 0 1.5px var(--rs-edge)}
 .rs-form textarea{resize:vertical;line-height:1.5}
+/* (A placeholder in the grey asides are written in: Safari's own is too faint to read on a phone.) */
+.rs input::placeholder,.rs textarea::placeholder{color:var(--rs-muted);opacity:1}
 .rs-form input:focus,.rs-form textarea:focus,.rs-form select:focus,.rs-prefs select:focus{outline:none;box-shadow:inset 0 0 0 2px var(--rs-accent)}
+/* A picker is drawn here rather than left to the browser: Safari on a phone draws its own,
+   without the field's colour or edge, so it was only words and an arrow on the card. */
+.rs-form select,.rs-prefs select{-webkit-appearance:none;appearance:none;padding-right:40px;background-image:var(--rs-chevron);background-repeat:no-repeat;background-position:right 12px center;background-size:18px 18px;text-overflow:ellipsis;cursor:pointer}
+@media (forced-colors:active){.rs-form select,.rs-prefs select{-webkit-appearance:auto;appearance:auto;background-image:none;padding-right:13px}}
 /* A fieldset is a plain block, spaced with margins rather than a flex gap: Safari won't float the
    legend of a flex or grid fieldset, and leaves it sitting across the box's top edge. Floated,
    the legend is a heading inside the box, and everything after it clears it. */
@@ -502,11 +512,11 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px}
 .rs-form .rs-check{display:flex;flex-direction:row;align-items:center;gap:10px;font-weight:600}
 .rs-check input{width:20px;height:20px;accent-color:var(--rs-accent)}
-.rs-seg{display:flex;gap:4px;padding:4px;border-radius:14px;background:var(--rs-field);box-shadow:inset 0 0 0 1.5px var(--rs-line);flex-wrap:wrap}
+.rs-seg{display:flex;gap:4px;padding:4px;border-radius:14px;background:var(--rs-field);box-shadow:inset 0 0 0 1.5px var(--rs-edge-soft);flex-wrap:wrap}
 .rs-seg button{flex:1 1 auto;border:0;background:none;border-radius:10px;min-height:38px;padding:0 12px;font:600 14px var(--rs-font);color:var(--rs-muted);cursor:pointer}
 .rs-seg button[aria-pressed="true"]{background:var(--rs-ink);color:var(--rs-on-ink)}
 .rs-toggles{display:flex;gap:8px;flex-wrap:wrap}
-.rs-toggles button{border:0;border-radius:999px;padding:8px 14px;font:600 14px var(--rs-font);background:var(--rs-field);color:var(--rs-ink);box-shadow:inset 0 0 0 1.5px var(--rs-line);cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.rs-toggles button{border:0;border-radius:999px;padding:8px 14px;font:600 14px var(--rs-font);background:var(--rs-field);color:var(--rs-ink);box-shadow:inset 0 0 0 1.5px var(--rs-edge-soft);cursor:pointer;display:inline-flex;gap:6px;align-items:center}
 .rs-toggles button[aria-pressed="true"]{background:var(--rs-accent);color:var(--rs-accent-ink);box-shadow:none}
 .rs-pick{display:flex;flex-direction:column;gap:10px}
 .rs-setups{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
@@ -527,7 +537,7 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-prefs>label:not(.rs-check){display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:14px}
 .rs-prefs .rs-check{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14px}
 .rs-prefs>.rs-btn{align-self:flex-start}
-.rs-prefs>label:not(.rs-check)>input{font:500 16px var(--rs-font);color:var(--rs-ink);background:var(--rs-field);border:0;border-radius:12px;padding:11px 13px;min-height:46px;width:100%;box-shadow:inset 0 0 0 1.5px var(--rs-line)}
+.rs-prefs>label:not(.rs-check)>input{font:500 16px var(--rs-font);color:var(--rs-ink);background:var(--rs-field);border:0;border-radius:12px;padding:11px 13px;min-height:46px;width:100%;box-shadow:inset 0 0 0 1.5px var(--rs-edge)}
 .rs-prefs>label:not(.rs-check)>input:focus{outline:none;box-shadow:inset 0 0 0 2px var(--rs-accent)}
 .rs-prefs>label small{font-weight:400;color:var(--rs-muted)}
 .rs-prefs>.rs-muted{margin:-4px 0 0;font-size:13px;line-height:1.45}
@@ -573,13 +583,13 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-mini .rs-facts{font-size:13px;grid-template-columns:78px minmax(0,1fr);gap:6px 12px}
 .rs-mini .rs-facts dt{font-size:12px}
 .rs-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:10px}
-.rs-tile{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;border:0;padding:16px 18px;border-radius:16px;font:inherit;color:var(--rs-ink);background:var(--rs-field);box-shadow:inset 0 0 0 1.5px var(--rs-line);cursor:pointer;transition:box-shadow .15s,background .15s}
+.rs-tile{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;border:0;padding:16px 18px;border-radius:16px;font:inherit;color:var(--rs-ink);background:var(--rs-field);box-shadow:inset 0 0 0 1.5px var(--rs-edge-soft);cursor:pointer;transition:box-shadow .15s,background .15s}
 .rs-tile b{font-size:16px;font-weight:650}
 .rs-tile small{font-size:13px}
 .rs-tile[aria-checked="true"],.rs-option[aria-checked="true"]{background:color-mix(in srgb,var(--rs-accent) 8%,var(--rs-field));box-shadow:inset 0 0 0 2px var(--rs-accent)}
 .rs-tile:disabled{opacity:.55;cursor:not-allowed}
 .rs-options{display:flex;flex-direction:column;gap:8px}
-.rs-option{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:0;padding:12px 14px;border-radius:14px;font:inherit;color:var(--rs-ink);background:var(--rs-field);box-shadow:inset 0 0 0 1.5px var(--rs-line);cursor:pointer;transition:box-shadow .15s,background .15s}
+.rs-option{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:0;padding:12px 14px;border-radius:14px;font:inherit;color:var(--rs-ink);background:var(--rs-field);box-shadow:inset 0 0 0 1.5px var(--rs-edge-soft);cursor:pointer;transition:box-shadow .15s,background .15s}
 .rs-radio{width:18px;height:18px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 1.5px var(--rs-muted);transition:box-shadow .15s}
 .rs-option[aria-checked="true"] .rs-radio{box-shadow:inset 0 0 0 5px var(--rs-accent)}
 .rs-option-text{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1}
@@ -671,7 +681,7 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-fb-compose{max-width:none}
 .rs-fb-compose h2{font-size:20px;margin:0}
 .rs-form.rs-fb-boardform,.rs-form.rs-fb-inline,.rs-form.rs-fb-statusform,.rs-form.rs-fb-edit{padding:0;background:none;box-shadow:none;outline:0;-webkit-backdrop-filter:none;backdrop-filter:none;max-width:none;gap:12px}
-.rs-fb-inline .rs-inline select{width:auto;flex:none;min-height:40px;padding:8px 12px}
+.rs-fb-inline .rs-inline select{width:auto;flex:none;min-height:40px;padding:8px 38px 8px 12px}
 /* running the board */
 .rs-fb-run{gap:10px}
 .rs-fb-admin{gap:22px}
@@ -777,7 +787,7 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 /* over the board's list: how it's sorted, and the filter that folds out under it */
 .rs-tools{display:flex;align-items:center;justify-content:space-between;gap:10px 16px;flex-wrap:wrap;min-width:0}
 .rs-filter-bar{display:flex;align-items:center;gap:8px;margin-left:auto;min-width:0}
-.rs-filter-btn{border:0;border-radius:999px;min-height:32px;padding:0 13px 0 11px;font:600 13px var(--rs-font);background:none;color:var(--rs-ink);box-shadow:inset 0 0 0 1.5px var(--rs-line);cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;flex:none}
+.rs-filter-btn{border:0;border-radius:999px;min-height:32px;padding:0 13px 0 11px;font:600 13px var(--rs-font);background:none;color:var(--rs-ink);box-shadow:inset 0 0 0 1.5px var(--rs-edge-soft);cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;flex:none}
 .rs-filter-btn .rs-i{width:16px;height:16px}
 .rs-filter-btn[aria-expanded="true"]{background:var(--rs-ink);color:var(--rs-on-ink);box-shadow:none}
 /* the sort button says how it's sorted now; folded out, what that order means is said under the choices */
@@ -796,7 +806,7 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 /* narrowing the board to who asked */
 .rs-from,.rs-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .rs-from-l{font-size:13px;font-weight:600;color:var(--rs-muted);margin-right:2px}
-.rs-from button,.rs-chips button{border:0;border-radius:999px;min-height:32px;padding:0 12px;font:600 13px var(--rs-font);background:none;color:var(--rs-muted);box-shadow:inset 0 0 0 1.5px var(--rs-line);cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.rs-from button,.rs-chips button{border:0;border-radius:999px;min-height:32px;padding:0 12px;font:600 13px var(--rs-font);background:none;color:var(--rs-muted);box-shadow:inset 0 0 0 1.5px var(--rs-edge-soft);cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .rs-from button:hover,.rs-chips button:hover{color:var(--rs-ink)}
 .rs-from button[aria-pressed="true"],.rs-chips button[aria-pressed="true"]{background:var(--rs-ink);color:var(--rs-on-ink);box-shadow:none}
 .rs-from button.rs-from-none{opacity:.6}
@@ -890,7 +900,7 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-sd-gh{display:flex;flex-direction:column;gap:6px}
 .rs-sd-gh label{font-weight:600;font-size:15px}
 .rs-sd-gh .rs-row{flex-wrap:nowrap;gap:8px}
-.rs-sd-gh input{flex:1;min-width:0;font:500 16px var(--rs-font);color:var(--rs-ink);background:var(--rs-field);border:0;border-radius:12px;padding:11px 13px;min-height:46px;box-shadow:inset 0 0 0 1.5px var(--rs-line)}
+.rs-sd-gh input{flex:1;min-width:0;font:500 16px var(--rs-font);color:var(--rs-ink);background:var(--rs-field);border:0;border-radius:12px;padding:11px 13px;min-height:46px;box-shadow:inset 0 0 0 1.5px var(--rs-edge)}
 .rs-sd-gh input:focus{outline:none;box-shadow:inset 0 0 0 2px var(--rs-accent)}
 .rs-sd-gh .rs-btn{flex:none;min-height:46px}
 .rs-sd-gh .rs-err{margin:0}
@@ -958,7 +968,7 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-form fieldset.rs-reasons{padding:0;background:none}
 .rs-form .rs-reasons legend{font:700 14px var(--rs-font);letter-spacing:0}
 .rs-reason-list{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
-.rs-form label.rs-reason{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:var(--rs-field);box-shadow:inset 0 0 0 1.5px var(--rs-line);cursor:pointer;font-weight:500;min-width:0}
+.rs-form label.rs-reason{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:var(--rs-field);box-shadow:inset 0 0 0 1.5px var(--rs-edge-soft);cursor:pointer;font-weight:500;min-width:0}
 .rs-form label.rs-reason:has(input:checked){box-shadow:inset 0 0 0 2px var(--rs-ink)}
 .rs-form label.rs-reason>input[type=radio]{display:inline-block;flex:none;width:16px;height:16px;min-height:0;margin:3px 0 0;padding:0;box-shadow:none;background:none;accent-color:var(--rs-ink)}
 .rs-reason>span{display:flex;flex-direction:column;gap:2px;min-width:0}
