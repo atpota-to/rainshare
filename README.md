@@ -318,7 +318,8 @@ deploy themselves when `main` changes. See
   in Supabase. The database deletes what the index has of theirs and turns the rest away.
   [`indexer/README.md`](indexer/README.md) has the SQL, and what it means for them.
 - **Release notes** go at the top of `core/releases.js`, which says how to write one. They show in
-  the bell for 30 days and on [What's new](https://rainshare.dev/releases) for good.
+  everyone's bell for 30 days and on [What's new](https://rainshare.dev/releases) for good, so ask
+  the maintainer before adding one.
 - **Feedback** is
   [Rainshare's board on userinput.app](https://userinput.app/s/did:plc:cmkittusvczhnei4gjt3asiv/3n2eeq4jt3s2w),
   pinned by its record key (`SPACE_KEY` in `core/feedback.js`). People post, vote and reply on

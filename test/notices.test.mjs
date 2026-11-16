@@ -141,8 +141,8 @@ test('the release notes: each with its own name and a real day, newest first, an
     assert.match(r.id, /^[a-z0-9]+(-[a-z0-9]+)*$/, r.id);
     assert.ok(Number.isFinite(releasedAt(r)) && new Date(releasedAt(r)).toISOString().slice(0, 10) === r.date, `${r.id}: ${r.date} is a day`);
     assert.ok(typeof r.title === 'string' && r.title.trim() && r.title.length <= 80, `${r.id}: a short title`);
-    assert.ok(typeof r.summary === 'string' && r.summary.trim() && r.summary.length <= 200, `${r.id}: a one-sentence summary`);
-    if (r.text != null) assert.ok(typeof r.text === 'string' && renderMarkdown(r.text).includes('<p>'), `${r.id}: text is Markdown`);
+    assert.ok(typeof r.summary === 'string' && r.summary.trim() && r.summary.length <= 160, `${r.id}: a one-sentence summary`);
+    if (r.text != null) assert.ok(typeof r.text === 'string' && r.text.length <= 300 && renderMarkdown(r.text).includes('<p>'), `${r.id}: a sentence or two of Markdown`);
   }
   assert.deepEqual(ids, [...RELEASES].sort((a, b) => releasedAt(b) - releasedAt(a)).map(r => r.id), 'the newest goes at the top');
   assert.deepEqual(releasesBy(Date.parse('2000-01-01')), [], 'none is out before its day');
