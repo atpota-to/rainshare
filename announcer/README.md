@@ -15,9 +15,13 @@ records: asks, takes, turn-ins and people's settings (`dev.rainshare.seed`, `.ta
   ask, one at a time, before it goes anywhere. They reply YES (post it and send it), POST (only post
   it), SEND or DM (only send it), NO (leave it on the board, don't pass it on) or HIDE (hide it, with what follows as the reason, and take down
   any post about it). Their answer is kept in the review queue in the index
-  ([`../indexer/`](../indexer)), for that version of the ask: an edit asks again.
+  ([`../indexer/`](../indexer)), for that version of the ask: an edit asks again. Once the posts
+  have gone, the reply to their answer says what came of it: the post's link, or why it isn't
+  going out (someone took it while they were deciding, say). An ask they said yes to that's posted
+  in a later run gets its link then. They have at least a day to answer.
 - **Posts** (`src/posts.js`): each new ask that nobody's on yet and the approver has said YES
-  or POST to, once it has settled for 15 minutes (in case its title is fixed straight after). Not one that someone has said they're on,
+  or POST to, once it has settled for 15 minutes (in case its title is fixed straight after), and
+  within three days of being asked, or of the yes if that came later. Not one that someone has said they're on,
   has turned work in for, or that's done or closed, as the board's "Nobody on it yet" has it.
 - **Messages** (`src/messages.js`): for each person who asked for them in their settings, their
   updates since their last message (someone's on their ask, work's been turned in, an ask they

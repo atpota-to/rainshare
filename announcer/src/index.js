@@ -59,7 +59,7 @@ const as = session(config.password);
 const db = indexDb();
 
 const counted = r => r?.error ? { error: r.error } : {
-  ...('decided' in (r || {}) ? { waiting: r.waiting, decided: r.decided.length, asked: r.asked } : {}),
+  ...('decided' in (r || {}) ? { waiting: r.waiting, decided: r.decided.length, followedUp: r.followedUp?.length || 0, asked: r.asked } : {}),
   ...('takenDown' in (r || {}) ? { takenDown: r.takenDown.filter(t => !t.error).length } : {}),
   ...('posts' in (r || {}) ? { posted: r.posts.filter(p => p.uri).length, failed: r.posts.filter(p => p.error).length, waiting: r.later } : {}),
   ...('sent' in (r || {}) ? { sent: r.sent.filter(s => !s.error).length, failed: r.sent.filter(s => s.error).length, asked: r.asked } : {}),
