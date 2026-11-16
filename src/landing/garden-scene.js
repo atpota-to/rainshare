@@ -482,9 +482,14 @@ export function createGarden(canvas, { dark = false, frame: into = null, sky: sk
   function resize(){
     const w = canvas.clientWidth, h = canvas.clientHeight;
     if (!w || !h) return;
+    // Sizing the canvas wipes what's drawn on it, so it's only done when the size changes
+    // (a new frame for the garden alone doesn't), and the picture is drawn again at once, below.
+    const ratio = Math.min(window.devicePixelRatio || 1, Math.max(1, Math.min(2, Math.sqrt(MOST / (w * h)))));
+    if (w !== width || h !== height_ || ratio !== renderer.getPixelRatio()) {
+      renderer.setPixelRatio(ratio);
+      renderer.setSize(w, h, false);
+    }
     width = w; height_ = h;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, Math.max(1, Math.min(2, Math.sqrt(MOST / (w * h))))));
-    renderer.setSize(w, h, false);
     // The garden is drawn as big as fits its frame (./fit.js). The lens is whatever gives
     // that, and the middle of the picture is moved to where the frame is, so the rest of the
     // canvas is the same sky and the same meadow, carried on.
@@ -504,7 +509,9 @@ export function createGarden(canvas, { dark = false, frame: into = null, sky: sk
       uSpan.value = clamp(Math.hypot(v.midY, v.lens) / Math.max(v.midY, 1), 1.05, 2.3);
     }
     uScale.value = renderer.domElement.height / (2 * Math.tan(camera.fov * Math.PI / 360));
-    still();
+    // Running, the next frame would come too late: this is called once the frame has been
+    // drawn, so the page would be shown with the canvas blank in between. So it's drawn now.
+    if (running) draw(0, false); else still();
   }
   // Everything as it is on arriving: the plots as they were planted, your cloud full and
   // waiting, and the friend's a little way into its rain.
