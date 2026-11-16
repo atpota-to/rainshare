@@ -127,7 +127,7 @@ export function compose({ updates = [], fresh = [] }, who){
     if (news.length > shown) more(news.length - shown);
   };
   if (updates.length) {
-    r.add('News from Rainshare:');
+    r.add('Updates from Rainshare:');
     list(updates, MAX_UPDATES, n => r.add(`\n• and ${n} more.`));
   }
   if (fresh.length) {

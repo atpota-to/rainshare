@@ -44,7 +44,7 @@ us for you".
 
 ## Alt text
 
-**1-the-dm.png**: A Bluesky DM from @rainshare.dev: "News from Rainshare: Kai is on your ask 'Dark mode for the carbon calculator'. Priya turned in work on your ask 'Fix the flaky timezone test'." Beside it: "Updates on your asks, straight to your DMs. Turn it on at rainshare.dev/settings."
+**1-the-dm.png**: A Bluesky DM from @rainshare.dev: "Updates from Rainshare: Kai is on your ask 'Dark mode for the carbon calculator'. Priya turned in work on your ask 'Fix the flaky timezone test'." Beside it: "Updates on your asks, straight to your DMs. Turn it on at rainshare.dev/settings."
 
 **2-notifications-like-rain.png**: Three Rainshare notifications fall like rain from a cloud onto a flowering plant: "Kai is on your ask", "Kai turned in work on your ask", and "Amara marked 'Fix the flaky timezone test' done with your work. It's in your garden now." Headline: "Hear the moment it starts to rain."
 

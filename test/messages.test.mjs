@@ -63,7 +63,9 @@ beforeEach(() => {
     [FAY]: { [PREFERENCES]: { self: { notify: { updates: true } } } },
     [ACCOUNT]: { 'app.bsky.graph.block': { x1: { subject: SPAM, createdAt: '2026-11-01T00:00:00Z' } } }
   };
-  // The account's conversations, each newest first.
+  // The account's conversations, each newest first. Its messages here are from before Settings had a
+  // page of their own, so they link to /me, and before they began "Updates from Rainshare:". It
+  // knows its own by the link, not the words.
   convos = {
     [ALICE]: { id: 'c-alice', canChat: true, messages: [
       { ...theirs(ACCOUNT, 'Thanks for trying Rainshare! (sent by hand)', '2026-11-14T16:00:00Z') },
@@ -135,7 +137,7 @@ test('each person who asked hears their own news, in one message', async () => {
 
   const alice = sentMessages.find(m => m.to === ALICE);
   assert.equal(alice.text, [
-    'News from Rainshare:',
+    'Updates from Rainshare:',
     '• Kai (@kai.test) is on your ask “Fix the flaky test”.',
     '• Juniper (@juniper.test) turned in work on your ask “Fix the flaky test”: github.com/alice/app/pull/4',
     '', `Reply STOP to stop these, or choose what you get at ${SITE.replace('https://', '')}/settings.`
@@ -145,7 +147,7 @@ test('each person who asked hears their own news, in one message', async () => {
 
   const jun = sentMessages.find(m => m.to === JUN);
   assert.equal(jun.text, [
-    'News from Rainshare:',
+    'Updates from Rainshare:',
     '• Carol (@carol.test) closed “Old tracker”.',
     '• Bob (@bob.test) marked “Weather app” done with your work. It’s in your garden now.',
     '', 'New on the board:',
@@ -272,7 +274,7 @@ test('updates come within a minute or two, and the day’s new asks once', async
   sentMessages = [];
   await go({ now: at('14T16:10:30') });
   assert.deepEqual(sentMessages.map(m => m.to), [ALICE], 'a few minutes on, Alice hears about Bob, and Juniper has had today’s new asks');
-  assert.match(sentMessages[0].text, /^News from Rainshare:\n• Zed \(@zed\.test\) is on your ask “Fix the flaky test”\.\n• Bob \(@bob\.test\) is on your ask “Fix the flaky test”\.\n\nReply STOP/,
+  assert.match(sentMessages[0].text, /^Updates from Rainshare:\n• Zed \(@zed\.test\) is on your ask “Fix the flaky test”\.\n• Bob \(@bob\.test\) is on your ask “Fix the flaky test”\.\n\nReply STOP/,
     'Zed’s take at 16:05:10, just past the last message’s boundary, comes now with Bob’s: nothing is lost at a boundary');
 
   sentMessages = [];
@@ -319,7 +321,7 @@ test('a new ask is the day’s news only once the approver has said yes, and for
   yesAt = u => u === uri(BOB, SEED, 'b2') ? '2026-11-14T16:00:00Z' : null;
   await go();
   const jun = () => sentMessages.filter(m => m.to === JUN).map(m => m.text).join('\n');
-  assert.ok(jun().includes('News from Rainshare') || jun().includes('New on'), 'Jun hears something');
+  assert.ok(jun().includes('Updates from Rainshare') || jun().includes('New on'), 'Jun hears something');
   assert.ok(!jun().includes('Tiny timer'), 'not in today’s news: it was said yes to after it');
 
   // Tomorrow's, after 15:45, it is.
