@@ -10,8 +10,7 @@
 // the pitch, and the figure is the part of it kept clear for the garden. This file tells the
 // scene where that is. As the page is scrolled the garden doesn't keep up with it: it sinks
 // into the meadow left between it and the line of words under it, the hills behind it sink
-// less, and the sky not at all. On a touchscreen the whole backdrop sinks together instead,
-// so it can keep up with a finger (see scroll(), below).
+// less, and the sky not at all. On a touchscreen it scrolls with the page (see scroll(), below).
 //
 // The scene itself is three.js (./garden-scene.js), so it's fetched only when the landing is
 // on screen. Until it's there, a still of it is (./still/, taken by scripts/still.mjs), scaled
@@ -74,12 +73,6 @@ export function mount(figure){
     // garden can sink as far as that.
     const room = parseFloat(getComputedStyle(figure).rowGap) || 0;
     deep = Math.max(0, room - 8);
-    // How far the page is scrolled when the garden starts and stops sinking, for the stylesheet
-    // to sink it by on a touchscreen (see scroll()).
-    const from = Math.max(0, base.getBoundingClientRect().top + scrollY - innerHeight + 52);
-    figure.style.setProperty('--sink', deep + 'px');
-    figure.style.setProperty('--sink-from', Math.round(from) + 'px');
-    figure.style.setProperty('--sink-to', Math.round(from + deep / SINK) + 'px');
     frame = { x: x0, y: f.top - at.top, w: x1 - x0, h: base.getBoundingClientRect().top - room - f.top, close };
     scene?.setFrame(frame);
     // The still, scaled about the point the camera looks at, and moved to where the scene draws it.
@@ -100,25 +93,25 @@ export function mount(figure){
     if (to !== stood) { stood = to; land.style.setProperty('--stand', to + 'px'); }
     scroll();
   }
-  // Nothing sinks until the hint under the garden is on screen, so on a phone, where the
-  // garden starts below the first screenful, the whole of it is seen first. Its labels go
-  // down with it, so it can be played with all the way. Anyone who's asked for less motion
-  // gets a garden that scrolls away like the rest of the page.
+  // Nothing sinks until the hint under the garden is on screen, so where the garden starts
+  // below the first screenful, the whole of it is seen first. Its labels go down with it, so
+  // it can be played with all the way. Anyone who's asked for less motion gets a garden that
+  // scrolls away like the rest of the page.
   //
   // Here the camera rises to sink it, once each frame is drawn. That's only smooth where the
   // page waits for the frame before it moves. A touchscreen doesn't: the page goes with the
   // finger whether or not the frame is ready. A late frame leaves the garden carried up with
   // the page, and it drops back when the frame comes, so it judders. So on a touchscreen the
-  // camera stays put, and ./landing.css sinks the whole picture with an animation that the
-  // browser runs in step with the scrolling. Where a browser can't do that, the garden
-  // doesn't sink there at all.
+  // garden doesn't sink at all. (An animation the browser runs in step with the scrolling was
+  // tried, and it jumped on a phone: where it starts depends on how tall the window is, and a
+  // phone's browser changes that as its toolbar comes and goes.)
   function scroll(){
     if (!frame || land.hidden) return;      // (on another page there's no garden to sink)
     const to = calm.matches || touch.matches ? 0 : clamp(SINK * clamp(innerHeight - 52 - base.getBoundingClientRect().top, 0, scrollY), 0, deep);
     if (to === sunk) return;
     sunk = to;
     if (scene) scene.setLift(to);
-    // (With no scene there's no camera to rise: the still sinks whole, sky and all, as it does on a touchscreen.)
+    // (With no scene there's no camera to rise: the still sinks whole, sky and all.)
     else { picture.style.translate = to ? `0 ${to}px` : ''; hold(); }
   }
   // The still for the framing, by day or by night. (The one showing stays until the other has come.)
@@ -216,7 +209,6 @@ export function mount(figure){
     else say(i);
   }
   pins.forEach((b, i) => b.addEventListener('click', e => { e.stopPropagation(); pick(i); }));
-  // (Measured from the canvas, not the view it's in: on a touchscreen it's moved down in it as it sinks.)
   const across = e => e.clientX - canvas.getBoundingClientRect().left;
   let dragged = false;
   view.addEventListener('click', e => {

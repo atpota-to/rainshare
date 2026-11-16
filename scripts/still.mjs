@@ -4,6 +4,7 @@
 // changing the scene, the plots, or how the garden is fitted into the page:
 //
 //   npm run still
+//   npm run still -- close      (only the one framing, so the other's pictures stay as they are)
 //
 // It writes src/landing/still/<framing>-<day|night>.webp and src/landing/still/still.js, which
 // says how each was framed and where the labels go on it.
@@ -19,7 +20,7 @@
 import { createServer } from 'vite';
 import { createRequire } from 'node:module';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url)), out = root + 'src/landing/still/';
 let chromium;
@@ -29,14 +30,17 @@ catch (_) { console.error('This needs Playwright: npm i -D playwright'); process
 // The two framings (`close` is under the pitch, at 880px wide and narrower), in units of the
 // scene from the point the camera looks at: how far each still reaches left, right, up and
 // down. The page's windows, from 320 by 568 to 3840 by 2160, all fall inside: the furthest
-// left is a 4K window's, about 22 units; the most sky a small phone's, about 24; the most
-// meadow under the garden about 14. `unit` is how many pixels a unit is drawn with: a
-// 1920-wide window draws the garden at about 80, a phone at 30 to 40.
+// left is a 4K window's, about 22 units; the most sky a small phone's, about 24 (and a tall
+// tablet's, beside the pitch, about 22); the most meadow under the garden about 13 beside the
+// pitch, and 22 under it on a small phone, where the still's notes are stacked three deep
+// (test/landing.test.mjs has these, and how they were measured). `unit` is how many
+// pixels a unit is drawn with: a 1920-wide window draws the garden at about 80, a phone at
+// 30 to 40.
 // `sky` is the window the sun and the sky are laid out for (in units, from the same point):
 // a 1440 by 900 window's, and a 390 by 844 phone's.
 const FRAMINGS = {
-  wide: { unit: 72, left: 23, right: 11, top: 22, bottom: 14, sky: { w: 22.6, midX: 15.6, midY: 7.7 } },
-  close: { unit: 96, left: 5.6, right: 5.6, top: 26, bottom: 15, sky: { w: 10.7, midX: 5.35, midY: 19 } }
+  wide: { unit: 72, left: 23, right: 11, top: 24, bottom: 14, sky: { w: 22.6, midX: 15.6, midY: 7.7 } },
+  close: { unit: 96, left: 5.6, right: 5.6, top: 26, bottom: 23.5, sky: { w: 10.7, midX: 5.35, midY: 19 } }
 };
 const QUALITY = .8;
 
@@ -44,10 +48,13 @@ const server = await createServer({ root, logLevel: 'error', server: { host: '12
 await server.listen();
 const { port } = server.httpServer.address();
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-const made = {};
+const only = process.argv.slice(2).filter(n => Object.hasOwn(FRAMINGS, n));
+// (what was made before, for a framing that isn't being made again)
+const made = only.length ? { ...(await import(pathToFileURL(out + 'still.js').href)).STILLS } : {};
 try {
   await mkdir(out, { recursive: true });
   for (const [name, f] of Object.entries(FRAMINGS)) {
+    if (only.length && !only.includes(name)) continue;
     const w = Math.round((f.left + f.right) * f.unit), h = Math.round((f.top + f.bottom) * f.unit);
     const midX = f.left * f.unit, midY = f.top * f.unit;
     for (const dark of [false, true]) {

@@ -138,6 +138,8 @@ body{position:relative}
    line under it. Scrolled, the garden sinks into that meadow, toward the line. */
 .rd-garden{position:static;margin:0;container-type:normal;display:flex;flex-direction:column;gap:clamp(56px,12svh,130px)}
 .rd-garden::before{content:'';flex:1 0 300px}
+/* (On a touchscreen the garden doesn't sink, ./garden.js says why, so less meadow will do.) */
+@media (pointer:coarse){.rd-garden{gap:clamp(40px,7svh,80px)}}
 .rd-garden .rd-view{position:absolute;top:0;left:0;right:0;height:var(--sky-h,100svh);aspect-ratio:auto}
 .rd-garden .rd-view :is(canvas,.rd-still){
   -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 172px),transparent calc(100% - 14px));-webkit-mask-composite:source-over;
@@ -150,23 +152,6 @@ body{position:relative}
 .rd-garden .rd-still.in{opacity:1}
 .rd-garden.live .rd-still{visibility:hidden;transition:visibility 0s .9s}
 .rd-garden .rd-still img{position:absolute;left:0;top:0;max-width:none;height:auto;display:block}
-/* On a touchscreen the garden sinks by an animation tied to the page's scroll, which the
-   browser runs in step with the scrolling (why, in ./garden.js). The picture and its labels
-   move down together, as far as --sink, while the page is scrolled from --sink-from to
-   --sink-to. The view stays where it is. The fade into the page is on the view, and it clips
-   what moves, so the picture's foot doesn't reach further down the page. */
-@keyframes rd-sink{to{translate:0 var(--sink,0px)}}
-@supports (animation-timeline:scroll()){
-  @media (pointer:coarse) and (prefers-reduced-motion:no-preference){
-    .rd-garden .rd-view{
-      overflow:clip;
-      -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 172px),transparent calc(100% - 14px));
-      mask-image:linear-gradient(to bottom,#000 calc(100% - 172px),transparent calc(100% - 14px))
-    }
-    .rd-garden .rd-view :is(canvas,.rd-still){-webkit-mask-image:none;mask-image:none}
-    .rd-garden .rd-view>:is(canvas,.rd-still,.rd-pins){animation:rd-sink linear both;animation-timeline:scroll(root);animation-range:var(--sink-from,0px) var(--sink-to,0px)}
-  }
-}
 /* Words over the sky and the meadow: the grey the rest of the site writes its asides in is
    too faint there, so the bar and the pitch write theirs in most of the ink. */
 body:has(#landing:not([hidden])>.rd-garden) :is(.rd-bar,.rd-pitch){--muted:color-mix(in srgb,var(--ink) 80%,transparent)}
@@ -226,11 +211,14 @@ body:has(#landing:not([hidden])>.rd-garden) #circle .rs-head{--rs-muted:color-mi
   .rd-landing:has(>.rd-garden) .rd-pitch{translate:none}
   .rd-garden{margin:0}
   .rd-garden::before{flex-basis:calc(64vw + 110px)}
-  /* (here the line can grow, and push the board down: nothing is beside it to keep level with) */
-  .rd-garden .rd-base{min-height:36px;margin:0;padding:0 44px 0 0;justify-content:flex-start}
+  /* Here the line is as tall as what's said about a plot (two lines of it, or three on a
+     small phone), so the board under it stays where it is as the cloud is taken up and let
+     go. Only "Three done" can be taller, and push the board down. */
+  .rd-garden .rd-base{min-height:62px;margin:0;padding:0 44px 0 0;justify-content:flex-start}
   .rd-garden .rd-notes{flex:1}
   .rd-garden.flat .rd-notes{grid-template-columns:1fr}
 }
+@media (max-width:429px){.rd-garden .rd-base{min-height:101px}}
 @media (prefers-reduced-motion:reduce){
   .rd-view canvas,.rd-still,.rd-garden .rd-still,.rd-garden.live .rd-still,.rd-pins,.rd-peek,.rd-peek.in,.rd-peek-arrow{transition:none}
   .rd-peek{translate:none}
