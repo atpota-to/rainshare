@@ -59,10 +59,9 @@
 @keyframes rd-nod{0%,100%{translate:0 0}50%{translate:0 4px}}
 .rd-peek.in .rd-peek-arrow svg{animation:rd-nod 1.1s ease-in-out .7s 3}
 
-/* A scene in a box of its own, beside the pitch (the water cycle, and the garden's flat
-   drawing): it has no frame, and its edges melt into the page. On a wide screen it runs out
-   past the page's column, toward the window's edge. The garden itself is the page's whole
-   backdrop instead: see further down. */
+/* A scene in a box of its own, beside the pitch (the water cycle): it has no frame, and its
+   edges melt into the page. On a wide screen it runs out past the page's column, toward the
+   window's edge. The garden itself is the page's whole backdrop instead: see further down. */
 .rd-scene{position:relative;margin:-24px min(0px,max(-130px,calc((1112px - 100vw) / 2))) -24px -40px;min-width:0;container-type:inline-size}
 .rd-view{position:relative;aspect-ratio:1/.84}
 .rd-view canvas,.rd-still{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .9s ease}
@@ -73,24 +72,13 @@
   mask-composite:intersect
 }
 .rd-scene.live canvas,.rd-scene.flat .rd-still{opacity:1}
-/* the still: what's drawn instead when the browser can't do the scene */
-.rd-still{padding:8% 10%;fill:none;stroke-linecap:round;stroke-linejoin:round}
-.rd-still .s-sun{fill:#FFD98A}
-.rd-still .s-cloud{fill:#fff}
-.rd-still .s-rain{stroke:#8C93C8;stroke-width:3}
-.rd-still .s-ground{fill:#B5CF98}
-.rd-still .s-soil{fill:#8A6A55}
-.rd-still .s-stake{stroke:#C9A574;stroke-width:4}
-.rd-still .s-tag{fill:#C3B8FF}
-.rd-still .s-stem{stroke:#6FB06A;stroke-width:4}
-.rd-still .s-leaf{fill:#7CC873}
-.rd-still .s-bloom{fill:#F5B3D6}
-[data-mode=night] .rd-still .s-sun{fill:#D5DEFF}[data-mode=night] .rd-still .s-cloud{fill:#8C97CC}
-[data-mode=night] .rd-still .s-ground{fill:#2F4F5E}[data-mode=night] .rd-still .s-soil{fill:#3B3550}[data-mode=night] .rd-still .s-stem{stroke:#4F8A7C}[data-mode=night] .rd-still .s-leaf{fill:#5E9C8A}[data-mode=night] .rd-still .s-tag{fill:#8E86C8}[data-mode=night] .rd-still .s-bloom{fill:#B987A6}
 
 /* labels, sitting where what they name is in the scene */
 .rd-pins{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .6s ease .5s}
 .rd-scene.live .rd-pins{opacity:1}
+/* With no scene, the garden's labels are on its still, and only once the still is there. */
+.rd-garden.flat .rd-still.in~.rd-pins{opacity:1}
+.rd-garden.flat :is(.rd-pin,.rd-cloud){cursor:default}
 .rd-pin{position:absolute;left:0;top:0;margin:-14px 0 0 -14px;display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px 0 8px;border:0;border-radius:999px;background:var(--pin);color:var(--ink);font:700 13px var(--body);white-space:nowrap;cursor:pointer;pointer-events:auto;box-shadow:0 0 0 1px var(--pin-edge);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);transition:background .25s,color .25s;will-change:transform}
 
 .rd-pause{position:absolute;right:max(7%,16px);bottom:11%;width:36px;height:36px;padding:0;border:0;border-radius:50%;background:var(--pin);color:var(--ink);cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 0 0 1px var(--pin-edge);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
@@ -139,21 +127,29 @@
 /* The garden is the landing's whole backdrop. Its sky runs behind the bar and the pitch, and
    its meadow from one edge of the window to the other; a little under the landing it fades
    into the page. The figure is the part of the picture kept clear for the garden itself:
-   ./garden.js tells the scene where that is, and how tall the backdrop has to be (--sky-h). */
+   ./garden.js tells the scene where that is, and how tall the backdrop has to be (--sky-h).
+   It's all the same with the still in the scene's place. */
 body{position:relative}
 .rd-bar{position:relative;z-index:1}
-.rd-landing:has(>.rd-garden:not(.flat)){align-items:stretch;min-height:calc(100svh - var(--rd-bar,76px) - 8px);padding-bottom:22px}
+.rd-landing:has(>.rd-garden){align-items:stretch;min-height:calc(100svh - var(--rd-bar,76px) - 8px);padding-bottom:22px}
 /* (--stand, from ./garden.js, is how far the pitch is moved to stand on the garden's horizon) */
-.rd-landing:has(>.rd-garden:not(.flat)) .rd-pitch{align-self:center;translate:0 var(--stand,0px)}
+.rd-landing:has(>.rd-garden) .rd-pitch{align-self:center;translate:0 var(--stand,0px)}
 /* The figure, from the top: room for the garden, a stretch of meadow (the gap), and the
    line under it. Scrolled, the garden sinks into that meadow, toward the line. */
-.rd-garden:not(.flat){position:static;margin:0;container-type:normal;display:flex;flex-direction:column;gap:clamp(56px,12svh,130px)}
-.rd-garden:not(.flat)::before{content:'';flex:1 0 300px}
-.rd-garden:not(.flat) .rd-view{position:absolute;top:0;left:0;right:0;height:var(--sky-h,100svh);aspect-ratio:auto}
-.rd-garden:not(.flat) .rd-view canvas{
+.rd-garden{position:static;margin:0;container-type:normal;display:flex;flex-direction:column;gap:clamp(56px,12svh,130px)}
+.rd-garden::before{content:'';flex:1 0 300px}
+.rd-garden .rd-view{position:absolute;top:0;left:0;right:0;height:var(--sky-h,100svh);aspect-ratio:auto}
+.rd-garden .rd-view :is(canvas,.rd-still){
   -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 172px),transparent calc(100% - 14px));-webkit-mask-composite:source-over;
   mask-image:linear-gradient(to bottom,#000 calc(100% - 172px),transparent calc(100% - 14px));mask-composite:add
 }
+/* The still: a picture of the scene, which ./garden.js scales and moves to just where the
+   scene draws the garden. It fades in when it's come, and the scene fades in over it; once
+   the scene has, the still goes. */
+.rd-garden .rd-still{overflow:hidden;overflow:clip;opacity:0;transition:opacity .6s ease}
+.rd-garden .rd-still.in{opacity:1}
+.rd-garden.live .rd-still{visibility:hidden;transition:visibility 0s .9s}
+.rd-garden .rd-still img{position:absolute;left:0;top:0;max-width:none;height:auto;display:block}
 /* On a touchscreen the garden sinks by an animation tied to the page's scroll, which the
    browser runs in step with the scrolling (why, in ./garden.js). The picture and its labels
    move down together, as far as --sink, while the page is scrolled from --sink-from to
@@ -162,20 +158,20 @@ body{position:relative}
 @keyframes rd-sink{to{translate:0 var(--sink,0px)}}
 @supports (animation-timeline:scroll()){
   @media (pointer:coarse) and (prefers-reduced-motion:no-preference){
-    .rd-garden:not(.flat) .rd-view{
+    .rd-garden .rd-view{
       overflow:clip;
       -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 172px),transparent calc(100% - 14px));
       mask-image:linear-gradient(to bottom,#000 calc(100% - 172px),transparent calc(100% - 14px))
     }
-    .rd-garden:not(.flat) .rd-view canvas{-webkit-mask-image:none;mask-image:none}
-    .rd-garden:not(.flat) .rd-view>:is(canvas,.rd-pins){animation:rd-sink linear both;animation-timeline:scroll(root);animation-range:var(--sink-from,0px) var(--sink-to,0px)}
+    .rd-garden .rd-view :is(canvas,.rd-still){-webkit-mask-image:none;mask-image:none}
+    .rd-garden .rd-view>:is(canvas,.rd-still,.rd-pins){animation:rd-sink linear both;animation-timeline:scroll(root);animation-range:var(--sink-from,0px) var(--sink-to,0px)}
   }
 }
 /* Words over the sky and the meadow: the grey the rest of the site writes its asides in is
    too faint there, so the bar and the pitch write theirs in most of the ink. */
-body:has(#landing:not([hidden])>.rd-garden:not(.flat)) :is(.rd-bar,.rd-pitch){--muted:color-mix(in srgb,var(--ink) 80%,transparent)}
+body:has(#landing:not([hidden])>.rd-garden) :is(.rd-bar,.rd-pitch){--muted:color-mix(in srgb,var(--ink) 80%,transparent)}
 /* The board's heading stands in the last of the meadow, so what's under it is written the same way. */
-body:has(#landing:not([hidden])>.rd-garden:not(.flat)) #circle .rs-head{--rs-muted:color-mix(in srgb,var(--ink) 80%,transparent)}
+body:has(#landing:not([hidden])>.rd-garden) #circle .rs-head{--rs-muted:color-mix(in srgb,var(--ink) 80%,transparent)}
 /* where the way down from the pitch brings you: the board's heading, a little under the window's top */
 #circle .rs-head{scroll-margin-top:28px}
 #circle .rs-head :is(h1,h2):focus{outline:none}
@@ -204,14 +200,17 @@ body:has(#landing:not([hidden])>.rd-garden:not(.flat)) #circle .rs-head{--rs-mut
   .rd-garden .rd-note>div{flex:1 1 100%}
   .rd-garden .rd-note h2{white-space:normal}
 }
-/* with no scene to play with, the same story is set out under the still, in three notes */
-.rd-how{display:none;flex-direction:column;gap:6px}
-.rd-how h2{margin:0;font:700 19px/1.2 var(--display)}
-.rd-how p{margin:0;font-size:15px;line-height:1.5;color:var(--muted)}
-.rd-garden.flat .rd-base{display:block;min-height:0;margin:0;padding:0}
-.rd-garden.flat .rd-notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:20px 24px;max-width:none;margin:0 40px}
+/* With no scene to play with, the same story is set out under the still in three notes,
+   where the scene's line would be. Beside the pitch, they're a row as wide as the page's
+   column, under the pitch as well as the garden (--in-l, from ./garden.js, is how far the
+   figure is from the column's left edge). */
+.rd-how{display:none;flex-direction:column;gap:1px;padding:10px 16px 11px 18px;border-radius:18px;background:var(--pin);box-shadow:0 0 0 1px var(--pin-edge);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.rd-how h2{margin:0;font:700 15px/1.3 var(--display)}
+.rd-how p{margin:0;font-size:14px;line-height:1.4;color:var(--muted)}
+.rd-garden.flat .rd-base{margin:0 0 0 calc(var(--in-l,0px) * -1);padding:0}
+.rd-garden.flat .rd-notes{flex:1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;max-width:none}
 .rd-garden.flat .rd-how{display:flex}
-.rd-garden.flat .rd-hint,.rd-garden.flat .rd-note,.rd-garden.flat .rd-pause{display:none}
+.rd-garden.flat :is(.rd-hint,.rd-note,.rd-pause,.rd-play){display:none}
 
 @media (max-width:880px){
   .rd-landing{grid-template-columns:1fr;gap:0}
@@ -223,17 +222,17 @@ body:has(#landing:not([hidden])>.rd-garden:not(.flat)) #circle .rs-head{--rs-mut
   }
   /* The pitch comes first, in the sky, and the garden under it: as tall as the row needs
      at the window's width, so most of it is below the first screenful, as the scene was. */
-  .rd-landing:has(>.rd-garden:not(.flat)){min-height:0}
-  .rd-landing:has(>.rd-garden:not(.flat)) .rd-pitch{translate:none}
-  .rd-garden:not(.flat){margin:0}
-  .rd-garden:not(.flat)::before{flex-basis:calc(64vw + 110px)}
+  .rd-landing:has(>.rd-garden){min-height:0}
+  .rd-landing:has(>.rd-garden) .rd-pitch{translate:none}
+  .rd-garden{margin:0}
+  .rd-garden::before{flex-basis:calc(64vw + 110px)}
   /* (here the line can grow, and push the board down: nothing is beside it to keep level with) */
   .rd-garden .rd-base{min-height:36px;margin:0;padding:0 44px 0 0;justify-content:flex-start}
   .rd-garden .rd-notes{flex:1}
-  .rd-garden.flat .rd-notes{margin:0 16px}
+  .rd-garden.flat .rd-notes{grid-template-columns:1fr}
 }
 @media (prefers-reduced-motion:reduce){
-  .rd-view canvas,.rd-still,.rd-pins,.rd-peek,.rd-peek.in,.rd-peek-arrow{transition:none}
+  .rd-view canvas,.rd-still,.rd-garden .rd-still,.rd-garden.live .rd-still,.rd-pins,.rd-peek,.rd-peek.in,.rd-peek-arrow{transition:none}
   .rd-peek{translate:none}
   .rd-peek.in .rd-peek-arrow svg{animation:none}
   .rd-peek-skel{animation:none;opacity:.8}

@@ -6,12 +6,20 @@
 //
 // Either is three.js, so it's fetched only when the landing is actually on screen, and it
 // holds still when it's scrolled away, the tab is hidden, or someone pauses it. If the browser
-// can't draw it, a flat illustration takes its place with the scene's notes under it.
+// can't draw it, a still picture takes its place (the figure is marked `flat`), with the
+// scene's notes under it.
+//
+// If the scene's file doesn't come, the likeliest reason is that the site was updated after
+// this page was loaded: the old version's files are gone, and this page asks for one of them.
+// So the page is loaded again, once, to get the new version, and the scene with it.
 //
 // A scene is a module with mount(figure), which wires up what's in the figure and gives back:
-//   load({ dark })    fetch the scene and start drawing it (rejects where WebGL isn't to be had)
+//   load({ dark })    fetch the scene and start drawing it (rejects where WebGL isn't to be
+//                     had, and with `missing` set where the file couldn't be fetched)
 //   setRunning(on)    animate, or hold still
 //   setDark(on)       night, or day: a running scene turns from one to the other over a moment
+//   flat()            it can't be drawn: show what's there instead (if there's more to do than
+//                     the stylesheet does for `flat`)
 //   escape()          Escape was pressed
 import './landing.css';
 import * as garden from './garden.js';
@@ -25,6 +33,7 @@ const chosen = () => { const q = new URLSearchParams(location.search).get('scene
 
 const $ = (s, el = document) => el.querySelector(s);
 const calm = matchMedia('(prefers-reduced-motion: reduce)');
+const AGAIN = 'rs:landing-again';      // (in sessionStorage: the page was loaded again for the scene's file)
 
 let figure, pause, scene = null;
 let wiring = null, loading = false, live = false;
@@ -44,12 +53,24 @@ async function load(){
     await scene.load({ dark: isNight() });
     live = true;
     figure.classList.add('live');
+    try { sessionStorage.removeItem(AGAIN); } catch (_) {}
     sync();
   } catch (e) {
+    if (e?.missing && again()) return;
     console.warn('The landing’s scene couldn’t start', e);
     figure.classList.add('flat');
+    scene.flat?.();
   }
   loading = false;
+}
+// Load the page again for the scene's file, unless that's been done already (it didn't help,
+// and doing it again wouldn't either), or the browser knows it's offline (it would only show
+// its own page saying so). Says whether it's doing it.
+function again(){
+  if (navigator.onLine === false) return false;
+  try { if (sessionStorage.getItem(AGAIN)) return false; sessionStorage.setItem(AGAIN, '1'); } catch (_) { return false; }
+  location.reload();
+  return true;
 }
 
 async function wire(){

@@ -2,6 +2,7 @@
 // as the plant it is here.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import { PLOTS, FRIEND } from '../src/landing/plots.js';
 import { createDemoSource } from '../core/demo.js';
 import { stageOf, pictureOf, nounOf } from '../core/words.js';
@@ -64,6 +65,23 @@ test('a canvas the garden has to itself is framed as the scene was in its box', 
     const at = fit(alone(w, h));
     assert.ok(Math.abs(at.unit - w / (2 * FRAME.wide.reach)) < 1e-9, 'the row runs from one side to the other');
     assert.ok(Math.abs(at.midX - w / 2) < 1e-9 && Math.abs(at.midY - h / 2) < 1e-9, 'what the camera looks at is in the middle');
+  }
+});
+
+// Until the scene is drawn, and in its place where it can't be, the landing shows a still of
+// it (scripts/still.mjs), scaled and moved to where the scene would draw the garden.
+test('the garden\'s stills have a label for each plot, and reach past every window\'s edges', async () => {
+  const { STILLS } = await import('../src/landing/still/still.js');
+  // The furthest a window reaches from the point the camera looks at, in units of the scene,
+  // for each framing, measured on the page from 320 by 568 to 3840 by 2160 (and 1200 by 1600).
+  const most = { wide: { left: 22.3, right: 9.7, top: 21.3, bottom: 12.8 }, close: { left: 5.35, right: 5.35, top: 24.1, bottom: 13.7 } };
+  assert.deepEqual(Object.keys(STILLS).sort(), Object.keys(most).sort());
+  for (const [name, s] of Object.entries(STILLS)) {
+    assert.equal(s.plots.length, PLOTS.length * 2, `${name}: a label under each plot (npm run still, after changing them)`);
+    const m = most[name];
+    assert.ok(s.midX / s.unit >= m.left && (s.w - s.midX) / s.unit >= m.right, `${name}: from side to side`);
+    assert.ok(s.midY / s.unit >= m.top && (s.h - s.midY) / s.unit >= m.bottom, `${name}: from top to bottom`);
+    for (const mode of ['day', 'night']) assert.ok(existsSync(new URL(`../src/landing/still/${name}-${mode}.webp`, import.meta.url)), `${name}-${mode}.webp`);
   }
 });
 

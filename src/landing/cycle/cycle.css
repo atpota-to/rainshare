@@ -3,6 +3,12 @@
    still there, shared with the garden. */
 .rd-cycle .rd-view{cursor:pointer}
 .rd-cycle.flat .rd-view{cursor:default}
+/* the still: what's drawn instead when the browser can't do the scene */
+.rd-cycle .rd-still{padding:8% 10%;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.rd-cycle .rd-still .s-sun{fill:#FFD98A}
+.rd-cycle .rd-still .s-cloud{fill:#fff}
+.rd-cycle .rd-still .s-rain{stroke:#8C93C8;stroke-width:3}
+[data-mode=night] .rd-cycle .rd-still .s-sun{fill:#D5DEFF}[data-mode=night] .rd-cycle .rd-still .s-cloud{fill:#8C97CC}
 .rd-cycle .rd-still .s-far{fill:#C3C8DE}
 .rd-cycle .rd-still .s-hill{fill:#9DBB86}
 .rd-cycle .rd-still .s-sea{fill:#7FA6DC}

@@ -1,0 +1,39 @@
+<!doctype html>
+<!-- Not part of the site: scripts/still.mjs opens this through the dev server to take the
+     landing's stills (src/landing/still/), the garden as it is on arriving, drawn once. The
+     script says how big, in a ?still= of JSON: which framing (`close` or not), `dark` or day,
+     how big a unit of the scene is drawn (`unit`, in pixels), the canvas's size (`w`, `h`),
+     where the point the camera looks at is drawn (`midX`, `midY`), and the window the sky is
+     laid out for (`sky`, in units). It's a canvas bigger than any window, framed as the
+     landing frames the garden, so the page can scale and move it to fit any window. -->
+<meta charset="utf-8">
+<title>The landing's garden, held still</title>
+<style>html,body{margin:0;background:#000}canvas{display:block}</style>
+<body>
+<canvas></canvas>
+<script type="module">
+  import { createGarden } from './garden-scene.js';
+  import { FRAME, EYE, UNDER, OVER, BASE, TOP } from './fit.js';
+  import { PLOTS } from './plots.js';
+
+  const q = JSON.parse(new URLSearchParams(location.search).get('still'));
+  const { unit, w, h, midX, midY, close, dark } = q, { reach, aim } = FRAME[close ? 'close' : 'wide'];
+  const canvas = document.querySelector('canvas');
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+
+  // The frame ./fit.js turns back into this unit and this middle: exactly as wide as the row
+  // needs, and exactly as tall as the garden does, so neither is what holds it smaller.
+  const fw = 2 * reach * unit, fh = TOP + BASE + (OVER + UNDER) * unit;
+  const frame = { x: midX - fw / 2, y: midY + BASE + (aim + UNDER) * unit - fh, w: fw, h: fh, close };
+  const lens = EYE[2] * unit, sky = { w: q.sky.w * unit, midX: q.sky.midX * unit, midY: q.sky.midY * unit, lens };
+
+  let last = null, frames = 0;
+  createGarden(canvas, {
+    dark, frame, sky, plots: PLOTS,
+    onFrame: at => { frames++; last = { plots: [...at.plots], cloud: [...at.cloud], friend: [...at.friend], left: at.left }; }
+  });
+  // Held still, it's drawn when it's made and again when the canvas is first measured.
+  const wait = () => new Promise(r => requestAnimationFrame(r));
+  for (let i = 0; i < 4; i++) await wait();
+  window.stillReady = { frames, ...last };
+</script>
