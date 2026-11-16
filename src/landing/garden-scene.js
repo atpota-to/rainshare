@@ -142,9 +142,12 @@ const MOST = 4.2e6;
  * `onEvent(what, n)` says what happened: 'rain' and 'dry' (your rain started or stopped on
  * plot n), 'done' (plot n came on a stage) and 'reset' (your plan reset, with n of a cloud
  * unused). `frame` is where in the canvas the garden goes (see setFrame); with none, it has
- * the canvas to itself. Throws if the browser can't give a WebGL context.
+ * the canvas to itself. `sky` lays the sun and the sky out for a window other than the canvas
+ * (`w` wide, with the frame's middle at `midX`, `midY` and the lens `lens`, as ./fit.js has
+ * them): for a still bigger than any window, so its sky is the one a window shows
+ * (./still.html). Throws if the browser can't give a WebGL context.
  */
-export function createGarden(canvas, { dark = false, frame: into = null, plots: planted = [], onFrame, onEvent } = {}){
+export function createGarden(canvas, { dark = false, frame: into = null, sky: skyFor = null, plots: planted = [], onFrame, onEvent } = {}){
   const renderer = new WebGLRenderer({ canvas, antialias: true, powerPreference: 'low-power' });
   const scene = new Scene();
   const camera = new PerspectiveCamera(38, 1, .5, 700);
@@ -495,9 +498,10 @@ export function createGarden(canvas, { dark = false, frame: into = null, plots: 
     // much sky as there is, which on a phone is a tall one with the pitch in it. (With the
     // canvas to itself, both are as they were made.)
     if (into) {
-      const side = w * .1 - midX, turn = Math.atan2(side, lens), up = Math.atan2(midY, Math.hypot(lens, side)) + .2;
+      const v = skyFor || { w, midX, midY, lens };
+      const side = v.w * .1 - v.midX, turn = Math.atan2(side, v.lens), up = Math.atan2(v.midY, Math.hypot(v.lens, side)) + .2;
       sunAt.set(Math.sin(turn) * Math.cos(up), Math.sin(up), -Math.cos(turn) * Math.cos(up));
-      uSpan.value = clamp(Math.hypot(midY, lens) / Math.max(midY, 1), 1.05, 2.3);
+      uSpan.value = clamp(Math.hypot(v.midY, v.lens) / Math.max(v.midY, 1), 1.05, 2.3);
     }
     uScale.value = renderer.domElement.height / (2 * Math.tan(camera.fov * Math.PI / 360));
     still();

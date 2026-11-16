@@ -16,6 +16,7 @@
     "plants": "node scripts/render-plants.mjs && node scripts/og-plants.mjs",
     "plants:og": "node scripts/og-plants.mjs",
     "og": "node scripts/og-home.mjs",
+    "still": "node scripts/still.mjs",
     "bluesky": "node scripts/bluesky.mjs",
     "promo": "node scripts/promo.mjs",
     "announce": "node scripts/announce.mjs",

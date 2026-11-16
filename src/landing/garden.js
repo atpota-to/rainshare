@@ -14,10 +14,14 @@
 // so it can keep up with a finger (see scroll(), below).
 //
 // The scene itself is three.js (./garden-scene.js), so it's fetched only when the landing is
-// on screen. If the browser can't draw it, a flat drawing takes its place, with the same
-// story set out under it in three short notes.
+// on screen. Until it's there, a still of it is (./still/, taken by scripts/still.mjs), scaled
+// and moved to just where the scene will draw the garden, with the scene fading in over it.
+// If the browser can't draw the scene, the still stays, with its labels where they'd be but
+// nothing to take hold of, and the story set out under it in three short notes.
 import { PLOTS, FRIEND } from './plots.js';
 import { fit } from './fit.js';
+import { STILLS } from './still/still.js';
+import { isNight } from '../mode.js';
 
 const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -28,17 +32,23 @@ const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 
 const SPILL = 150;      // how far under the landing the backdrop runs, fading out as it goes
 const SINK = .4;        // how far the garden sinks for each pixel scrolled, once the whole of it has been seen
+// The stills, for each framing (`close` is under the pitch), by day and by night.
+const PICTURES = {
+  wide: { day: new URL('./still/wide-day.webp', import.meta.url).href, night: new URL('./still/wide-night.webp', import.meta.url).href },
+  close: { day: new URL('./still/close-day.webp', import.meta.url).href, night: new URL('./still/close-night.webp', import.meta.url).href }
+};
 
 /** Put the garden's labels in the landing's figure. What comes back is what ./landing.js drives a scene with. */
 export function mount(figure){
   const view = $('#sceneView', figure), canvas = $('canvas', view), layer = $('.rd-pins', view), hint = $('#sceneHint', figure), note = $('#sceneNote', figure);
   const title = $('h2', note), text = $('p', note), again = $('#sceneAgain', figure);
+  const still = $('.rd-still', view), picture = $('img', still);
   layer.innerHTML = PLOTS.map((p, i) => `<button type="button" class="rd-pin rd-plot${p.theirs ? ' theirs' : ''}" data-plot="${i}"><i style="--c:${esc(p.color)}">${esc(p.name[0])}</i><span>${esc(p.name)}</span>${SPARK}</button>`).join('')
     + `<span class="rd-pin rd-friend"><i style="--c:${esc(FRIEND.color)}">${esc(FRIEND.name[0])}</i><span>${esc(FRIEND.name)}’s plan</span></span>`
     + `<div class="rd-cloud" id="sceneCloud"><span class="rd-pin rd-plan"><svg class="rd-ring" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><circle class="left" cx="10" cy="10" r="7.5" pathLength="100"/></svg><span><b>Your AI plan</b><small>Resets in 2 days</small></span></span></div>`;
   const pins = $$('.rd-plot', layer), friendTag = $('.rd-friend', layer), cloud = $('#sceneCloud', layer), plan = $('.rd-plan', cloud), ring = $('.rd-ring', cloud), resets = $('small', cloud);
 
-  let scene = null, shown = -1, toastTimer = 0, doneTimer = 0;
+  let scene = null, shown = -1, toastTimer = 0, doneTimer = 0, dark = isNight();
 
   /* where the garden goes in the backdrop, and how far it has sunk */
   // Under 880px the pitch is over the garden, not beside it, and the garden has the window's width (./landing.css).
@@ -47,7 +57,7 @@ export function mount(figure){
   let frame = null, sunk = 0, deep = 0, stood = 0;
   function layout(){
     const f = figure.getBoundingClientRect();
-    if (!f.width || figure.classList.contains('flat')) return;
+    if (!f.width) return;
     // the landing fills what the bar leaves of the first screenful
     land.style.setProperty('--rd-bar', (bar?.offsetHeight || 76) + 'px');
     const at = view.getBoundingClientRect(), close = stacked.matches;
@@ -56,9 +66,10 @@ export function mount(figure){
     // window's edge on the right. Under it, it has the window's whole width.
     // (Further out on a wider window, so the garden grows with it.)
     const x0 = close ? 0 : f.left - at.left - 40, x1 = close ? at.width : Math.min(at.width - 24, f.right - at.left + 130 + Math.max(0, at.width - 1440) * .4);
-    // the line under the garden is as wide as the garden is
+    // the line under the garden is as wide as the garden is (and the still's notes as wide as the column)
     figure.style.setProperty('--out-l', Math.round(f.left - at.left - x0) + 'px');
     figure.style.setProperty('--out-r', Math.round(x1 - (f.right - at.left)) + 'px');
+    figure.style.setProperty('--in-l', Math.round(f.left - land.getBoundingClientRect().left) + 'px');
     // Between the garden and that line the figure leaves a stretch of meadow (its gap): the
     // garden can sink as far as that.
     const room = parseFloat(getComputedStyle(figure).rowGap) || 0;
@@ -71,6 +82,12 @@ export function mount(figure){
     figure.style.setProperty('--sink-to', Math.round(from + deep / SINK) + 'px');
     frame = { x: x0, y: f.top - at.top, w: x1 - x0, h: base.getBoundingClientRect().top - room - f.top, close };
     scene?.setFrame(frame);
+    // The still, scaled about the point the camera looks at, and moved to where the scene draws it.
+    const fitted = fit(frame), s = STILLS[close ? 'close' : 'wide'], k = fitted.unit / s.unit;
+    picture.style.width = s.w * k + 'px';
+    picture.style.left = fitted.midX - s.midX * k + 'px';
+    picture.style.top = fitted.midY - s.midY * k + 'px';
+    if (!scene) { look(); hold(); }
     // Beside the garden, the pitch stands on its horizon: the heading and what's under it in
     // the sky, and its two buttons on the line of the far woods. It's moved from where the page's
     // layout centres it, as far as the landing has room for.
@@ -78,7 +95,7 @@ export function mount(figure){
     let to = 0;
     if (!close && pitch && signIn) {
       const p = pitch.getBoundingClientRect(), l = land.getBoundingClientRect(), up = l.top - (p.top - stood), down = Math.max(up, l.bottom - 22 - (p.bottom - stood));
-      to = Math.round(clamp(fit(frame).horizon + at.top - 6 - (signIn.getBoundingClientRect().top - stood), up, down));
+      to = Math.round(clamp(fitted.horizon + at.top - 6 - (signIn.getBoundingClientRect().top - stood), up, down));
     }
     if (to !== stood) { stood = to; land.style.setProperty('--stand', to + 'px'); }
     scroll();
@@ -100,7 +117,25 @@ export function mount(figure){
     const to = calm.matches || touch.matches ? 0 : clamp(SINK * clamp(innerHeight - 52 - base.getBoundingClientRect().top, 0, scrollY), 0, deep);
     if (to === sunk) return;
     sunk = to;
-    scene?.setLift(to);
+    if (scene) scene.setLift(to);
+    // (With no scene there's no camera to rise: the still sinks whole, sky and all, as it does on a touchscreen.)
+    else { picture.style.translate = to ? `0 ${to}px` : ''; hold(); }
+  }
+  // The still for the framing, by day or by night. (The one showing stays until the other has come.)
+  function look(){
+    const src = PICTURES[frame?.close ? 'close' : 'wide'][dark ? 'night' : 'day'];
+    if (picture.getAttribute('src') !== src) picture.src = src;
+  }
+  picture.addEventListener('load', () => still.classList.add('in'));
+  // With no scene to say where its labels are, they go where they are on the still.
+  function hold(){
+    if (scene || !frame) return;
+    const s = STILLS[frame.close ? 'close' : 'wide'], f = fit(frame), k = f.unit / s.unit;
+    const x = v => f.midX + (v - s.midX) * k, y = v => f.midY + (v - s.midY) * k + sunk;
+    onFrame({
+      plots: s.plots.map((v, i) => i % 2 ? y(v) : x(v)), cloud: [x(s.cloud[0]), y(s.cloud[1]), s.cloud[2] * k, s.cloud[3] * k],
+      friend: [x(s.friend[0]), y(s.friend[1]), 1], width: view.clientWidth, left: s.left, fresh: false
+    });
   }
   const sized = new ResizeObserver(layout);
   for (const el of [land, figure, base, bar, pitch]) if (el) sized.observe(el);
@@ -214,14 +249,18 @@ export function mount(figure){
   mark();
 
   return {
-    async load({ dark }){
-      const { createGarden } = await import('./garden-scene.js');
+    async load({ dark: night }){
+      dark = night;
+      // (Marked, so ./landing.js can tell a file that didn't come from a browser that can't draw it.)
+      const { createGarden } = await import('./garden-scene.js').catch(e => { throw Object.assign(new Error('The garden’s scene couldn’t be fetched', { cause: e }), { missing: true }); });
       layout();
       scene = createGarden(canvas, { dark, frame, plots: PLOTS, onFrame, onEvent });
       scene.setLift(sunk);
     },
     setRunning(on){ scene?.setRunning(on); },
-    setDark(on){ scene?.setDark(on); },
+    setDark(on){ dark = on; scene ? scene.setDark(on) : look(); },
+    // The scene can't be drawn: the still stays, and its labels are only labels.
+    flat(){ layer.inert = true; hold(); },
     escape(){ if (shown !== -1 && shown !== -2) say(-1); }
   };
 }

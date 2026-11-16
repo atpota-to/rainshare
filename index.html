@@ -67,25 +67,15 @@
     </div>
 
     <figure class="rd-scene rd-garden" id="scene">
-      <figcaption class="rd-sr">An animated garden. The cloud is your AI plan, and only you can use it: it’s full when the plan resets, and whatever is left in it is gone at the next reset. Other people’s ideas and projects are planted in a row under it, a marker for an idea and a plant for a project. Send the cloud over one and it rains there, and the plant grows a stage. Further back, someone else’s cloud is already raining on another plot. Each plot has a button that sends your cloud to it.</figcaption>
+      <figcaption class="rd-sr">A garden. The cloud is your AI plan, and only you can use it: it’s full when the plan resets, and whatever is left in it is gone at the next reset. Other people’s ideas and projects are planted in a row under it, a marker for an idea and a plant for a project. Send the cloud over one and it rains there, and the plant grows a stage. Further back, someone else’s cloud is already raining on another plot.<span class="rd-play"> It’s animated, and each plot has a button that sends your cloud to it.</span></figcaption>
       <div class="rd-view" id="sceneView">
-        <svg class="rd-still" viewBox="0 0 400 340" aria-hidden="true">
-          <circle class="s-sun" cx="92" cy="74" r="20"/>
-          <path class="s-cloud" d="M196 132a22 22 0 0 1 2-44 30 30 0 0 1 56-8 25 25 0 0 1 28 52z"/>
-          <path class="s-rain" d="M214 148l-5 18M236 148l-5 18M258 148l-5 18M225 174l-4 14M247 174l-4 14"/>
-          <path class="s-ground" d="M20 262c60-9 120-12 180-12s120 3 180 12v22H20z"/>
-          <path class="s-soil" d="M82 258a28 15 0 0 1 56 0zM210 258a28 15 0 0 1 56 0zM312 258a28 15 0 0 1 56 0z"/>
-          <path class="s-stake" d="M110 247v-20"/>
-          <rect class="s-tag" x="98" y="212" width="24" height="15" rx="4"/>
-          <path class="s-stem" d="M238 247v-24M340 247v-48"/>
-          <path class="s-leaf" d="M238 229c0-10-7-16-18-16 0 11 7 16 18 16zM238 225c0-10 7-16 18-16 0 11-7 16-18 16zM340 236c0-10-7-16-18-16 0 11 7 16 18 16zM340 230c0-10 7-16 18-16 0 11-7 16-18 16zM340 214c0-9-6-14-16-14 0 10 6 14 16 14zM340 209c0-9 6-14 16-14 0 10-6 14-16 14z"/>
-          <circle class="s-bloom" cx="340" cy="194" r="7"/>
-        </svg>
+        <!-- the garden held still, a picture of the scene as it is on arriving: there while the scene is on the way, and in its place where the browser can't draw it (src/landing/garden.js picks which, and puts it where the scene would be) -->
+        <div class="rd-still" aria-hidden="true"><img alt="" decoding="async"></div>
         <canvas aria-hidden="true"></canvas>
         <!-- a label under each plot, and your cloud to take hold of: src/landing/garden.js fills this in -->
         <div class="rd-pins"></div>
       </div>
-      <!-- Under the garden: what's happening in it, and the pause button. None of it links into the example circle: its pages are made up, and look enough like real ones to be taken for them. Where the scene can't be drawn, the three notes say it instead. -->
+      <!-- Under the garden: what's happening in it, and the pause button. None of it links into the example circle: its pages are made up, and look enough like real ones to be taken for them. Where the scene can't be drawn, three notes under the still say it instead. -->
       <div class="rd-base">
         <div class="rd-notes" aria-live="polite">
           <p class="rd-hint" id="sceneHint">Drag your cloud over someone’s idea or project.</p>

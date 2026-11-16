@@ -266,8 +266,9 @@ client, which needs the IP.
 `/example` is a made-up board, kept in your browser, for trying things without writing anything.
 Nothing in the app links to it, since its pages look enough like real ones to be taken for them.
 
-Some images are drawn from code: `npm run plants`, `logo`, `og`, `bluesky` and `promo`. Re-run the
-one you need after changing what it draws. On the dev server, `src/plants/sheet.html` and
+Some images are drawn from code: `npm run plants`, `logo`, `og`, `still`, `bluesky` and `promo`.
+Re-run the one you need after changing what it draws (`still` is the landing's garden held still,
+shown while its scene loads and where a browser can't draw it). On the dev server, `src/plants/sheet.html` and
 `src/logo/sheet.html` show every plant and the logo at every size.
 
 Some features are built but switched off for the alpha, in `core/ns.js`: private asks in a group
