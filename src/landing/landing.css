@@ -130,7 +130,10 @@
    ./garden.js tells the scene where that is, and how tall the backdrop has to be (--sky-h).
    It's all the same with the still in the scene's place. */
 body{position:relative}
-.rd-bar{position:relative;z-index:1}
+/* (The bar is over the pitch, which is over the garden, so your menu and the bell's panel open
+   over the headline and the buttons rather than under them; and over the board's own raised
+   bits, at 2, while still under its sheet and the toasts.) */
+.rd-bar{position:relative;z-index:3}
 .rd-landing:has(>.rd-garden){align-items:stretch;min-height:calc(100svh - var(--rd-bar,76px) - 8px);padding-bottom:22px}
 /* (--stand, from ./garden.js, is how far the pitch is moved to stand on the garden's horizon) */
 .rd-landing:has(>.rd-garden) .rd-pitch{align-self:center;translate:0 var(--stand,0px)}
