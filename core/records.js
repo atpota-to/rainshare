@@ -1,6 +1,6 @@
 // Building the records from what people type, so every app writes the same shapes.
 // Each builder trims, clips to the lexicon's limits and leaves out what's empty.
-import { PROFILE, SEED, TAKE, DELIVERY, COMMENT, PREFERENCES, FOLLOW, MODERATOR, ROUTES, githubLogin, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, PLANS, UNPAID, LEVELS, planKey, HARNESSES, RUNS_ON, AUDIENCES, TESTS, SIZES, OWNERS, STAGES, audienceOf } from './ns.js';
+import { PROFILE, SEED, TAKE, DELIVERY, COMMENT, PREFERENCES, FOLLOW, MODERATOR, ROUTES, githubLogin, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, PLANS, UNPAID, LEVELS, planKey, PLAN_NAME_MAX, RETIRED_PLANS, HARNESSES, RUNS_ON, AUDIENCES, TESTS, SIZES, OWNERS, STAGES, audienceOf } from './ns.js';
 import { parseUri } from './net.js';
 import { kindOf } from './subjects.js';
 import { untilIn, MAX_DAYS } from './takes.js';
@@ -45,10 +45,20 @@ export function setup(s){
   return prune({ harness, models: strings(s.models, 8, 64), plan: clip(s.plan || '', 64), runsOn: known(RUNS_ON, s.runsOn), note: clip(s.note || '', 300) });
 }
 
-/** AI plans, known ones only (a tier from before is kept as its provider). A paid plan means "none" and "free tiers only" no longer apply. */
+/**
+ * AI plans: PLANS's, and any other written in, as written (on one line, clipped). A tier from
+ * before, or a provider's plan written out, is kept as its provider ("Claude Max" is "claude").
+ * A paid plan, picked or written in, means "none" and "free tiers only" no longer apply.
+ */
 export function plans(input){
-  const k = [...new Set((Array.isArray(input) ? input : []).map(planKey).filter(p => known(PLANS, p)))], paid = k.filter(p => !UNPAID.includes(p));
-  return paid.length ? paid : k.includes('free') ? ['free'] : k.includes('none') ? ['none'] : [];
+  const seen = new Set(), k = [];
+  for (const x of Array.isArray(input) ? input : []) {
+    if (typeof x !== 'string') continue;
+    const p = planKey(x), v = known(PLANS, p) || clip(p.replace(/\s+/g, ' '), PLAN_NAME_MAX), id = v.toLowerCase();
+    if (v && !seen.has(id) && !RETIRED_PLANS.includes(id)) { seen.add(id); k.push(v); }
+  }
+  const paid = k.filter(p => !UNPAID.includes(p));
+  return paid.length ? paid.slice(0, 12) : k.includes('free') ? ['free'] : k.includes('none') ? ['none'] : [];
 }
 
 /** A Rainshare profile. `prev` keeps its createdAt. */

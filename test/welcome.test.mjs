@@ -46,6 +46,11 @@ test('the welcome saves a profile with the plans picked and a setup for each thi
   assert.deepEqual(R.profile(welcomeProfile({ plans: ['none'] })).plans, ['none']);
   assert.equal(R.profile(welcomeProfile({ plans: ['none'] })).setups, undefined);
   assert.deepEqual(R.profile(welcomeProfile({ runs: ['aider'] })).setups, [{ harness: 'aider' }]);
+  // A plan written in goes with the ones picked, as the record keeps it.
+  assert.deepEqual(welcomeProfile({ plans: ['claude'], other: ' Kimi Code, ' }).plans, ['claude', 'Kimi Code']);
+  assert.deepEqual(R.profile(welcomeProfile({ plans: ['none'], other: 'Kimi Code' })).plans, ['Kimi Code']);
+  assert.deepEqual(R.profile(welcomeProfile({ other: 'Cursor Pro' })).plans, ['cursor']);
+  assert.deepEqual(welcomeProfile({ plans: ['gemini'], other: '  ' }).plans, ['gemini']);
   // It doesn't hold on to what it was handed.
   const picked = { plans: ['gemini'], runs: [] }, p = welcomeProfile(picked);
   picked.plans.push('zai');

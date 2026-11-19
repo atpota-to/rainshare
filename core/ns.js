@@ -118,8 +118,22 @@ export const PLANS = [
 ];
 // Plans were by tier for a while: a record that says one counts as its provider's.
 const PLAN_ALIASES = { 'claude-pro': 'claude', 'claude-max': 'claude', 'chatgpt-plus': 'chatgpt', 'chatgpt-pro': 'chatgpt' };
-/** A plan as it's kept now: a tier from an older record becomes its provider ("claude-max" is "claude"). */
-export const planKey = x => PLAN_ALIASES[x] || x;
+// A plan that isn't one of these can be written in ("Or another"), and is kept as written, up to
+// PLAN_NAME_MAX characters. One that starts with a provider's name, or another name it goes by,
+// is that provider's: "Claude Max 20x" is Claude, "GitHub Copilot Pro+" is Copilot.
+export const PLAN_NAME_MAX = 40;
+const PLAN_NAMES = { claude: ['anthropic'], chatgpt: ['openai'], copilot: ['github copilot'], gemini: ['google gemini', 'google ai'], zai: ['z.ai', 'glm'] };
+const startsWithName = (s, n) => s === n || s.startsWith(n + ' ');
+/** A plan as it's kept now: a tier from an older record becomes its provider ("claude-max" is "claude"), and so does a provider's plan written out. */
+export function planKey(x){
+  if (PLAN_ALIASES[x]) return PLAN_ALIASES[x];
+  if (typeof x !== 'string' || PLANS.some(([k]) => k === x)) return x;
+  const s = x.trim().replace(/\s+/g, ' ').toLowerCase();
+  const hit = PLANS.find(([k, l]) => UNPAID.includes(k) ? s === k || s === l.toLowerCase() : [k, l.toLowerCase(), ...(PLAN_NAMES[k] || [])].some(n => startsWithName(s, n)));
+  return hit ? hit[0] : x;
+}
+/** Whether a plan is one written in, not one of PLANS. */
+export const typedPlan = x => !PLANS.some(([k]) => k === x);
 export const UNPAID = ['free', 'none'];
 // Which model families an ask can prefer, and how capable a model: families and a level rather
 // than model names, since names change every few months and a helper knows which of theirs fit.
@@ -147,9 +161,11 @@ export const PLAN_FAMILIES = {
   claude: ['claude'], chatgpt: ['gpt'], gemini: ['gemini'], zai: ['glm'],
   copilot: ['claude', 'gpt', 'gemini'], cursor: ['claude', 'gpt', 'gemini']
 };
+/** The families a plan reaches: PLAN_FAMILIES's, or for one written in, the family its name says ("Kimi Code" reaches Kimi). */
+export const planFamilies = p => PLAN_FAMILIES[p] || (typedPlan(p) && familyOf(p) ? [familyOf(p)] : []);
 // Rainshare is about coding subscriptions and the usage they come with, so pay as you go and
 // paid by work or school, which were offered for a while, are left out when a record has them.
-const RETIRED_PLANS = ['api', 'work'];
+export const RETIRED_PLANS = ['api', 'work'];
 /** Someone's plans, as their record has them: strings only, at most 12. */
 export const plansIn = p => [...new Set((Array.isArray(p?.plans) ? p.plans : []).filter(x => typeof x === 'string' && x && !RETIRED_PLANS.includes(x)).map(planKey))].slice(0, 12);
 /**
