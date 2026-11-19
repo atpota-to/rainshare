@@ -40,8 +40,8 @@ export function shouldWelcome({ source, mine, sub = '' }){
   return sub !== 'me' && !seen(source.viewer);
 }
 
-/** The profile the welcome saves: the plans picked, and a setup for each thing they run. */
-export const welcomeProfile = ({ plans = [], runs = [] } = {}) => ({ plans: [...plans], setups: runs.map(harness => ({ harness, models: [] })) });
+/** The profile the welcome saves: the plans picked and any written in (commas between), and a setup for each thing they run. */
+export const welcomeProfile = ({ plans = [], other = '', runs = [] } = {}) => ({ plans: [...plans, ...String(other).split(',').map(s => s.trim()).filter(Boolean)], setups: runs.map(harness => ({ harness, models: [] })) });
 /** The messages the welcome starts with: every kind, ticked. */
 export const welcomeMessages = () => Object.fromEntries(NOTIFY.map(([k]) => [k, true]));
 /** Whether a choice of messages switches any on. */
@@ -91,7 +91,7 @@ const chips = (name, opts, on) => `<div class="rs-toggles" data-rs-wl="${name}">
 export function openWelcome({ person, save, saved = () => {}, error = e => e?.message || 'Something went wrong. Try again in a moment.', canFollow = true }){
   const did = person?.did;
   if (!did || document.querySelector('.rs-wl')) return;
-  const st = { step: 'story', plans: [], runs: [], notify: welcomeMessages(), busy: false };
+  const st = { step: 'story', plans: [], other: '', runs: [], notify: welcomeMessages(), busy: false };
   const dlg = document.createElement('dialog');
   dlg.className = 'rs-wl';
   dlg.setAttribute('aria-labelledby', 'rsWlTitle');
@@ -116,7 +116,8 @@ export function openWelcome({ person, save, saved = () => {}, error = e => e?.me
     }
     swapStep(box, `${top(2, 'What do you code with?')}
       <div class="rs-wl-you">${face(person)}<span><b>${esc(nameOf(person))}</b><small>Your name and picture come from Bluesky.</small></span></div>
-      <fieldset><legend>Your AI plan</legend><p class="rs-muted">Any you pay for to code with. It shows beside your asks.</p>${chips('plans', PLANS, st.plans)}</fieldset>
+      <fieldset><legend>Your AI plan</legend><p class="rs-muted">Any you pay for to code with. It shows beside your asks.</p>${chips('plans', PLANS, st.plans)}
+        <label class="rs-inline">Or another <input name="otherPlan" maxlength="120" autocomplete="off" placeholder="Kimi Code" value="${esc(st.other)}"></label></fieldset>
       <fieldset><legend>What you run</legend><p class="rs-muted">So “Direct my agent” copies the right command.</p>${chips('runs', HARNESSES, st.runs)}</fieldset>
       <fieldset class="rs-wl-msgs"><legend>Messages from @${esc(HANDLE)}</legend>
         <p class="rs-muted">A direct message on Bluesky when there’s news. ${reachLine(canFollow)} You can change them in Settings.</p>
@@ -131,7 +132,7 @@ export function openWelcome({ person, save, saved = () => {}, error = e => e?.me
 
   async function submit(btn){
     if (st.busy) return;
-    if (!st.plans.length && !st.runs.length) return say('Pick your AI plan or what you run, or skip this for now.');
+    if (!st.plans.length && !st.other.trim() && !st.runs.length) return say('Pick your AI plan or what you run, or skip this for now.');
     st.busy = true; btn.disabled = true; btn.textContent = 'Saving…'; say('');
     const notify = { ...st.notify };
     try { await save(welcomeProfile(st), notify); }
@@ -155,6 +156,7 @@ export function openWelcome({ person, save, saved = () => {}, error = e => e?.me
         const unpaid = UNPAID.includes(b.dataset.v);
         st.plans = st.plans.filter(v => v === b.dataset.v || (!unpaid && !UNPAID.includes(v)));
         group.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(st.plans.includes(x.dataset.v))));
+        if (unpaid) { st.other = ''; const o = box.querySelector('[name="otherPlan"]'); if (o) o.value = ''; }
       }
       say('');
       return;
@@ -164,6 +166,15 @@ export function openWelcome({ person, save, saved = () => {}, error = e => e?.me
     else if (act === 'next') { st.step = 'basics'; paint(1); }
     else if (act === 'back') { st.step = 'story'; paint(-1); }
     else if (act === 'save') submit(b);
+  });
+  // A plan written in is kept as it's typed, and it's a paid one, so it clears "No AI plan" and "Free tiers only".
+  dlg.addEventListener('input', e => {
+    const t = e.target;
+    if (t?.name !== 'otherPlan') return;
+    st.other = t.value; say('');
+    if (!t.value.trim() || !st.plans.some(v => UNPAID.includes(v))) return;
+    st.plans = st.plans.filter(v => !UNPAID.includes(v));
+    box.querySelectorAll('[data-rs-wl="plans"] button').forEach(x => x.setAttribute('aria-pressed', String(st.plans.includes(x.dataset.v))));
   });
   // The messages' boxes, kept as they're ticked, so going back to the story and on again keeps them.
   dlg.addEventListener('change', e => { const t = e.target; if (t?.type === 'checkbox' && t.closest('.rs-wl-msgs') && t.name in st.notify) st.notify[t.name] = t.checked; });

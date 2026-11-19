@@ -1,7 +1,7 @@
 // Run with: npm test (node --test, no dependencies)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SEED, SITE, FAMILIES, PLANS, FEATURES, ROUTES, lowBudgetOf } from '../core/ns.js';
+import { SEED, SITE, FAMILIES, PLANS, FEATURES, ROUTES, lowBudgetOf, PLAN_NAME_MAX } from '../core/ns.js';
 import { parseSubject, describeSubject, cloneUrlOf } from '../core/subjects.js';
 import * as R from '../core/records.js';
 import { meantFor, closeness } from '../core/circle.js';
@@ -306,12 +306,37 @@ test('AI plans: one line, from plans first and an older profile’s budget other
   assert.equal(lowBudgetOf({ plans: ['claude-max'], budget: 'none' }), null);
   assert.equal(lowBudgetOf({ budget: 'low' }), null);
   assert.equal(lowBudgetOf({}), null);
-  // What's written: known plans only, and a paid one means "none" and "free" don't apply.
-  assert.deepEqual(R.plans(['claude-pro', 'none', 'kagi', 'claude-max']), ['claude']);
+  // What's written: a paid plan means "none" and "free" don't apply, and one nobody knows is kept.
+  assert.deepEqual(R.plans(['claude-pro', 'none', 'kagi', 'claude-max']), ['claude', 'kagi']);
   assert.deepEqual(R.plans(['none', 'free']), ['free']);
   assert.deepEqual(R.plans('claude'), []);
   assert.deepEqual(R.profile({ plans: ['none'] }).plans, ['none']);
   assert.equal(R.profile({}).plans, undefined);
+});
+
+test('a plan that isn’t one of the presets can be written in', () => {
+  // Kept as written, on one line and clipped, once however it's capitalised.
+  assert.deepEqual(R.plans(['Kimi Code', 'kimi code', '  Mistral   Le Chat  ']), ['Kimi Code', 'Mistral Le Chat']);
+  assert.equal(R.plans(['x'.repeat(80)])[0].length, PLAN_NAME_MAX);
+  assert.deepEqual(R.plans([42, null, '', '   ']), []);
+  // One that names a provider Rainshare knows counts as that provider, whatever the tier.
+  assert.deepEqual(R.plans(['Claude Max 20x', 'ChatGPT Plus', 'GitHub Copilot Pro+', 'Gemini', 'Z.ai GLM Coding Plan', 'OpenAI Pro']), ['claude', 'chatgpt', 'copilot', 'gemini', 'zai']);
+  assert.deepEqual(R.plans(['claude', 'Claude Pro']), ['claude']);
+  assert.deepEqual(R.plans(['Claudette']), ['Claudette'], 'a name that only starts the same isn’t the provider');
+  assert.deepEqual(R.plans(['Free tiers only']), ['free']);
+  assert.deepEqual(R.plans(['No AI plan']), ['none']);
+  // It's a paid plan: "none" and "free" no longer apply, and it counts as having one.
+  assert.deepEqual(R.plans(['none', 'Kimi Code']), ['Kimi Code']);
+  assert.equal(lowBudgetOf({ plans: ['Kimi Code'] }), null);
+  // Pay as you go and paid by work or school still aren't plans here, written in or not.
+  assert.deepEqual(R.plans(['API', 'Work']), []);
+  // Said beside the presets, as written.
+  assert.equal(planText({ plans: R.plans(['claude', 'Kimi Code']) }), 'Claude and Kimi Code');
+  assert.equal(planText({ plans: ['claude max'] }), 'Claude');
+  // Whether it reaches the models an ask would like goes by the family its name says, if any.
+  assert.equal(modelsText({ wants: { families: ['kimi'] } }, { plans: ['Kimi Code'] }), 'Kimi. Your Kimi Code plan has Kimi models.');
+  assert.equal(modelsText({ wants: { families: ['claude'] } }, { plans: ['Kimi Code'] }), 'Claude. Not in your plan or setup.');
+  assert.equal(modelsText({ wants: { families: ['claude'] } }, { plans: ['Kagi'] }), 'Claude.', 'a name that says no family says nothing either way');
 });
 
 test('a seed reads as plain lines, not chips', () => {

@@ -501,11 +501,11 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-form label>small{margin-left:4px}
 .rs-field{display:flex;flex-direction:column;gap:6px;font-weight:700;font-size:14px;min-width:0}
 .rs-field>span{font-weight:700;font-size:14px}
-.rs-form input:not([type=checkbox]),.rs-form textarea,.rs-form select,.rs-prefs select{font:500 16px var(--rs-font);color:var(--rs-ink);background-color:var(--rs-field);border:0;border-radius:12px;padding:11px 13px;min-height:46px;width:100%;box-shadow:inset 0 0 0 1.5px var(--rs-edge)}
+.rs-form input:not([type=checkbox]),.rs-form textarea,.rs-form select,.rs-prefs select,.rs-wl .rs-inline>input{font:500 16px var(--rs-font);color:var(--rs-ink);background-color:var(--rs-field);border:0;border-radius:12px;padding:11px 13px;min-height:46px;width:100%;box-shadow:inset 0 0 0 1.5px var(--rs-edge)}
 .rs-form textarea{resize:vertical;line-height:1.5}
 /* (A placeholder in the grey asides are written in: Safari's own is too faint to read on a phone.) */
 .rs input::placeholder,.rs textarea::placeholder{color:var(--rs-muted);opacity:1}
-.rs-form input:focus,.rs-form textarea:focus,.rs-form select:focus,.rs-prefs select:focus{outline:none;box-shadow:inset 0 0 0 2px var(--rs-accent)}
+.rs-form input:focus,.rs-form textarea:focus,.rs-form select:focus,.rs-prefs select:focus,.rs-wl .rs-inline>input:focus{outline:none;box-shadow:inset 0 0 0 2px var(--rs-accent)}
 /* A picker is drawn here rather than left to the browser: Safari on a phone draws its own,
    without the field's colour or edge, so it was only words and an arrow on the card. */
 .rs-form select,.rs-prefs select{-webkit-appearance:none;appearance:none;padding-right:40px;background-image:var(--rs-chevron);background-repeat:no-repeat;background-position:right 12px center;background-size:18px 18px;text-overflow:ellipsis;cursor:pointer}
@@ -610,8 +610,8 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-found:empty{display:none}
 .rs-found b{font-weight:650}
 .rs-unknown{color:var(--rs-down)}
-.rs-form .rs-inline{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-weight:600}
-.rs-form .rs-inline>input:not([type=checkbox]){display:inline-block;margin-top:0;width:auto;flex:1 1 180px;max-width:280px;min-height:40px;padding:8px 12px}
+.rs-form .rs-inline,.rs-wl .rs-inline{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-weight:600}
+.rs-form .rs-inline>input:not([type=checkbox]),.rs-wl .rs-inline>input{display:inline-block;margin-top:0;width:auto;flex:1 1 180px;max-width:280px;min-height:40px;padding:8px 12px}
 .rs-addrow{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 14px;border-radius:14px;border:1.5px dashed var(--rs-line);font-size:15px}
 .rs-post-nav{display:flex;gap:10px;flex-wrap:wrap;padding-top:6px}
 .rs-post-nav [type=submit]{margin-left:auto}
@@ -877,6 +877,7 @@ a.rs-plot:hover{background:var(--rs-accent-soft)}
 .rs-wl .rs-toggles button{padding:7px 12px}
 .rs-wl .rs-err{font-size:14px}
 .rs-wl .rs-check{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px}
+.rs-wl .rs-inline{font-size:15px}
 /* the way on, and the ways out */
 .rs-wl .rs-primary{width:100%;min-height:52px;font-size:16px}
 /* "Direct my agent" (./send.js): a line on what the agent gets under the heading, the agents as

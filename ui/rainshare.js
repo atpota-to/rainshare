@@ -28,7 +28,7 @@
 // A host with a landing of its own at its base address (rainshare.dev, host.landing) shows the
 // board under it there, signed in or out. The board's own address is then 'board', and
 // every way back to the board leads there, to the board on its own.
-import { SEED, PROFILE, STAGE, HANDLE, SITE, FEATURES, TAKE_DAYS, TAKE_DAYS_DEFAULT, ROUTES, PLANS, UNPAID, plansIn, HARNESSES, MODELS, RUNS_ON, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, NOTIFY, labelOf, modelName, githubLogin } from '../core/ns.js';
+import { SEED, PROFILE, STAGE, HANDLE, SITE, FEATURES, TAKE_DAYS, TAKE_DAYS_DEFAULT, ROUTES, PLANS, UNPAID, plansIn, typedPlan, HARNESSES, MODELS, RUNS_ON, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, NOTIFY, labelOf, modelName, githubLogin } from '../core/ns.js';
 import { describeSubject, safeHttp, pullState, forkOf, linkedPulls, pullKey, FORGE_NAMES } from '../core/subjects.js';
 import { look, carry, standing } from '../core/status.js';
 import { newRepoPlaces, placesFor } from '../core/forges.js';
@@ -1792,6 +1792,8 @@ export function createRainshare({ root, base = '/', host }){
     // "Help the right people find you" folds away your situation, values and who you'd help first: only while one of them is on.
     const folded = FEATURES.circumstances || FEATURES.values || FEATURES.priorities;
     const plansNow = plansIn(p).length ? plansIn(p) : { none: ['none'], free: ['free'] }[p.budget] || [];
+    // A plan that isn't one of PLANS is written in, under them.
+    const otherPlans = plansIn(p).filter(typedPlan);
     const visSel = field => !priv ? '' : `<div class="rs-vis"><select data-rs-vis="${field}" aria-label="Who sees this"><option value="public"${!hidden.includes(field) ? ' selected' : ''}>Everyone sees this</option><option value="private"${hidden.includes(field) ? ' selected' : ''}>Only my groups</option></select></div>`;
     const withBoard = (groups || []).filter(g => g.space);
     return `${back()}
@@ -1804,7 +1806,8 @@ export function createRainshare({ root, base = '/', host }){
         </fieldset>
         <fieldset><legend>Your AI plan ${tip('What you pay for to code with AI, if anything. It’s the first thing people see about you, on your profile and beside your asks. Pick as many as you have.')}</legend>
           ${toggles('plans', PLANS, plansNow)}
-          ${!p.plans?.length && typedPlans.length ? `<p class="rs-muted">You’d written “${esc(typedPlans.join('”, “'))}”. Pick the closest.</p>` : ''}
+          <label class="rs-inline">Or another <input name="otherPlan" maxlength="120" autocomplete="off" placeholder="Kimi Code" value="${esc(otherPlans.join(', '))}"></label>
+          ${!p.plans?.length && typedPlans.length ? `<p class="rs-muted">You’d written “${esc(typedPlans.join('”, “'))}”. Pick the closest, or write it in.</p>` : ''}
         </fieldset>
         <fieldset><legend>What you run ${tip('So people know what your agent can do, and “Direct my agent” copies the right command.')}</legend>
           <ol class="rs-setups">${setups.map((s, i) => `<li data-setup="${i}">
@@ -1929,7 +1932,8 @@ export function createRainshare({ root, base = '/', host }){
     const on = name => [...form.querySelectorAll(`[data-rs-toggles="${name}"] [aria-pressed="true"]`)].map(b => b.dataset.v);
     p.bio = fd.get('bio');
     p.displayName = fd.get('displayName') ?? p.displayName;
-    if (shows('[data-rs-toggles="plans"]')) p.plans = on('plans');
+    // The plans picked, and any written in (more than one with commas between).
+    if (shows('[data-rs-toggles="plans"]')) p.plans = [...on('plans'), ...String(fd.get('otherPlan') || '').split(',').map(s => s.trim()).filter(Boolean)];
     // A plan typed into a setup before there were plans to pick stays in the record.
     const before = p.setups || [];
     p.setups = [...form.querySelectorAll('[data-setup]')].map((li, i) => ({
@@ -2588,10 +2592,11 @@ export function createRainshare({ root, base = '/', host }){
     if (tgl) {
       const now = tgl.getAttribute('aria-pressed') !== 'true';
       tgl.setAttribute('aria-pressed', String(now));
-      // Plans: "No AI plan" and "Free tiers only" stand alone, and a paid plan clears them.
+      // Plans: "No AI plan" and "Free tiers only" stand alone, and a paid plan (or one written in) clears them.
       if (now && tgl.closest('[data-rs-toggles="plans"]')) {
-        const unpaid = UNPAID.includes(tgl.dataset.v);
+        const unpaid = UNPAID.includes(tgl.dataset.v), other = tgl.closest('fieldset')?.querySelector('[name="otherPlan"]');
         tgl.parentElement.querySelectorAll('button').forEach(b => { if (b !== tgl && (unpaid || UNPAID.includes(b.dataset.v))) b.setAttribute('aria-pressed', 'false'); });
+        if (unpaid && other) other.value = '';
       }
       return;
     }
@@ -2694,7 +2699,11 @@ export function createRainshare({ root, base = '/', host }){
     else if (f.dataset.rsForm === 'hide-find') submitFind(f);
     else if (f.dataset.rsForm.startsWith('fb-')) fb.submit(f);
   });
-  root.addEventListener('input', e => { if (e.target.closest('[data-rs-form="post"]')) poster.typed(e.target); });
+  root.addEventListener('input', e => {
+    if (e.target.closest('[data-rs-form="post"]')) poster.typed(e.target);
+    // A plan written in is a paid one, so "No AI plan" and "Free tiers only" no longer apply.
+    if (e.target.name === 'otherPlan' && e.target.value.trim()) e.target.closest('fieldset')?.querySelectorAll('[data-rs-toggles="plans"] button').forEach(b => { if (UNPAID.includes(b.dataset.v)) b.setAttribute('aria-pressed', 'false'); });
+  });
   // A folded section (the feedback page's done and closed posts) stays as it was left when the page is drawn again.
   root.addEventListener('toggle', e => { const d = e.target; if (d?.dataset?.rsFold) S.open[d.dataset.rsFold] = d.open; }, true);
   root.addEventListener('change', e => {

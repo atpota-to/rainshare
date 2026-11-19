@@ -1,7 +1,7 @@
 // Putting a helper's board in order: who they'd like to help first, what their setup can
 // do, and how close they are to whoever asked. Each item says why it's where it is: as
 // short reasons (for the CLI), and as a fit level with one plain sentence (for the apps).
-import { FEATURES, PLANS, PLAN_FAMILIES, LEVELS, plansIn, familyOf, familyName, levelWord, lowBudgetOf, labelOf, BUDGETS, modelName } from './ns.js';
+import { FEATURES, PLANS, LEVELS, plansIn, planFamilies, familyOf, familyName, levelWord, lowBudgetOf, labelOf, BUDGETS, modelName } from './ns.js';
 import { activeTakes } from './takes.js';
 
 const has = (a, v) => Array.isArray(a) && a.includes(v);
@@ -53,11 +53,11 @@ export function modelReach(want, profile){
   const have = modelsOf(profile), plans = plansIn(profile);
   const exact = want.models.find(w => modelMatch(w, have)) || null;
   const fits = exact ? null : have.find(h => want.families.includes(familyOf(h))) || null;
-  const by = exact || fits ? null : plans.find(p => (PLAN_FAMILIES[p] || []).some(f => want.families.includes(f)));
+  const by = exact || fits ? null : plans.find(p => planFamilies(p).some(f => want.families.includes(f)));
   return {
     run: exact || fits ? modelName(exact || fits) : null, exact: !!exact,
-    plan: by ? { name: yourPlan(labelOf(PLANS, by)), families: want.families.filter(f => PLAN_FAMILIES[by].includes(f)).map(familyName) } : null,
-    said: have.length > 0 || plans.some(p => PLAN_FAMILIES[p])
+    plan: by ? { name: yourPlan(labelOf(PLANS, by)), families: want.families.filter(f => planFamilies(by).includes(f)).map(familyName) } : null,
+    said: have.length > 0 || plans.some(p => planFamilies(p).length)
   };
 }
 
