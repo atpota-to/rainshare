@@ -1,8 +1,8 @@
 name: Deploy droplet
 
 # Deploys Rainshare's services to the droplet when a push to main touches what they run, by asking
-# the droplet to run droplet/deploy.sh: the announcer (announcer/: @rainshare.dev's posts,
-# messages and the approver's review) and the index (indexer/: every dev.rainshare.* record, in
+# the droplet to run droplet/deploy.sh: the announcer (announcer/: @rainshare.dev's daily post
+# and messages) and the index (indexer/: every dev.rainshare.* record, in
 # Supabase). The droplet:
 #  - fetches the commit from GitHub itself
 #  - deploys only the services set up there (a .env in each one's data folder)
@@ -30,7 +30,6 @@ on:
       - 'test/announce.test.mjs'
       - 'test/messages.test.mjs'
       - 'test/announcer.test.mjs'
-      - 'test/review.test.mjs'
       - 'test/index-*.test.mjs'
       - 'droplet/**'
       - '.github/workflows/deploy-droplet.yml'
