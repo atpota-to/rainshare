@@ -3,7 +3,7 @@
 // service behind the account's PDS. The chat service's clock is the test's.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { message, compose, newsFor, standing, boundary, wants } from '../announcer/src/messages.js';
+import { message, compose, newsFor, newOnBoard, standing, boundary, wants, counted, rich } from '../announcer/src/messages.js';
 import { ACCOUNT, reader } from '../announcer/src/posts.js';
 import { run } from '../announcer/src/run.js';
 import * as R from '../core/records.js';
@@ -118,16 +118,8 @@ globalThis.fetch = async (input, init = {}) => {
   throw new Error('a call this shouldn’t make: ' + u.href);
 };
 const quiet = () => {};
-// The review queue (announcer/src/review.js), as the index would answer: the approver said yes to
-// every ask, at the version it is now, at `yesAt` (by default when it was asked).
-let yesAt;
-beforeEach(() => { yesAt = () => null; });
-const queue = () => new Map(Object.entries(repos).flatMap(([did, r]) => Object.entries(r[SEED] || {}).map(([rkey, v]) => {
-  const u = uri(did, SEED, rkey);
-  return [u, { seed_uri: u, cid: 'bafy' + rkey, status: 'approved', decided_at: yesAt(u) || v.createdAt }];
-})));
-const approving = () => reader({ db: { ready: async () => ({ ok: false, why: 'a test' }), reviews: async () => queue() } });
-const go = (opts = {}) => { clock = opts.now ?? NOW; return message({ password: 'app-pass', now: clock, log: quiet, read: approving(), ...opts }); };
+const fresh = () => reader({ db: { ready: async () => ({ ok: false, why: 'a test' }) } });
+const go = (opts = {}) => { clock = opts.now ?? NOW; return message({ password: 'app-pass', now: clock, log: quiet, read: fresh(), ...opts }); };
 const facetText = m => m.facets.map(f => Buffer.from(m.text).subarray(f.index.byteStart, f.index.byteEnd).toString());
 
 test('each person who asked hears their own news, in one message', async () => {
@@ -150,10 +142,12 @@ test('each person who asked hears their own news, in one message', async () => {
     'Updates from Rainshare:',
     '• Carol (@carol.test) closed “Old tracker”.',
     '• Bob (@bob.test) marked “Weather app” done with your work. It’s in your garden now.',
-    '', 'New on the board:',
-    '• “Tiny timer”: an idea from Bob (@bob.test)',
+    '', `There’s a new ask on the board: ${SITE.replace('https://', '')}/board.`,
     '', `Reply STOP to stop these, or choose what you get at ${SITE.replace('https://', '')}/settings.`
-  ].join('\n'), 'not their own ask, one for mutuals, one from someone the account blocks, nor one from before their day');
+  ].join('\n'), 'one new ask, Bob’s “Tiny timer”: not their own, one for mutuals, one from someone the account blocks, nor one from before their day');
+  assert.ok(!/Tiny timer|Bob/.test(jun.text.split('\n\n')[1]), 'the new asks are counted, with no titles and nobody’s name');
+  assert.deepEqual(facetText(jun).slice(-2), [`${SITE.replace('https://', '')}/board`, `${SITE.replace('https://', '')}/settings`], 'the board’s address, written out');
+  assert.equal(jun.facets.at(-2).features[0].uri, `${SITE}/board`, 'the link to the board is how the next run knows they’ve had today’s');
 
   assert.match(sentMessages.find(m => m.to === DEE).text, /^Okay, no more messages from Rainshare\.\n\nReply START to have them again/, 'a STOP is answered once');
   assert.deepEqual(out.skipped.map(s => s.to).sort(), [EVE, FAY, KAI].sort());
@@ -173,7 +167,7 @@ test('nothing the account has hidden is anyone’s news, and an account it hid i
   const out = await go();
   const alice = sentMessages.find(m => m.to === ALICE), jun = sentMessages.find(m => m.to === JUN);
   assert.ok(!/Kai/.test(alice.text), 'Kai’s take is hidden');
-  assert.ok(!/Tiny timer|Quick fix/.test(jun.text), 'Bob’s new ask is hidden, and Carol’s is very likely a trick');
+  assert.ok(!/new asks? on the board/.test(jun.text), 'no new asks: Bob’s is hidden, and Carol’s is very likely a trick');
   assert.ok(!sentMessages.some(m => m.to === DEE));
   assert.match(out.skipped.find(s => s.to === DEE).why, /hidden/);
 });
@@ -188,8 +182,7 @@ test('the day’s new asks leave out any someone’s on or has turned work in fo
   repos[GUS][TAKE].gf3 = { seed: ref(CAROL, SEED, 'f3'), until: '2026-11-14T14:00:00Z', createdAt: '2026-11-14T11:30:00Z' };
   await go();
   const jun = sentMessages.find(m => m.to === JUN).text;
-  assert.ok(!/Tiny timer|Turned in already/.test(jun), jun);
-  assert.match(jun, /New on the board:\n• “Free again”: an idea from Carol/);
+  assert.match(jun, /\n\nThere’s a new ask on the board: \S+\/board\.\n\n/, 'only Carol’s “Free again”, not “Tiny timer” nor “Turned in already”');
 });
 
 test('a dry run sends nothing, and without the password it shows a day’s news for everyone', async () => {
@@ -198,7 +191,7 @@ test('a dry run sends nothing, and without the password it shows a day’s news 
   assert.ok(!asked.includes('chat.bsky.convo.sendMessage') && !asked.includes('chat.bsky.convo.getConvoForMembers'), 'it only reads');
 
   asked = [];
-  out = await message({ post: false, password: '', now: NOW, log: quiet, read: approving() });
+  out = await message({ post: false, password: '', now: NOW, log: quiet, read: fresh() });
   assert.ok(!asked.some(m => m.startsWith('chat.') || m === 'com.atproto.server.createSession'), 'it never signs in');
   assert.ok(out.sent.some(s => s.to === ALICE && !/Kai/.test(s.text)), 'with nothing read, Alice’s news is the last day’s, so Kai’s take from the day before isn’t in it');
 });
@@ -242,10 +235,23 @@ test('a message fits, however much there is, and says how many more', () => {
   const count = [...new Intl.Segmenter().segment(m.text)].length;
   assert.ok(count <= 1000, `${count} graphemes`);
   assert.match(m.text, /• and \d+ more\./);
-  assert.match(m.text, /• and \d+ more on the board\./);
+  assert.match(m.text, /\n\nThere are 8 new asks on the board: \S+\/board\.\n\nReply STOP/, 'all the new asks are counted, however many updates there are');
   assert.ok(m.text.endsWith('/settings.'), 'the way to stop them is always there');
   for (const f of m.facets) assert.ok(f.index.byteEnd <= Buffer.byteLength(m.text) && f.index.byteStart < f.index.byteEnd);
   assert.equal(compose({ updates: [], fresh: [] }, who), null, 'no news, no message');
+});
+
+test('the day’s new asks are a count and a link to the board, with no titles or names', () => {
+  const seed = { uri: uri(BOB, SEED, 'x'), repo: BOB, rkey: 'x', value: { title: 'A secret plan' } };
+  const fresh = n => Array.from({ length: n }, (_, i) => ({ kind: 'new', seed, by: BOB, at: i }));
+  const settings = `Reply STOP to stop these, or choose what you get at ${SITE.replace('https://', '')}/settings.`;
+  const m = compose({ fresh: fresh(5) }, new Map());
+  const board = `${SITE.replace('https://', '')}/board`;
+  assert.equal(m.text, `There are 5 new asks on the board: ${board}.\n\n` + settings);
+  assert.deepEqual(facetText(m), [board, `${SITE.replace('https://', '')}/settings`]);
+  assert.deepEqual(m.facets.map(f => f.features[0].uri), [`${SITE}/board`, `${SITE}/settings`]);
+  assert.equal(compose({ fresh: fresh(1) }, new Map()).text, `There’s a new ask on the board: ${board}.\n\n` + settings);
+  assert.equal(counted(rich(), 2).text, `There are 2 new asks on the board: ${board}.`);
 });
 
 test('news is only what happened in its time, to the person it’s about', () => {
@@ -284,8 +290,7 @@ test('updates come within a minute or two, and the day’s new asks once', async
   sentMessages = [];
   await go({ now: at('15T16:02:30') });
   assert.deepEqual(sentMessages.map(m => m.to), [JUN], 'the next day’s new asks, the next day');
-  assert.match(sentMessages[0].text, /^New on the board:\n• “Fresh idea”: an idea from Carol/);
-  assert.ok(!/Tiny timer/.test(sentMessages[0].text), 'and not yesterday’s again');
+  assert.match(sentMessages[0].text, /^There’s a new ask on the board: \S+\/board\.\n\nReply STOP/, 'Carol’s “Fresh idea”, and not yesterday’s “Tiny timer” again');
 });
 
 test('a run stops sending before the next minute, and whoever it didn’t reach hears next run', async () => {
@@ -316,28 +321,26 @@ test('settings keep the messages someone asked for, and drop what’s switched o
   assert.deepEqual(wants(null), { updates: false, newAsks: false });
 });
 
-test('a new ask is the day’s news only once the approver has said yes, and for the day they said it', async () => {
-  // Bob asked "Tiny timer" at 12:00, and the approver said yes at 16:00, after today's 15:45.
-  yesAt = u => u === uri(BOB, SEED, 'b2') ? '2026-11-14T16:00:00Z' : null;
+test('the day’s new asks count for the day they were asked', async () => {
+  // Bob asked "Tiny timer" at 12:00, before today's 15:45: it's in today's count.
   await go();
   const jun = () => sentMessages.filter(m => m.to === JUN).map(m => m.text).join('\n');
-  assert.ok(jun().includes('Updates from Rainshare') || jun().includes('New on'), 'Jun hears something');
-  assert.ok(!jun().includes('Tiny timer'), 'not in today’s news: it was said yes to after it');
+  assert.match(jun(), /There’s a new ask on the board: \S+\/board\./);
 
-  // Tomorrow's, after 15:45, it is.
+  // Tomorrow's doesn't count it again.
   sentMessages = [];
   await go({ now: Date.parse('2026-11-15T15:46:30Z') });
-  assert.ok(jun().includes('Tiny timer'));
+  assert.ok(!/new asks? on the board/.test(jun()), jun());
 });
 
-test('without a yes, or without the queue, no new ask is news', () => {
-  const seeds = [{ uri: uri(BOB, SEED, 'n'), repo: BOB, rkey: 'n', cid: 'bafyn', value: { title: 'New', audience: anyone, createdAt: '2026-11-14T10:00:00Z' } }];
-  const common = { seeds, takes: [], deliveries: [], from: TODAY - DAY, to: TODAY, now: NOW };
-  const r = { did: ALICE, newAsks: true };
-  assert.deepEqual(newsFor(r, common).fresh, [], 'no queue');
-  assert.deepEqual(newsFor(r, { ...common, reviews: new Map([[seeds[0].uri, { cid: 'bafyn', status: 'pending' }]]) }).fresh, []);
-  assert.deepEqual(newsFor(r, { ...common, reviews: new Map([[seeds[0].uri, { cid: 'bafy-old', status: 'approved', decided_at: '2026-11-14T11:00:00Z' }]]) }).fresh, [], 'a yes to the version before an edit');
-  assert.equal(newsFor(r, { ...common, reviews: new Map([[seeds[0].uri, { cid: 'bafyn', status: 'approved', decided_at: '2026-11-14T11:00:00Z' }]]) }).fresh.length, 1);
-  const said = status => newsFor(r, { ...common, reviews: new Map([[seeds[0].uri, { cid: 'bafyn', status, decided_at: '2026-11-14T11:00:00Z' }]]) }).fresh.length;
-  assert.deepEqual([said('send_only'), said('post_only'), said('declined')], [1, 0, 0], 'SEND is news, POST and NO aren’t');
+test('a new ask is counted unless it’s hidden, shut or someone’s on it', () => {
+  const seed = (rkey, more = {}) => ({ uri: uri(BOB, SEED, rkey), repo: BOB, rkey, cid: 'bafy' + rkey, value: { title: 'New ' + rkey, audience: anyone, createdAt: '2026-11-14T10:00:00Z', ...more } });
+  const seeds = [seed('n'), seed('m', { audience: { $type: `${SEED}#mutuals` } }), seed('c', { state: 'closed' }), seed('h'), seed('t')];
+  const hidden = new Map([[uri(BOB, SEED, 'h'), { subject: uri(BOB, SEED, 'h'), action: 'hide', reason: 'spam' }]]);
+  const takes = [{ uri: uri(KAI, TAKE, 'k'), repo: KAI, value: { seed: { uri: uri(BOB, SEED, 't') }, createdAt: '2026-11-14T11:00:00Z' } }];
+  const r = { did: ALICE, newAsks: true }, common = { seeds, takes, deliveries: [], hidden, from: TODAY - DAY, to: TODAY, now: NOW };
+  assert.deepEqual(newsFor(r, common).fresh.map(n => n.seed.rkey), ['n'], 'not one for mutuals, a closed one, a hidden one, nor one Kai’s on');
+  assert.deepEqual(newsFor({ did: BOB, newAsks: true }, common).fresh, [], 'nor anyone’s own');
+  assert.deepEqual(newsFor(r, { ...common, ourBlocks: new Set([BOB]) }).fresh, [], 'nor one from someone the account blocks');
+  assert.deepEqual(newOnBoard(seeds, { ...common, from: TODAY, to: TODAY + DAY }), [], 'nor one asked before the day');
 });

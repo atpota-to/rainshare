@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Deploy Rainshare's services from atpota-to/rainshare to the droplet: the announcer (announcer/:
-# @rainshare.dev's posts, messages and the approver's review) and the index (indexer/: every
+# @rainshare.dev's daily post and messages) and the index (indexer/: every
 # dev.rainshare.* record, from Jetstream to Supabase). One release serves both.
 #
 #   /root/rainshare-live/deploy.sh              # the tip of main
@@ -199,8 +199,7 @@ for svc in "${unhealthy[@]}"; do
   echo "!! its log names accounts, so it stays on the droplet: journalctl -u ${UNIT[$svc]} -n 50" >&2
 done
 # The index alone unhealthy, with no release of it to go back to (its first deploy): rolling back
-# would take the announcer back to code from before the review queue, which posts without anyone's
-# yes. So the index is stopped instead, and the announcer stays where it is. (Without a fresh
+# would take the announcer back to code from before the index existed. So the index is stopped instead, and the announcer stays where it is. (Without a fresh
 # index, the announcer reads every repo, as it used to.)
 if [[ ${unhealthy[*]} == index && -n $previous && ! -d $LIVE/$previous/${SRC[index]} ]]; then
   echo "!! stopping ${UNIT[index]}; the announcer stays on $short" >&2
