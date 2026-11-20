@@ -3,7 +3,7 @@
 // service behind the account's PDS. The chat service's clock is the test's.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { message, compose, newsFor, standing, boundary, wants, counted, rich } from '../announcer/src/messages.js';
+import { message, compose, newsFor, newOnBoard, standing, boundary, wants, counted, rich } from '../announcer/src/messages.js';
 import { ACCOUNT, reader } from '../announcer/src/posts.js';
 import { run } from '../announcer/src/run.js';
 import * as R from '../core/records.js';
@@ -328,28 +328,28 @@ test('settings keep the messages someone asked for, and drop what’s switched o
   assert.deepEqual(wants(null), { updates: false, newAsks: false });
 });
 
-test('a new ask is the day’s news only once the approver has said yes, and for the day they said it', async () => {
-  // Bob asked "Tiny timer" at 12:00, and the approver said yes at 16:00, after today's 15:45.
+test('the day’s new asks don’t wait for the approver, and count for the day they were asked', async () => {
+  // Bob asked "Tiny timer" at 12:00, and the approver said yes at 16:00, after today's 15:45: it's
+  // in today's count all the same, as it would be with no answer, or a no.
   yesAt = u => u === uri(BOB, SEED, 'b2') ? '2026-11-14T16:00:00Z' : null;
   await go();
   const jun = () => sentMessages.filter(m => m.to === JUN).map(m => m.text).join('\n');
-  assert.ok(jun().includes('Updates from Rainshare'), 'Jun hears something');
-  assert.ok(!/new asks? on the board/.test(jun()), 'Bob’s isn’t in today’s news: it was said yes to after it');
+  assert.match(jun(), /There’s a new ask on the board\./);
 
-  // Tomorrow's, after 15:45, it is.
+  // Tomorrow's doesn't count it again.
   sentMessages = [];
   await go({ now: Date.parse('2026-11-15T15:46:30Z') });
-  assert.match(jun(), /There’s a new ask on the board\./);
+  assert.ok(!/new asks? on the board/.test(jun()), jun());
 });
 
-test('without a yes, or without the queue, no new ask is news', () => {
-  const seeds = [{ uri: uri(BOB, SEED, 'n'), repo: BOB, rkey: 'n', cid: 'bafyn', value: { title: 'New', audience: anyone, createdAt: '2026-11-14T10:00:00Z' } }];
-  const common = { seeds, takes: [], deliveries: [], from: TODAY - DAY, to: TODAY, now: NOW };
-  const r = { did: ALICE, newAsks: true };
-  assert.deepEqual(newsFor(r, common).fresh, [], 'no queue');
-  assert.deepEqual(newsFor(r, { ...common, reviews: new Map([[seeds[0].uri, { cid: 'bafyn', status: 'pending' }]]) }).fresh, []);
-  assert.deepEqual(newsFor(r, { ...common, reviews: new Map([[seeds[0].uri, { cid: 'bafy-old', status: 'approved', decided_at: '2026-11-14T11:00:00Z' }]]) }).fresh, [], 'a yes to the version before an edit');
-  assert.equal(newsFor(r, { ...common, reviews: new Map([[seeds[0].uri, { cid: 'bafyn', status: 'approved', decided_at: '2026-11-14T11:00:00Z' }]]) }).fresh.length, 1);
-  const said = status => newsFor(r, { ...common, reviews: new Map([[seeds[0].uri, { cid: 'bafyn', status, decided_at: '2026-11-14T11:00:00Z' }]]) }).fresh.length;
-  assert.deepEqual([said('send_only'), said('post_only'), said('declined')], [1, 0, 0], 'SEND is news, POST and NO aren’t');
+test('a new ask is counted with no answer and no queue, unless it’s hidden, shut or someone’s on it', () => {
+  const seed = (rkey, more = {}) => ({ uri: uri(BOB, SEED, rkey), repo: BOB, rkey, cid: 'bafy' + rkey, value: { title: 'New ' + rkey, audience: anyone, createdAt: '2026-11-14T10:00:00Z', ...more } });
+  const seeds = [seed('n'), seed('m', { audience: { $type: `${SEED}#mutuals` } }), seed('c', { state: 'closed' }), seed('h'), seed('t')];
+  const hidden = new Map([[uri(BOB, SEED, 'h'), { subject: uri(BOB, SEED, 'h'), action: 'hide', reason: 'spam' }]]);
+  const takes = [{ uri: uri(KAI, TAKE, 'k'), repo: KAI, value: { seed: { uri: uri(BOB, SEED, 't') }, createdAt: '2026-11-14T11:00:00Z' } }];
+  const r = { did: ALICE, newAsks: true }, common = { seeds, takes, deliveries: [], hidden, from: TODAY - DAY, to: TODAY, now: NOW };
+  assert.deepEqual(newsFor(r, common).fresh.map(n => n.seed.rkey), ['n'], 'not one for mutuals, a closed one, a hidden one, nor one Kai’s on');
+  assert.deepEqual(newsFor({ did: BOB, newAsks: true }, common).fresh, [], 'nor anyone’s own');
+  assert.deepEqual(newsFor(r, { ...common, ourBlocks: new Set([BOB]) }).fresh, [], 'nor one from someone the account blocks');
+  assert.deepEqual(newOnBoard(seeds, { ...common, from: TODAY, to: TODAY + DAY }), [], 'nor one asked before the day');
 });

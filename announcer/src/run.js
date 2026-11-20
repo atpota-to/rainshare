@@ -1,6 +1,6 @@
 // One run: the approver's answers are taken (./review.js), then @rainshare.dev posts the board's
-// new asks they've said yes to (./posts.js), then the approver is told what came of their answer,
-// with a link to the post, and asked about the next ask (./review.js again), then the direct
+// new asks they've said yes to (./posts.js), then the approver is told what came of their answers,
+// with links to the posts, and shown the asks still waiting (./review.js again), then the direct
 // messages people have asked for are sent (./messages.js). The announcer service (./index.js)
 // calls this whenever something happens on the board, and `npm run announce` calls it by hand.
 import { announce, reader, session } from './posts.js';

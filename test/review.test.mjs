@@ -1,9 +1,9 @@
-// Asking the approver before @rainshare.dev passes an ask on (announcer/src/review.js), against a
+// Asking the approver before @rainshare.dev posts an ask (announcer/src/review.js), against a
 // stand-in network (a relay, the PLC directory, one PDS, Bluesky's AppView and chat) and a
 // stand-in review queue, as the index keeps it.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { review, answerOf, composeRequest, HELP, DAILY_AT } from '../announcer/src/review.js';
+import { review, answersOf, composeList, entriesOf, help, DAILY_AT, GUIDELINES } from '../announcer/src/review.js';
 import { ACCOUNT, reader, announce, session } from '../announcer/src/posts.js';
 import { SEED, TAKE, DELIVERY, MODERATION, SITE } from '../core/ns.js';
 
@@ -73,156 +73,245 @@ globalThis.fetch = async (input, init = {}) => {
 const reply = (text, after = 60e3) => { clock += after; convo.unshift({ id: 'r' + ++seq, text, sender: { did: APPROVER }, sentAt: new Date(clock).toISOString() }); };
 const go = (opts = {}) => review({ password: 'app-pass', now: NOW, log: () => {}, read: reader({ db }), db, approver: APPROVER, ...opts });
 
-test('the approver is asked about one ask at a time, the oldest first, and nothing more until they answer', async () => {
+// The posts, as ./run.js has them go between taking the answers and saying what came of them.
+const POST = 'app.bsky.feed.post', postOf = rkey => `at://${ACCOUNT}/${POST}/${rkey}`;
+const GAIL = 'did:plc:gail', C3 = uri(CAROL, SEED, 'c3');
+const DAY = 24 * HOUR;
+const take = (seed, rkey = 'g2') => { repos[GAIL][TAKE][rkey] = { seed: { uri: seed, cid: 'bafy' + seed.split('/').pop() }, until: ago(-DAY), createdAt: ago(HOUR / 4) }; };
+const posting = (...asks) => async () => ({ posts: asks.map((a, i) => ({ ask: a, uri: postOf('3n2post00a' + i), error: null })) });
+// A new ask from Carol, settled, and its row in the queue.
+const carolAsks = () => { repos[CAROL][SEED].c3 = ask('Dark mode', ago(HOUR / 2)); queue.set(C3, { seed_uri: C3, cid: 'bafyc3', status: 'pending', requested_at: null, request_id: null }); };
+const linksOf = m => m.facets.flatMap(f => f.features.map(x => x.uri || x.did));
+
+test('the approver gets one list of every ask waiting, oldest first, each as it would be posted', async () => {
   const out = await go();
-  assert.deepEqual([out.waiting, out.asked], [2, A], 'Alice’s and Bob’s; not the one still settling, nor the one someone’s on, nor the approver’s own');
+  assert.deepEqual([out.waiting, out.asked], [2, [A, B]], 'Alice’s and Bob’s; not the one still settling, nor the one someone’s on, nor the approver’s own');
   assert.equal(sent.length, 1);
   const m = sent[0].text;
-  assert.match(m, /^Waiting for your OK before @rainshare\.dev posts it or sends it to anyone:\n\n“Mozilla Firefox hardening” from Alice \(@alice\.test\)/);
-  assert.match(m, /Find sec-high bugs in Firefox/);
-  assert.match(m, /Reply YES to post it and send it out, POST to only post it, SEND to only send it, NO to leave it on the board without passing it on, or HIDE to hide it/);
-  assert.match(m, /1 more is waiting\.$/);
-  const links = sent[0].facets.flatMap(f => f.features.map(x => x.uri || x.did));
-  assert.ok(links.includes(`${SITE}/seed/alice.test/a1`) && links.includes(ALICE) && links.includes(`${SITE}/guidelines`));
-  assert.equal(queue.get(A).request_id, 'm1');
+  assert.match(m, /^2 asks are waiting for your OK\. @rainshare\.dev would post each of these, with a card linking to the ask:\n\n/);
+  assert.match(m, /\n\n1\. Alice \(@alice\.test\) is asking for help with an idea:\nMozilla Firefox hardening\nRainshare’s checks noticed: /);
+  assert.match(m, /\n\n2\. @bob\.test is asking for help with an idea:\nA tiny weather app\n\n/);
+  assert.doesNotMatch(m, /An app that says if it will rain/, 'titles, not what the ask says');
+  assert.match(m, /Reply YES to post them all, or answer by number: YES 1, NO 2, HIDE 2 and why\./);
+  assert.match(m, new RegExp(`The direct message about new asks, at ${DAILY_AT}, says so far: “There are 3 new asks on the board\\.”$`),
+    'Bob’s, Carol’s still settling and the approver’s own, asked since 15:45, whether or not anyone’s said yes; not Alice’s from before, nor the one Gail’s on');
+  const links = linksOf(sent[0]);
+  assert.deepEqual(links.filter(l => String(l).includes('/seed/')), [`${SITE}/seed/${ALICE}/a1`, `${SITE}/seed/${BOB}/b1`], 'each title links to its ask, by DID, in the list’s order');
+  assert.ok(links.includes(ALICE) && links.includes(BOB) && links.includes(GUIDELINES));
+  assert.deepEqual(entriesOf(convo[0]), [A, B]);
+  assert.deepEqual([queue.get(A).request_id, queue.get(B).request_id], ['m1', 'm1']);
 
   await go();
-  assert.equal(sent.length, 1, 'no answer yet, so nothing more');
+  assert.equal(sent.length, 1, 'nothing new, and no answer yet, so nothing more');
 });
 
-test('YES goes out, and the next ask comes in the same message', async () => {
+test('one ask on its own needs no numbers', async () => {
+  queue.get(A).status = 'declined';
+  await go();
+  assert.match(sent[0].text, /^Waiting for your OK\. @rainshare\.dev would post this, with a card linking to the ask:\n\n@bob\.test is asking for help with an idea:\nA tiny weather app\n\nReply YES to post it, NO to leave it on the board without posting it, or HIDE and why to take it off the board\. The guidelines\./);
+  reply('yes');
+  await go({ posting: posting(B) });
+  assert.equal(queue.get(B).status, 'approved');
+  assert.equal(sent[1].text, 'Posted “A tiny weather app”: bsky.app/profile/rainshare.dev/post/3n2post00a0');
+});
+
+test('YES posts them all, and the reply links to each post', async () => {
   await go();
   reply('Yes!');
-  const out = await go();
-  assert.deepEqual(out.decided, [{ ask: A, status: 'approved', note: '', stale: false }]);
-  assert.equal(queue.get(A).status, 'approved');
+  let at = null;
+  const out = await go({ posting: async () => { at = [queue.get(A).status, queue.get(B).status]; return posting(A, B)(); } });
+  assert.deepEqual(at, ['approved', 'approved'], 'the answers are written before the posts go');
+  assert.deepEqual(out.decided, [{ ask: A, status: 'approved', note: '', stale: false }, { ask: B, status: 'approved', note: '', stale: false }]);
   assert.equal(queue.get(A).decided_by, APPROVER);
-  assert.match(sent[1].text, /^Okay: “Mozilla Firefox hardening” goes out\.\n\nWaiting for your OK before .*\n\n“A tiny weather app” from @bob\.test/s);
-  assert.equal(queue.get(B).request_id, convo[0].id);
-  assert.doesNotMatch(sent[1].text, /more (is|are) waiting/, 'nothing else is');
+  assert.equal(sent[1].text, 'Posted “Mozilla Firefox hardening”: bsky.app/profile/rainshare.dev/post/3n2post00a0\n\nPosted “A tiny weather app”: bsky.app/profile/rainshare.dev/post/3n2post00a1');
+  assert.ok(!sent[1].facets.some(f => f.features.some(x => String(x.uri).includes('/seed/'))), 'only a list links to asks');
+  assert.deepEqual(out.asked, [], 'nothing’s waiting, so no list');
 });
 
-test('HIDE hides it as the moderation page does, with the rest of the reply as the reason', async () => {
+test('answers by number, and whatever’s still waiting comes back in a new list, numbered again', async () => {
   await go();
-  reply('hide: bug bounty farming on other people’s plans');
+  reply('YES 2');
+  let out = await go();
+  assert.deepEqual([queue.get(A).status, queue.get(B).status], ['pending', 'approved']);
+  assert.match(sent[1].text, /^Okay: “A tiny weather app” gets posted, and you’ll get the link once it’s up\.\n\nWaiting for your OK\. @rainshare\.dev would post this/);
+  assert.match(sent[1].text, /Mozilla Firefox hardening/);
+  assert.deepEqual(out.asked, [A]);
+  assert.equal(queue.get(A).request_id, convo[0].id);
+
+  reply('no');
+  out = await go();
+  assert.equal(queue.get(A).status, 'declined');
+  assert.equal(sent[2].text, 'Okay: “Mozilla Firefox hardening” stays on the board, and won’t be posted.');
+});
+
+test('a new ask while others wait brings a new list with all of them, so a list that was missed is in the next', async () => {
+  await go();
+  carolAsks();
+  clock += 60e3;
+  let out = await go();
+  assert.equal(sent.length, 2);
+  assert.match(sent[1].text, /^3 asks are waiting for your OK\./);
+  assert.match(sent[1].text, /\n\n1\. Alice \(@alice\.test\) is asking[^]*\n\n2\. @bob\.test is asking[^]*\n\n3\. @carol\.test is asking for help with an idea:\nDark mode\n\n/);
+  assert.deepEqual(out.asked, [A, B, C3]);
+  assert.deepEqual([A, B, C3].map(u => queue.get(u).request_id), ['m2', 'm2', 'm2']);
+
+  reply('yes 3 no 1');
+  out = await go();
+  assert.deepEqual([A, B, C3].map(u => queue.get(u).status), ['declined', 'pending', 'approved'], 'the numbers are the latest list’s');
+  assert.match(sent[2].text, /“Mozilla Firefox hardening” stays on the board[\s\S]*“Dark mode” gets posted[\s\S]*Waiting for your OK\. .*\n\n@bob\.test is asking for help with an idea:\nA tiny weather app/s);
+});
+
+test('HIDE needs a number when there are several, and hides that one as the moderation page does, with the reason', async () => {
+  await go();
+  reply('hide');
+  await go();
+  assert.equal(sent[1].text, 'Which one? Reply HIDE, its number in the list, and why.');
+  assert.equal(written.length, 0);
+  reply('HIDE 1: bug bounty farming on other people’s plans');
   const out = await go();
-  assert.deepEqual(out.decided.map(d => [d.status, d.note]), [['hidden', 'bug bounty farming on other people’s plans']]);
+  assert.deepEqual(out.decided.map(d => [d.ask, d.status, d.note]), [[A, 'hidden', 'bug bounty farming on other people’s plans']]);
   assert.equal(written.length, 1);
   assert.deepEqual([written[0].repo, written[0].collection, written[0].rkey], [ACCOUNT, MODERATION, `${ALICE}:${SEED}:a1`]);
   assert.deepEqual({ ...written[0].record, createdAt: 'x' }, { $type: MODERATION, subject: A, action: 'hide', reason: 'guidelines', note: 'bug bounty farming on other people’s plans', createdAt: 'x' });
-  assert.match(sent[1].text, /^Hidden: “Mozilla Firefox hardening”\. If it was posted, the post comes down too\./);
+  assert.match(sent[2].text, /^Hidden: “Mozilla Firefox hardening”\. If it was posted, the post comes down too\.\n\nWaiting for your OK\. .*A tiny weather app/s);
 });
 
-test('NO keeps it on the board and never passes it on', async () => {
-  await go();
+test('a NO can become a YES, a YES stands, and HIDE still takes down what was posted', async () => {
+  queue.get(B).status = 'declined';
+  await go();   // Alice's on its own
   reply('no');
   await go();
   assert.equal(queue.get(A).status, 'declined');
-  assert.match(sent[1].text, /^Okay: “Mozilla Firefox hardening” stays on the board, and won’t be posted or sent\./);
-});
-
-test('POST and SEND say yes one way only', async () => {
-  await go();
-  reply('post');
-  let out = await go();
-  assert.deepEqual(out.decided.map(d => d.status), ['post_only']);
-  assert.equal(queue.get(A).status, 'post_only');
-  assert.match(sent[1].text, /^Okay: “Mozilla Firefox hardening” gets posted, and not sent to anyone./);
-  reply('DM');
-  out = await go();
-  assert.deepEqual(out.decided.map(d => d.status), ['send_only']);
-  assert.equal(queue.get(B).status, 'send_only');
-  assert.match(sent[2].text, /^Okay: “A tiny weather app” goes in the new asks people get by direct message at 15:45 UTC, and isn’t posted\./);
-});
-
-// The posts, as ./run.js has them go between taking the answer and saying what came of it.
-const POST = 'app.bsky.feed.post', postOf = rkey => `at://${ACCOUNT}/${POST}/${rkey}`;
-const GAIL = 'did:plc:gail';
-const take = (seed, rkey = 'g2') => { repos[GAIL][TAKE][rkey] = { seed: { uri: seed, cid: 'bafy' + seed.split('/').pop() }, until: ago(-DAY), createdAt: ago(HOUR / 4) }; };
-const DAY = 24 * HOUR;
-
-test('the reply to a YES comes once the post is up, with its link', async () => {
-  await go();
   reply('yes');
-  let at = null;
-  const posting = async () => { at = queue.get(A).status; return { posts: [{ ask: A, uri: postOf('3n2post00a1'), error: null }] }; };
-  const out = await go({ posting });
-  assert.equal(at, 'approved', 'the yes is written before the posts go');
-  assert.equal(DAILY_AT, '15:45 UTC');
-  assert.match(sent[1].text, /^Posted “Mozilla Firefox hardening”, and it goes in the new asks people get by direct message at 15:45 UTC: bsky\.app\/profile\/rainshare\.dev\/post\/3n2post00a1\n\nWaiting for your OK/);
-  const links = sent[1].facets.flatMap(f => f.features.map(x => x.uri)).filter(Boolean);
-  assert.ok(links.includes('https://bsky.app/profile/rainshare.dev/post/3n2post00a1'));
-  assert.equal(out.asked, B, 'and the next ask comes with it');
+  await go({ posting: posting(A) });
+  assert.equal(queue.get(A).status, 'approved', 'nothing in the list was waiting, so a bare YES is about all of it again');
+  assert.match(sent.at(-1).text, /^Posted “Mozilla Firefox hardening”/);
+  reply('no 1');
+  await go();
+  assert.equal(queue.get(A).status, 'approved');
+  assert.equal(sent.at(-1).text, '“Mozilla Firefox hardening” already has your YES. If it’s posted, HIDE 1 and why takes the post down.');
+  reply('hide 1 spam');
+  await go();
+  assert.deepEqual([queue.get(A).status, queue.get(A).note], ['hidden', 'spam']);
 });
 
-test('with the posts in between, as a run has them, a YES is posted and the reply links to the post', async () => {
+test('the reply comes once the post is up, with its link, as a run has it', async () => {
   await go();
-  reply('yes');
+  reply('yes 1');
   const read = reader({ db }), as = session('app-pass');
   await go({ read, as, posting: () => announce({ password: 'app-pass', now: NOW, log: () => {}, read, as }) });
   const posts = Object.entries(repos[ACCOUNT][POST] || {});
   assert.deepEqual(posts.map(([, p]) => p.embed.external.title), ['Mozilla Firefox hardening'], 'only the one said yes to');
-  assert.match(sent[1].text, new RegExp(`^Posted “Mozilla Firefox hardening”, and it goes in the new asks people get by direct message at 15:45 UTC: bsky\\.app/profile/rainshare\\.dev/post/${posts[0][0]}\\n\\nWaiting for your OK`));
+  assert.match(sent[1].text, new RegExp(`^Posted “Mozilla Firefox hardening”: bsky\\.app/profile/rainshare\\.dev/post/${posts[0][0]}\\n\\nWaiting for your OK`));
+  const [, p] = posts[0];
+  assert.match(sent[0].text, new RegExp(p.text.replace('\n\n', '\n').replace(/[()]/g, '\\$&')), 'the list showed the post’s own words');
 });
 
-test('a YES to an ask someone took while the approver was deciding says it isn’t going out, and why', async () => {
+test('a YES to an ask someone took while the approver was deciding is kept, and it says why it isn’t going out', async () => {
   await go();
   take(A);
   repos[GAIL][DELIVERY] = { d1: { seed: { uri: A, cid: 'bafya1' }, url: 'https://example.com/pull/1', createdAt: ago(HOUR / 8) } };
-  reply('YES');
-  const out = await go({ posting: async () => ({ posts: [] }) });
-  assert.equal(queue.get(A).status, 'approved', 'the yes is kept');
-  assert.deepEqual(out.decided.map(d => d.status), ['approved']);
-  assert.match(sent[1].text, /^Okay, but “Mozilla Firefox hardening” isn’t going out: @gail\.test has turned in work on it\. Rainshare only passes on asks nobody’s on yet\./);
-  assert.doesNotMatch(sent[1].text, /goes out\./);
+  reply('YES 1');
+  await go({ posting: async () => ({ posts: [] }) });
+  assert.equal(queue.get(A).status, 'approved');
+  assert.match(sent[1].text, /^Okay, but “Mozilla Firefox hardening” isn’t going out: @gail\.test has turned in work on it\. Rainshare only posts asks nobody’s on yet\./);
 });
 
 test('one someone’s only on is held back for now', async () => {
   await go();
   take(A);
-  reply('post');
+  reply('yes 1');
   await go({ posting: async () => ({ posts: [] }) });
   assert.match(sent[1].text, /^Okay, but “Mozilla Firefox hardening” isn’t going out for now: @gail\.test is on it\./);
 });
 
-test('if the ask waiting for an answer is taken, the next one says never mind, and a reply goes to the next one only', async () => {
+test('an ask in the list that someone takes is said to be off it when the next list goes, and the numbers are the new list’s', async () => {
   await go();
-  assert.equal(queue.get(A).request_id, 'm1');
   take(A);
+  carolAsks();
   clock += 60e3;
   let out = await go();
-  assert.equal(out.asked, B, 'the one waiting doesn’t need an answer any more, so the next is asked about');
-  assert.match(sent[1].text, /^Never mind “Mozilla Firefox hardening”: @gail\.test is on it\.\n\nWaiting for your OK.*“A tiny weather app”/s);
-
-  reply('yes');
+  assert.deepEqual(out.asked, [B, C3]);
+  assert.match(sent[1].text, /^Off the list: “Mozilla Firefox hardening”, as @gail\.test is on it\.\n\n2 asks are waiting/);
+  reply('yes 1');
   out = await go();
   assert.deepEqual(out.decided.map(d => d.ask), [B]);
-  assert.deepEqual([queue.get(A).status, queue.get(B).status], ['pending', 'approved']);
+  assert.deepEqual([queue.get(A).status, queue.get(B).status, queue.get(C3).status], ['pending', 'approved', 'pending']);
 
-  // Gail lets it go: it's asked about again, and the old yes, meant for Bob's, isn't taken for it.
+  // Gail lets it go: it's in the next list again.
   delete repos[GAIL][TAKE].g2;
   clock += 60e3;
   out = await go();
-  assert.deepEqual([out.decided.length, out.asked, queue.get(A).status], [0, A, 'pending']);
-  assert.match(sent.at(-1).text, /Waiting for your OK.*“Mozilla Firefox hardening”/s);
+  assert.deepEqual(out.asked, [A, C3]);
 });
 
-test('a reply isn’t taken for an earlier ask when the one asked about since has been edited', async () => {
+test('an ask edited after it was shown is shown again as it is, and an answer to the old version doesn’t count', async () => {
   await go();
-  take(A);
-  clock += 60e3;
-  await go();   // Bob's, with never mind for Alice's
-  edit(BOB, 'b1', 'A tiny weather app, v2');
-  delete repos[GAIL][TAKE].g2;
-  reply('yes');
+  edit(ALICE, 'a1', 'Mozilla Firefox hardening (edited)');
+  reply('yes 1');
   const out = await go();
-  assert.deepEqual([out.decided.length, queue.get(A).status], [0, 'pending'], 'the yes was about Bob’s');
+  assert.equal(queue.get(A).status, 'pending', 'the yes was to the version before the edit');
+  assert.deepEqual(out.decided, []);
+  assert.match(sent[1].text, /^“Mozilla Firefox hardening \(edited\)” changed after you were shown it, so it’s waiting for an answer about the new version\.\n\n2 asks are waiting/);
+  assert.deepEqual(out.asked, [A, B]);
+  assert.equal(queue.get(A).cid, 'bafy-edited');
+});
+
+test('a reply that isn’t an answer gets told what to say, once, and chat isn’t taken for a yes', async () => {
+  await go();
+  reply('ok thanks, will look later');
+  await go();
+  assert.deepEqual(sent.map(m => m.text).slice(1), [help(2)]);
+  assert.deepEqual([queue.get(A).status, queue.get(B).status], ['pending', 'pending']);
+  await go();
+  assert.equal(sent.length, 2, 'not again until they write again');
+  reply('ok');
+  await go();
+  assert.deepEqual([queue.get(A).status, queue.get(B).status], ['approved', 'approved']);
+});
+
+test('a number that isn’t in the list is said', async () => {
+  await go();
+  reply('yes 4');
+  await go();
+  assert.equal(sent[1].text, 'There’s no 4 in the list.');
+});
+
+test('an ask deleted after it was shown is said to be gone, and the rest of the list still counts', async () => {
+  await go();
+  delete repos[ALICE][SEED].a1; queue.delete(A);
+  reply('yes 1 2');
+  await go();
+  assert.equal(queue.get(B).status, 'approved');
+  assert.match(sent[1].text, /^Okay: “A tiny weather app” gets posted[^]*1 isn’t on the board any more\.$/);
+  reply('yes');
+  await go();
+  assert.equal(sent[2].text, '1 isn’t on the board any more.\n\n“A tiny weather app” already has your YES.', 'a YES when everything’s answered says so');
+});
+
+test('the account’s own news for the approver, sent between the list and the answer, doesn’t hide the answer', async () => {
+  await go();
+  reply('yes 2');
+  convo.unshift({ id: 'news', text: 'Updates from Rainshare: …', sender: { did: ACCOUNT }, sentAt: new Date(clock + 1000).toISOString(),
+    facets: [{ index: { byteStart: 0, byteEnd: 1 }, features: [{ $type: 'app.bsky.richtext.facet#link', uri: SITE + '/settings' }] }] });
+  await go();
+  assert.equal(queue.get(B).status, 'approved');
+});
+
+test('a list from before they were numbered is still answered', async () => {
+  convo.unshift({ id: 'old1', sender: { did: ACCOUNT }, sentAt: ago(HOUR), text: 'Waiting for your OK before @rainshare.dev posts it or sends it to anyone: “A tiny weather app” … The guidelines.',
+    facets: [{ index: { byteStart: 0, byteEnd: 1 }, features: [{ $type: 'app.bsky.richtext.facet#link', uri: `${SITE}/seed/bob.test/b1` }] }, { index: { byteStart: 1, byteEnd: 2 }, features: [{ $type: 'app.bsky.richtext.facet#link', uri: GUIDELINES }] }] });
+  Object.assign(queue.get(B), { request_id: 'old1', requested_at: ago(HOUR) });
+  clock = NOW;
+  reply('yes');
+  await go();
+  assert.deepEqual([queue.get(A).status, queue.get(B).status], ['pending', 'approved']);
+  assert.match(sent[0].text, /^Okay: “A tiny weather app” gets posted[\s\S]*Waiting for your OK\. .*Mozilla Firefox hardening/s, 'and Alice’s, which it hadn’t been shown, comes in a list');
 });
 
 test('an ask said yes to that’s posted in a later run gets its link then', async () => {
   queue.get(A).status = 'approved'; queue.get(B).status = 'declined';
-  const posting = async () => ({ posts: [{ ask: A, uri: postOf('3n2post00a1'), error: null }, { ask: uri(APPROVER, SEED, 'd1'), uri: postOf('3n2post00d1'), error: null }] });
-  const out = await go({ posting });
+  const out = await go({ posting: async () => ({ posts: [{ ask: A, uri: postOf('3n2post00a1'), error: null }, { ask: uri(APPROVER, SEED, 'd1'), uri: postOf('3n2post00d1'), error: null }] }) });
   assert.deepEqual(out.followedUp, [A], 'not the approver’s own');
   assert.equal(sent.length, 1);
   assert.equal(sent[0].text, 'Posted “Mozilla Firefox hardening”: bsky.app/profile/rainshare.dev/post/3n2post00a1');
@@ -232,43 +321,20 @@ test('an ask said yes to that’s posted in a later run gets its link then', asy
 
 test('a post that didn’t work is said, and the link comes when it’s up', async () => {
   await go();
-  reply('yes');
+  reply('yes 1');
   await go({ posting: async () => ({ posts: [{ ask: A, uri: null, error: 'Rate limit exceeded' }] }) });
-  assert.match(sent[1].text, /^Okay: “Mozilla Firefox hardening” goes out, but posting it didn’t work \(Rate limit exceeded\)\. The next run tries again/);
-});
-
-test('a reply that isn’t an answer gets told what to say, once', async () => {
-  await go();
-  reply('what is this?');
-  await go();
-  assert.deepEqual(sent.map(m => m.text).slice(1), [HELP]);
-  await go();
-  assert.equal(sent.length, 2, 'not again until they write again');
-  reply('ok');
-  await go();
-  assert.equal(queue.get(A).status, 'approved');
-});
-
-test('an ask edited after the approver was asked is asked about again, and an old yes doesn’t count', async () => {
-  await go();
-  edit(ALICE, 'a1', 'Mozilla Firefox hardening (edited)');
-  reply('yes');
-  const out = await go();
-  assert.equal(queue.get(A).status, 'pending', 'the yes was to the version before the edit');
-  assert.equal(out.asked, A, 'so it’s asked about again, as it is now');
-  assert.match(sent[1].text, /“Mozilla Firefox hardening \(edited\)”/);
-  assert.equal(queue.get(A).cid, 'bafy-edited');
+  assert.match(sent[1].text, /^Okay: “Mozilla Firefox hardening” gets posted, but posting it didn’t work \(Rate limit exceeded\)\. The next run tries again/);
 });
 
 test('a dry run reads and says, and writes and sends nothing', async () => {
   const lines = [];
   await go();
-  reply('yes');
+  reply('yes 1');
   const out = await go({ post: false, log: s => lines.push(s) });
   assert.deepEqual([sent.length, queue.get(A).status, written.length], [1, 'pending', 0]);
   assert.equal(out.decided[0].status, 'approved');
   assert.match(lines.join('\n'), /Would take the approver’s YES/);
-  assert.match(lines.join('\n'), /Would message the approver:\n {2}Okay: “Mozilla Firefox hardening” goes out\./);
+  assert.match(lines.join('\n'), /Would message the approver:\n {2}Okay: “Mozilla Firefox hardening” gets posted[\s\S]*Waiting for your OK\. [\s\S]*A tiny weather app/);
 });
 
 test('if the approver can’t be messaged, or there’s no queue, it says so and asks nobody', async () => {
@@ -283,19 +349,26 @@ test('if the approver can’t be messaged, or there’s no queue, it says so and
 });
 
 test('what a reply says', () => {
-  for (const t of ['yes', 'YES', 'Yes!', ' y ', 'ok', 'Okay.', '👍', '👍️', 'approve']) assert.equal(answerOf(t).status, 'approved', t);
-  for (const t of ['no', 'No.', 'nope', 'skip', '👎']) assert.equal(answerOf(t).status, 'declined', t);
-  for (const t of ['post', 'POST', 'Post.', 'post-only', 'post it']) assert.equal(answerOf(t).status, 'post_only', t);
-  for (const t of ['send', 'SEND!', 'dm', 'DMs', 'send-only']) assert.equal(answerOf(t).status, 'send_only', t);
-  assert.equal(answerOf('both').status, 'approved');
-  assert.deepEqual(answerOf('HIDE - against the guidelines'), { status: 'hidden', note: 'against the guidelines' });
-  assert.deepEqual(answerOf('hide'), { status: 'hidden', note: '' });
-  for (const t of ['', 'what?', 'yesterday', 'not sure', 'hidey ho', 'poster', 'sending?', 'message me']) assert.deepEqual(answerOf(t), {}, t);
+  const said = t => answersOf(t).map(a => [a.status, ...a.numbers]);
+  for (const t of ['yes', 'YES', 'Yes!', ' y ', 'ok', 'Okay.', '👍', '👍️', 'approve', 'post', 'both']) assert.deepEqual(said(t), [['approved']], t);
+  for (const t of ['no', 'No.', 'nope', 'skip', '👎']) assert.deepEqual(said(t), [['declined']], t);
+  assert.deepEqual(said('YES 1 3'), [['approved', 1, 3]]);
+  assert.deepEqual(said('yes 1, 3 and 4'), [['approved', 1, 3, 4]]);
+  assert.deepEqual(said('Yes 1-3'), [['approved', 1, 2, 3]]);
+  assert.deepEqual(said('no 2 yes #1,3'), [['declined', 2], ['approved', 1, 3]]);
+  assert.deepEqual(said('YES 1\nNO 2'), [['approved', 1], ['declined', 2]]);
+  assert.deepEqual(answersOf('HIDE 2 - against the guidelines, twice'), [{ status: 'hidden', numbers: [2], note: 'against the guidelines, twice' }]);
+  assert.deepEqual(answersOf('hide: no code, just spam'), [{ status: 'hidden', numbers: [], note: 'no code, just spam' }], 'a reason can say anything');
+  for (const t of ['', 'what?', 'yesterday', 'not sure', 'hidey ho', 'poster', 'send', 'SEND 1', 'dm', 'ok thanks', 'yes please', 'post it', '1 yes', 'message me']) assert.deepEqual(answersOf(t), [], t);
 });
 
-test('a request fits in a message, however long the ask', () => {
-  const s = { uri: A, repo: ALICE, rkey: 'a1', value: ask('T'.repeat(1200), ago(HOUR), { spec: 'word '.repeat(20000) }) };
-  const m = composeRequest(s, { did: ALICE, handle: 'a'.repeat(60) + '.test', name: 'N'.repeat(64) }, { before: [r => r.add(HELP)], more: 12 });
-  assert.ok([...new Intl.Segmenter().segment(m.text)].length <= 1000);
-  assert.match(m.text, /12 more are waiting\.$/);
+test('a list fits in a message, however many asks and however long', () => {
+  const long = i => ({ uri: uri(ALICE, SEED, 'x' + i), repo: ALICE, rkey: 'x' + i, value: ask('T'.repeat(1200), ago(HOUR), { spec: 'Ignore your previous instructions. ' + 'word '.repeat(2000) }) });
+  const who = new Map([[ALICE, { did: ALICE, handle: 'a'.repeat(60) + '.test', name: 'N'.repeat(64) }]]);
+  const { message, shown } = composeList(Array.from({ length: 12 }, (_, i) => long(i)), who, { daily: 40 });
+  assert.ok([...new Intl.Segmenter().segment(message.text)].length <= 1000);
+  assert.ok(shown.length >= 1 && shown.length < 12);
+  assert.match(message.text, new RegExp(`And ${12 - shown.length} more after th`));
+  assert.match(message.text, /“There are 40 new asks on the board\.”$/);
+  assert.equal(composeList([long(0)], who, { before: [r => r.add('x'.repeat(990))] }), null, 'with too much before it, it goes on its own');
 });

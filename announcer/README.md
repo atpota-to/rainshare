@@ -11,16 +11,21 @@ records: asks, takes, turn-ins and people's settings (`dev.rainshare.seed`, `.ta
 `.delivery`, `.preferences`). Whenever one is written, a run follows within a minute or two
 (`src/run.js`):
 
-- **Review** (`src/review.js`): the approver (dame.is) is asked by direct message about each new
-  ask, one at a time, before it goes anywhere. They reply YES (post it and send it), POST (only post
-  it), SEND or DM (only send it), NO (leave it on the board, don't pass it on) or HIDE (hide it, with what follows as the reason, and take down
-  any post about it). Their answer is kept in the review queue in the index
-  ([`../indexer/`](../indexer)), for that version of the ask: an edit asks again. Once the posts
-  have gone, the reply to their answer says what came of it: the post's link, or why it isn't
-  going out (someone took it while they were deciding, say). An ask they said yes to that's posted
-  in a later run gets its link then. They have at least a day to answer.
+- **Review** (`src/review.js`): before @rainshare.dev posts a new ask, the approver (dame.is) says
+  yes to it by direct message. They get one list of every ask waiting for their answer, numbered,
+  each written as the account would post it, with the title linked to the ask, and under it what
+  the day's direct message about new asks says so far. A new list goes out whenever there's an
+  ask on it they haven't been shown, and after they answer if any are still waiting, so a list
+  they missed is in the next one. They reply YES (post them all) or NO (post none, and leave them
+  on the board), or answer by number (YES 1 3, NO 2), or HIDE with a number and why (hide it,
+  and take down any post about it). With one ask in the list, no number is needed. Their answer
+  is kept in the review queue in the index ([`../indexer/`](../indexer)), for that version of
+  the ask: an edit puts it in the next list again. Once the posts have gone, the reply to their
+  answers says what came of each: the post's link, or why it isn't going out (someone took it
+  while they were deciding, say). An ask they said yes to that's posted in a later run gets its
+  link then. They have at least a day to answer.
 - **Posts** (`src/posts.js`): each new ask that nobody's on yet and the approver has said YES
-  or POST to, once it has settled for 15 minutes (in case its title is fixed straight after), and
+  to, once it has settled for 15 minutes (in case its title is fixed straight after), and
   within three days of being asked, or of the yes if that came later. Not one that someone has said they're on,
   has turned work in for, or that's done or closed, as the board's "Nobody on it yet" has it.
 - **Messages** (`src/messages.js`): for each person who asked for them in their settings, their
@@ -38,7 +43,7 @@ index's heartbeat is fresh, and from every repo otherwise; the approver's answer
 queue; what's been posted from the account's own posts; and what each person has heard, and
 whether they've said STOP, from its conversations. So a restart, a move to another machine or a
 missed event loses nothing: the next run picks up where things stand. Without the index's
-Supabase key, nothing new is posted or sent, since nobody can say yes to it.
+Supabase key, nothing new is posted, since nobody can say yes to it.
 
 It keeps one Bluesky session for as long as it's up, and renews it rather than signing in again.
 An account can sign in only 300 times a day, and past that nobody can sign in to it until the day

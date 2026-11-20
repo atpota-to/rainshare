@@ -312,12 +312,14 @@ deploy themselves when `main` changes. See
   `dev.rainshare.moderation` record in @rainshare.dev's repo, and only that repo's are read, so it
   needs no server of its own. Write notes that are fine for anyone to read. See
   `core/moderation.js`.
-- **Review.** The announcer sends the approver (dame.is, by DID) a direct message about each new
-  ask, one at a time: its title, who asked, the start of it, and what the checks noticed. They
-  reply **YES** (post it and send it in the day's new asks), **POST** (only post it), **SEND** or
-  **DM** (only send it), **NO** (leave it on the board, don't pass it on), or **HIDE** (hide it,
-  with what follows as the reason, and take down any post). An answer holds for that version of
-  the ask only. Without the queue, nothing new goes out. See `announcer/src/review.js`.
+- **Review.** The announcer sends the approver (dame.is, by DID) a direct message with every new
+  ask waiting for their answer, numbered: each as @rainshare.dev would post it, with what the
+  checks noticed, and under them what the day's direct message about new asks says so far. A
+  new list replaces one that wasn't answered. They reply **YES** (post them all), **NO** (post
+  none, and leave them on the board), by number (**YES 1 3**, **NO 2**), or **HIDE** with a
+  number and why (hide it, and take down any post). An answer holds for that version of the ask
+  only. Without the queue, nothing new is posted. The day's direct message about new asks
+  doesn't wait for the approver: it only counts them. See `announcer/src/review.js`.
 - **Leaving someone out of the index.** When someone asks for their records to be kept out of
   Rainshare's copy (the Privacy Policy says they can), add their DID to `rainshare_index_excluded`
   in Supabase. The database deletes what the index has of theirs and turns the rest away.

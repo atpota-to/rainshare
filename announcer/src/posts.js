@@ -59,8 +59,10 @@ export const passable = v => forAll(v) && !alarming(concerns(v));
 // Who says yes to an ask before the account passes it on (./review.js): dame.is, by DID, so a new
 // handle changes nothing. RAINSHARE_APPROVER in the announcer's .env names someone else.
 export const APPROVER = isDid(process.env.RAINSHARE_APPROVER) ? process.env.RAINSHARE_APPROVER : 'did:plc:gq4fo3u6tqzzdkjlwzpb23tj';
-// The approver's answers that let the account pass an ask on, by way (./review.js): YES is both,
-// POST only the account's post, SEND only the new asks in people's direct messages.
+// The approver's answers that let the account pass an ask on, by way (./review.js). Only YES is
+// given now, and it's a yes to the post. POST and SEND are answers from before, kept in the queue:
+// POST was a yes to the post only, and SEND to the day's direct message only, which now counts
+// every new ask on the board without waiting for anyone (./messages.js).
 export const ALLOWS = { post: ['approved', 'post_only'], send: ['approved', 'send_only'] };
 /**
  * Whether the account may pass an ask on `way` ('post' or 'send'): the approver said yes to it

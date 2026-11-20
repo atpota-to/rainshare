@@ -115,7 +115,7 @@ test('the Privacy Policy names every service the code asks, and everything kept 
   assert.ok(existsSync(new URL('../announcer/src/posts.js', import.meta.url)) && existsSync(new URL('../announcer/src/messages.js', import.meta.url)));
   assert.match(readFileSync(new URL('../announcer/src/index.js', import.meta.url), 'utf8'), /wss:\/\/jetstream\.us-east\.bsky\.network/);
   for (const says of [/posted once on Bluesky by @rainshare\.dev, with its title and a mention of whoever asked/, /nobody has taken up yet/, /block it on Bluesky/,
-    /only when there’s news\. News about your asks and what you’ve helped with comes within a minute or two\. New asks come once a day/,
+    /only when there’s news\. News about your asks and what you’ve helped with comes within a minute or two\. Once a day, it can tell you how many new asks are on the board/,
     /reads that conversation to see what it last sent you, and whether you replied STOP or START/, /whether you’ve asked for direct messages from @rainshare\.dev/,
     /listens to Bluesky’s Jetstream/, /a small server of ours at DigitalOcean/, /its log of what it posted and whom it messaged/]) assert.match(all, says);
   // Rainshare's note of who agreed (core/agreement.js, supabase/): one of the three things it keeps in a database of
@@ -185,25 +185,26 @@ test('the Privacy Policy says what the index and the review queue keep, who can 
   // The review queue (announcer/src/review.js, rainshare_review): what a note holds, column for column, and who can read it.
   assert.deepEqual(columnsOf('rainshare_review'), ['seed_uri', 'cid', 'status', 'requested_at', 'request_id', 'decided_at', 'decided_by', 'note', 'queued_at'], 'a new column belongs in the policy, then here');
   assert.deepEqual([...later.match(/check \(status in \(([^)]+)\)\)/)[1].matchAll(/'([a-z_]+)'/g)].map(m => m[1]), ['pending', 'approved', 'post_only', 'send_only', 'declined', 'hidden'], 'a new answer belongs in the policy, then here');
-  assert.match(sends, /The note holds the ask’s address and which version of it the note is about, where things stand \(waiting, yes to both, yes to posting only, yes to sending only, no, or hidden\), when the note was made, when the reviewer was asked and the ID of the message that asked, when they answered, the reviewer’s account ID, and a short reason if they hid the ask/);
+  assert.match(sends, /The note holds the ask’s address and which version of it the note is about, where things stand \(waiting, yes, no, or hidden, and for some answers given before 20 November 2026, yes to posting only or yes to sending only\), when the note was made, when the reviewer was asked and the ID of the message that asked, when they answered, the reviewer’s account ID, and a short reason if they hid the ask/);
   assert.match(sql, /revoke all on table public\.rainshare_review from anon, authenticated/);
   assert.match(sends, /Only we and Supabase can read it\. Every ask gets a note when it’s first copied/);
-  // Nothing new goes out before the reviewer's yes, for that version of the ask: except their own asks, and the account's.
+  // Nothing new is posted before the reviewer's yes, for that version of the ask: except their own asks, and the account's.
   assert.deepEqual(ALLOWS, { post: ['approved', 'post_only'], send: ['approved', 'send_only'] });
   assert.ok(cleared({ repo: ACCOUNT }, null) && cleared({ repo: APPROVER }, null) && !cleared({ repo: 'did:plc:someone', uri: 'at://x', cid: 'c' }, null));
-  assert.match(sends, /Before @rainshare\.dev posts a new ask or sends it to anyone, the server puts it to a person who helps run Rainshare \(the reviewer\)/);
-  assert.match(sends, /a direct message on Bluesky with the ask’s title, who asked, the first lines of the ask and what Rainshare’s checks noticed/);
-  assert.match(sends, /say yes to posting the ask, to sending it, or to both/);
+  assert.match(sends, /Before @rainshare\.dev posts a new ask, the server puts it to a person who helps run Rainshare \(the reviewer\)/);
+  assert.match(sends, /a direct message on Bluesky listing the asks waiting for an answer, each as @rainshare\.dev would post it \(its title and who asked\), with what Rainshare’s checks noticed/);
+  assert.match(sends, /The reviewer can say yes, which lets @rainshare\.dev post the ask/);
   assert.match(sql, /status = 'pending', requested_at = null/);
   assert.match(sends, /if you edit the ask, the answer is cleared, and the new version waits for an answer of its own/);
-  assert.match(sends, /Asks from the reviewer’s own account and from @rainshare\.dev go out without this step/);
+  assert.match(sends, /Asks from the reviewer’s own account and from @rainshare\.dev are posted without this step/);
   assert.match(sends, /once the reviewer has said yes to posting it/);
-  assert.match(sends, /New asks come once a day, and only the ones the reviewer has said yes to sending/);
+  // The day's message about new asks only counts them, so it doesn't wait for the reviewer (announcer/src/messages.js).
+  assert.match(sends, /Once a day, it can tell you how many new asks are on the board: only the number, with no titles or names/);
   assert.match(sends, /If we hide an ask after it was posted, the server deletes the post/);
   assert.match(sends, /The messages between @rainshare\.dev and the reviewer are kept by Bluesky’s chat service/);
   // A yes is leave to pass an ask on, and no more. Review isn't said to make an ask safe, here or in the Terms.
   assert.match(sends, /Review doesn’t hold your ask back from the board/);
-  assert.match(sends, /A yes means only that @rainshare\.dev may pass the ask on\. It doesn’t say the ask is safe\./);
+  assert.match(sends, /A yes means only that @rainshare\.dev may post the ask\. It doesn’t say the ask is safe\./);
   assert.equal((sends.match(/\bsafe\b/g) || []).length, 1, 'the one time “safe” comes up there, it’s to say what a yes isn’t');
   assert.match(asMarkdown(TERMS), /An ask with no flag isn’t a safe ask/);
 
