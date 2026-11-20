@@ -158,7 +158,7 @@ export function timeOfTid(rkey){
 export const MAX_TAGS = 3;
 const MAX_GRAPHEMES = 300, MAX_BYTES = 3000;
 const fits = t => graphemes(t).length <= MAX_GRAPHEMES && bytes(t) <= MAX_BYTES;
-/** What the post asks of whoever reads it, on the line after the count, given whether there's one ask. */
+/** What the post asks of whoever reads it, a paragraph after the count, given whether there's one ask. */
 export const nudge = one => `Have spare usage left on your AI coding plan before it resets? Help someone out by directing your agent to ${one ? 'the task' : 'one of them'}.`;
 
 /**
@@ -169,6 +169,7 @@ export const nudge = one => `Have spare usage left on your AI coding plan before
  * board's, as the site's own link preview has it (../../api/_og/describe.js):
  *
  *   5 new asks on the board, from @alice.example, @bob.example, @kai.example and 2 others.
+ *
  *   Have spare usage left on your AI coding plan before it resets? Help someone out by directing your agent to one of them.
  */
 export async function compose(asks, who = new Map()){
@@ -183,7 +184,7 @@ export async function compose(asks, who = new Map()){
       if (others) parts.push(() => r.add(`${others} ${others === 1 ? 'other' : 'others'}`));
       parts.forEach((part, i) => { if (i) r.add(i === parts.length - 1 ? ' and ' : ', '); part(); });
     }
-    r.add('.\n' + nudge(n === 1));
+    r.add('.\n\n' + nudge(n === 1));
     return { ...r.build(), tagged: tags };
   };
   let made = build(0);
