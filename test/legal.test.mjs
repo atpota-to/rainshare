@@ -189,7 +189,9 @@ test('the Privacy Policy says what the index keeps, who can read it, and when a 
   assert.doesNotMatch(all, /holds a note for each ask|review notes?\b|may pass it on/);
   assert.match(sends, /We kept the reviewer’s answers in a note for each ask in our database, and those notes are deleted/);
   assert.match(sends, /Once a day, after 15:45 UTC, @rainshare\.dev posts on Bluesky how many new asks there are on the board/);
-  assert.match(sends, /It names no ask and nobody who asked, so nobody on our side reads the asks before they’re counted/);
+  assert.match(sends, /mentions up to three of the people who asked, the first to ask that day, so they hear about it\. It gives no ask’s title\. Nobody on our side reads the asks before they’re counted/);
+  assert.match(sends, /If we hide your ask, or your account, after a post mentioned you, the server deletes the post and, if it’s still that day, posts it again without you/);
+  assert.match(sends, /to stay out of these posts, block @rainshare\.dev on Bluesky before you ask/);
   assert.match(sends, /We don’t count anything we’ve hidden, any ask our checks find very likely to be a trick, or any ask from an account that blocks @rainshare\.dev or that it blocks/);
   assert.match(sends, /Once a day, it can tell you how many new asks are on the board: only the number, with no titles or names/);
   assert.match(sends, /If we hide an ask that was posted, the server deletes the post/);
@@ -249,7 +251,7 @@ test('the Privacy Policy says what the index keeps, who can read it, and when a 
   // In short, and in the document's own voice: no em dashes.
   assert.ok(PRIVACY.short.some(x => /keeps a copy of your Rainshare records in a database of its own, and anyone can read that copy\. When you delete a record, our copy of it is deleted too, and you can ask us to keep your records out of it/.test(x)));
   assert.ok(PRIVACY.short.some(x => /The same database holds a note that you agreed to the terms\. That isn’t open to the public/.test(x)));
-  assert.ok(PRIVACY.short.some(x => /posts once a day on Bluesky to say how many new asks there are, without naming any/.test(x)));
+  assert.ok(PRIVACY.short.some(x => /posts once a day on Bluesky to say how many new asks there are, mentioning a few of the people who asked/.test(x)));
   for (const doc of [TERMS, PRIVACY]) assert.doesNotMatch(asMarkdown(doc), /—/, `${doc.key}: no em dashes`);
 });
 

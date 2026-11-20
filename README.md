@@ -159,8 +159,8 @@ trusted.
   checks look for the last two (`paid` and `vuln-hunting` in `core/scan.js`), and "Against the
   guidelines" is one of the reasons a hide can give.
 - **Nobody reads an ask before it's on the board.** @rainshare.dev only says how many new asks
-  there are, once a day, and names none of them, so nothing it posts or sends waits for a person.
-  Read every ask yourself before your agent does.
+  there are, once a day, tagging a few of the people who asked and giving no titles, so nothing it
+  posts or sends waits for a person. Read every ask yourself before your agent does.
 
 A repo you clone can carry its own agent config (`CLAUDE.md`, hooks, `.mcp.json`), so look before
 you trust a folder you haven't seen.
@@ -312,9 +312,11 @@ deploy themselves when `main` changes. See
   needs no server of its own. Write notes that are fine for anyone to read. See
   `core/moderation.js`.
 - **What @rainshare.dev shares.** Once a day, after 15:45 UTC, it posts how many new asks there
-  are on the board, and sends the same count to people who asked for it by direct message. Neither
-  names an ask, so nobody approves them first: hiding an ask on the moderation page keeps it out
-  of the count. Until 20 November 2026 it posted asks one by one after a person said yes by
+  are on the board, tagging up to three of the people who asked and asking readers to help, and
+  sends the same count to people who asked for it by direct message. Neither gives an ask's
+  title, so nobody approves them first. Hiding an ask (or its asker) on the moderation page keeps
+  it out of the count, and takes down a post that tagged them: the next run posts that day's
+  again without them. Until 20 November 2026 it posted asks one by one after a person said yes by
   direct message; that review, and its queue in the index, are gone. See
   `announcer/src/posts.js`.
 - **Leaving someone out of the index.** When someone asks for their records to be kept out of

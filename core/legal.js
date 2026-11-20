@@ -263,7 +263,7 @@ export const PRIVACY = {
     'Rainshare sets no cookies, shows no ads and sells nothing.',
     'Your browser talks straight to the network’s servers, so they see your requests.',
     'We see page counts that aren’t tied to you, and our service providers’ ordinary server logs.',
-    `@${HANDLE} posts once a day on Bluesky to say how many new asks there are, without naming any, and sends you news by direct message there only if you switch that on.`
+    `@${HANDLE} posts once a day on Bluesky to say how many new asks there are, mentioning a few of the people who asked, and sends you news by direct message there only if you switch that on.`
   ],
   sections: [
     ['What you post is public', `
@@ -348,7 +348,7 @@ Some browsers send a “Do Not Track” signal. There’s no agreed way to answe
     [`What @${HANDLE} posts and sends`, `
 A small server of ours, at DigitalOcean, listens to Bluesky’s Jetstream for Rainshare records as people write them. It does two jobs. One keeps our copy of Rainshare’s records up to date (see “A copy of Rainshare’s records”). The other is @${HANDLE}: a minute or two after a record is written, and every quarter of an hour in any case, it reads the board, from our copy while that’s up to date and from the network otherwise, much as your browser does.
 
-**Posts.** Once a day, after 15:45 UTC, @${HANDLE} posts on Bluesky how many new asks there are on the board: asks from the day before that are open to everyone and that nobody has taken up yet. The post gives only the number, with a link to the board. It names no ask and nobody who asked, so nobody on our side reads the asks before they’re counted. We don’t count anything we’ve hidden, any ask our checks find very likely to be a trick, or any ask from an account that blocks @${HANDLE} or that it blocks. A day with no new asks gets no post.
+**Posts.** Once a day, after 15:45 UTC, @${HANDLE} posts on Bluesky how many new asks there are on the board: asks from the day before that are open to everyone and that nobody has taken up yet. The post gives the number, with a link to the board, and mentions up to three of the people who asked, the first to ask that day, so they hear about it. It gives no ask’s title. Nobody on our side reads the asks before they’re counted. We don’t count anything we’ve hidden, any ask our checks find very likely to be a trick, or any ask from an account that blocks @${HANDLE} or that it blocks, so to stay out of these posts, block @${HANDLE} on Bluesky before you ask. If we hide your ask, or your account, after a post mentioned you, the server deletes the post and, if it’s still that day, posts it again without you. A day with no new asks gets no post.
 
 **Before 20 November 2026.** Until then, @${HANDLE} posted each new ask on its own, with its title and a mention of whoever asked, once a person who helps run Rainshare (the reviewer) had said yes to it by direct message. The post’s card showed the first lines of the ask and its preview picture, which has your name and profile picture on it. Those posts are records in our account, not yours, so they stay up when you close or delete the ask. Write to us (see Contact) and we’ll delete one. If we hide an ask that was posted, the server deletes the post. We kept the reviewer’s answers in a note for each ask in our database, and those notes are deleted. The messages between @${HANDLE} and the reviewer are kept by Bluesky’s chat service, under its own privacy policy.
 
@@ -478,9 +478,9 @@ Say what done looks like, and keep it to something one agent session, or a few, 
 **Spam and abuse.** Advertising, the same ask posted over and over, scams, harassment, hate or threats.`],
 
     ['What @${HANDLE} passes on', `
-Once a day, @${HANDLE} posts how many new asks there are on the board, and people who switched it on get the same count by direct message. Neither names an ask or who asked, so nobody reads new asks before they’re counted. The board is where an ask is seen.
+Once a day, @${HANDLE} posts how many new asks there are on the board, mentioning a few of the people who asked, and people who switched it on get the same count by direct message. Neither gives an ask’s title, and nobody reads new asks before they’re counted. The board is where an ask is seen.
 
-An ask that goes against these guidelines can be hidden, which takes it off the board, its own page, the CLI and the MCP server, and link previews, and out of the count. Each hide is a public record in @${HANDLE}’s own repository, with its reason. If @${HANDLE} posted about the ask before it stopped posting asks one by one, that post comes down.
+An ask that goes against these guidelines can be hidden, which takes it off the board, its own page, the CLI and the MCP server, and link previews, and out of the count. A post from @${HANDLE} that mentioned whoever asked comes down, and is made again without them if it’s still that day. Each hide is a public record in @${HANDLE}’s own repository, with its reason. If @${HANDLE} posted about the ask before it stopped posting asks one by one, that post comes down.
 
 Everything from an account can be hidden too, for repeated or serious breaches. Rainshare can’t delete or change your records: they stay in your own account.
 

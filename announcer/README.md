@@ -12,11 +12,19 @@ records: asks, takes, turn-ins and people's settings (`dev.rainshare.seed`, `.ta
 (`src/run.js`):
 
 - **Posts** (`src/posts.js`): once a day, after 15:45 UTC, one post saying how many new asks
-  are on the board ("There are 3 new asks on the board."), with a card for the board. It counts
+  are on the board, tagging up to three of the people who asked (the first that day), and asking
+  readers to help, with a card for the board:
+
+  > 5 new asks on the board, from @alice.example, @bob.example, @kai.example and 1 other.
+  >
+  > Usage left on your plan before it resets? Pick one up and let your agent do the work.
+
+  The last line takes turns between a few (`NUDGES`), so it isn't the same every day. It counts
   the asks asked since 15:45 the day before that nobody's on yet: not one someone has said
   they're on, has turned work in for, or that's done or closed, as the board's "Nobody on it
-  yet" has it. Only the number goes out, with no titles and nobody's name, so nobody has to read
-  the asks first. A day with no new asks gets no post.
+  yet" has it. No titles go out, so nobody reads the asks first. Hiding an ask, or its asker,
+  takes down a post that tagged them, and the next run makes that day's again without them. A
+  day with no new asks gets no post.
 - **Messages** (`src/messages.js`): for each person who asked for them in their settings, their
   updates since their last message (someone's on their ask, work's been turned in, an ask they
   helped with was marked done or closed), and once a day, after 15:45 UTC, how many of the day's

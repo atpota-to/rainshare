@@ -1,10 +1,11 @@
 // @rainshare.dev's post about new asks: one a day, after 15:45 UTC (DAILY, ./messages.js), saying
-// how many there are on the board, with a card for the board. Only the number: no titles, and
-// nobody's name or mention, so nothing goes out that nobody has read, and no ask needs anyone's
-// yes first. The asks it counts are the ones the day's direct message counts (newOnBoard,
-// ./messages.js): asked from one 15:45 UTC to the next, on the board for everyone, nobody on them,
-// not hidden, not very likely a trick on helpers' agents, and not from anyone the account blocks
-// or who blocks it. A day with none gets no post.
+// how many there are on the board, tagging a few of the people who asked, and asking whoever
+// reads it to help, with a card for the board (compose). No titles. The asks it counts are the
+// ones the day's direct message counts (newOnBoard, ./messages.js): asked from one 15:45 UTC to
+// the next, on the board for everyone, nobody on them, not hidden, not very likely a trick on
+// helpers' agents, and not from anyone the account blocks or who blocks it. A day with none gets
+// no post. Nobody reads the asks first, so hiding an ask (or its asker) on the moderation page
+// takes down a post that tagged them, and the next post for that day leaves them out.
 //
 // The announcer service runs it (./index.js, on the droplet: see ../README.md) whenever something
 // happens on the board, and `npm run announce` runs it by hand. Without
@@ -27,7 +28,7 @@ import { isDid } from '../../core/net.js';
 import { concerns, alarming } from '../../core/scan.js';
 import { clean, describe } from '../../api/_og/describe.js';
 import { OWNER } from '../../lexicons/compat.mjs';
-import { rich, counted, newOnBoard, boundary } from './messages.js';
+import { rich, newOnBoard, boundary } from './messages.js';
 
 // The brand account, which the lexicons belong to as well. Named by its DID, as there.
 export const ACCOUNT = OWNER;
@@ -145,16 +146,78 @@ export function tidAt(ms, clockId = 0){
   return s;
 }
 
+/** The moment a record key stands for (ms), or NaN when it isn't a TID. */
+export function timeOfTid(rkey){
+  if (typeof rkey !== 'string' || !/^[234567abcdefghij][234567abcdefghijklmnopqrstuvwxyz]{12}$/.test(rkey)) return NaN;
+  let n = 0n;
+  for (const c of rkey) n = n * 32n + BigInt(S32.indexOf(c));
+  return Number((n >> 10n) / 1000n);
+}
+
+// How many of the people who asked the day's post tags, and what it may hold (app.bsky.feed.post).
+export const MAX_TAGS = 3;
+const MAX_GRAPHEMES = 300, MAX_BYTES = 3000;
+const fits = t => graphemes(t).length <= MAX_GRAPHEMES && bytes(t) <= MAX_BYTES;
+// What the post asks of whoever reads it, a different one each day in turn, so the account doesn't
+// say the same thing every day. Each is given whether there's one ask.
+export const NUDGES = [
+  one => `Your AI plan resets whether you use it all or not. Got rain to spare? Point your agent at ${one ? 'it' : 'one'}.`,
+  one => `Usage left on your plan before it resets? Pick ${one ? 'it' : 'one'} up and let your agent do the work.`,
+  one => `The AI plan you already pay for could get ${one ? 'it' : 'one of these'} done before it resets.`
+];
+
 /**
- * The day's post, given how many new asks it counts: { text, facets, card: { uri, title,
- * description, image } }, with "the board" linked, and a card for the board, as the site's own
- * link preview has it (../../api/_og/describe.js):
+ * The day's post about `asks`, the new asks it counts, oldest first, for the day ending at `day`
+ * (its 15:45 UTC): { text, facets, card: { uri, title, description, image }, tagged }. It says how
+ * many there are, with "the board" linked, tags up to MAX_TAGS of the people who asked (the first
+ * to ask, each once, if Bluesky knows their handle), and asks for help (NUDGES). No titles. Fewer
+ * are tagged if that's what it takes to fit. `who` names the askers (whoAre). The card is the
+ * board's, as the site's own link preview has it (../../api/_og/describe.js):
  *
- *   There are 3 new asks on the board.
+ *   5 new asks on the board, from @alice.example, @bob.example, @kai.example and 2 others.
+ *
+ *   Usage left on your plan before it resets? Pick one up and let your agent do the work.
  */
-export async function compose(count){
-  const { text, facets } = counted(rich(), count).build(), page = await describe({ kind: 'board' });
-  return { text, facets, card: { uri: SITE + '/board', title: page.heading, description: page.description, image: SITE + page.image } };
+export async function compose(asks, who = new Map(), day = 0){
+  const n = asks.length, people = [...new Set(asks.map(s => s.repo))];
+  const taggable = people.filter(d => who.get(d)?.handle);
+  const nudge = NUDGES[Math.floor(day / DAY) % NUDGES.length](n === 1);
+  const build = k => {
+    const tags = taggable.slice(0, k), others = people.length - tags.length, r = rich();
+    r.add(n === 1 ? 'A new ask on ' : `${n} new asks on `).link('the board', SITE + '/board');
+    if (tags.length) {
+      r.add(', from ');
+      const parts = tags.map(d => () => r.add('@' + who.get(d).handle, { $type: 'app.bsky.richtext.facet#mention', did: d }));
+      if (others) parts.push(() => r.add(`${others} ${others === 1 ? 'other' : 'others'}`));
+      parts.forEach((part, i) => { if (i) r.add(i === parts.length - 1 ? ' and ' : ', '); part(); });
+    }
+    r.add('.\n\n' + nudge);
+    return { ...r.build(), tagged: tags };
+  };
+  let made = build(0);
+  for (let k = Math.min(MAX_TAGS, taggable.length); k > 0; k--) { const b = build(k); if (fits(b.text)) { made = b; break; } }
+  const page = await describe({ kind: 'board' });
+  return { ...made, card: { uri: SITE + '/board', title: page.heading, description: page.description, image: SITE + page.image } };
+}
+/**
+ * The account's posts for a day that tag someone who's been hidden since, or whose asks that day
+ * all have: [{ rkey, ask }], `ask` being what's hidden (an ask, or their account). Only a day's
+ * post as announce() makes it: its record key is its day's 15:45 UTC, and its card is the board's.
+ * Taken down, it's made again without them if it's still that day.
+ */
+export function taggedHidden(posts, { seeds = [], hidden }){
+  if (!hidden?.size) return [];
+  return (posts || []).flatMap(p => {
+    const at = timeOfTid(p?.rkey), v = p?.value;
+    if (!Number.isFinite(at) || p.rkey !== tidAt(boundary(at, true)) || !/\/board\/?$/.test(String(v?.embed?.external?.uri || ''))) return [];
+    for (const did of (v.facets || []).flatMap(f => f?.features || []).filter(x => x?.$type === 'app.bsky.richtext.facet#mention' && isDid(x.did)).map(x => x.did)) {
+      if (hiddenBy(hidden, null, did)) return [{ rkey: p.rkey, ask: 'at://' + did }];
+      // Their asks from that day that it could have counted (not one for mutuals, say, nor one that's closed).
+      const theirs = seeds.filter(s => s.repo === did && passable(s.value) && Date.parse(s.value?.createdAt) >= at - DAY && Date.parse(s.value?.createdAt) < at);
+      if (theirs.length && theirs.every(s => isHidden(hidden, s))) return [{ rkey: p.rkey, ask: theirs[0].uri }];
+    }
+    return [];
+  });
 }
 
 // One call to a server: a query with `params`, or a procedure with `body` (JSON, or bytes of `type`).
@@ -250,16 +313,17 @@ export async function announce({ post = true, password = process.env.RAINSHARE_B
   // Takes and turn-ins are read whole: if they can't be, nothing is posted, rather than a count with an ask someone's on.
   const [seeds, takes, deliveries, hidden, mine] = await Promise.all([read(SEED), read(TAKE), read(DELIVERY), read.hidden(), net.listRecords(ACCOUNT, POST, { pages: 3 })]);
   const blocks = await blocked([...new Set(seeds.filter(s => passable(s.value) && asked(s) >= from && asked(s) < day).map(s => s.repo))]);
-  const count = newOnBoard(seeds, { takes, deliveries, from, to: day, hidden, blocks, now }).length;
-  const up = mine.some(p => p.rkey === rkey);
-  const p = !up && count ? { ...(await compose(count)), uri: null, error: null } : null;
-  const down = hiddenPosts(mine, hidden).map(d => ({ ...d, uri: net.recordUri(ACCOUNT, POST, d.rkey), error: null }));
+  const asks = newOnBoard(seeds, { takes, deliveries, from, to: day, hidden, blocks, now }).sort((a, b) => asked(a) - asked(b)), count = asks.length;
+  // Posts about asks hidden since: the old ones about one ask, and a day's that tags someone hidden.
+  const down = [...hiddenPosts(mine, hidden), ...taggedHidden(mine, { seeds, hidden })].map(d => ({ ...d, uri: net.recordUri(ACCOUNT, POST, d.rkey), error: null }));
+  const up = mine.some(x => x.rkey === rkey && !down.some(d => d.rkey === x.rkey));
+  const p = !up && count ? { ...(await compose(asks, await whoAre([...new Set(asks.map(s => s.repo))]), day)), uri: null, error: null } : null;
   const result = () => ({ setUp: !!password, dryRun: !post, day: new Date(day).toISOString(), count,
-    post: p && { text: p.text, link: p.card.uri, uri: p.uri, error: p.error }, takenDown: down.map(({ ask, uri, error }) => ({ ask, uri, error })) });
+    post: p && { text: p.text, link: p.card.uri, tagged: p.tagged, uri: p.uri, error: p.error }, takenDown: down.map(({ ask, uri, error }) => ({ ask, uri, error })) });
   const when = new Date(day).toISOString().slice(0, 10);
   log(up ? `The post for ${when} is up already.` : count ? `${count} new ${count === 1 ? 'ask' : 'asks'} on the board for ${when}.` : `No new asks on the board for ${when}, so no post.`);
   if (!post) {
-    if (p) log(`\nWould post, for ${when}:\n  ${p.text}\n  [${p.card.title}](${p.card.uri})`);
+    if (p) log(`\nWould post, for ${when}:\n  ${p.text.replace(/\n/g, '\n  ')}\n  [${p.card.title}](${p.card.uri})`);
     for (const d of down) log(`Would take down ${d.uri}: ${d.ask} is hidden.`);
     return result();
   }
