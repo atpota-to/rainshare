@@ -15,7 +15,8 @@ records: asks, takes, turn-ins and people's settings (`dev.rainshare.seed`, `.ta
   are on the board, tagging up to three of the people who asked (the first that day), and asking
   readers to help, with a card for the board:
 
-  > 5 new asks on the board, from @alice.example, @bob.example, @kai.example and 1 other.<br>
+  > 5 new asks on the board, from @alice.example, @bob.example, @kai.example and 1 other.
+  >
   > Have spare usage left on your AI coding plan before it resets? Help someone out by directing
   > your agent to one of them.
 

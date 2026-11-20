@@ -107,7 +107,7 @@ test('once 15:45 UTC has gone, one post says how many new asks there are, tags t
   assert.equal(created.length, 1);
   assert.equal(created[0].rkey, KEY, 'the day’s own record key, so no other run can post it too');
   const p = created[0].record;
-  assert.equal(p.text, '4 new asks on the board, from @alice.test, @dave.test, @frank.test and 1 other.\nHave spare usage left on your AI coding plan before it resets? Help someone out by directing your agent to one of them.',
+  assert.equal(p.text, '4 new asks on the board, from @alice.test, @dave.test, @frank.test and 1 other.\n\nHave spare usage left on your AI coding plan before it resets? Help someone out by directing your agent to one of them.',
     'Alice’s, Dave’s and Frank’s from yesterday afternoon, then Bob’s: not last week’s, a done one, one for mutuals, one asked since 15:45, nor Carol’s or Erin’s (blocked either way)');
   assert.deepEqual(facetsOf(p), [['the board', `${SITE}/board`], ['@alice.test', ALICE], ['@dave.test', DAVE], ['@frank.test', FRANK]]);
   assert.deepEqual(out.post.tagged, [ALICE, DAVE, FRANK]);
@@ -134,7 +134,7 @@ test('one new ask is a count too, and a day with none gets no post', async () =>
   repos[BOB][SEED]['3n2eeeeeeeee2'].createdAt = '2026-11-14T10:00:00Z';
   await run({ now });
   const day = now - 15 * 60e3;
-  assert.deepEqual(created.map(c => [c.rkey, c.record.text]), [[tidAt(day), 'A new ask on the board, from @bob.test.\nHave spare usage left on your AI coding plan before it resets? Help someone out by directing your agent to the task.']]);
+  assert.deepEqual(created.map(c => [c.rkey, c.record.text]), [[tidAt(day), 'A new ask on the board, from @bob.test.\n\nHave spare usage left on your AI coding plan before it resets? Help someone out by directing your agent to the task.']]);
   created = [];
   const out = await run({ now: now + DAY });
   assert.deepEqual([created.length, out.count, out.post], [0, 0, null]);
@@ -248,7 +248,7 @@ test('a post tags a few at most, each once, and fewer if that’s what it takes 
   assert.deepEqual(p.tagged, [people[0]]);
   // No one to tag: just the count.
   p = await compose(asks.slice(0, 1), new Map());
-  assert.equal(p.text, `A new ask on the board.\n${nudge(true)}`);
+  assert.equal(p.text, `A new ask on the board.\n\n${nudge(true)}`);
   assert.deepEqual(p.card, { uri: `${SITE}/board`, title: 'The board', description: 'Ideas and projects people want help with. Pick one and direct your agent to do the work, on your plan.', image: `${SITE}/api/og?kind=board` });
 });
 
