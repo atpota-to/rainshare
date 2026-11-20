@@ -3,7 +3,7 @@
 // account's too), Bluesky's AppView, and the site's link preview pictures.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { announce, compose, askAt, linksIn, reader, hiddenPosts, taggedHidden, tidAt, timeOfTid, NUDGES, MAX_TAGS, ACCOUNT } from '../announcer/src/posts.js';
+import { announce, compose, askAt, linksIn, reader, hiddenPosts, taggedHidden, tidAt, timeOfTid, nudge, MAX_TAGS, ACCOUNT } from '../announcer/src/posts.js';
 import { SEED, TAKE, DELIVERY, PROFILE, MODERATION, SITE } from '../core/ns.js';
 
 const NOW = Date.parse('2026-11-13T16:00:00Z'), ago = ms => new Date(NOW - ms).toISOString();
@@ -100,7 +100,6 @@ const run = opts => announce({ password: 'app-pass', now: NOW, log: quiet, read:
 const DAY_AT = Date.parse('2026-11-13T15:45:00Z'), KEY = tidAt(DAY_AT);
 const on = (did, rkey) => ({ uri: `at://${did}/${SEED}/${rkey}`, cid: 'bafy' + rkey });
 
-const NUDGE = n => NUDGES[Math.floor(DAY_AT / DAY) % NUDGES.length](n === 1);
 const facetsOf = p => p.facets.map(f => [Buffer.from(p.text).subarray(f.index.byteStart, f.index.byteEnd).toString(), f.features[0].did || f.features[0].uri]);
 
 test('once 15:45 UTC has gone, one post says how many new asks there are, tags the first few who asked, and asks for help', async () => {
@@ -108,7 +107,7 @@ test('once 15:45 UTC has gone, one post says how many new asks there are, tags t
   assert.equal(created.length, 1);
   assert.equal(created[0].rkey, KEY, 'the day’s own record key, so no other run can post it too');
   const p = created[0].record;
-  assert.equal(p.text, `4 new asks on the board, from @alice.test, @dave.test, @frank.test and 1 other.\n\n${NUDGE(4)}`,
+  assert.equal(p.text, '4 new asks on the board, from @alice.test, @dave.test, @frank.test and 1 other.\nHave spare usage left on your AI coding plan before it resets? Help someone out by directing your agent to one of them.',
     'Alice’s, Dave’s and Frank’s from yesterday afternoon, then Bob’s: not last week’s, a done one, one for mutuals, one asked since 15:45, nor Carol’s or Erin’s (blocked either way)');
   assert.deepEqual(facetsOf(p), [['the board', `${SITE}/board`], ['@alice.test', ALICE], ['@dave.test', DAVE], ['@frank.test', FRANK]]);
   assert.deepEqual(out.post.tagged, [ALICE, DAVE, FRANK]);
@@ -135,7 +134,7 @@ test('one new ask is a count too, and a day with none gets no post', async () =>
   repos[BOB][SEED]['3n2eeeeeeeee2'].createdAt = '2026-11-14T10:00:00Z';
   await run({ now });
   const day = now - 15 * 60e3;
-  assert.deepEqual(created.map(c => [c.rkey, c.record.text]), [[tidAt(day), `A new ask on the board, from @bob.test.\n\n${NUDGES[Math.floor(day / DAY) % NUDGES.length](true)}`]]);
+  assert.deepEqual(created.map(c => [c.rkey, c.record.text]), [[tidAt(day), 'A new ask on the board, from @bob.test.\nHave spare usage left on your AI coding plan before it resets? Help someone out by directing your agent to the task.']]);
   created = [];
   const out = await run({ now: now + DAY });
   assert.deepEqual([created.length, out.count, out.post], [0, 0, null]);
@@ -234,26 +233,23 @@ test('a post tags a few at most, each once, and fewer if that’s what it takes 
   const people = Array.from({ length: 6 }, (_, i) => 'did:plc:p' + i);
   const asks = [...people, people[0]].map((repo, i) => ({ uri: `at://${repo}/${SEED}/k${i}`, repo, value: {} }));
   let who = new Map(people.map(d => [d, { did: d, handle: d.slice(8) + '.test' }]));
-  let p = await compose(asks, who, DAY_AT);
+  let p = await compose(asks, who);
   assert.equal(MAX_TAGS, 3);
   assert.equal(p.text.split('\n')[0], '7 new asks on the board, from @p0.test, @p1.test, @p2.test and 3 others.', 'seven asks from six people');
   // Someone Bluesky has no handle for isn't tagged, and counts among the others.
   who.delete(people[1]);
-  p = await compose(asks, who, DAY_AT);
+  p = await compose(asks, who);
   assert.equal(p.text.split('\n')[0], '7 new asks on the board, from @p0.test, @p2.test, @p3.test and 3 others.');
   // Handles as long as atproto allows: as many as fit.
   who = new Map(people.map(d => [d, { did: d, handle: d.slice(8) + '.' + 'x'.repeat(60) + '.' + 'y'.repeat(60) + '.test' }]));
-  p = await compose(asks, who, DAY_AT);
+  p = await compose(asks, who);
   assert.ok([...new Intl.Segmenter().segment(p.text)].length <= 300);
   assert.match(p.text, /, from @p0\.x+\.y+\.test and 5 others\./);
   assert.deepEqual(p.tagged, [people[0]]);
   // No one to tag: just the count.
-  p = await compose(asks.slice(0, 1), new Map(), DAY_AT);
-  assert.equal(p.text, `A new ask on the board.\n\n${NUDGE(1)}`);
+  p = await compose(asks.slice(0, 1), new Map());
+  assert.equal(p.text, `A new ask on the board.\n${nudge(true)}`);
   assert.deepEqual(p.card, { uri: `${SITE}/board`, title: 'The board', description: 'Ideas and projects people want help with. Pick one and direct your agent to do the work, on your plan.', image: `${SITE}/api/og?kind=board` });
-  // A different nudge each day, in turn.
-  const said = await Promise.all([0, 1, 2].map(d => compose(asks, who, DAY_AT + d * DAY).then(x => x.text.split('\n\n')[1])));
-  assert.equal(new Set(said).size, 3);
 });
 
 test('hiding someone the day’s post tagged takes it down, and it’s made again without them', async () => {

@@ -158,30 +158,22 @@ export function timeOfTid(rkey){
 export const MAX_TAGS = 3;
 const MAX_GRAPHEMES = 300, MAX_BYTES = 3000;
 const fits = t => graphemes(t).length <= MAX_GRAPHEMES && bytes(t) <= MAX_BYTES;
-// What the post asks of whoever reads it, a different one each day in turn, so the account doesn't
-// say the same thing every day. Each is given whether there's one ask.
-export const NUDGES = [
-  one => `Your AI plan resets whether you use it all or not. Got rain to spare? Point your agent at ${one ? 'it' : 'one'}.`,
-  one => `Usage left on your plan before it resets? Pick ${one ? 'it' : 'one'} up and let your agent do the work.`,
-  one => `The AI plan you already pay for could get ${one ? 'it' : 'one of these'} done before it resets.`
-];
+/** What the post asks of whoever reads it, on the line after the count, given whether there's one ask. */
+export const nudge = one => `Have spare usage left on your AI coding plan before it resets? Help someone out by directing your agent to ${one ? 'the task' : 'one of them'}.`;
 
 /**
- * The day's post about `asks`, the new asks it counts, oldest first, for the day ending at `day`
- * (its 15:45 UTC): { text, facets, card: { uri, title, description, image }, tagged }. It says how
+ * The day's post about `asks`, the new asks it counts, oldest first: { text, facets, card: { uri, title, description, image }, tagged }. It says how
  * many there are, with "the board" linked, tags up to MAX_TAGS of the people who asked (the first
- * to ask, each once, if Bluesky knows their handle), and asks for help (NUDGES). No titles. Fewer
+ * to ask, each once, if Bluesky knows their handle), and asks for help (nudge). No titles. Fewer
  * are tagged if that's what it takes to fit. `who` names the askers (whoAre). The card is the
  * board's, as the site's own link preview has it (../../api/_og/describe.js):
  *
  *   5 new asks on the board, from @alice.example, @bob.example, @kai.example and 2 others.
- *
- *   Usage left on your plan before it resets? Pick one up and let your agent do the work.
+ *   Have spare usage left on your AI coding plan before it resets? Help someone out by directing your agent to one of them.
  */
-export async function compose(asks, who = new Map(), day = 0){
+export async function compose(asks, who = new Map()){
   const n = asks.length, people = [...new Set(asks.map(s => s.repo))];
   const taggable = people.filter(d => who.get(d)?.handle);
-  const nudge = NUDGES[Math.floor(day / DAY) % NUDGES.length](n === 1);
   const build = k => {
     const tags = taggable.slice(0, k), others = people.length - tags.length, r = rich();
     r.add(n === 1 ? 'A new ask on ' : `${n} new asks on `).link('the board', SITE + '/board');
@@ -191,7 +183,7 @@ export async function compose(asks, who = new Map(), day = 0){
       if (others) parts.push(() => r.add(`${others} ${others === 1 ? 'other' : 'others'}`));
       parts.forEach((part, i) => { if (i) r.add(i === parts.length - 1 ? ' and ' : ', '); part(); });
     }
-    r.add('.\n\n' + nudge);
+    r.add('.\n' + nudge(n === 1));
     return { ...r.build(), tagged: tags };
   };
   let made = build(0);
@@ -317,7 +309,7 @@ export async function announce({ post = true, password = process.env.RAINSHARE_B
   // Posts about asks hidden since: the old ones about one ask, and a day's that tags someone hidden.
   const down = [...hiddenPosts(mine, hidden), ...taggedHidden(mine, { seeds, hidden })].map(d => ({ ...d, uri: net.recordUri(ACCOUNT, POST, d.rkey), error: null }));
   const up = mine.some(x => x.rkey === rkey && !down.some(d => d.rkey === x.rkey));
-  const p = !up && count ? { ...(await compose(asks, await whoAre([...new Set(asks.map(s => s.repo))]), day)), uri: null, error: null } : null;
+  const p = !up && count ? { ...(await compose(asks, await whoAre([...new Set(asks.map(s => s.repo))]))), uri: null, error: null } : null;
   const result = () => ({ setUp: !!password, dryRun: !post, day: new Date(day).toISOString(), count,
     post: p && { text: p.text, link: p.card.uri, tagged: p.tagged, uri: p.uri, error: p.error }, takenDown: down.map(({ ask, uri, error }) => ({ ask, uri, error })) });
   const when = new Date(day).toISOString().slice(0, 10);

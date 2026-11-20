@@ -15,11 +15,11 @@ records: asks, takes, turn-ins and people's settings (`dev.rainshare.seed`, `.ta
   are on the board, tagging up to three of the people who asked (the first that day), and asking
   readers to help, with a card for the board:
 
-  > 5 new asks on the board, from @alice.example, @bob.example, @kai.example and 1 other.
-  >
-  > Usage left on your plan before it resets? Pick one up and let your agent do the work.
+  > 5 new asks on the board, from @alice.example, @bob.example, @kai.example and 1 other.<br>
+  > Have spare usage left on your AI coding plan before it resets? Help someone out by directing
+  > your agent to one of them.
 
-  The last line takes turns between a few (`NUDGES`), so it isn't the same every day. It counts
+  With one ask, the last words are "to the task". It counts
   the asks asked since 15:45 the day before that nobody's on yet: not one someone has said
   they're on, has turned work in for, or that's done or closed, as the board's "Nobody on it
   yet" has it. No titles go out, so nobody reads the asks first. Hiding an ask, or its asker,
@@ -28,8 +28,8 @@ records: asks, takes, turn-ins and people's settings (`dev.rainshare.seed`, `.ta
 - **Messages** (`src/messages.js`): for each person who asked for them in their settings, their
   updates since their last message (someone's on their ask, work's been turned in, an ask they
   helped with was marked done or closed), and once a day, after 15:45 UTC, how many of the day's
-  new asks nobody's on yet, with a link to the board. It's only a number: no titles, and nobody's
-  name.
+  new asks nobody's on yet, with a link to the board written out ("There are 5 new asks on the
+  board: rainshare.dev/board."). It's only a number: no titles, and nobody's name.
 
 It also runs when someone writes to the account (it looks at its
 conversations every minute, as Poe does, so a STOP is answered quickly), and every 15 minutes in

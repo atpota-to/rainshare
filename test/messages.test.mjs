@@ -142,11 +142,11 @@ test('each person who asked hears their own news, in one message', async () => {
     'Updates from Rainshare:',
     '• Carol (@carol.test) closed “Old tracker”.',
     '• Bob (@bob.test) marked “Weather app” done with your work. It’s in your garden now.',
-    '', 'There’s a new ask on the board.',
+    '', `There’s a new ask on the board: ${SITE.replace('https://', '')}/board.`,
     '', `Reply STOP to stop these, or choose what you get at ${SITE.replace('https://', '')}/settings.`
   ].join('\n'), 'one new ask, Bob’s “Tiny timer”: not their own, one for mutuals, one from someone the account blocks, nor one from before their day');
   assert.ok(!/Tiny timer|Bob/.test(jun.text.split('\n\n')[1]), 'the new asks are counted, with no titles and nobody’s name');
-  assert.deepEqual(facetText(jun).slice(-2), ['the board', `${SITE.replace('https://', '')}/settings`]);
+  assert.deepEqual(facetText(jun).slice(-2), [`${SITE.replace('https://', '')}/board`, `${SITE.replace('https://', '')}/settings`], 'the board’s address, written out');
   assert.equal(jun.facets.at(-2).features[0].uri, `${SITE}/board`, 'the link to the board is how the next run knows they’ve had today’s');
 
   assert.match(sentMessages.find(m => m.to === DEE).text, /^Okay, no more messages from Rainshare\.\n\nReply START to have them again/, 'a STOP is answered once');
@@ -182,7 +182,7 @@ test('the day’s new asks leave out any someone’s on or has turned work in fo
   repos[GUS][TAKE].gf3 = { seed: ref(CAROL, SEED, 'f3'), until: '2026-11-14T14:00:00Z', createdAt: '2026-11-14T11:30:00Z' };
   await go();
   const jun = sentMessages.find(m => m.to === JUN).text;
-  assert.match(jun, /\n\nThere’s a new ask on the board\.\n\n/, 'only Carol’s “Free again”, not “Tiny timer” nor “Turned in already”');
+  assert.match(jun, /\n\nThere’s a new ask on the board: \S+\/board\.\n\n/, 'only Carol’s “Free again”, not “Tiny timer” nor “Turned in already”');
 });
 
 test('a dry run sends nothing, and without the password it shows a day’s news for everyone', async () => {
@@ -235,7 +235,7 @@ test('a message fits, however much there is, and says how many more', () => {
   const count = [...new Intl.Segmenter().segment(m.text)].length;
   assert.ok(count <= 1000, `${count} graphemes`);
   assert.match(m.text, /• and \d+ more\./);
-  assert.match(m.text, /\n\nThere are 8 new asks on the board\.\n\nReply STOP/, 'all the new asks are counted, however many updates there are');
+  assert.match(m.text, /\n\nThere are 8 new asks on the board: \S+\/board\.\n\nReply STOP/, 'all the new asks are counted, however many updates there are');
   assert.ok(m.text.endsWith('/settings.'), 'the way to stop them is always there');
   for (const f of m.facets) assert.ok(f.index.byteEnd <= Buffer.byteLength(m.text) && f.index.byteStart < f.index.byteEnd);
   assert.equal(compose({ updates: [], fresh: [] }, who), null, 'no news, no message');
@@ -246,11 +246,12 @@ test('the day’s new asks are a count and a link to the board, with no titles o
   const fresh = n => Array.from({ length: n }, (_, i) => ({ kind: 'new', seed, by: BOB, at: i }));
   const settings = `Reply STOP to stop these, or choose what you get at ${SITE.replace('https://', '')}/settings.`;
   const m = compose({ fresh: fresh(5) }, new Map());
-  assert.equal(m.text, 'There are 5 new asks on the board.\n\n' + settings);
-  assert.deepEqual(facetText(m), ['the board', `${SITE.replace('https://', '')}/settings`]);
+  const board = `${SITE.replace('https://', '')}/board`;
+  assert.equal(m.text, `There are 5 new asks on the board: ${board}.\n\n` + settings);
+  assert.deepEqual(facetText(m), [board, `${SITE.replace('https://', '')}/settings`]);
   assert.deepEqual(m.facets.map(f => f.features[0].uri), [`${SITE}/board`, `${SITE}/settings`]);
-  assert.equal(compose({ fresh: fresh(1) }, new Map()).text, 'There’s a new ask on the board.\n\n' + settings);
-  assert.equal(counted(rich(), 2).text, 'There are 2 new asks on the board.');
+  assert.equal(compose({ fresh: fresh(1) }, new Map()).text, `There’s a new ask on the board: ${board}.\n\n` + settings);
+  assert.equal(counted(rich(), 2).text, `There are 2 new asks on the board: ${board}.`);
 });
 
 test('news is only what happened in its time, to the person it’s about', () => {
@@ -289,7 +290,7 @@ test('updates come within a minute or two, and the day’s new asks once', async
   sentMessages = [];
   await go({ now: at('15T16:02:30') });
   assert.deepEqual(sentMessages.map(m => m.to), [JUN], 'the next day’s new asks, the next day');
-  assert.match(sentMessages[0].text, /^There’s a new ask on the board\.\n\nReply STOP/, 'Carol’s “Fresh idea”, and not yesterday’s “Tiny timer” again');
+  assert.match(sentMessages[0].text, /^There’s a new ask on the board: \S+\/board\.\n\nReply STOP/, 'Carol’s “Fresh idea”, and not yesterday’s “Tiny timer” again');
 });
 
 test('a run stops sending before the next minute, and whoever it didn’t reach hears next run', async () => {
@@ -324,7 +325,7 @@ test('the day’s new asks count for the day they were asked', async () => {
   // Bob asked "Tiny timer" at 12:00, before today's 15:45: it's in today's count.
   await go();
   const jun = () => sentMessages.filter(m => m.to === JUN).map(m => m.text).join('\n');
-  assert.match(jun(), /There’s a new ask on the board\./);
+  assert.match(jun(), /There’s a new ask on the board: \S+\/board\./);
 
   // Tomorrow's doesn't count it again.
   sentMessages = [];

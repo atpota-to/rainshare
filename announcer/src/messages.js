@@ -112,7 +112,7 @@ function line(r, n, who){
 }
 
 /** How many new asks there are, written into `r`: "There are 5 new asks on the board." */
-export const counted = (r, n) => r.add(n === 1 ? 'There’s a new ask on ' : `There are ${n} new asks on `).link('the board', SITE + '/board').add('.');
+export const counted = (r, n) => r.add(n === 1 ? 'There’s a new ask on the board: ' : `There are ${n} new asks on the board: `).link(shortLink(SITE + '/board'), SITE + '/board').add('.');
 
 /**
  * A message with someone's news: { text, facets }, or null when there's none. `updates` and
