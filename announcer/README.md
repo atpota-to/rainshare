@@ -25,8 +25,9 @@ records: asks, takes, turn-ins and people's settings (`dev.rainshare.seed`, `.ta
   has turned work in for, or that's done or closed, as the board's "Nobody on it yet" has it.
 - **Messages** (`src/messages.js`): for each person who asked for them in their settings, their
   updates since their last message (someone's on their ask, work's been turned in, an ask they
-  helped with was marked done or closed), and once a day, after 15:45 UTC, the day's new asks
-  that nobody's on.
+  helped with was marked done or closed), and once a day, after 15:45 UTC, how many of the day's
+  new asks nobody's on yet, with a link to the board. It's only a number: no titles, and nobody's
+  name.
 
 It also runs when an ask finishes settling, when someone writes to the account (it looks at its
 conversations every minute, as Poe does, so a STOP is answered quickly), and every 15 minutes in
