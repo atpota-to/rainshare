@@ -1,7 +1,6 @@
-// One run of the announcer by hand (announcer/src/run.js): the approver is asked about new asks,
-// @rainshare.dev posts the ones they've said yes to, and sends the direct messages people have
-// asked for. Without --post, it says what it
-// would post and send, and posts and sends nothing. The service on the droplet (announcer/)
+// One run of the announcer by hand (announcer/src/run.js): @rainshare.dev's post for the day,
+// saying how many new asks there are, and the direct messages people have asked for. Without
+// --post, it says what it would post and send, and posts and sends nothing. The service on the droplet (announcer/)
 // does this by itself; this is for looking, or for a run while it's down.
 //
 //   npm run announce              what would go out now. Needs no password, though with one
@@ -13,5 +12,5 @@
 import { run } from '../announcer/src/run.js';
 
 const out = await run({ post: process.argv.includes('--post') });
-const failed = [out.review.error, out.posts.error, out.messages.error, ...(out.posts.posts || []).map(p => p.error), ...(out.messages.sent || []).map(s => s.error), out.messages.note].filter(Boolean);
+const failed = [out.posts.error, out.messages.error, out.posts.post?.error, ...(out.posts.takenDown || []).map(t => t.error), ...(out.messages.sent || []).map(s => s.error), out.messages.note].filter(Boolean);
 if (failed.length) process.exitCode = 1;

@@ -1,7 +1,7 @@
 // supabase.js
 // PostgREST with the service key: the rainshare_* functions (../../supabase/migrations/*_rainshare_index.sql)
-// through rpc, and plain upserts and patches (rainshare_status). The announcer uses it too, for
-// the review queue. Every call gives up after 10 s; a failure throws an Error carrying the HTTP status, so callers
+// through rpc, and plain upserts and patches (rainshare_status). The announcer uses it too, to
+// read the records. Every call gives up after 10 s; a failure throws an Error carrying the HTTP status, so callers
 // can tell a rejected row (4xx) from Supabase being down.
 
 export const REQUEST_TIMEOUT_MS = 10_000;

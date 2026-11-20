@@ -2,7 +2,7 @@
 
 Rainshare's AppView: every `dev.rainshare.*` record on the network, kept in Supabase so that
 whatever needs Rainshare's records reads one database instead of every repo. Today that's the
-announcer ([`../announcer/`](../announcer)) and its review queue. The site still reads the network.
+announcer ([`../announcer/`](../announcer)). The site still reads the network.
 
 It's atpota-to/atpota.to's garden index (`garden/`), which has run on the same droplet since
 October, adapted to Rainshare's lexicon: the Jetstream connection, the batcher, the reconcile, the
@@ -17,21 +17,16 @@ Each row has the record as its repo has it, its CID, what it's about (`subject_u
 turn-in's or comment's ask, or a moderation record's subject), its `createdAt`, and when Jetstream
 first relayed it. Anyone can read them with the publishable key: they're public atproto records.
 
-`rainshare_review`, the review queue: a row per ask saying whether @rainshare.dev may pass it on.
-A trigger makes the row when an ask is first indexed, and puts it back to pending whenever the ask
-is indexed with a new CID, so an approval holds for one version of an ask. Only the service role
-can read or write it. The announcer asks the approver and writes their answers
-([`../announcer/src/review.js`](../announcer/src/review.js)).
-
 `rainshare_status`, its heartbeat: the announcer reads the records only while `heartbeat_at` is
 a few minutes old and `backfilled_at` is set, and reads every repo otherwise.
 
 The schema, functions and grants are
 [`../supabase/migrations/20261115210000_rainshare_index.sql`](../supabase/migrations/20261115210000_rainshare_index.sql),
-with the approver's POST and SEND added by
-[`../supabase/migrations/20261115230000_rainshare_review_post_or_send.sql`](../supabase/migrations/20261115230000_rainshare_review_post_or_send.sql),
 in the Supabase project `atpota.to` (zdzjtziydmwkxbzlkwxv), beside the terms ledger and the
-garden's index.
+garden's index. The review queue that was beside the records (`rainshare_review`, for a person's
+yes before @rainshare.dev posted an ask) is dropped by
+[`../supabase/migrations/20261120090000_rainshare_review_drop.sql`](../supabase/migrations/20261120090000_rainshare_review_drop.sql),
+now that the account only posts how many new asks there are.
 
 ## Leaving an account out
 
@@ -41,8 +36,7 @@ hold, a child's account. `rainshare_index_excluded` is the list of those account
 database does the work
 ([`../supabase/migrations/20261117090000_rainshare_index_excluded.sql`](../supabase/migrations/20261117090000_rainshare_index_excluded.sql)):
 
-- adding a DID deletes every row the index has from that account, and the review notes for its
-  asks, in the same step
+- adding a DID deletes every row the index has from that account, in the same step
 - a trigger on `rainshare_records` skips anything written from it afterwards, so a stream event
   or a reconcile can't put a row back, and the indexer keeps no list of its own
 - removing a DID lets its records back in, at the next reconcile or the next time one changes
@@ -62,8 +56,8 @@ delete from public.rainshare_index_excluded where did = 'did:plc:…';
 
 `reason` is a few words for us (how they asked), never shown to anyone. What being left out means
 for them: the site reads the network, so Rainshare works for them as before. The announcer reads
-the board from the index, so while it does, it doesn't see their records. Their asks get no review
-note, so they're never posted or sent. They get no direct messages. And a take or a turn-in of
+the board from the index, so while it does, it doesn't see their records. Their asks aren't counted
+in its post or anyone's messages, and they get no direct messages. And a take or a turn-in of
 theirs doesn't count, so an ask they're on can still go out as one nobody's on. The reconcile
 still lists their repo every six hours and the database turns the rows away. @rainshare.dev's own
 account can't be left out: the apps hide by its moderation records.

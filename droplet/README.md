@@ -5,10 +5,10 @@ Rainshare's two services run on the DigitalOcean droplet that runs Poe's service
 the way they are, and kept apart from them: their own folders, units, deploy key and lock. Nothing
 here touches theirs.
 
-- **The announcer** ([`announcer/`](../announcer)): @rainshare.dev's posts and messages, and the
-  approver's review before either. Holds the @rainshare.dev app password.
+- **The announcer** ([`announcer/`](../announcer)): @rainshare.dev's daily post about new asks,
+  and the messages people ask for. Holds the @rainshare.dev app password.
 - **The index** ([`indexer/`](../indexer)): every `dev.rainshare.*` record, from Jetstream to
-  Supabase, with the review queue beside them. Holds only the Supabase service key.
+  Supabase. Holds only the Supabase service key.
 
 One release serves both, and a deploy deploys whichever of them is set up.
 
@@ -71,23 +71,24 @@ journalctl -u rainshare-announcer -f      # watch a few dry runs say what they'd
 When the dry runs look right, set `MODE=live` in the `.env` and
 `systemctl restart rainshare-announcer`.
 
-### The index, and the review queue
+### The index
 
-The announcer passes nothing new on without the review queue, which lives in the index. Set the
-index up before (or with) the change that brings it:
+The announcer reads the board from the index while it's fresh, and from every repo otherwise. To
+set it up:
 
 ```bash
 # 1. The schema: supabase/migrations/20261115210000_rainshare_index.sql, then
-#    20261115230000_rainshare_review_post_or_send.sql (the approver's POST and SEND) and
-#    20261117090000_rainshare_index_excluded.sql (the accounts left out of the index), applied to
-#    the Supabase project "atpota.to" (zdzjtziydmwkxbzlkwxv), before the code that uses them.
+#    20261115230000_rainshare_review_post_or_send.sql,
+#    20261117090000_rainshare_index_excluded.sql (the accounts left out of the index) and
+#    20261120090000_rainshare_review_drop.sql (the review queue, gone once nothing reads it),
+#    applied to the Supabase project "atpota.to" (zdzjtziydmwkxbzlkwxv), in that order.
 
 # 2. The index's data folder, with the same Supabase values as the garden's index.
 mkdir -p /root/rainshare-index && chmod 700 /root/rainshare-index
 grep -E '^SUPABASE_(URL|SERVICE_ROLE_KEY)=' /root/atpotato-garden/.env > /root/rainshare-index/.env
 chmod 600 /root/rainshare-index/.env
 
-# 3. The same two lines in the announcer's .env, so it can read the queue and write answers.
+# 3. The same two lines in the announcer's .env, so it can read the index.
 grep -E '^SUPABASE_(URL|SERVICE_ROLE_KEY)=' /root/atpotato-garden/.env >> /root/rainshare-announcer/.env
 
 # 4. Deploy: the first one installs and enables rainshare-index, and its first reconcile fills
@@ -95,10 +96,6 @@ grep -E '^SUPABASE_(URL|SERVICE_ROLE_KEY)=' /root/atpotato-garden/.env >> /root/
 FORCE=1 /root/rainshare-live/deploy.sh
 journalctl -u rainshare-index -f -o cat
 ```
-
-The approver (dame.is, or `RAINSHARE_APPROVER` in the announcer's `.env`) has to let
-@rainshare.dev message them on Bluesky. If it can't, every run says so in the journal, and nothing
-new goes out.
 
 ### The deploy key
 

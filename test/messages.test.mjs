@@ -118,16 +118,8 @@ globalThis.fetch = async (input, init = {}) => {
   throw new Error('a call this shouldn’t make: ' + u.href);
 };
 const quiet = () => {};
-// The review queue (announcer/src/review.js), as the index would answer: the approver said yes to
-// every ask, at the version it is now, at `yesAt` (by default when it was asked).
-let yesAt;
-beforeEach(() => { yesAt = () => null; });
-const queue = () => new Map(Object.entries(repos).flatMap(([did, r]) => Object.entries(r[SEED] || {}).map(([rkey, v]) => {
-  const u = uri(did, SEED, rkey);
-  return [u, { seed_uri: u, cid: 'bafy' + rkey, status: 'approved', decided_at: yesAt(u) || v.createdAt }];
-})));
-const approving = () => reader({ db: { ready: async () => ({ ok: false, why: 'a test' }), reviews: async () => queue() } });
-const go = (opts = {}) => { clock = opts.now ?? NOW; return message({ password: 'app-pass', now: clock, log: quiet, read: approving(), ...opts }); };
+const fresh = () => reader({ db: { ready: async () => ({ ok: false, why: 'a test' }) } });
+const go = (opts = {}) => { clock = opts.now ?? NOW; return message({ password: 'app-pass', now: clock, log: quiet, read: fresh(), ...opts }); };
 const facetText = m => m.facets.map(f => Buffer.from(m.text).subarray(f.index.byteStart, f.index.byteEnd).toString());
 
 test('each person who asked hears their own news, in one message', async () => {
@@ -199,7 +191,7 @@ test('a dry run sends nothing, and without the password it shows a day’s news 
   assert.ok(!asked.includes('chat.bsky.convo.sendMessage') && !asked.includes('chat.bsky.convo.getConvoForMembers'), 'it only reads');
 
   asked = [];
-  out = await message({ post: false, password: '', now: NOW, log: quiet, read: approving() });
+  out = await message({ post: false, password: '', now: NOW, log: quiet, read: fresh() });
   assert.ok(!asked.some(m => m.startsWith('chat.') || m === 'com.atproto.server.createSession'), 'it never signs in');
   assert.ok(out.sent.some(s => s.to === ALICE && !/Kai/.test(s.text)), 'with nothing read, Alice’s news is the last day’s, so Kai’s take from the day before isn’t in it');
 });
@@ -328,10 +320,8 @@ test('settings keep the messages someone asked for, and drop what’s switched o
   assert.deepEqual(wants(null), { updates: false, newAsks: false });
 });
 
-test('the day’s new asks don’t wait for the approver, and count for the day they were asked', async () => {
-  // Bob asked "Tiny timer" at 12:00, and the approver said yes at 16:00, after today's 15:45: it's
-  // in today's count all the same, as it would be with no answer, or a no.
-  yesAt = u => u === uri(BOB, SEED, 'b2') ? '2026-11-14T16:00:00Z' : null;
+test('the day’s new asks count for the day they were asked', async () => {
+  // Bob asked "Tiny timer" at 12:00, before today's 15:45: it's in today's count.
   await go();
   const jun = () => sentMessages.filter(m => m.to === JUN).map(m => m.text).join('\n');
   assert.match(jun(), /There’s a new ask on the board\./);
@@ -342,7 +332,7 @@ test('the day’s new asks don’t wait for the approver, and count for the day 
   assert.ok(!/new asks? on the board/.test(jun()), jun());
 });
 
-test('a new ask is counted with no answer and no queue, unless it’s hidden, shut or someone’s on it', () => {
+test('a new ask is counted unless it’s hidden, shut or someone’s on it', () => {
   const seed = (rkey, more = {}) => ({ uri: uri(BOB, SEED, rkey), repo: BOB, rkey, cid: 'bafy' + rkey, value: { title: 'New ' + rkey, audience: anyone, createdAt: '2026-11-14T10:00:00Z', ...more } });
   const seeds = [seed('n'), seed('m', { audience: { $type: `${SEED}#mutuals` } }), seed('c', { state: 'closed' }), seed('h'), seed('t')];
   const hidden = new Map([[uri(BOB, SEED, 'h'), { subject: uri(BOB, SEED, 'h'), action: 'hide', reason: 'spam' }]]);

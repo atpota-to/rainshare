@@ -1,54 +1,40 @@
-// Posts each new ask on the board to Rainshare's own Bluesky account, @rainshare.dev, once.
+// @rainshare.dev's post about new asks: one a day, after 15:45 UTC (DAILY, ./messages.js), saying
+// how many there are on the board, with a card for the board. Only the number: no titles, and
+// nobody's name or mention, so nothing goes out that nobody has read, and no ask needs anyone's
+// yes first. The asks it counts are the ones the day's direct message counts (newOnBoard,
+// ./messages.js): asked from one 15:45 UTC to the next, on the board for everyone, nobody on them,
+// not hidden, not very likely a trick on helpers' agents, and not from anyone the account blocks
+// or who blocks it. A day with none gets no post.
 //
 // The announcer service runs it (./index.js, on the droplet: see ../README.md) whenever something
 // happens on the board, and `npm run announce` runs it by hand. Without
 // RAINSHARE_BLUESKY_APP_PASSWORD, an app password for the account, it posts nothing.
 //
-// Which asks are new: open ones meant for everyone, asked at least a quarter of an hour ago
-// (SETTLE), so a title that's fixed straight after posting is fixed in the post too, and asked in
-// the last three days (WINDOW), or said yes to in them, if that was later: a yes that takes a
-// while still gets the ask posted, as long as it's in the day after (ANSWER) that the approver
-// has to answer in. A run posts the earliest asked first, at most MAX_POSTS of them, and leaves
-// the rest for the next run.
+// There's no database, so the account itself says what's been posted: the day's post takes a
+// record key made from the day's 15:45 UTC (tidAt), so a run can see whether it's up, and two runs
+// at once can't post it twice: the second is refused. A run that comes after a whole day missed
+// posts the latest day's only.
 //
-// There's no database, so the account itself says what's been posted. An ask that one of its
-// recent posts links to is left alone, whoever wrote the post. And each post takes the ask's own
-// record key, so two runs at once can't post the same ask twice: the second is refused.
-//
-// Only an ask nobody's on yet is posted: as the board's "Nobody on it yet" has it, nobody has
-// said they're on it (or their take has lapsed, ../core/takes.js), nothing's been turned in, and
-// it isn't done or closed. Nothing is posted for anyone the account blocks, or anyone who blocks
-// it, nor anything it has hidden (../core/moderation.js), nor an ask Rainshare's checks find very
-// likely a trick on helpers' agents (../core/scan.js). To keep someone's asks off the account,
-// block them from it.
-//
-// And nothing is posted until the approver has said yes to it, by direct message (./review.js),
-// for the version of the ask that's there now: an edit asks them again. Without the review queue
-// (the index, ./index-db.js), nothing new is posted at all. A post about an ask that's since been
-// hidden is taken down.
-//
-// A post names who's asking (with a mention, so they hear about it) and gives the ask's title,
-// with a card for its page: the same words as the page's own link preview
-// (../../api/_og/describe.js), and its picture (../../api/og.js).
+// Before 20 November 2026 the account posted each ask on its own, naming who asked, once a person
+// had said yes to it. A post of those about an ask that's since been hidden (or whose asker has)
+// is still taken down. This file also has what the direct messages (./messages.js) share with the
+// post: reading the board, the account's session, its blocks, and who's on what.
 import { SEED, TAKE, DELIVERY, PROFILE, SITE, MODERATION, MODERATOR, audienceOf } from '../../core/ns.js';
 import * as net from '../../core/net.js';
-import { askExcerpt, aNoun, progressOf } from '../../core/words.js';
+import { progressOf } from '../../core/words.js';
 import { decisionsFrom, hiddenBy } from '../../core/moderation.js';
 import { isDid } from '../../core/net.js';
 import { concerns, alarming } from '../../core/scan.js';
-import { clean } from '../../api/_og/describe.js';
+import { clean, describe } from '../../api/_og/describe.js';
 import { OWNER } from '../../lexicons/compat.mjs';
+import { rich, counted, newOnBoard, boundary } from './messages.js';
 
 // The brand account, which the lexicons belong to as well. Named by its DID, as there.
 export const ACCOUNT = OWNER;
-export const WINDOW = 3 * 24 * 3600e3, SETTLE = 15 * 60e3, MAX_POSTS = 5;
-// How long the approver has to answer, at least, once they're asked about an ask (./review.js):
-// they're only asked about asks from the last three days, and their answer is taken for a day after.
-export const ANSWER = 24 * 3600e3;
+const DAY = 24 * 3600e3;
 const POST = 'app.bsky.feed.post', BLOCK = 'app.bsky.graph.block';
-// What a post may hold (app.bsky.feed.post), and how big a card's picture may be (app.bsky.embed.external).
-const MAX_GRAPHEMES = 300, MAX_BYTES = 3000, MAX_THUMB = 1_000_000;
-const TID = /^[234567abcdefghij][234567abcdefghijklmnopqrstuvwxyz]{12}$/;
+// How big a card's picture may be (app.bsky.embed.external).
+const MAX_THUMB = 1_000_000;
 // Bluesky's chat service, which the account's own server passes direct messages on to.
 const CHAT = 'did:web:api.bsky.chat#bsky_chat';
 
@@ -56,55 +42,11 @@ const CHAT = 'did:web:api.bsky.chat#bsky_chat';
 export const forAll = v => typeof v?.title === 'string' && !!clean(v.title) && (!v.state || v.state === 'open') && audienceOf(v) === 'anyone';
 /** Whether the account may pass an ask on: on the board for everyone, and not very likely a trick on helpers' agents. */
 export const passable = v => forAll(v) && !alarming(concerns(v));
-// Who says yes to an ask before the account passes it on (./review.js): dame.is, by DID, so a new
-// handle changes nothing. RAINSHARE_APPROVER in the announcer's .env names someone else.
-export const APPROVER = isDid(process.env.RAINSHARE_APPROVER) ? process.env.RAINSHARE_APPROVER : 'did:plc:gq4fo3u6tqzzdkjlwzpb23tj';
-// The approver's answers that let the account pass an ask on, by way (./review.js). Only YES is
-// given now, and it's a yes to the post. POST and SEND are answers from before, kept in the queue:
-// POST was a yes to the post only, and SEND to the day's direct message only, which now counts
-// every new ask on the board without waiting for anyone (./messages.js).
-export const ALLOWS = { post: ['approved', 'post_only'], send: ['approved', 'send_only'] };
-/**
- * Whether the account may pass an ask on `way` ('post' or 'send'): the approver said yes to it
- * that way, for the version of it that's there now (`reviews`, from read.reviews()). Without a
- * way, only a yes to both counts. The approver's own asks, and the account's, need nobody's yes.
- * With no queue to read (`reviews` null), nothing else is.
- */
-export function cleared(ask, reviews, way = null, approver = APPROVER){
-  if (ask?.repo === ACCOUNT || ask?.repo === approver) return true;
-  const r = reviews?.get(ask?.uri);
-  return !!r && (ALLOWS[way] || ['approved']).includes(r.status) && !!ask.cid && r.cid === ask.cid;
-}
-/** Whether the approver has answered about the version of an ask that's there now, whatever they said. */
-export function decided(ask, reviews){
-  const r = reviews?.get(ask?.uri);
-  return !!r && r.status !== 'pending' && !!ask?.cid && r.cid === ask.cid;
-}
-/** When an ask was passed on: when it was asked, or when it was said yes to, if that was later (ms). */
-export function clearedAt(ask, reviews){
-  const asked = Date.parse(ask?.value?.createdAt), r = reviews?.get(ask?.uri), yes = [...ALLOWS.post, ...ALLOWS.send].includes(r?.status) ? Date.parse(r.decided_at) : NaN;
-  return Number.isFinite(yes) && !(yes <= asked) ? yes : asked;
-}
-/** Whether an ask is one to ask the approver about at `now`: passable, and asked between WINDOW and SETTLE ago. */
-export function isNew(v, now){
-  const at = Date.parse(v?.createdAt);
-  return passable(v) && at > now - WINDOW && at <= now - SETTLE;
-}
-/**
- * Whether an ask is one to post about at `now`: passable, asked at least SETTLE ago, and passed
- * on (clearedAt: asked, or said yes to, if that was later) in the last WINDOW, but never once
- * it's older than WINDOW and the approver's ANSWER together.
- */
-export function isDue(ask, reviews, now){
-  const at = Date.parse(ask?.value?.createdAt);
-  return passable(ask?.value) && at <= now - SETTLE && at > now - WINDOW - ANSWER && clearedAt(ask, reviews) > now - WINDOW;
-}
 
 /**
  * Every public record of a collection, across everyone who has any, read the first time it's
- * asked for and kept for the rest of the run: the review, the posts and the messages read the
- * same asks. From the index (`db`, ./index-db.js) while it's fresh, and otherwise from every
- * repo that has any.
+ * asked for and kept for the rest of the run: the post and the messages read the same asks. From
+ * the index (`db`, ./index-db.js) while it's fresh, and otherwise from every repo that has any.
  */
 export function reader({ db = null, log = () => {} } = {}){
   const got = new Map();
@@ -125,21 +67,10 @@ export function reader({ db = null, log = () => {} } = {}){
   // matters most. If that can't be read, nothing goes out, rather than something it hid.
   let hidden;
   read.hidden = () => hidden ||= net.listRecords(MODERATOR, MODERATION, { pages: 10 }).then(decisionsFrom);
-  // The review queue (./review.js), for asks from the last few days: as far back as the approver
-  // can still be answering about. Null when there's none to read, and then nothing new is passed on.
-  let reviews;
-  read.reviews = () => reviews ||= !db ? Promise.resolve(null)
-    : db.reviews(Date.now() - WINDOW - ANSWER).catch(e => { log(`The review queue couldn’t be read (${e.message}), so nothing new is passed on this run.`); return null; });
   return read;
 }
 /** Whether a record (or its whole account) is hidden, by the decisions from read.hidden(). */
 export const isHidden = (decisions, rec) => !!hiddenBy(decisions, rec?.uri, rec?.repo);
-
-/** The new asks on the board, the earliest asked first. */
-async function newAsks(now, read, reviews){
-  const [seeds, hidden] = await Promise.all([read(SEED), read.hidden()]);
-  return seeds.filter(r => isDue(r, reviews, now) && !isHidden(hidden, r)).sort((a, b) => Date.parse(a.value.createdAt) - Date.parse(b.value.createdAt));
-}
 
 /** Every link in a post: its card's, the links in its text, and any written out in full. */
 export const linksIn = post => [
@@ -154,15 +85,10 @@ export function askAt(link){
   try { return decodeURIComponent(m[1]).replace(/^@/, '').toLowerCase() + ' ' + decodeURIComponent(m[2]).replace(/[.,;:!?)\]]+$/, ''); }
   catch (_) { return null; }
 }
-// What the account has posted about lately: the asks its last 300 posts link to, those posts' own keys, and the posts.
-async function postedAlready(){
-  const posts = await net.listRecords(ACCOUNT, POST, { pages: 3 });
-  return { links: new Set(posts.flatMap(p => linksIn(p.value).map(askAt).filter(Boolean))), keys: new Set(posts.map(p => p.rkey)), posts };
-}
 /**
  * The account's posts about asks that have since been hidden (or whose asker has): [{ rkey, ask }].
- * Only its own posts about an ask, as compose() writes them (a card for the ask's page, and a
- * mention of who's asking), never anything written by hand.
+ * Only its own posts about one ask, as it wrote them before 20 November 2026 (a card for the ask's
+ * page, and a mention of who's asking), never anything written by hand.
  */
 export function hiddenPosts(posts, hidden){
   if (!hidden?.size) return [];
@@ -175,7 +101,6 @@ export function hiddenPosts(posts, hidden){
     return hiddenBy(hidden, ask, did) ? [{ rkey: p.rkey, ask }] : [];
   });
 }
-const posted = (ask, who, done) => done.keys.has(ask.rkey) || done.links.has(`${ask.repo.toLowerCase()} ${ask.rkey}`) || (!!who?.handle && done.links.has(`${who.handle} ${ask.rkey}`));
 
 // Who the account blocks, from its own records, and who among `dids` blocks it, as far as Bluesky says.
 export async function blocked(dids){
@@ -194,21 +119,11 @@ export async function whoAre(dids){
   }));
 }
 
-// Those of `asks` that haven't been posted and whose askers aren't blocked, each with `who` asked.
-async function unposted(asks, { read, now }){
-  if (!asks.length) return Object.assign([], { done: await postedAlready(), hidden: await read.hidden() });
-  const authors = [...new Set(asks.map(a => a.repo))];
-  // Takes and turn-ins are read whole: if they can't be, nothing is posted, rather than an ask someone's on.
-  const [done, blocks, who, takes, deliveries, hidden] = await Promise.all([postedAlready(), blocked(authors), whoAre(authors), read(TAKE), read(DELIVERY), read.hidden()]);
-  const todo = asks.filter(a => !blocks.has(a.repo) && !posted(a, who.get(a.repo), done) && free(a, { takes, deliveries, hidden, blocks, now }))
-    .map(a => ({ ...a, who: who.get(a.repo) }));
-  return Object.assign(todo, { done, hidden });
-}
 /**
  * Whether nobody's on an ask: what the board calls "Nobody on it yet" (progressOf in
  * ../core/words.js). Nobody holds it with a take that hasn't lapsed, nothing's been turned in,
  * and it isn't done or closed. As on the board, a take or turn-in that's hidden, or from someone
- * in `blocks`, doesn't count, so nobody can keep an ask off the account by saying they're on it.
+ * in `blocks`, doesn't count, so nobody can keep an ask out of the count by saying they're on it.
  */
 export const free = (ask, opts) => progressFor(ask, opts).key === 'open';
 /** How far an ask has got (progressOf, ../core/words.js), counting takes and turn-ins as free() does: { key, helpers, … }. */
@@ -220,38 +135,26 @@ export function progressFor(ask, { takes = [], deliveries = [], hidden = new Map
 const segmenter = typeof Intl?.Segmenter === 'function' ? new Intl.Segmenter() : null;
 export const graphemes = s => segmenter ? Array.from(segmenter.segment(s), x => x.segment) : [...s];
 export const bytes = s => new TextEncoder().encode(s).length;
-const fits = s => graphemes(s).length <= MAX_GRAPHEMES && bytes(s) <= MAX_BYTES;
+
+// Record keys (TIDs): microseconds since 1970 and a clock ID, in sortable base32.
+const S32 = '234567abcdefghijklmnopqrstuvwxyz';
+/** The record key for a moment (ms): the day's post takes its day's 15:45 UTC. */
+export function tidAt(ms, clockId = 0){
+  let n = (BigInt(Math.floor(ms)) * 1000n) << 10n | BigInt(clockId), s = '';
+  for (let i = 0; i < 13; i++) { s = S32[Number(n & 31n)] + s; n >>= 5n; }
+  return s;
+}
 
 /**
- * What to post about an ask, given who asked ({ did, handle, name }):
- * { text, facets, card: { uri, title, description, image } }. The text names them, with a
- * mention, and gives the title, cut short if that's what it takes to fit in a post:
+ * The day's post, given how many new asks it counts: { text, facets, card: { uri, title,
+ * description, image } }, with "the board" linked, and a card for the board, as the site's own
+ * link preview has it (../../api/_og/describe.js):
  *
- *   Alice (@alice.example) is asking for help with a project:
- *
- *   Keep drafts out of the feed
+ *   There are 3 new asks on the board.
  */
-export function compose(ask, who){
-  const v = ask.value, at = who.handle ? '@' + who.handle : '';
-  const opening = name => at ? (name ? `${name} (${at})` : at) : name || 'Someone';
-  const rest = ` is asking for help with ${aNoun(v)}:\n\n`;
-  // A name that leaves no room for the title is left out: the mention says who it is.
-  const name = who.name && who.name !== at && fits(opening(who.name) + rest + '…') ? who.name : '';
-  const start = opening(name) + rest;
-  let title = graphemes(clean(v.title, 120)), text = start + title.join('');
-  while (!fits(text) && title.length) { title = title.slice(0, -1); text = start + title.join('').trimEnd() + '…'; }
-  const before = name ? name + ' (' : '';
-  const facets = at ? [{ index: { byteStart: bytes(before), byteEnd: bytes(before + at) }, features: [{ $type: 'app.bsky.richtext.facet#mention', did: who.did }] }] : [];
-  const excerpt = clean(askExcerpt(typeof v.spec === 'string' ? v.spec : ''), 200);
-  return {
-    text, facets,
-    card: {
-      uri: `${SITE}/seed/${who.handle || ask.repo}/${ask.rkey}`,
-      title: clean(v.title, 120),
-      description: excerpt || `${who.name || at || 'Someone'} is asking for help with ${aNoun(v)} on Rainshare.`,
-      image: `${SITE}/api/og?kind=seed&who=${encodeURIComponent(ask.repo)}&rkey=${encodeURIComponent(ask.rkey)}`
-    }
-  };
+export async function compose(count){
+  const { text, facets } = counted(rich(), count).build(), page = await describe({ kind: 'board' });
+  return { text, facets, card: { uri: SITE + '/board', title: page.heading, description: page.description, image: SITE + page.image } };
 }
 
 // One call to a server: a query with `params`, or a procedure with `body` (JSON, or bytes of `type`).
@@ -330,57 +233,58 @@ async function thumbnail(url, upload){
 }
 
 /**
- * Post the board's new asks to the account, or with `post: false`, only say what would be
- * posted (which needs no password). `log` is told each step in a line.
+ * The day's post, once 15:45 UTC has gone, or with `post: false`, only what it would say (which
+ * needs no password). `log` is told each step in a line.
  *
- * { setUp, dryRun, found, skipped, waiting, posts: [{ ask, text, link, uri, error }], later, takenDown }:
- * `found` is how many asks were new, `skipped` how many of them were posted already, blocked or
- * taken up, `waiting` how many are waiting for the approver's answer (./review.js), `later` how many
- * are left for the next run, and `takenDown` the posts about asks hidden since: [{ ask, uri, error }].
+ * { setUp, dryRun, day, count, post: { text, link, uri, error } | null, takenDown }: `day` is the
+ * day's 15:45 UTC that the post is for (ISO), `count` how many new asks it counts, `post` the post
+ * if this run made it (or would have), and `takenDown` the posts about asks hidden since:
+ * [{ ask, uri, error }].
  */
-export async function announce({ post = true, password = process.env.RAINSHARE_BLUESKY_APP_PASSWORD, now = Date.now(), max = MAX_POSTS, log = console.log, read = reader(), as = session(password) } = {}){
+export async function announce({ post = true, password = process.env.RAINSHARE_BLUESKY_APP_PASSWORD, now = Date.now(), log = console.log, read = reader(), as = session(password) } = {}){
   if (post && !password) {
-    log(`RAINSHARE_BLUESKY_APP_PASSWORD isn't set, so nothing was posted. Set it to an app password for ${ACCOUNT} (@rainshare.dev) to post new asks there.`);
-    return { setUp: false, dryRun: false, found: 0, skipped: 0, waiting: 0, posts: [], later: 0, takenDown: [] };
+    log(`RAINSHARE_BLUESKY_APP_PASSWORD isn't set, so nothing was posted. Set it to an app password for ${ACCOUNT} (@rainshare.dev) to post there.`);
+    return { setUp: false, dryRun: false, day: null, count: 0, post: null, takenDown: [] };
   }
-  const reviews = read.reviews ? await read.reviews() : null, asks = await newAsks(now, read, reviews), todo = await unposted(asks, { read, now });
-  // Ready: the approver said YES or POST. Waiting: they haven't answered yet. The rest (NO, SEND) aren't posted.
-  const ready = todo.filter(a => cleared(a, reviews, 'post')), waiting = todo.filter(a => !cleared(a, reviews, 'post') && !decided(a, reviews)).length;
-  const posts = ready.slice(0, max).map(a => ({ ask: a.uri, rkey: a.rkey, ...compose(a, a.who), uri: null, error: null }));
-  const down = hiddenPosts(todo.done.posts, todo.hidden).map(d => ({ ...d, uri: net.recordUri(ACCOUNT, POST, d.rkey), error: null }));
-  const result = () => ({ setUp: !!password, dryRun: !post, found: asks.length, skipped: asks.length - todo.length, waiting,
-    posts: posts.map(({ ask, text, card, uri, error }) => ({ ask, text, link: card.uri, uri, error })), later: ready.length - posts.length,
-    takenDown: down.map(({ ask, uri, error }) => ({ ask, uri, error })) });
-  log(`${asks.length} new ${asks.length === 1 ? 'ask' : 'asks'}, ${asks.length - todo.length} posted already, blocked or with someone on them, ${waiting} waiting for review${reviews ? '' : ' (there’s no review queue to read)'}, ${posts.length} to post${ready.length > posts.length ? `, ${ready.length - posts.length} left for next time` : ''}.`);
+  const day = boundary(now, true), from = day - DAY, rkey = tidAt(day), asked = s => Date.parse(s.value?.createdAt);
+  // Takes and turn-ins are read whole: if they can't be, nothing is posted, rather than a count with an ask someone's on.
+  const [seeds, takes, deliveries, hidden, mine] = await Promise.all([read(SEED), read(TAKE), read(DELIVERY), read.hidden(), net.listRecords(ACCOUNT, POST, { pages: 3 })]);
+  const blocks = await blocked([...new Set(seeds.filter(s => passable(s.value) && asked(s) >= from && asked(s) < day).map(s => s.repo))]);
+  const count = newOnBoard(seeds, { takes, deliveries, from, to: day, hidden, blocks, now }).length;
+  const up = mine.some(p => p.rkey === rkey);
+  const p = !up && count ? { ...(await compose(count)), uri: null, error: null } : null;
+  const down = hiddenPosts(mine, hidden).map(d => ({ ...d, uri: net.recordUri(ACCOUNT, POST, d.rkey), error: null }));
+  const result = () => ({ setUp: !!password, dryRun: !post, day: new Date(day).toISOString(), count,
+    post: p && { text: p.text, link: p.card.uri, uri: p.uri, error: p.error }, takenDown: down.map(({ ask, uri, error }) => ({ ask, uri, error })) });
+  const when = new Date(day).toISOString().slice(0, 10);
+  log(up ? `The post for ${when} is up already.` : count ? `${count} new ${count === 1 ? 'ask' : 'asks'} on the board for ${when}.` : `No new asks on the board for ${when}, so no post.`);
   if (!post) {
-    for (const p of posts) log(`\nWould post, for ${p.ask}:\n  ${p.text.replace(/\n/g, '\n  ')}\n  [${p.card.title}](${p.card.uri})`);
+    if (p) log(`\nWould post, for ${when}:\n  ${p.text}\n  [${p.card.title}](${p.card.uri})`);
     for (const d of down) log(`Would take down ${d.uri}: ${d.ask} is hidden.`);
     return result();
   }
-  if (!posts.length && !down.length) return result();
+  if (!p && !down.length) return result();
 
   await as.signIn();   // a wrong password stops the run here, before anything is posted
   for (const d of down) {
     try { await as.post('com.atproto.repo.deleteRecord', { repo: ACCOUNT, collection: POST, rkey: d.rkey }); log(`Took down ${d.uri}: ${d.ask} is hidden.`); }
     catch (e) { d.error = e.message; log(`Couldn't take down ${d.uri}: ${e.message}`); }
   }
+  if (!p) return result();
   const upload = async (body, type) => (await as.post('com.atproto.repo.uploadBlob', body, { type })).blob || null;
-  const thumbs = await Promise.all(posts.map(p => thumbnail(p.card.image, upload)));
-  for (const [i, p] of posts.entries()) {
-    const rkey = TID.test(p.rkey) ? p.rkey : undefined;
-    const record = {
-      $type: POST, text: p.text, ...(p.facets.length ? { facets: p.facets } : {}), langs: ['en'],
-      embed: { $type: 'app.bsky.embed.external', external: { uri: p.card.uri, title: p.card.title, description: p.card.description, ...(thumbs[i] ? { thumb: thumbs[i] } : {}) } },
-      createdAt: new Date().toISOString()
-    };
-    try {
-      p.uri = (await as.post('com.atproto.repo.createRecord', { repo: ACCOUNT, collection: POST, ...(rkey ? { rkey } : {}), record })).uri || null;
-      log(`Posted ${p.ask} as ${p.uri}.`);
-    } catch (e) {
-      // Refused because another run has just posted it: that's done, not failed.
-      if (rkey && await net.getRecordOrNull(ACCOUNT, POST, rkey).catch(() => null)) { p.uri = net.recordUri(ACCOUNT, POST, rkey); log(`${p.ask} was posted by another run, as ${p.uri}.`); }
-      else { p.error = e.message; log(`Couldn't post ${p.ask}: ${e.message}`); }
-    }
+  const thumb = await thumbnail(p.card.image, upload);
+  const record = {
+    $type: POST, text: p.text, facets: p.facets, langs: ['en'],
+    embed: { $type: 'app.bsky.embed.external', external: { uri: p.card.uri, title: p.card.title, description: p.card.description, ...(thumb ? { thumb } : {}) } },
+    createdAt: new Date().toISOString()
+  };
+  try {
+    p.uri = (await as.post('com.atproto.repo.createRecord', { repo: ACCOUNT, collection: POST, rkey, record })).uri || null;
+    log(`Posted the count for ${when} as ${p.uri}.`);
+  } catch (e) {
+    // Refused because another run has just posted it: that's done, not failed.
+    if (await net.getRecordOrNull(ACCOUNT, POST, rkey).catch(() => null)) { p.uri = net.recordUri(ACCOUNT, POST, rkey); log(`The post for ${when} was made by another run, as ${p.uri}.`); }
+    else { p.error = e.message; log(`Couldn't post the count for ${when}: ${e.message}`); }
   }
   return result();
 }

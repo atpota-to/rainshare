@@ -1,7 +1,7 @@
 // index.js
 // rainshare-index: every dev.rainshare.* record on the network, kept in Supabase from Jetstream
-// and reconciled against each repo, so whatever needs Rainshare's records (the announcer, the
-// review queue, and later the site) reads one database instead of every repo. See ../README.md.
+// and reconciled against each repo, so whatever needs Rainshare's records (the announcer, and
+// later the site) reads one database instead of every repo. See ../README.md.
 //
 // It's atpota-to/atpota.to's garden index (garden/src/index.js) for Rainshare's lexicon, on the
 // same droplet: one Jetstream connection, batched writes, a reconcile every few hours, and a

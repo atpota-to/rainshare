@@ -23,9 +23,9 @@
 //
 // Nothing the account has hidden (../core/moderation.js) is in anyone's news, and it doesn't
 // message an account it has hidden. The day's new asks are the ones on the board, open to
-// everyone, that nobody's on yet, counted for the day they were asked. They don't wait for the
-// approver (./review.js): the count names no ask and nobody, and the board shows them all
-// anyway. The approver's answer is only about @rainshare.dev's post.
+// everyone, that nobody's on yet, counted for the day they were asked. The count names no ask
+// and nobody, and the board shows them all anyway. @rainshare.dev's post for the day
+// (./posts.js) counts the same asks.
 //
 // Stopping, three ways, and any one does it:
 //   - switch them off in their settings (/settings)
@@ -148,7 +148,6 @@ const askedAt = s => Date.parse(s?.value?.createdAt);
  * The new asks the day's message counts, asked from `from` up to `to`: on the board for everyone
  * and not very likely a trick (`passable`, ./posts.js), not hidden, nobody on them as of `now`
  * (`free`), and not from anyone in `blocks` or from `except` (whoever the message is for).
- * Whatever the approver said, short of hiding it.
  */
 export function newOnBoard(seeds, { takes = [], deliveries = [], from, to, hidden = new Map(), blocks = new Set(), except = null, now = Date.now() }){
   const shown = list => list.filter(x => !isHidden(hidden, x));

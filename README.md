@@ -158,9 +158,9 @@ trusted.
   bounties or client work; no hunting for security holes in software that isn't yours. Two of the
   checks look for the last two (`paid` and `vuln-hunting` in `core/scan.js`), and "Against the
   guidelines" is one of the reasons a hide can give.
-- **A person reads each new ask before @rainshare.dev shares it.** The ask is on the board straight
-  away, but it isn't posted or put in anyone's messages until the approver says so (see
-  [Running Rainshare](#running-rainshare)). An edit asks again.
+- **Nobody reads an ask before it's on the board.** @rainshare.dev only says how many new asks
+  there are, once a day, and names none of them, so nothing it posts or sends waits for a person.
+  Read every ask yourself before your agent does.
 
 A repo you clone can carry its own agent config (`CLAUDE.md`, hooks, `.mcp.json`), so look before
 you trust a folder you haven't seen.
@@ -214,8 +214,7 @@ to replace with an index at thousands.
 
 That index exists for @rainshare.dev already: [`indexer/`](indexer) keeps every `dev.rainshare.*`
 record in Supabase, from Jetstream, reconciled against every repo every six hours. The announcer
-reads the board from it while its heartbeat is fresh, and the review queue lives beside the
-records. The site doesn't use it yet. [`indexer/README.md`](indexer/README.md) has the rest.
+reads the board from it while its heartbeat is fresh. The site doesn't use it yet. [`indexer/README.md`](indexer/README.md) has the rest.
 
 `core/status.js` combines Rainshare's records with what the forge says (is the issue closed, was
 a pull request merged) to work out where an ask stands. Nothing closes automatically: whether a
@@ -247,9 +246,9 @@ you press a button that says so. The scopes are `FORGE_SCOPES` in `core/ns.js`.
 | `core/` | everything the site and the CLI share. Each file starts with a comment saying what it does |
 | `cli/rainshare.mjs` | the CLI and MCP server |
 | `api/` | Vercel functions: the OAuth client metadata, and link previews |
-| `announcer/`, `indexer/`, `droplet/` | @rainshare.dev's review, posts and messages, the index of every record, and how they're deployed |
+| `announcer/`, `indexer/`, `droplet/` | @rainshare.dev's daily post and messages, the index of every record, and how they're deployed |
 | `lexicons/` | the record schemas and permission set, and the scripts that publish and check them |
-| `supabase/` | the ledger of who agreed to the terms, the index and the review queue |
+| `supabase/` | the ledger of who agreed to the terms, and the index |
 | `scripts/` | the image scripts, `feedback.mjs` and `announce.mjs` |
 | `test/` | `npm test` |
 
@@ -299,8 +298,8 @@ use a new NSID instead. If nobody has written records under the published schema
 
 `@vercel/og` is pinned to 0.11.1, because 1.0.3 doesn't load as an ES module in Node.
 
-The announcer, which asks the approver about new asks, posts the ones they say yes to from
-@rainshare.dev and sends the messages people ask for, runs on a droplet beside the index, and both
+The announcer, which posts once a day from @rainshare.dev to say how many new asks there are
+and sends the messages people ask for, runs on a droplet beside the index, and both
 deploy themselves when `main` changes. See
 [`announcer/README.md`](announcer/README.md) and [`droplet/README.md`](droplet/README.md).
 `npm run announce` shows what it would post and send right now, without doing either.
@@ -312,14 +311,12 @@ deploy themselves when `main` changes. See
   `dev.rainshare.moderation` record in @rainshare.dev's repo, and only that repo's are read, so it
   needs no server of its own. Write notes that are fine for anyone to read. See
   `core/moderation.js`.
-- **Review.** The announcer sends the approver (dame.is, by DID) a direct message with every new
-  ask waiting for their answer, numbered: each as @rainshare.dev would post it, with what the
-  checks noticed, and under them what the day's direct message about new asks says so far. A
-  new list replaces one that wasn't answered. They reply **YES** (post them all), **NO** (post
-  none, and leave them on the board), by number (**YES 1 3**, **NO 2**), or **HIDE** with a
-  number and why (hide it, and take down any post). An answer holds for that version of the ask
-  only. Without the queue, nothing new is posted. The day's direct message about new asks
-  doesn't wait for the approver: it only counts them. See `announcer/src/review.js`.
+- **What @rainshare.dev shares.** Once a day, after 15:45 UTC, it posts how many new asks there
+  are on the board, and sends the same count to people who asked for it by direct message. Neither
+  names an ask, so nobody approves them first: hiding an ask on the moderation page keeps it out
+  of the count. Until 20 November 2026 it posted asks one by one after a person said yes by
+  direct message; that review, and its queue in the index, are gone. See
+  `announcer/src/posts.js`.
 - **Leaving someone out of the index.** When someone asks for their records to be kept out of
   Rainshare's copy (the Privacy Policy says they can), add their DID to `rainshare_index_excluded`
   in Supabase. The database deletes what the index has of theirs and turns the rest away.

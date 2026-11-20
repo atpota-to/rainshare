@@ -16,7 +16,6 @@ import { FLUSH_MS } from '../indexer/src/indexer.js';
 import { GONE_ERRORS } from '../indexer/src/backfill.js';
 import { loadConfig } from '../indexer/src/config.js';
 import { FRESH } from '../announcer/src/index-db.js';
-import { ACCOUNT, APPROVER, ALLOWS, cleared } from '../announcer/src/posts.js';
 
 // This browser's storage (Node has none of its own).
 const kept = new Map();
@@ -114,12 +113,12 @@ test('the Privacy Policy names every service the code asks, and everything kept 
   // the policy says both halves, where it runs, and what it listens to.
   assert.ok(existsSync(new URL('../announcer/src/posts.js', import.meta.url)) && existsSync(new URL('../announcer/src/messages.js', import.meta.url)));
   assert.match(readFileSync(new URL('../announcer/src/index.js', import.meta.url), 'utf8'), /wss:\/\/jetstream\.us-east\.bsky\.network/);
-  for (const says of [/posted once on Bluesky by @rainshare\.dev, with its title and a mention of whoever asked/, /nobody has taken up yet/, /block it on Bluesky/,
+  for (const says of [/Once a day, after 15:45 UTC, @rainshare\.dev posts on Bluesky how many new asks there are on the board/, /nobody has taken up yet/, /any ask from an account that blocks @rainshare\.dev/,
     /only when there’s news\. News about your asks and what you’ve helped with comes within a minute or two\. Once a day, it can tell you how many new asks are on the board/,
     /reads that conversation to see what it last sent you, and whether you replied STOP or START/, /whether you’ve asked for direct messages from @rainshare\.dev/,
     /listens to Bluesky’s Jetstream/, /a small server of ours at DigitalOcean/, /its log of what it posted and whom it messaged/]) assert.match(all, says);
-  // Rainshare's note of who agreed (core/agreement.js, supabase/): one of the three things it keeps in a database of
-  // its own (the index and the review queue are the other two, checked in the next test). The policy says where it is
+  // Rainshare's note of who agreed (core/agreement.js, supabase/): one of the two things it keeps in a database of
+  // its own (the index is the other, checked in the next test). The policy says where it is
   // and what's in it, column for column, and what isn't.
   assert.match(new URL(LEDGER).host, /\.supabase\.co$/);
   const ledger = readFileSync(new URL('../supabase/migrations/20261114190000_rainshare_terms_acceptance.sql', import.meta.url), 'utf8');
@@ -127,8 +126,8 @@ test('the Privacy Policy names every service the code asks, and everything kept 
   assert.deepEqual(columns, ['id', 'did', 'policy_version', 'document', 'accepted_at', 'via', 'record_uri', 'record_cid', 'proof', 'logged_at'], 'a new column belongs in the policy, then here');
   for (const says of [/Supabase, where our note that you agreed to the terms is kept/, /your account’s ID \(its DID\), the version, when you agreed, whether that was on the site or with the CLI, and a copy of the record as your host signed it/,
     /holds no IP address and nothing about your browser/, /in the same database at Supabase, in a part of it that isn’t open to the public/, /Our own note that you agreed to the terms stays when you delete your record of it/, /that you agreed to Rainshare’s terms, which version, and when/]) assert.match(all, says);
-  // Three things in all, said up front. The copy is of public records, and the lead doesn't make light of holding it.
-  assert.match(PRIVACY.lead, /We keep three things in a database of our own: a copy of the Rainshare records in people’s accounts, a note for each ask that says whether @rainshare\.dev may pass it on, and a note that you agreed to the terms/);
+  // Two things in all, said up front. The copy is of public records, and the lead doesn't make light of holding it.
+  assert.match(PRIVACY.lead, /We keep two things in a database of our own: a copy of the Rainshare records in people’s accounts, and a note that you agreed to the terms/);
   assert.match(PRIVACY.lead, /already public in the accounts they’re in\. Our copy is still a copy that we hold/);
   assert.doesNotMatch(all, /keeps almost nothing|The one record/);
   // Every key the site keeps in the browser. A new one belongs in the policy's list too, then here.
@@ -145,7 +144,7 @@ test('the Privacy Policy names every service the code asks, and everything kept 
   for (const [kind, says] of Object.entries(said)) assert.match(all, says, kind);
 });
 
-test('the Privacy Policy says what the index and the review queue keep, who can read them, and when a copy goes', () => {
+test('the Privacy Policy says what the index keeps, who can read it, and when a copy goes, and that the review queue is gone', () => {
   const all = asMarkdown(PRIVACY);
   const section = name => PRIVACY.sections.find(([h]) => h === name)[1];
   const collected = section('What we collect'), sends = section('What @rainshare.dev posts and sends'), deleting = section('Deleting, and how long things last'), rights = section('Your rights');
@@ -182,30 +181,21 @@ test('the Privacy Policy says what the index and the review queue keep, who can 
     assert.doesNotMatch(readFileSync(new URL(f, import.meta.url), 'utf8'), /rainshare_(records|list|status|review)|\/rest\/v1\//, `${f} reads the index: the policy’s list of servers says so first`);
   assert.match(section('What your browser asks other servers'), /Supabase, where our note that you agreed to the terms is kept\. It’s asked when you agree, and again the next time you sign in if the note wasn’t made then\n/);
 
-  // The review queue (announcer/src/review.js, rainshare_review): what a note holds, column for column, and who can read it.
-  assert.deepEqual(columnsOf('rainshare_review'), ['seed_uri', 'cid', 'status', 'requested_at', 'request_id', 'decided_at', 'decided_by', 'note', 'queued_at'], 'a new column belongs in the policy, then here');
-  assert.deepEqual([...later.match(/check \(status in \(([^)]+)\)\)/)[1].matchAll(/'([a-z_]+)'/g)].map(m => m[1]), ['pending', 'approved', 'post_only', 'send_only', 'declined', 'hidden'], 'a new answer belongs in the policy, then here');
-  assert.match(sends, /The note holds the ask’s address and which version of it the note is about, where things stand \(waiting, yes, no, or hidden, and for some answers given before 20 November 2026, yes to posting only or yes to sending only\), when the note was made, when the reviewer was asked and the ID of the message that asked, when they answered, the reviewer’s account ID, and a short reason if they hid the ask/);
-  assert.match(sql, /revoke all on table public\.rainshare_review from anon, authenticated/);
-  assert.match(sends, /Only we and Supabase can read it\. Every ask gets a note when it’s first copied/);
-  // Nothing new is posted before the reviewer's yes, for that version of the ask: except their own asks, and the account's.
-  assert.deepEqual(ALLOWS, { post: ['approved', 'post_only'], send: ['approved', 'send_only'] });
-  assert.ok(cleared({ repo: ACCOUNT }, null) && cleared({ repo: APPROVER }, null) && !cleared({ repo: 'did:plc:someone', uri: 'at://x', cid: 'c' }, null));
-  assert.match(sends, /Before @rainshare\.dev posts a new ask, the server puts it to a person who helps run Rainshare \(the reviewer\)/);
-  assert.match(sends, /a direct message on Bluesky listing the asks waiting for an answer, each as @rainshare\.dev would post it \(its title and who asked\), with what Rainshare’s checks noticed/);
-  assert.match(sends, /The reviewer can say yes, which lets @rainshare\.dev post the ask/);
-  assert.match(sql, /status = 'pending', requested_at = null/);
-  assert.match(sends, /if you edit the ask, the answer is cleared, and the new version waits for an answer of its own/);
-  assert.match(sends, /Asks from the reviewer’s own account and from @rainshare\.dev are posted without this step/);
-  assert.match(sends, /once the reviewer has said yes to posting it/);
-  // The day's message about new asks only counts them, so it doesn't wait for the reviewer (announcer/src/messages.js).
+  // The review queue is gone (supabase/migrations/…_rainshare_review_drop.sql): @rainshare.dev's post only counts new
+  // asks (announcer/src/posts.js), so nobody reads them first, and no note is kept for each ask any more.
+  const dropped = readFileSync(new URL('../supabase/migrations/20261120090000_rainshare_review_drop.sql', import.meta.url), 'utf8');
+  for (const what of ['trigger if exists rainshare_review_enqueue', 'function if exists public.rainshare_reviews(', 'function if exists public.rainshare_review_requested(', 'function if exists public.rainshare_review_decide(', 'table if exists public.rainshare_review;'])
+    assert.ok(dropped.includes('drop ' + what), what);
+  assert.doesNotMatch(all, /holds a note for each ask|review notes?\b|may pass it on/);
+  assert.match(sends, /We kept the reviewer’s answers in a note for each ask in our database, and those notes are deleted/);
+  assert.match(sends, /Once a day, after 15:45 UTC, @rainshare\.dev posts on Bluesky how many new asks there are on the board/);
+  assert.match(sends, /It names no ask and nobody who asked, so nobody on our side reads the asks before they’re counted/);
+  assert.match(sends, /We don’t count anything we’ve hidden, any ask our checks find very likely to be a trick, or any ask from an account that blocks @rainshare\.dev or that it blocks/);
   assert.match(sends, /Once a day, it can tell you how many new asks are on the board: only the number, with no titles or names/);
-  assert.match(sends, /If we hide an ask after it was posted, the server deletes the post/);
+  assert.match(sends, /If we hide an ask that was posted, the server deletes the post/);
   assert.match(sends, /The messages between @rainshare\.dev and the reviewer are kept by Bluesky’s chat service/);
-  // A yes is leave to pass an ask on, and no more. Review isn't said to make an ask safe, here or in the Terms.
-  assert.match(sends, /Review doesn’t hold your ask back from the board/);
-  assert.match(sends, /A yes means only that @rainshare\.dev may post the ask\. It doesn’t say the ask is safe\./);
-  assert.equal((sends.match(/\bsafe\b/g) || []).length, 1, 'the one time “safe” comes up there, it’s to say what a yes isn’t');
+  // Nothing there says an ask is safe.
+  assert.doesNotMatch(sends, /\bsafe\b/);
   assert.match(asMarkdown(TERMS), /An ask with no flag isn’t a safe ask/);
 
   // When a copy goes: with the stream, within seconds; at the six-hourly check otherwise; and the note with its ask.
@@ -219,20 +209,18 @@ test('the Privacy Policy says what the index and the review queue keep, who can 
   assert.deepEqual(GONE_ERRORS, ['RepoNotFound', 'RepoDeactivated', 'RepoTakendown', 'RepoSuspended']);
   assert.match(deleting, /deleted, deactivated, suspended or taken down, that check deletes our copies of all its Rainshare records/);
   assert.match(deleting, /nothing of that account’s is deleted at that check, and the next one tries again/);
-  assert.match(sql, /seed_uri\s+text\s+primary key references public\.rainshare_records \(uri\) on delete cascade/);
-  assert.match(deleting, /The review note about an ask is deleted with our copy of the ask, in the same step/);
   assert.match(deleting, /stay in that conversation at Bluesky, and the server’s log keeps its lines about it until they’re cleared/);
   assert.match(deleting, /Supabase also backs up our database, so a row we’ve deleted can stay in a backup until that backup expires/);
   assert.match(section('Moderation'), /Our own copy of the decision \(see “A copy of Rainshare’s records”\) is deleted when the decision is/);
 
   // What we hold, for anyone who asks, and the basis for each in Europe: both under legitimate interests.
-  assert.match(rights, /What we hold ourselves is our copy of your Rainshare records, the review note for each of your asks, our note that you agreed to the terms/);
-  assert.match(rights, /what it sent the reviewer about your asks, the log on its server/);
+  assert.match(rights, /What we hold ourselves is our copy of your Rainshare records, our note that you agreed to the terms/);
+  assert.match(rights, /what it sent the reviewer about your asks before 20 November 2026, the log on its server/);
   assert.match(rights, /To have our copies deleted, delete the records, or ask us to leave your account out of the copy: we then delete what the copy has of yours and keep it from being copied again/);
   assert.match(rights, /and your account’s ID on the list that keeps your records out of our copy, if you’ve asked for that/);
   assert.match(rights, /For our copy of your records, stopping means leaving your account out of it/);
   assert.doesNotMatch(all, /wouldn’t last/);
-  assert.match(rights, /For the rest we rely on our legitimate interests:[\s\S]*\n- keeping a copy of Rainshare’s public records, so @rainshare\.dev’s server can read the board from one place[^\n]*\n- having a person answer about each new ask before @rainshare\.dev passes it on, and keeping that answer, so that we choose what our own account spreads\n- keeping the list of accounts that asked to be left out of our copy, so that their records stay out\n/);
+  assert.match(rights, /For the rest we rely on our legitimate interests:[\s\S]*\n- keeping a copy of Rainshare’s public records, so @rainshare\.dev’s server can read the board from one place[^\n]*\n- keeping the list of accounts that asked to be left out of our copy, so that their records stay out\n/);
 
   // Being left out of the copy (supabase/migrations/…_rainshare_index_excluded.sql): a list of accounts, by DID, that
   // the database itself keeps out. The policy says what the list holds, column for column, and what it does.
@@ -244,7 +232,7 @@ test('the Privacy Policy says what the index and the review queue keep, who can 
   assert.match(out, /lock table public\.rainshare_records in share row exclusive mode;\s+delete from public\.rainshare_records where did = new\.did;/);
   assert.match(out, /create trigger rainshare_skip_excluded before insert or update on public\.rainshare_records/);
   assert.match(out, /if exists \(select 1 from public\.rainshare_index_excluded x where x\.did = new\.did\) then\s+return null;/);
-  assert.match(collected, /The database then deletes every row it has from that account, with the review notes for its asks, and refuses any record from it from then on/);
+  assert.match(collected, /The database then deletes every row it has from that account, and refuses any record from it from then on/);
   // Only the service role reads the list, and @rainshare.dev's own account can't be put on it. (No repetition count
   // above 255 in the pattern: Postgres refuses one, and every insert with it.)
   assert.match(out, /revoke all on table public\.rainshare_index_excluded from anon, authenticated/);
@@ -253,15 +241,15 @@ test('the Privacy Policy says what the index and the review queue keep, who can 
   assert.match(collected, /The list is in the same database, and only we and Supabase can read it/);
   // What it means for them: the site works as before, and @rainshare.dev's server no longer sees their records.
   assert.match(collected, /The site reads the network, so Rainshare goes on working for you as before/);
-  assert.match(collected, /your asks aren’t passed on, and the direct messages you switched on stop\. Ask, and we’ll take your account off the list/);
+  assert.match(collected, /your asks aren’t counted in its post or its messages, and the direct messages you switched on stop\. Ask, and we’ll take your account off the list/);
   assert.match(PRIVACY.lead, /If you ask us to keep your records out of that copy, your account’s ID goes on a list there that keeps them out/);
   assert.match(deleting, /To have our copies deleted while your records stay in your account, ask us to leave your account out of the copy/);
   assert.match(section('Children'), /and leave their account out of our copy of Rainshare’s records, as quickly as we can/);
 
   // In short, and in the document's own voice: no em dashes.
   assert.ok(PRIVACY.short.some(x => /keeps a copy of your Rainshare records in a database of its own, and anyone can read that copy\. When you delete a record, our copy of it is deleted too, and you can ask us to keep your records out of it/.test(x)));
-  assert.ok(PRIVACY.short.some(x => /a note for each ask of whether @rainshare\.dev may pass it on, and a note that you agreed to the terms/.test(x)));
-  assert.ok(PRIVACY.short.some(x => /once a person on our side has said yes to it/.test(x)));
+  assert.ok(PRIVACY.short.some(x => /The same database holds a note that you agreed to the terms\. That isn’t open to the public/.test(x)));
+  assert.ok(PRIVACY.short.some(x => /posts once a day on Bluesky to say how many new asks there are, without naming any/.test(x)));
   for (const doc of [TERMS, PRIVACY]) assert.doesNotMatch(asMarkdown(doc), /—/, `${doc.key}: no em dashes`);
 });
 
