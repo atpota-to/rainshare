@@ -51,6 +51,7 @@ const ICON = {
   hat: '<path d="M3.5 17h17"/><path d="M6.5 17v-5.5a5.5 5.5 0 0 1 11 0V17"/><path d="M6.5 13.5h11"/>',
   shield: '<path d="M12 3.5l7 2.6v5.5c0 4.2-3 7.6-7 8.9-4-1.3-7-4.7-7-8.9V6.1z"/><path d="M12 8.5v4M12 15.6v.1"/>',
   share: '<path d="M12 14.5V3.5M8 7.5l4-4 4 4"/><path d="M8.5 10.5H7a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-1.5"/>',
+  bin: '<path d="M4.5 7h15M9.5 7V5.2c0-.7.5-1.2 1.2-1.2h2.6c.7 0 1.2.5 1.2 1.2V7M6.5 7l.9 11.4c.1 1.1 1 2.1 2.1 2.1h5c1.1 0 2-1 2.1-2.1L17.5 7M10 11v5.5M14 11v5.5"/>',
   pull: '<circle cx="7" cy="6" r="2.2"/><circle cx="7" cy="18" r="2.2"/><circle cx="17" cy="18" r="2.2"/><path d="M7 8.2v7.6M11 6h3a3 3 0 0 1 3 3v6.8M13.2 3.8L11 6l2.2 2.2"/>'
 };
 // The weather and the life of a seed, in the same pictures as the landing's scene: a forecast

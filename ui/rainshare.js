@@ -7,7 +7,9 @@
 //                      like. Short cards in a list, and the one you pick in full beside them (a
 //                      sheet from the bottom on phones), with how you know whoever asked. What
 //                      you've asked for that's still open is there too, after the rest; all
-//                      of it, open or done, is on your own page (profile/<you>)
+//                      of it, open or done, is on your own page (profile/<you>). Under what's
+//                      open, what's probably done (a pull request merged, the issue closed, and
+//                      nobody's marked it done), then what's done
 //   seed/<did>/<rkey>  a public seed (a handle works in place of the DID)
 //   seed/s/<code>      a private one, in a group's space (its record URI, base64url)
 //   new                plant a seed (./post.js)
@@ -30,7 +32,7 @@
 // every way back to the board leads there, to the board on its own.
 import { SEED, PROFILE, STAGE, HANDLE, SITE, FEATURES, TAKE_DAYS, TAKE_DAYS_DEFAULT, ROUTES, PLANS, UNPAID, plansIn, typedPlan, HARNESSES, MODELS, RUNS_ON, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, NOTIFY, labelOf, modelName, githubLogin } from '../core/ns.js';
 import { describeSubject, safeHttp, pullState, forkOf, linkedPulls, pullKey, FORGE_NAMES } from '../core/subjects.js';
-import { look, carry, standing } from '../core/status.js';
+import { look, carry, standing, notesOf } from '../core/status.js';
 import { newRepoPlaces, placesFor } from '../core/forges.js';
 import { writableForge, pickSource, pullText, FORGE_SAID } from '../core/forgewrite.js';
 import { wordOn, wordText } from '../core/vouch.js';
@@ -55,6 +57,7 @@ import { createPoster } from './post.js';
 import { createFeedback } from './feedback.js';
 import { openWelcome, shouldWelcome, anyMessages, openMessages, shouldAskMessages } from './welcome.js';
 import { hasAgreed, agreement, rememberAgreement, openAgree } from './agree.js';
+import { confirmBox } from './confirm.js';
 import { agreedIn, agreementNow, recordAgreement } from '../core/agreement.js';
 import { LEGAL } from '../core/legal.js';
 import { openSend, openPasted, pasteWords, sendSummary, dayChoices, webTarget } from './send.js';
@@ -213,10 +216,15 @@ export function createRainshare({ root, base = '/', host }){
       'on-it': `${join(others)} ${others.length > 1 ? 'are' : 'is'} already on it. Check with them before you direct your agent, so it isn’t done twice.`,
       'turned-in': st.idea ? 'Someone has already built a version of this. Look at theirs first. Another only helps if it’s different.'
         : 'There’s already a pull request for this. Look it over first. A second one only helps if that one has stalled.',
-      merged: `A pull request for this has been merged, so it’s probably done. It’s waiting for ${who} to accept it.`,
+      // (One turned in here is accepted; one that only mentions it leaves nothing to accept, so the ask is marked done.)
+      merged: st.deliveries.some(x => x.state === 'merged') ? `A pull request for this has been merged, so it’s probably done. It’s waiting for ${who} to accept it.`
+        : `A pull request that mentions this was merged on ${forge}, so it’s probably done. It’s waiting for ${who} to mark it done.`,
       'issue-closed': `The issue has been closed on ${forge}. Ask ${who} before starting: it may be done, or no longer wanted.`
     }[st.verdict] || '';
   }
+  // The same, as the question when it turns up only as you go to start.
+  const heedTitle = st => ({ merged: 'This may be done already', 'issue-closed': 'The issue has been closed', 'on-it': 'Someone’s already on it',
+    'turned-in': st.idea ? 'Someone’s already built one' : 'There’s already a pull request' })[st.verdict] || 'Before you start';
   const heedNote = (it, st) => st && !st.clear && heed(it, st) ? `<p class="rs-note rs-heed">${ico('person')}<span>${esc(heed(it, st))}</span></p>` : '';
   // What Rainshare's checks found in an ask (../core/scan.js), said to whoever's deciding whether
   // to direct their agent, with the words that set each one off. Whoever asked sees it too, so an
@@ -340,7 +348,8 @@ export function createRainshare({ root, base = '/', host }){
     if (!force && S.board && Date.now() - S.boardAt < 60e3) return;
     const was = S.board ? boardSig(S.board) : null, erred = !!S.error;
     S.error = null;
-    S.loading = S.source.board({ force }).then(b => { S.board = b; S.boardAt = Date.now(); }, e => { S.error = e; console.warn('rainshare board', e); })
+    // (What the forge said about each ask a little while ago goes onto the new copies, so the board's drawn knowing it.)
+    S.loading = S.source.board({ force }).then(b => { b?.items?.forEach(recall); S.board = b; S.boardAt = Date.now(); }, e => { S.error = e; console.warn('rainshare board', e); })
       .finally(() => {
         S.loading = null;
         if ((S.view === 'board' || S.view === 'person' || S.view === 'admin') && (S.error || erred || boardSig(S.board) !== was)) render();
@@ -783,40 +792,37 @@ export function createRainshare({ root, base = '/', host }){
   }
   // Your asks with work turned in that you haven't accepted: accepting it is what grows the
   // helper's plant, so the board says so until it's done, or until you say not now (for this
-  // visit, unless something new comes in). Whether each pull request was merged is asked of the
-  // forge, once in a while, and the note fills in when it answers.
+  // visit, unless something new comes in). Your asks with nothing turned in that look finished
+  // anyway (a pull request that mentions one was merged, or its issue was closed) are here too,
+  // since only you can mark them done. What the forge says is asked with the rest of the board's
+  // (lookBoard), and the note fills in when it answers.
   const LATER = 'rs:waiting-later';
   const laterOn = () => { try { return new Set(JSON.parse(sessionStorage.getItem(LATER) || '[]')); } catch (_) { return new Set(); } };
-  const waitingOn = () => !signedIn() || !S.board ? [] : S.board.items.filter(it => it.repo === viewer() && isOpen(it) && !it.hidden && (it.deliveries || []).length);
-  const pullSaid = new Map();   // delivery URI -> { state, at }: what the forge said, for ten minutes
-  function lookWaiting(items){
-    const todo = items.flatMap(it => (it.deliveries || []).map(d => ({ d, it }))).filter(({ d }) => d.state === undefined && !asking.has(d));
-    for (const { d } of todo) { const was = pullSaid.get(d.uri); if (was && Date.now() - was.at < 10 * 60e3) d.state = was.state; }
-    const ask = todo.filter(({ d }) => d.state === undefined && !items[0]?.example);
-    if (!ask.length) return;
-    ask.forEach(({ d }) => asking.add(d));
-    Promise.all(ask.map(({ d, it }) => pullState({ url: d.value?.url, pull: d.value?.pull, subject: it.value?.subject }).then(st => { d.state = st; pullSaid.set(d.uri, { state: st, at: Date.now() }); }, () => {}))).then(() => {
-      const el = root.querySelector('[data-rs-waiting]');
-      if (el && ask.some(({ d }) => d.state === 'merged')) el.outerHTML = waitingNote();
-      // (The same ask may be the one picked beside the list: what the forge said shows there too.)
-      for (const it of new Set(ask.map(x => x.it))) { const side = root.querySelector(`.rs-side [data-rs-progress="${CSS.escape(it.uri)}"]`); if (side) side.outerHTML = progressBlock(it); }
-    });
-  }
+  const waitingOn = () => !signedIn() || !S.board ? [] : S.board.items.filter(it => it.repo === viewer() && isOpen(it) && !it.hidden && ((it.deliveries || []).length || stand(it).settled));
   function waitingNote(){
     const all = waitingOn(), later = laterOn();
     if (!all.length || all.every(it => later.has(it.uri))) return '';
-    lookWaiting(all);
+    // (An idea's turn-ins aren't asked about with the board's, which looks at asks with somewhere to look.)
+    for (const it of all) if (!lookable(it)) lookPulls(it);
     const merged = it => (it.deliveries || []).some(d => d.state === 'merged');
     const helpers = it => [...new Map((it.deliveries || []).map(d => [d.repo, d.author])).values()];
+    const alone = it => !(it.deliveries || []).length, forge = it => FORGE_NAMES[describeSubject(it.value?.subject)?.forge] || 'the forge';
     let body;
-    if (all.length === 1) {
+    if (all.length === 1 && alone(all[0])) {
+      const it = all[0];
+      body = `<span><b>“${esc(it.value.title)}” may be done.</b> ${esc(stand(it).planter?.text || '')}</span>
+        <div class="rs-row">${a(pathOf(it), 'Look it over', 'rs-link')}<button class="rs-link" type="button" data-rs-act="waiting-later">Not now</button></div>`;
+    } else if (all.length === 1) {
       const it = all[0], hs = helpers(it), n = (it.deliveries || []).length, idea = !describeSubject(it.value?.subject);
       const who = hs.length > 1 ? `${hs.length} people` : firstName(hs[0]), what = idea ? 'something they built' : n > 1 ? 'pull requests' : 'a pull request';
       body = `<span><b>${esc(who)} turned in ${what} for “${esc(it.value.title)}”${merged(it) ? ', and it’s been merged' : ''}.</b> If it does the job, accept it, and it grows in ${hs.length > 1 ? 'their gardens' : 'their garden'}.</span>
         <div class="rs-row">${a(pathOf(it), 'Look it over', 'rs-link')}<button class="rs-link" type="button" data-rs-act="waiting-later">Not now</button></div>`;
     } else {
-      body = `<span><b>Work is waiting for you on ${all.length} of your asks.</b> Accepting what does the job is how it grows in your helpers’ gardens.</span>
-        <ul class="rs-waiting-list">${all.map(it => `<li>${a(pathOf(it), esc(it.value.title), 'rs-link')}<small>${esc(join(helpers(it).map(firstName)))}${merged(it) ? ' · merged' : ''}</small></li>`).join('')}</ul>
+      const lead = all.some(alone) ? `<b>${all.length} of your asks need a look.</b> Accept what does the job, so it grows in your helpers’ gardens, and mark done what’s finished.`
+        : `<b>Work is waiting for you on ${all.length} of your asks.</b> Accepting what does the job is how it grows in your helpers’ gardens.`;
+      const said = it => alone(it) ? (stand(it).verdict === 'merged' ? `Merged on ${forge(it)}` : `Issue closed on ${forge(it)}`) : join(helpers(it).map(firstName)) + (merged(it) ? ' · merged' : '');
+      body = `<span>${lead}</span>
+        <ul class="rs-waiting-list">${all.map(it => `<li>${a(pathOf(it), esc(it.value.title), 'rs-link')}<small>${esc(said(it))}</small></li>`).join('')}</ul>
         <div class="rs-row"><button class="rs-link" type="button" data-rs-act="waiting-later">Not now</button></div>`;
     }
     return `<div class="rs-note rs-on rs-waiting" data-rs-waiting>${lifeIco('up')}${body}</div>`;
@@ -827,15 +833,20 @@ export function createRainshare({ root, base = '/', host }){
   // open to unless you know them.
   // In the board's Done section (`done`), when is when it was accepted, the word "Done" is left
   // to the heading, and what whoever asked said then is quoted under the rest.
+  // (Probably done, in a few words: "Merged, waiting for Ewan", "Issue closed on GitHub".)
+  const settledText = (it, st) => st.verdict === 'merged' ? `Merged, waiting for ${firstName(it.author)}` : `Issue closed on ${FORGE_NAMES[describeSubject(it.value?.subject)?.forge] || 'the forge'}`;
   function card(it, { nav = false, fresh = false, done = false } = {}){
     const sq = it.value || {}, p = it.author || {}, mine = it.repo === viewer(), on = !nav && it.uri === S.pick;
     const rel = mine ? '' : relationText(it, viewer(), { audience: false }), ask = askExcerpt(sq.spec, 180);
     const pr = progressOf(it, viewer()), short = progressShort(it, viewer());
+    // (Open, but a pull request for it was merged or its issue closed: probably done, and said so.)
+    const st = isOpen(it) && !it.hidden ? stand(it) : null;
     let line = '';
     if (it.hidden) line = `<span class="rs-state rs-hidden-state">${ico('shield')}Hidden by Rainshare</span>`;
     else if (!isOpen(it)) line = done ? '' : `<span class="rs-state${sq.state === 'sprouted' ? ' rs-ok' : ''}">${sq.state === 'sprouted' ? lifeIco('sprouted') : ''}${esc(stateText(sq))}</span>`;
     // (Yours, with something turned in: it's waiting on you to look, and that's said.)
-    else if (mine) line = pr.key === 'turned-in' ? '<span class="rs-yours-wait">Yours: waiting for you</span>' : '<span>Yours</span>';
+    else if (mine) line = pr.key === 'turned-in' ? '<span class="rs-yours-wait">Yours: waiting for you</span>' : st?.settled ? '<span class="rs-yours-wait">Yours: may be done</span>' : '<span>Yours</span>';
+    else if (st?.settled) line = `<span class="rs-state rs-settled">${ico('check')}${esc(settledText(it, st))}</span>`;
     else if (FEATURES.fit && it.fit) line = `${drops(it.fit.level)}<span class="rs-fit-l">${esc(it.fit.label)}</span>`;
     const who = pr.helpers.filter(h => pr.key === 'done' ? h.didIt : pr.key === 'turned-in' ? h.turnedIn : true).slice(0, 3);
     // (What's been turned in, a pull request or what someone built, is a chip of its own, so it stands out down the list.)
@@ -862,6 +873,8 @@ export function createRainshare({ root, base = '/', host }){
   // (`own` is the asker on the ask's own page, where the Accept buttons the note points at are.)
   function progressNote(it, key, { own, idea } = {}){
     const mine = it.repo === viewer(), who = firstName(it.author), merged = (it.deliveries || []).some(d => d.state === 'merged');
+    // (Nobody here, but a pull request that mentions it was merged, or its issue was closed: "yet" would say it's waiting for someone.)
+    if (key === 'open' && isOpen(it) && stand(it).settled) return 'Nobody took it on here, but it looks done.';
     if (key === 'open') return (it.takes || []).length ? 'Free again: nobody’s on it now.' : 'Nobody’s on it yet.';
     if (key === 'turned-in' && !mine) return merged ? `Merged. Waiting for ${who} to accept it.` : `Waiting for ${who} to look it over.`;
     if (key === 'turned-in' && own) return idea ? 'Look it over, and accept it if it’s what you had in mind.' : merged ? 'It’s been merged. If it did the job, accept it.' : 'Look it over, and accept it if it does the job.';
@@ -969,18 +982,106 @@ export function createRainshare({ root, base = '/', host }){
       ${own && it.value?.state === 'sprouted' ? followUps(it, pr, own) : ''}
     </div>`;
   }
-  // Picked on the board, an ask's pull requests are asked after (open, merged or closed), once
-  // each, and the block over its details fills in when the forge answers. (Its own page asks
-  // the forge for more than this: look, in ../core/status.js.)
+  /* ---------- what the forge says about the asks on the board ---------- */
+  // Whether each open ask's issue is still open, and whether a pull request for it was merged
+  // (look, in ../core/status.js), so the board can tell an ask that's probably done already
+  // from one that needs an agent, before anyone directs theirs at it. Once the board's drawn,
+  // its open asks are looked at two at a time, from the top (the one you pick goes first), and
+  // what the forge said is kept in this browser for half an hour: GitHub lets a browser that
+  // isn't signed in ask 60 things an hour, and a board read again a minute later is new copies
+  // of the same asks. (The example board's pull requests are made up, so it has none.)
+  const FORGE_KEY = 'rs:forge-said', FORGE_KEEP = 30 * 60e3, FORGE_AT_ONCE = 2;
+  let forgeSaid = null;
+  function forgeNotes(){
+    if (forgeSaid) return forgeSaid;
+    forgeSaid = new Map();
+    try { for (const n of JSON.parse(localStorage.getItem(FORGE_KEY) || '[]')) if (n?.uri && Date.now() - n.lookedAt < FORGE_KEEP) forgeSaid.set(n.uri, n); } catch (_) {}
+    return forgeSaid;
+  }
+  function keepNotes(it){
+    const n = notesOf(it), all = forgeNotes();
+    if (!n) return;
+    all.delete(n.uri); all.set(n.uri, n);
+    for (const [k, v] of all) if (!(Date.now() - v.lookedAt < FORGE_KEEP)) all.delete(k);
+    try { localStorage.setItem(FORGE_KEY, JSON.stringify([...all.values()].slice(-200))); } catch (_) {}
+  }
+  // What the forge said a little while ago, onto a fresher copy of the same ask.
+  function recall(it){ const n = it?.uri && forgeNotes().get(it.uri); return n ? carry(n, it, { maxAge: FORGE_KEEP }) : it; }
+  const lookable = it => !!it && !it.example && !S.source?.demo && isOpen(it) && !it.hidden && !!describeSubject(it.value?.subject);
+  const lookedLately = it => Date.now() - it.lookedAt < FORGE_KEEP;
+  const lookingAt = new Set(), lookLine = [];   // the asks (by URI) being looked at, and the ones waiting their turn
+  function lookAt(uri, { first = false } = {}){
+    if (lookingAt.has(uri)) return;
+    const i = lookLine.indexOf(uri);
+    if (i >= 0 && !first) return;
+    if (i >= 0) lookLine.splice(i, 1);
+    if (first) lookLine.unshift(uri); else lookLine.push(uri);
+    lookNext();
+  }
+  function lookNext(){
+    while (lookingAt.size < FORGE_AT_ONCE && lookLine.length) {
+      const uri = lookLine.shift(), it = S.board?.items.find(x => x.uri === uri);
+      if (!lookable(it) || lookedLately(it)) continue;
+      lookingAt.add(uri);
+      look(it).catch(() => {}).then(() => {
+        lookingAt.delete(uri); keepNotes(it);
+        // (The board may have been read again meanwhile: its new copy of the ask hears it too.)
+        const now = S.board?.items.find(x => x.uri === uri);
+        if (now && now !== it) recall(now);
+        heard(now || it);
+        lookNext();
+      });
+    }
+  }
+  function lookBoard(){
+    // (A board drawn out of sight, behind another page, waits until it's on screen.)
+    if (!S.board || S.source?.demo || root.closest('[hidden]')) return;
+    for (const it of boardOrdered().items) if (lookable(it) && !lookedLately(recall(it))) lookAt(it.uri);
+  }
+  // Which asks are probably done (open, but a pull request for each was merged or its issue was
+  // closed), as the board was last drawn with them, and as they are now.
+  let settledDrawn = '';
+  const settledNow = () => S.board ? boardOrdered().items.filter(it => stand(it).settled).map(it => it.uri).sort().join(' ') : '';
+  // Once the forge answers, it shows where the ask is: beside the list if it's the one picked, in
+  // the note about your own asks, and, if it moved the ask in or out of what's probably done, in
+  // the board itself, drawn again a moment later (once, for all that answered by then).
+  let redrawing = 0;
+  function heard(it){
+    if (S.view !== 'board' || !it) return;
+    if (S.pick === it.uri) refreshDetail(it);
+    if (settledNow() !== settledDrawn) { redrawing ||= setTimeout(() => { redrawing = 0; if (S.view === 'board' && settledNow() !== settledDrawn) redrawBoard(); }, 300); return; }
+    const w = root.querySelector('[data-rs-waiting]');
+    if (w && it.repo === viewer()) w.outerHTML = waitingNote();
+  }
+  // The picked ask's panel, where the forge's answer changes it: where it stands, and what's said
+  // over the buttons. The rest (and where it's scrolled to) is left as it was.
+  function refreshDetail(it){
+    const box = root.querySelector('.rs-side .rs-detail');
+    if (!box) return;
+    const t = document.createElement('div');
+    t.innerHTML = detail(it);
+    for (const sel of ['[data-rs-progress]', '[data-rs-acts]']) { const was = box.querySelector(sel), now = t.querySelector(sel); if (was && now) was.replaceWith(now); }
+  }
+  // The whole board again, where the panel beside it stays scrolled where it was.
+  function redrawBoard(){
+    const top = root.querySelector('.rs-side')?.scrollTop || 0;
+    rerender();
+    const side = root.querySelector('.rs-side');
+    if (side && top) side.scrollTop = top;
+  }
+  // For an ask that isn't looked at with the rest (one that's done, or an idea with no repo yet),
+  // only what's been turned in is asked after, once each, when it's picked or waiting on you.
   const asking = new WeakSet();
   function lookPulls(it){
-    if (!it || it.example) return;
+    if (!it || it.example || S.source?.demo) return;
     const todo = (it.deliveries || []).filter(d => d.state === undefined && !asking.has(d));
     if (!todo.length) return;
     todo.forEach(d => asking.add(d));
     Promise.all(todo.map(d => pullState({ url: d.value?.url, pull: d.value?.pull, subject: it.value?.subject }).then(st => { d.state = st; }))).then(() => {
-      const el = root.querySelector(`.rs-side [data-rs-progress="${CSS.escape(it.uri)}"]`);
-      if (el) el.outerHTML = progressBlock(it);
+      // (Kept with the rest, so a board read again doesn't ask again. Its issue and the pull
+      // requests that mention it aren't noted, so they're still asked after where they're wanted.)
+      it.lookedAt ||= Date.now(); keepNotes(it);
+      heard(it);
     });
   }
   // Where, the job and what they'd like, each as a plain line. (Who's on it is over them: progressBlock.)
@@ -1003,7 +1104,8 @@ export function createRainshare({ root, base = '/', host }){
   }
   function detail(it){
     const sq = it.value || {}, p = it.author || {}, mine = it.repo === viewer(), open = isOpen(it), page = pathOf(it);
-    lookPulls(it);
+    // (Picked, it's looked at before the rest of the board, so what's said over the buttons is right.)
+    if (lookable(it) && !lookedLately(it)) lookAt(it.uri, { first: true }); else lookPulls(it);
     const rel = mine ? 'yours' : relationText(it, viewer());
     const f = FEATURES.fit && !mine && open && signedIn() ? it.fit || fit(it, me()) : null;
     let buttons;
@@ -1013,9 +1115,14 @@ export function createRainshare({ root, base = '/', host }){
     // (On it: turning it in is a short dialog too. Once it's turned in, what's next is on its page.)
     else if (myTake(it)) buttons = (it.deliveries || []).some(x => x.repo === viewer()) ? a(page, 'See where it stands', 'rs-btn rs-quiet')
       : `<button class="rs-btn rs-primary" type="button" data-rs-turnin="${esc(it.uri)}">${ico(describeSubject(sq.subject) ? 'pull' : 'link')}Turn it in</button>`;
-    else buttons = `<button class="rs-btn rs-primary" type="button" data-rs-take="${esc(it.uri)}">${ico('drop')}Direct my agent</button>${shareBtn(it)}`;
+    // (Probably done already: the way to go ahead is still there, but it isn't the one that stands out.)
+    else buttons = stand(it).settled ? `<button class="rs-btn rs-quiet" type="button" data-rs-take="${esc(it.uri)}">${ico('drop')}Direct my agent anyway</button>${shareBtn(it)}`
+      : `<button class="rs-btn rs-primary" type="button" data-rs-take="${esc(it.uri)}">${ico('drop')}Direct my agent</button>${shareBtn(it)}`;
     const hint = open && !mine && signedIn() && !myTake(it) ? sendHint(it) : '';
     const st = open && !mine && !myTake(it) ? stand(it) : null;
+    // Yours, and something's come of it (work turned in, a pull request merged, the issue closed): what to do next, which is done on its page.
+    const next = open && mine ? stand(it).planter : null;
+    const nextNote = next?.text ? `<p class="rs-note rs-on">${lifeIco('up')}<span>${esc(next.text)}</span></p>` : '';
     return `<article class="rs-detail">
       <div class="rs-detail-top">${a('profile/' + it.repo, face(p) + `<b>${esc(mine ? 'You' : nameOf(p))}</b>`, 'rs-who')}${hat(it.repo)}<span class="rs-muted">${rel ? ' · ' + (it.space ? ico('lock') : '') + esc(rel) : ''} · ${esc(ago(sq.createdAt))}</span>
         <span class="rs-detail-tools">${a(page, `${ico('expand')}<span>Full page</span>`, 'rs-detail-page')}<button class="rs-sheet-close" type="button" data-rs-close-sheet aria-label="Close">${ico('close')}</button></span></div>
@@ -1030,8 +1137,7 @@ export function createRainshare({ root, base = '/', host }){
         signedIn() && !mine ? ['You and them', tiesList(it.repo, it.ties, p)] : null
       ].filter(Boolean))}
       ${open ? cautionNote(it) : ''}
-      ${heedNote(it, st)}
-      <div class="rs-row rs-detail-actions">${buttons}</div>${hint}
+      <div class="rs-slot" data-rs-acts="${esc(it.uri)}">${heedNote(it, st)}${nextNote}<div class="rs-row rs-detail-actions">${buttons}</div>${hint}</div>
     </article>`;
   }
   // Over the list, one note at a time, the one that matters most: work waiting on you, then a pull
@@ -1053,6 +1159,18 @@ export function createRainshare({ root, base = '/', host }){
   // to where it stands: it's all done.)
   const DONE_FEW = 6;
   const doneOnBoard = () => S.board ? narrowFrom(grown(S.board.items.filter(it => !it.hidden))) : [];
+  // Between the two, asks that are open but probably finished: a pull request for each was
+  // merged, or its issue was closed, and nobody's marked it done. Only whoever asked can, so here
+  // they wait, out of the way of what still needs an agent. (Narrowed to who asked, as Done is.)
+  function settledSection(all){
+    if (!all.length) return '';
+    const h = underLanding() && host.brand === 'rainshare' ? 'h3' : 'h2';
+    return `<section class="rs-board-done rs-board-settled" aria-labelledby="rsSettledH">
+        <div class="rs-board-done-head"><${h} id="rsSettledH">${lifeIco('up')}Probably done <span>${all.length}</span></${h}>
+          <p>A pull request for each of these was merged, or its issue was closed. They’re waiting for whoever asked to mark them done, so there’s likely nothing left for an agent.</p></div>
+        <ul class="rs-list" aria-label="Probably done">${all.map(it => card(it)).join('')}</ul>
+      </section>`;
+  }
   function doneSection(all, shown){
     if (!all.length) return '';
     // (A level under the board's own heading, which is an h2 under the landing.)
@@ -1065,13 +1183,18 @@ export function createRainshare({ root, base = '/', host }){
       </section>`;
   }
   function renderBoard(){
-    const ord = S.board ? boardOrdered() : { items: [], fresh: 0 }, all = ord.items, byFrom = narrowFrom(all), items = narrowShow(byFrom);
+    lookBoard();
+    const ord = S.board ? boardOrdered() : { items: [], fresh: 0 }, open = ord.items;
+    // (What's probably done has a section of its own, so it isn't counted or shown with what's open.)
+    const settledAll = open.filter(it => stand(it).settled), settled = narrowFrom(settledAll);
+    const all = open.filter(it => !settledAll.includes(it)), byFrom = narrowFrom(all), items = narrowShow(byFrom);
+    settledDrawn = settledAll.map(it => it.uri).sort().join(' ');
     const doneAll = doneOnBoard(), done = S.open.done ? doneAll : doneAll.slice(0, DONE_FEW);
-    S.shown = [...items, ...done];
-    markBoardSeen(all);
+    S.shown = [...items, ...settled, ...done];
+    markBoardSeen(open);
     // What's new is at the top (unless it's sorted by what's waiting longest), over a dashed
     // rule, with what was here when you last looked under it.
-    const fresh = new Set(all.slice(0, ord.fresh).map(it => it.uri)), freshN = items.filter(it => fresh.has(it.uri)).length;
+    const fresh = new Set(open.slice(0, ord.fresh).map(it => it.uri)), freshN = items.filter(it => fresh.has(it.uri)).length;
     const seenRule = '<li class="rs-seen-li"><div class="rs-spare-rule" role="separator"><span>Here when you last looked</span></div></li>';
     const cards = items.map((it, i) => (i === freshN && freshN ? seenRule : '') + card(it, { fresh: isNew(it) })).join('');
     if (S.shown.length && !S.shown.some(i => i.uri === S.pick)) { S.pick = S.shown[0].uri; S.sheet = false; }
@@ -1112,6 +1235,7 @@ export function createRainshare({ root, base = '/', host }){
         : S.shown.length ? `<div class="rs-split${S.sheet ? ' rs-open' : ''}">
             <div class="rs-lists">
               ${items.length ? `<ul class="rs-list" aria-label="Ideas and projects">${spare ? spareCard(true) : ''}${cards}</ul>` : openEmpty()}
+              ${settledSection(settled)}
               ${doneSection(doneAll, done)}
             </div>
             <div class="rs-scrim" data-rs-close-sheet aria-hidden="true"></div>
@@ -1151,7 +1275,7 @@ export function createRainshare({ root, base = '/', host }){
     if (!it) return;
     if (!await agreeFirst()) return;
     const flags = concerns(it.value);
-    if (alarming(flags) && !confirm(`Rainshare’s checks flagged this ask:\n\n${flags.map(f => '• ' + f.said).join('\n')}\n\nYour agent will be told too. Send it anyway?`)) return;
+    if (alarming(flags) && !await confirmBox({ title: 'Rainshare’s checks flagged this ask', text: 'Your agent will be told about it too.', points: flags.map(f => f.said), yes: 'Send it anyway', no: 'Not now', tone: 'danger', icon: 'shield' })) return;
     const start = sendStart(it), asker = firstName(it.author), skip = !(start.askEachTime || ask);
     // Within the press: say you're on it, if that's wanted, then copy what goes to the agent (it
     // says when you said you'd turn it in, so it's only known after). The copying starts before
@@ -1183,9 +1307,11 @@ export function createRainshare({ root, base = '/', host }){
     try { const r = await send(start); if (r) openPasted({ r, asker, copy: again, share, done: after }); else if (el) el.disabled = false; }
     catch (e) { console.warn('rainshare send', e); toast(plainText(e)); if (el) el.disabled = false; }
   }
-  // An ask just written to, in the board's list too, so the panel says so before the board's been read again.
+  // An ask just written to, in the board's list too, so the panel says so before the board's been
+  // read again. (What the forge said about it goes along, if it was asked.)
   function swapIn(fresh){
-    if (S.board && fresh) S.board.items = S.board.items.map(x => x.uri === fresh.uri ? { ...x, value: fresh.value, takes: fresh.takes, deliveries: fresh.deliveries } : x);
+    const forge = fresh?.lookedAt ? { issue: fresh.issue, linked: fresh.linked, lookedAt: fresh.lookedAt } : {};
+    if (S.board && fresh) S.board.items = S.board.items.map(x => x.uri === fresh.uri ? { ...x, value: fresh.value, takes: fresh.takes, deliveries: fresh.deliveries, ...forge } : x);
   }
   // Saying you're on it looks first: at the seed as it is this minute, and at the forge. If
   // that turns up something the screen wasn't already saying (someone took it a moment ago, a
@@ -1198,8 +1324,11 @@ export function createRainshare({ root, base = '/', host }){
       const now = carry(it, await S.source.seed(it.uri, { force: true }).catch(() => null) || it);
       await Promise.race([look(now), new Promise(r => setTimeout(r, 4000))]);
       const st = stand(now);
-      if (!st.clear && st.verdict !== shown && !confirm(`${heed(now, st) || st.advice}\n\nDirect your agent anyway?`)) {
-        if (S.seed?.uri === now.uri) { S.seed = now; render(); }
+      if (!st.clear && st.verdict !== shown && !await confirmBox({ title: heedTitle(st), text: heed(now, st) || st.advice, yes: 'Direct my agent anyway', no: 'Not now', tone: 'heed' })) {
+        // (Wherever you are says what was found from now on: the ask's page, or the board and its panel.)
+        keepNotes(now); swapIn(now);
+        if (S.seed?.uri === now.uri) S.seed = now;
+        if (S.view === 'board') redrawBoard(); else if (S.seed === now) render();
         if (el) el.disabled = false;
         return null;
       }
@@ -1449,7 +1578,7 @@ export function createRainshare({ root, base = '/', host }){
     }
   }
   async function takeBackVouch(did){
-    if (!confirm('Take back your vouch? The record is deleted from your account.')) return;
+    if (!await confirmBox({ title: 'Take back your vouch?', text: 'The record is deleted from your account.', yes: 'Take it back', no: 'Keep it', tone: 'danger' })) return;
     try { await S.source.unvouch(did); toast('Vouch taken back.'); loadCircle(true); }
     catch (e) { if (e?.name === 'NotConnected') S.unlinked = 'tangled'; toast(plainText(e)); rerender(); }
   }
@@ -1635,7 +1764,7 @@ export function createRainshare({ root, base = '/', host }){
   }
   async function uncomment(uri, el){
     const it = S.seed, c = (it?.comments || []).find(x => x.uri === uri);
-    if (!c || !confirm('Delete your comment? This removes the record from your account. Any replies to it stay.')) return;
+    if (!c || !await confirmBox({ title: 'Delete your comment?', text: 'This removes the record from your account. Any replies to it stay.', yes: 'Delete', no: 'Keep it', tone: 'danger' })) return;
     if (el) el.disabled = true;
     try { await S.source.uncomment(it, c); S.seed = await reread(it); toast('Deleted'); render(); }
     catch (e) { toast(plainText(e)); if (el) el.disabled = false; }
@@ -2255,7 +2384,7 @@ export function createRainshare({ root, base = '/', host }){
     } catch (e) { toast(plainText(e)); btn.disabled = false; }
   }
   async function unhide(subject, el){
-    if (!moderating() || !confirm('Unhide it? It shows again for everyone, as it did before.')) return;
+    if (!moderating() || !await confirmBox({ title: 'Unhide it?', text: 'It shows again for everyone, as it did before.', yes: 'Unhide', no: 'Cancel' })) return;
     if (el) el.disabled = true;
     try { await S.source.moderation.unhide(subject); toast('Unhidden'); await afterModeration(); }
     catch (e) { toast(plainText(e)); if (el) el.disabled = false; }
@@ -2443,12 +2572,12 @@ export function createRainshare({ root, base = '/', host }){
       if (name === 'again') { S.again = it.uri; render(); root.querySelector('[data-rs-form="turnin"] input')?.focus(); return; }
       if (name === 'sprout') { await S.source.update(it, { state: 'sprouted' }); mark(it.uri, 'accept'); S.seed = await reread(it); S.boardAt = 0; loadBoard(); toast('Marked done'); render(); return; }
       if (name === 'drop') {
-        if (!confirm(`Drop this ${nounOf(it.value)}? Your take is deleted, so others can see it’s free.`)) return;
+        if (!await confirmBox({ title: `Drop this ${nounOf(it.value)}?`, text: 'Your take is deleted, so others can see it’s free.', yes: 'Drop it', no: 'Keep it', tone: 'danger' })) return;
         await S.source.drop(it); S.launch = null; toast('Dropped');
       }
       if (name === 'close' || name === 'reopen') { await S.source.update(it, { state: name === 'close' ? 'closed' : 'open' }); toast(name === 'close' ? 'Closed' : 'Reopened'); }
       if (name === 'delete') {
-        if (!confirm(`Delete this ${nounOf(it.value)}? This removes the record from your account.`)) return;
+        if (!await confirmBox({ title: `Delete this ${nounOf(it.value)}?`, text: 'This removes the record from your account.', yes: 'Delete', no: 'Keep it', tone: 'danger' })) return;
         await S.source.remove(it); toast('Deleted'); S.board = null; go(BOARD_AT); return;
       }
       if (name === 'add-setup') { stash(); S.form.profile.setups = [...(S.form.profile.setups?.length ? S.form.profile.setups : [{ harness: 'claude-code', models: [] }]), { harness: 'codex', models: [] }]; render(); return; }
