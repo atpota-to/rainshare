@@ -194,6 +194,12 @@ test('the Privacy Policy says what the index keeps, who can read it, and when a 
   assert.match(sends, /to stay out of these posts, block @rainshare\.dev on Bluesky before you ask/);
   assert.match(sends, /We don’t count anything we’ve hidden, any ask our checks find very likely to be a trick, or any ask from an account that blocks @rainshare\.dev or that it blocks/);
   assert.match(sends, /Once a day, it can tell you how many new asks are on the board: only the number, with no titles or names/);
+  // Narrowed to people you know, the day's count reads who you follow, who follows you and your Tangled
+  // circle's vouches (announcer/src/messages.js), and the policy says so.
+  const messages = readFileSync(new URL('../announcer/src/messages.js', import.meta.url), 'utf8');
+  assert.ok(['net.relationships(', 'tangledFollowsOf(', 'circleOf('].every(c => messages.includes(c)), 'the messages read the graph');
+  assert.match(sends, /which new asks it counts: projects, ideas or both, from anyone or only from people you know\. To count only people you know, the server reads who you follow and who follows you, on Bluesky and on Tangled, and the vouches in your Tangled circle/);
+  assert.match(sends, /It reads them only when your count is due, and doesn’t keep them/);
   assert.match(sends, /If we hide an ask that was posted, the server deletes the post/);
   assert.match(sends, /The messages between @rainshare\.dev and the reviewer are kept by Bluesky’s chat service/);
   // Nothing there says an ask is safe.

@@ -30,7 +30,7 @@
 // A host with a landing of its own at its base address (rainshare.dev, host.landing) shows the
 // board under it there, signed in or out. The board's own address is then 'board', and
 // every way back to the board leads there, to the board on its own.
-import { SEED, PROFILE, STAGE, HANDLE, SITE, FEATURES, TAKE_DAYS, TAKE_DAYS_DEFAULT, ROUTES, PLANS, UNPAID, plansIn, typedPlan, HARNESSES, MODELS, RUNS_ON, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, NOTIFY, labelOf, modelName, githubLogin } from '../core/ns.js';
+import { SEED, PROFILE, STAGE, HANDLE, SITE, FEATURES, TAKE_DAYS, TAKE_DAYS_DEFAULT, ROUTES, PLANS, UNPAID, plansIn, typedPlan, HARNESSES, MODELS, RUNS_ON, FORECAST, CIRCUMSTANCES, PRIORITIES, VALUES, NOTIFY, ASK_KINDS, ASKS_FROM, messagesOf, labelOf, modelName, githubLogin } from '../core/ns.js';
 import { describeSubject, safeHttp, pullState, forkOf, linkedPulls, pullKey, FORGE_NAMES } from '../core/subjects.js';
 import { look, carry, standing, notesOf } from '../core/status.js';
 import { newRepoPlaces, placesFor } from '../core/forges.js';
@@ -505,12 +505,16 @@ export function createRainshare({ root, base = '/', host }){
     S.prefsLocal = !!local && S.prefs === local && savedAt(local) > savedAt(rec);
     S.prefsUnread = unread;
   }
-  /** Save your settings ({ send }, { notify } or { github }). Says 'saved', or 'local' when only this browser could keep it. */
+  /**
+   * Save your settings ({ send }, { notify } or { github }). Says 'saved', or 'local' when only
+   * this browser could keep it. (Every message choice is said, ticked or not, so a copy in your
+   * account that's older than this one can't tick one again.)
+   */
   async function savePrefs(change){
     const next = prefsRecord(change, S.prefs);
     S.prefs = next;
     try { localStorage.setItem(PREFS_KEY(), JSON.stringify(next)); } catch (_) {}
-    try { await S.source.savePreferences?.({ send: next.send, notify: next.notify || { updates: false, newAsks: false }, github: next.github || '' }); S.prefsLocal = false; return 'saved'; }
+    try { await S.source.savePreferences?.({ send: next.send, notify: messagesOf(next.notify), github: next.github || '' }); S.prefsLocal = false; return 'saved'; }
     catch (e) { console.warn('rainshare preferences', e); S.prefsLocal = true; return 'local'; }
   }
   /* ---------- messages from @rainshare.dev, and following it so they reach you ---------- */
@@ -2020,8 +2024,16 @@ export function createRainshare({ root, base = '/', host }){
   // The direct messages you'd like from @rainshare.dev (../announcer/src/messages.js). It reads your
   // settings from your account, so a copy kept only in this browser doesn't reach it. Saving
   // with either ticked follows @rainshare.dev for you, which Bluesky needs for them to arrive.
+  // Under new asks, which ones it counts: projects, ideas (off to begin with), and who from, by
+  // the board's "Who asked". They stay there with new asks unticked, only fainter.
   function messageSettings(){
-    const n = S.prefs?.notify || {}, on = anyMessages(n), f = S.follows, can = canFollow();
+    const n = messagesOf(S.prefs?.notify), on = anyMessages(n), f = S.follows, can = canFollow();
+    const box = (k, l, more = '') => `<label class="rs-check"><input type="checkbox" name="${k}"${n[k] ? ' checked' : ''}> <span>${esc(l)}${more ? ` <small>${esc(more)}</small>` : ''}</span></label>`;
+    const which = `<fieldset class="rs-asks"><legend>Which new asks</legend>
+        ${ASK_KINDS.map(([k, l, more]) => box(k, l, more)).join('')}
+        <label>From<select name="from">${ASKS_FROM.map(([k, l]) => `<option value="${k}"${n.from === k ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
+        <p class="rs-muted">A follow on Bluesky or Tangled counts, as in the board’s “Who asked”. To count only people you know, @${esc(HANDLE)} looks at who you follow, who follows you and your Tangled vouches, which are all public.</p>
+      </fieldset>`;
     const onBluesky = `<a class="rs-link" href="https://bsky.app/profile/${esc(HANDLE)}" target="_blank" rel="noopener">follow @${esc(HANDLE)}</a>`;
     // How they reach you: you follow the account, or ticking follows it for you, or you're to follow it on Bluesky.
     const reach = f === true ? `<p class="rs-note rs-on">${ico('check')}<span>You follow @${esc(HANDLE)}, so its messages can reach you.</span></p>`
@@ -2030,7 +2042,7 @@ export function createRainshare({ root, base = '/', host }){
       : `<p class="rs-muted">Bluesky only lets accounts you follow message you, unless you’ve changed that, so ${onBluesky}.</p>`;
     return `<section class="rs-panel rs-mynotify"><div class="rs-hrow"><h2>Messages from @${esc(HANDLE)}</h2>${tip('Rainshare’s Bluesky account can send you a direct message when there’s news: updates within a minute or two, and new asks once a day. Your settings are saved in your account, where anyone can read them.')}</div>
       <form class="rs-prefs" data-rs-form="notify">
-        ${NOTIFY.map(([k, l]) => `<label class="rs-check"><input type="checkbox" name="${k}"${n[k] ? ' checked' : ''}> ${esc(l)}</label>`).join('')}
+        ${NOTIFY.map(([k, l]) => box(k, l) + (k === 'newAsks' ? which : '')).join('')}
         ${reach}
         <p class="rs-muted">To stop them, untick these, or reply STOP to any message. Unticking them doesn’t unfollow @${esc(HANDLE)}.</p>
         ${S.prefsLocal ? `<p class="rs-muted">${ico('lock')} These can’t reach @${esc(HANDLE)} yet: your sign-in is from before Rainshare had settings, so they’re kept in this browser only. Sign out and in again to send them.</p>` : ''}
@@ -2040,8 +2052,11 @@ export function createRainshare({ root, base = '/', host }){
   }
   async function submitNotify(form){
     const fd = new FormData(form), btn = form.querySelector('[type=submit]');
+    const notify = { ...Object.fromEntries([...NOTIFY, ...ASK_KINDS].map(([k]) => [k, !!fd.get(k)])), from: String(fd.get('from') || 'anyone') };
+    // (New asks of neither kind would be none, which unticking new asks already says.)
+    if (notify.newAsks && !notify.projects && !notify.ideas) { toast('Tick projects, ideas or both, or untick new asks.'); form.elements.projects?.focus(); return; }
     btn.disabled = true;
-    const r = await messagesOn(Object.fromEntries(NOTIFY.map(([k]) => [k, !!fd.get(k)])));
+    const r = await messagesOn(notify);
     toast(heardText(r));
     rerender();
   }

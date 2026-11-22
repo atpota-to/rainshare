@@ -59,7 +59,9 @@ anything, but you can filter the board by it.
 
 Signed in, the **bell** in the bar counts what's happened on your asks and your work, and what's
 new on Rainshare. You can also ask for **direct messages** from @rainshare.dev in Settings: news
-on your asks and your work, and how many new asks there are each day. Switching them on follows
+on your asks and your work, and how many new asks there are each day. For new asks you pick
+projects, ideas or both (ideas are off until you tick them), and whether they're from anyone or
+only people you know, as the board's "Who asked" has it. Switching them on follows
 @rainshare.dev for you, since Bluesky only lets accounts you follow message you. Reply STOP to any
 message to stop them.
 

@@ -35,6 +35,34 @@ export const HANDLE = 'rainshare.dev';
 // The direct messages someone can ask it for (`notify` in their dev.rainshare.preferences,
 // sent by ../announcer/src/messages.js). [value, what people read]
 export const NOTIFY = [['updates', 'Updates on my asks and my work'], ['newAsks', 'New asks on the board']];
+// Which new asks the day's message counts, for someone who has them on: which kinds, and who
+// from. Projects are counted unless they're switched off; ideas only once they're switched on,
+// for everyone, whenever they switched new asks on. [value, what people read, what it means]
+export const ASK_KINDS = [['projects', 'Projects', 'a repo or an issue to work in'], ['ideas', 'Ideas', 'nothing built yet']];
+// Who from, by how you know whoever asked: the board's "Who asked" (FROM in ./ties.js, whose
+// keys these are), where a follow on Bluesky or Tangled counts. Left out, anyone.
+// [value, what people read, what the message says, for one and for more]
+export const ASKS_FROM = [
+  ['anyone', 'Anyone', '', ''],
+  ['mutuals', 'Mutuals: you follow each other', 'a mutual', 'your mutuals'],
+  ['following', 'People you follow', 'someone you follow', 'people you follow'],
+  ['followers', 'People who follow you', 'someone who follows you', 'people who follow you'],
+  ['vouched', 'People your Tangled circle vouched for', 'someone your Tangled circle vouched for', 'people your Tangled circle vouched for']
+];
+/**
+ * Someone's messages, every choice said, from `notify` in their settings:
+ * { updates, newAsks, projects, ideas, from }. New asks with neither kind ticked are off.
+ */
+export function messagesOf(notify){
+  const n = notify && typeof notify === 'object' ? notify : {};
+  const projects = n.projects !== false, ideas = n.ideas === true;
+  return {
+    updates: n.updates === true,
+    newAsks: n.newAsks === true && (projects || ideas),
+    projects, ideas,
+    from: ASKS_FROM.some(([k]) => k === n.from) ? n.from : 'anyone'
+  };
+}
 // Bluesky only lets accounts someone follows message them (unless they've changed that), so
 // switching messages on follows @rainshare.dev for you: a Bluesky follow record in your own
 // repo, whose subject is the account's DID (MODERATOR, above). Sign-in asks to create one

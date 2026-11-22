@@ -3,7 +3,17 @@
 //
 //   updates   news about their own asks (someone's on one, work's been turned in) and about
 //             asks they've helped with (marked done with their work or someone else's, or closed)
-//   newAsks   new asks on the board, from anyone
+//   newAsks   how many new asks there are on the board, of the kinds they picked, from whoever
+//             they picked:
+//     projects  asks with a repo or an issue. Counted unless they've said not.
+//     ideas     asks with no repo yet. Only counted once they've said so: off for everyone to
+//               begin with, including whoever had new asks on before there was a choice.
+//     from      anyone (the default), or only people they know, as the board's "Who asked"
+//               has it (../../core/ties.js): mutuals, people they follow, people who follow
+//               them (a follow on Bluesky or Tangled counts), or people their Tangled circle
+//               vouched for (../../core/vouch.js). Who they know is read from the network,
+//               where it's all public, as the site reads it for the board, and only on a run
+//               with a count due for them and an ask it could count.
 //
 // The announcer service (./index.js) runs this a minute or two after anything happens on the
 // board. Each run sends each person one message at most, and only when there's something to
@@ -32,9 +42,12 @@
 //   - reply STOP to any message. Their latest STOP or START in the conversation is what
 //     counts, and a STOP is answered once, to say it worked.
 //   - Bluesky's own settings: leave the conversation, or stop letting @rainshare.dev message them
-import { SEED, TAKE, DELIVERY, PREFERENCES, SITE } from '../../core/ns.js';
+import { SEED, TAKE, DELIVERY, PREFERENCES, SITE, ASKS_FROM, messagesOf } from '../../core/ns.js';
 import * as net from '../../core/net.js';
 import { updatesFor } from '../../core/news.js';
+import { nounOf } from '../../core/words.js';
+import { fromMatches, tangledFollowsOf } from '../../core/ties.js';
+import { circleOf, wordOn } from '../../core/vouch.js';
 import { ACCOUNT, passable, free, isHidden, reader, session, blocked, whoAre, graphemes, bytes } from './posts.js';
 import { clean } from '../../api/_og/describe.js';
 
@@ -48,8 +61,8 @@ export const boundary = (t, day = false) => day ? Math.floor((t - DAILY) / DAY) 
 const MAX_GRAPHEMES = 1000, MAX_BYTES = 10000, MAX_UPDATES = 10;
 const STOP = /^\W*(stop|unsubscribe|opt out)\W*$/i, START = /^\W*(start|unstop|resume)\W*$/i;
 
-/** What someone has asked for: { updates, newAsks }, each true or false. */
-export const wants = profile => ({ updates: profile?.notify?.updates === true, newAsks: profile?.notify?.newAsks === true });
+/** What someone has asked for: { updates, newAsks, projects, ideas, from } (messagesOf, ../../core/ns.js). */
+export const wants = profile => messagesOf(profile?.notify);
 
 /* ---------- writing a message ---------- */
 // Text in pieces, some of them links or mentions, put together with the byte offsets Bluesky's facets need.
@@ -111,20 +124,35 @@ function line(r, n, who){
   return r.add(n.kind === 'done-yours' ? ' done with your work. It’s in your garden now.' : ' done, with someone else’s work.');
 }
 
-/** How many new asks there are, written into `r`: "There are 5 new asks on the board." */
-export const counted = (r, n) => r.add(n === 1 ? 'There’s a new ask on the board: ' : `There are ${n} new asks on the board: `).link(shortLink(SITE + '/board'), SITE + '/board').add('.');
+/**
+ * What the new asks counted are called, for one and for more, by what someone picked (`what`,
+ * as wants has it): ['a new ask on the board', 'new asks on the board'], 'project' or 'idea'
+ * in place of 'ask' when only one kind is counted, and who they're from when that's narrowed:
+ * ['a new idea on the board from someone you follow', 'new ideas on the board from people you
+ * follow']. With `what` left out, every kind, from anyone.
+ */
+export function askWords({ projects = true, ideas = true, from = 'anyone' } = {}){
+  const [one, more] = projects && !ideas ? ['project', 'projects'] : ideas && !projects ? ['idea', 'ideas'] : ['ask', 'asks'];
+  const [, , byOne, byMore] = ASKS_FROM.find(([k]) => k === from) || ASKS_FROM[0];
+  return [`a new ${one} on the board${byOne ? ' from ' + byOne : ''}`, `new ${more} on the board${byMore ? ' from ' + byMore : ''}`];
+}
+/** How many new asks there are, written into `r`: "There are 5 new asks on the board: rainshare.dev/board." `what` says which (askWords). */
+export function counted(r, n, what){
+  const [one, more] = askWords(what);
+  return r.add(n === 1 ? `There’s ${one}: ` : `There are ${n} ${more}: `).link(shortLink(SITE + '/board'), SITE + '/board').add('.');
+}
 
 /**
  * A message with someone's news: { text, facets }, or null when there's none. `updates` and
  * `fresh` are lists of news ({ kind, seed, by, url }); `who` names everyone in the updates. As
  * many updates are listed as fit in a message, and the rest are counted. The new asks are only
- * counted.
+ * counted, and called what `what` says they are (askWords).
  */
-export function compose({ updates = [], fresh = [] }, who){
+export function compose({ updates = [], fresh = [], what }, who){
   if (!updates.length && !fresh.length) return null;
   const r = rich();
   // How it ends: how many new asks there are, if there are any, and the way to stop these.
-  const end = x => footer(fresh.length ? counted(updates.length ? x.add('\n\n') : x, fresh.length) : x);
+  const end = x => footer(fresh.length ? counted(updates.length ? x.add('\n\n') : x, fresh.length, what) : x);
   if (updates.length) {
     r.add('Updates from Rainshare:');
     // Each update goes in only if the message would still fit with the rest counted and its end on.
@@ -155,21 +183,69 @@ export function newOnBoard(seeds, { takes = [], deliveries = [], from, to, hidde
   return shown(seeds).filter(s => s.repo !== except && !blocks.has(s.repo) && passable(s.value) && inside(askedAt(s), from, to) && free(s, { takes, deliveries, blocks, now }));
 }
 /**
+ * Whether a new ask `s` is one `r` asked to hear about: of a kind they picked (projects unless
+ * they've said not, ideas only once they've said so), and from someone they know as they
+ * picked. `ties` is how they're tied to whoever asked, by DID ({ bsky, tangled }, as tieOf in
+ * ../../core/ties.js reads them), and `circle` their Tangled circle (circleOf,
+ * ../../core/vouch.js). Narrowed to people they know, an ask from someone whose ties weren't
+ * read isn't counted.
+ */
+export function wanted(r, s, { ties = null, circle = null } = {}){
+  const kind = nounOf(s?.value) === 'idea' ? r.ideas === true : r.projects !== false;
+  const from = r.from || 'anyone';
+  return kind && (from === 'anyone' || fromMatches(from, ties?.get(s.repo), from === 'vouched' ? wordOn(circle, s.repo) : null));
+}
+/**
  * Someone's news from `from` up to `to`: { updates, fresh }, each oldest first. `theirBlocks` is
  * who they block, whose doings aren't news to them; `ourBlocks` is who the account blocks,
  * whose asks it doesn't pass on; `hidden` is what it has hidden (decisions from
- * ../core/moderation.js), which is nobody's news. The new asks are newOnBoard's.
+ * ../core/moderation.js), which is nobody's news. The new asks are newOnBoard's, of the kinds
+ * they picked and from whoever they picked (wanted: `ties` and `circle` are its).
  */
-export function newsFor(r, { seeds, takes, deliveries, from, to, theirBlocks = new Set(), ourBlocks = new Set(), hidden = new Map(), now = Date.now() }){
+export function newsFor(r, { seeds, takes, deliveries, from, to, theirBlocks = new Set(), ourBlocks = new Set(), hidden = new Map(), ties = null, circle = null, now = Date.now() }){
   const shown = list => list.filter(x => !isHidden(hidden, x));
   // (What's news about their own asks and their work is ../../core/news.js, so the bell in the
   // site's bar says the same things.)
   const updates = r.updates ? updatesFor(r.did, { seeds: shown(seeds), takes: shown(takes), deliveries: shown(deliveries), from, to, theirBlocks }) : [];
   const blocks = new Set([...theirBlocks, ...ourBlocks]);
   const fresh = !r.newAsks ? [] : newOnBoard(seeds, { takes, deliveries, from, to, hidden, blocks, except: r.did, now })
+    .filter(s => wanted(r, s, { ties, circle }))
     .map(s => ({ kind: 'new', seed: s, by: s.repo, at: askedAt(s) }));
   const order = (a, b) => a.at - b.at;
   return { updates: updates.sort(order), fresh: fresh.sort(order) };
+}
+
+/* ---------- who knows whom ---------- */
+/**
+ * Who people know, for the ones who only want new asks from people they know, read from the
+ * network as the board reads it, and kept for the run: someone's Tangled follows are read once,
+ * however many people's counts they're in. `of(did, askers, { circle })` says how `did` is tied
+ * to each of `askers`, and with `circle`, their Tangled circle: { ties, circle }, as wanted
+ * takes them. It's null when Bluesky couldn't say, since that's most of it; a Tangled account
+ * that can't be read counts as no follow, and a circle that can't be read as no vouches.
+ */
+export function acquaintances(){
+  const tangled = new Map();
+  const followsOf = did => {
+    if (!tangled.has(did)) tangled.set(did, tangledFollowsOf(did).catch(() => null));
+    return tangled.get(did);
+  };
+  return {
+    async of(did, askers, { circle = false } = {}){
+      const [bsky, mine, theirs, words] = await Promise.all([
+        net.relationships(did, askers).catch(() => null),
+        followsOf(did),
+        Promise.all(askers.map(followsOf)),
+        circle ? circleOf(did).catch(() => null) : null
+      ]);
+      if (!bsky) return null;
+      const ties = new Map(askers.map((a, i) => [a, {
+        bsky: { following: !!bsky.get(a)?.following, followedBy: !!bsky.get(a)?.followedBy },
+        tangled: { following: mine ? mine.has(a) : null, followedBy: theirs[i] ? theirs[i].has(did) : null }
+      }]));
+      return { ties, circle: words };
+    }
+  };
 }
 
 /* ---------- the conversation ---------- */
@@ -263,14 +339,23 @@ export async function message({ post = true, password = process.env.RAINSHARE_BL
 
   // What each of them has to hear, and everyone their updates name (the new asks name nobody).
   const theirBlocks = new Map(await Promise.all(ready.filter(x => !x.stop).map(async x => [x.p.did, await net.blocksOf(x.p.did)])));
-  for (const x of ready) {
-    if (x.stop) continue;
+  const graph = acquaintances();
+  await net.pool(ready.filter(x => !x.stop), 4, async x => {
     const common = { seeds, takes, deliveries, theirBlocks: theirBlocks.get(x.p.did), ourBlocks, hidden, now };
+    let fresh = x.daily ? newsFor({ ...x.p, updates: false, from: 'anyone' }, { ...common, ...x.daily }).fresh : [];
+    // Only from people they know: who they know is read now, about the people whose asks could
+    // count. If Bluesky can't say, the day's count waits for a run where it can.
+    if (fresh.length && x.p.from !== 'anyone') {
+      const known = await graph.of(x.p.did, [...new Set(fresh.map(n => n.by))], { circle: x.p.from === 'vouched' });
+      if (known) fresh = fresh.filter(n => wanted(x.p, n.seed, known));
+      else { fresh = []; log(`Leaving the day’s new asks for ${x.p.did} to the next run: Bluesky didn’t say who they know.`); }
+    }
     x.news = {
       updates: newsFor({ ...x.p, newAsks: false }, { ...common, from: x.from, to }).updates,
-      fresh: x.daily ? newsFor({ ...x.p, updates: false }, { ...common, ...x.daily }).fresh : []
+      fresh,
+      what: { projects: x.p.projects, ideas: x.p.ideas, from: x.p.from }
     };
-  }
+  });
   const named = [...new Set(ready.flatMap(x => [x.p.did, ...(x.news ? x.news.updates.flatMap(n => [n.by, n.seed.repo]) : [])]))];
   const who = await whoAre(named);
   for (const x of ready) if (!x.stop) x.message = compose(x.news, who);

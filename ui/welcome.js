@@ -16,7 +16,7 @@
 //
 // Someone who was past it before it asked about messages (or made their profile on its own
 // page, without it) is asked that on its own, on their next visit: see openMessages.
-import { PLANS, UNPAID, HARNESSES, NOTIFY, HANDLE, MODERATOR } from '../core/ns.js';
+import { PLANS, UNPAID, HARNESSES, NOTIFY, HANDLE, MODERATOR, messagesOf } from '../core/ns.js';
 import { esc, lit, ico, skyIco, lifeIco, face, nameOf, avatarFallback } from './bits.js';
 import { closeSoftly, swapStep } from './motion.js';
 
@@ -44,8 +44,8 @@ export function shouldWelcome({ source, mine, sub = '' }){
 export const welcomeProfile = ({ plans = [], other = '', runs = [] } = {}) => ({ plans: [...plans, ...String(other).split(',').map(s => s.trim()).filter(Boolean)], setups: runs.map(harness => ({ harness, models: [] })) });
 /** The messages the welcome starts with: every kind, ticked. */
 export const welcomeMessages = () => Object.fromEntries(NOTIFY.map(([k]) => [k, true]));
-/** Whether a choice of messages switches any on. */
-export const anyMessages = notify => NOTIFY.some(([k]) => notify?.[k] === true);
+/** Whether a choice of messages switches any on. (New asks of neither kind, projects or ideas, are none.) */
+export const anyMessages = notify => { const m = messagesOf(notify); return m.updates || m.newAsks; };
 
 /**
  * Whether to ask whoever's signed in about messages from @rainshare.dev, on their own. It's for
