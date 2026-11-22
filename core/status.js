@@ -5,6 +5,7 @@
 // and the MCP server's `rainshare_check` all read it.
 //
 //   look(item)       asks the forge what only it knows, and notes the answers on the item
+//   notesOf(item)    those answers, small enough to keep for a while
 //   carry(from, to)  takes those answers along to a fresher copy of the same seed
 //   standing(item)   reads the item and says where it stands, in facts and plain sentences
 import { HARNESSES, labelOf } from './ns.js';
@@ -36,11 +37,32 @@ export async function look(item){
   const sub = item.value?.subject, kind = kindOf(sub);
   await Promise.all([
     /Issue$/.test(kind || '') && !item.issue ? subjectInfo(sub).then(i => { if (i) item.issue = i; }, () => {}) : null,
-    item.linked === undefined ? linkedPulls(sub, { rkey: parseUri(item.uri)?.rkey }).then(l => { item.linked = l; }, () => { item.linked = null; }) : null,
-    ...(item.deliveries || []).filter(d => d.state === undefined).map(async d => { d.state = await pullState({ url: d.value?.url, pull: d.value?.pull, subject: sub }).catch(() => null); })
+    item.linked === undefined ? linkedPulls(sub, { rkey: parseUri(item.uri)?.rkey }).then(l => { item.linked = l; }, () => { item.linked = null; }) : null
   ]);
+  // A pull request turned in here usually mentions the work too, so the list just read already
+  // says whether it was merged. Only the ones it doesn't have are asked about one by one.
+  // (GitHub lets a browser that isn't signed in ask 60 things an hour, and the board asks about every open ask.)
+  const said = new Map((item.linked || []).filter(p => p.state).map(p => [pullKey(p.url), p.state]));
+  for (const d of item.deliveries || []) if (d.state === undefined) { const s = said.get(pullKey(d.value?.url || d.value?.pull)); if (s) d.state = s; }
+  await Promise.all((item.deliveries || []).filter(d => d.state === undefined).map(async d => { d.state = await pullState({ url: d.value?.url, pull: d.value?.pull, subject: sub }).catch(() => null); }));
   item.lookedAt = Date.now();
   return item;
+}
+/**
+ * What `look` found out, small enough to keep in a browser for a while: the issue's title and
+ * state (not its body), the pull requests that mention the work, and what the forge said about
+ * each one turned in. It's the shape `carry` takes as `from`, so putting it back on a seed read
+ * later is `carry(notes, item, { maxAge })`. Null if the forge hasn't been asked.
+ */
+export function notesOf(item){
+  if (!item?.uri || !(item.lookedAt > 0)) return null;
+  const i = item.issue;
+  return {
+    uri: item.uri, lookedAt: item.lookedAt,
+    ...(i ? { issue: { title: String(i.title || ''), state: i.state === 'open' || i.state === 'closed' ? i.state : null, url: i.url || null } } : {}),
+    ...(item.linked !== undefined ? { linked: Array.isArray(item.linked) ? item.linked.map(({ url, number, title, by, state }) => ({ url, number, title, by, state })) : null } : {}),
+    deliveries: (item.deliveries || []).filter(d => d.uri && d.state !== undefined).map(d => ({ uri: d.uri, state: d.state }))
+  };
 }
 /**
  * A seed read again a moment later is a new copy, without what `look` found out. This takes
@@ -68,6 +90,8 @@ export function carry(from, to, { maxAge = 90e3, now = Date.now() } = {}){
  *   linked       pull requests on the forge that mention it and weren't turned in here
  *   verdict      'clear', 'on-it', 'turned-in', 'merged', 'issue-closed', 'sprouted' or 'closed'
  *   clear        whether there's nothing in the way of starting
+ *   settled      whether it's open but probably finished: a pull request for it was merged, or
+ *                the issue was closed. Only the asker can mark it done, so it waits on them.
  *   lines        the facts, as plain sentences
  *   advice       one sentence on what to do about them (about their own work, if it's already theirs: `yours`)
  *   idea         whether it's an idea with no repo yet (what gets turned in is a project, not a pull request)
@@ -134,5 +158,5 @@ export function standing(item, { viewer, now = Date.now(), asker = 'the person w
         : issue === 'closed' ? { do: 'close', text: `The issue is closed on ${forge}. If the work is done, mark this done. If it’s no longer wanted, close it.` } : null
     : state === 'sprouted' && issue === 'open' ? { do: 'close-issue', href: d?.href || null, text: `The issue is still open on ${forge}. Close it there if it’s done.` } : null;
 
-  return { state, idea, issue, takes, deliveries, linked, verdict, clear: verdict === 'clear', lines, advice: yours || advice, yours: !!yours, planter };
+  return { state, idea, issue, takes, deliveries, linked, verdict, clear: verdict === 'clear', settled: verdict === 'merged' || verdict === 'issue-closed', lines, advice: yours || advice, yours: !!yours, planter };
 }

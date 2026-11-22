@@ -282,11 +282,22 @@ export async function subjectInfo(subject){
  * turns up; knotless already keeps, for each issue, the pulls that name it.
  * [{ url, number, title, by, state }], or null if it can't tell.
  */
+// Asks on the same GitHub repository share its list of pull requests for a minute, so a board
+// with several asks there asks GitHub once rather than once for each.
+const PULL_LISTS = new Map(), PULL_LIST_KEEP = 60e3;
+function githubPulls(repo){
+  const key = repo.toLowerCase(), was = PULL_LISTS.get(key);
+  if (was && Date.now() - was.at < PULL_LIST_KEEP) return was.list;
+  const list = getJSON(`${GITHUB_API}/repos/${repo}/pulls?state=all&sort=updated&direction=desc&per_page=50`);
+  PULL_LISTS.set(key, { at: Date.now(), list });
+  list.catch(() => { if (PULL_LISTS.get(key)?.list === list) PULL_LISTS.delete(key); });
+  return list;
+}
 export async function linkedPulls(subject, { rkey } = {}){
   const d = describeSubject(subject), kind = kindOf(subject);
   try {
     if (d?.forge === 'github' && REPO_NAME.test(d.repo || '')) {
-      const list = await getJSON(`${GITHUB_API}/repos/${d.repo}/pulls?state=all&sort=updated&direction=desc&per_page=50`);
+      const list = await githubPulls(d.repo);
       return pullsAbout(list, { repo: d.repo, number: kind === 'githubIssue' ? parseInt(subject.number, 10) : null, rkey });
     }
     if (d?.forge === 'tangled') {

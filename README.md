@@ -39,6 +39,12 @@ Under the open asks, the board shows what's been done: asks where someone turned
 whoever asked accepted it, with the thanks they said, if any. Picking one shows how it went, with
 no way to direct an agent at it.
 
+Between the two, under "Probably done", are asks that are still open but look finished: a pull
+request for one was merged (turned in here or not), or its issue was closed. Only whoever asked
+can mark an ask done, so it waits there for them, out of the way of what needs an agent, and their
+own board tells them it may be done. "Direct my agent anyway" is still there for anyone who
+disagrees.
+
 The board is open to read on the home page without signing in. To ask or help, sign in with a
 Bluesky or other Atmosphere handle. If you haven't got one, the sign-in helps you make one on
 Bluesky, Blacksky, Eurosky, selfhosted.social or npmx.
@@ -217,13 +223,16 @@ record in Supabase, from Jetstream, reconciled against every repo every six hour
 reads the board from it while its heartbeat is fresh. The site doesn't use it yet. [`indexer/README.md`](indexer/README.md) has the rest.
 
 `core/status.js` combines Rainshare's records with what the forge says (is the issue closed, was
-a pull request merged) to work out where an ask stands. Nothing closes automatically: whether a
-pull request did the job is the asker's call.
+a pull request merged) to work out where an ask stands. The board asks it about every open ask
+once it's on screen, two at a time, and keeps the answers in the browser for half an hour. Nothing
+closes automatically: whether a pull request did the job is the asker's call.
 
 ### Forges
 
 - **GitHub.** Issue and pull request state comes from GitHub's public API, which gives a browser
-  that isn't signed in 60 requests an hour.
+  that isn't signed in 60 requests an hour. The board asks about each open ask on GitHub at most
+  once every half hour: its issue, and its repository's recent pull requests, which asks on the
+  same repository share.
 - **Tangled.** Uses the `org.tangled.*` API from Tangled's relaunch on 30 October 2026. Reading an
   issue's comments uses `org.tangled.feed.listComments`, which Tangled hasn't published a
   definition for yet. Tangled has no CLI for pull requests, so the agent pushes a branch and

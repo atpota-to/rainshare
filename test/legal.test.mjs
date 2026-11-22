@@ -131,12 +131,12 @@ test('the Privacy Policy names every service the code asks, and everything kept 
   assert.match(PRIVACY.lead, /already public in the accounts they’re in\. Our copy is still a copy that we hold/);
   assert.doesNotMatch(all, /keeps almost nothing|The one record/);
   // Every key the site keeps in the browser. A new one belongs in the policy's list too, then here.
-  const KEYS = ['rs:accept-vouch', 'rs:agreed', 'rs:board-seen:', 'rs:board-sort', 'rs:garden-seen:', 'rs:kept', 'rs:messages-asked:', 'rs:mode', 'rs:notices-seen:', 'rs:prefs:', 'rs:signin', 'rs:signin-again', 'rs:signin-skip', 'rs:stage-seen:', 'rs:up-later', 'rs:waiting-later', 'rs:welcomed:'];
+  const KEYS = ['rs:accept-vouch', 'rs:agreed', 'rs:board-seen:', 'rs:board-sort', 'rs:forge-said', 'rs:garden-seen:', 'rs:kept', 'rs:messages-asked:', 'rs:mode', 'rs:notices-seen:', 'rs:prefs:', 'rs:signin', 'rs:signin-again', 'rs:signin-skip', 'rs:stage-seen:', 'rs:up-later', 'rs:waiting-later', 'rs:welcomed:'];
   const found = new Set();
   for (const dir of ['../ui/', '../src/', '../core/', '../public/']) for (const f of readdirSync(new URL(dir, import.meta.url)).filter(f => f.endsWith('.js')))
     for (const [, k] of readFileSync(new URL(dir + f, import.meta.url), 'utf8').matchAll(/['"`](rs:[a-z:-]+)['"`]/g)) if (k !== 'rs:') found.add(k);
   assert.deepEqual([...found].sort(), KEYS);
-  for (const says of [/sets no cookies/, /day or night/, /agreed to the terms/, /forges you chose not to connect/, /vouch for someone/, /example board/, /a copy of your settings for “Direct my agent”/, /which plants in your garden you’ve already seen/, /which asks were on the board when you last looked/, /how you last sorted the board/, /which notifications in the bell you’ve already seen/, /notes and reminders you’ve dismissed/,
+  for (const says of [/sets no cookies/, /day or night/, /agreed to the terms/, /forges you chose not to connect/, /vouch for someone/, /example board/, /a copy of your settings for “Direct my agent”/, /which plants in your garden you’ve already seen/, /which asks were on the board when you last looked/, /whether a pull request for one was merged\), for half an hour/, /how you last sorted the board/, /which notifications in the bell you’ve already seen/, /notes and reminders you’ve dismissed/,
     /your GitHub username if you give it/, /whether that account has forked an ask’s repository/, /puts its prompt in the link to claude\.ai/]) assert.match(all, says);
   // Every kind of record Rainshare writes to someone's account is one the policy says is public.
   const said = { profile: /your Rainshare profile/, seed: /your asks/, take: /your agent is working on an ask/, delivery: /the work you turn in/, comment: /your comments/, preferences: /your settings for “Direct my agent”/ };

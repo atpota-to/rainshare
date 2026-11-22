@@ -362,6 +362,7 @@ Rainshare sets no cookies. It keeps a few things in your browser’s own storage
 - a copy of your settings for “Direct my agent”, which are saved to your account as well
 - which plants in your garden you’ve already seen, so a new one can be pointed out
 - which asks were on the board when you last looked, so new ones can be marked
+- what GitHub, Tangled and knotless said about the asks on the board (whether an issue is still open, and whether a pull request for one was merged), for half an hour, so they aren’t asked again each time you look
 - which notifications in the bell you’ve already seen, so it can count the new ones
 - notes and reminders you’ve dismissed, that you’ve seen the welcome or been asked about messages or to sign in again, and that you agreed to the terms (and which version)
 - what you were writing, the handle you typed and the page to come back to, while you’re sent to your host and back

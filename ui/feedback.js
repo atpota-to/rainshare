@@ -20,6 +20,7 @@ import { knownPerson, profiles, resolveHandle, isDid } from '../core/net.js';
 import { askExcerpt } from '../core/words.js';
 import { renderMarkdown } from '../core/markdown.js';
 import { esc, ago, ico, face, tip, nameOf } from './bits.js';
+import { confirmBox } from './confirm.js';
 import { listSk, seedSk } from './skeleton.js';
 
 const UP = '<svg class="rs-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 14.5l6-6 6 6"/></svg>';
@@ -483,7 +484,7 @@ export function createFeedback(ui){
     if (!post || post.uri !== uri && !['ban', 'unban'].includes(what)) return;
     const b = F.board;
     const say = { pin: 'Pinned', unpin: 'Unpinned', lock: 'Closed to new replies', unlock: 'Open to replies again', hide: 'Hidden', unhide: 'Unhidden' }[what];
-    if (what === 'hide' && !confirm('Hide this post? It’s hidden from everyone but the board’s moderators, here and on userinput.app.')) return;
+    if (what === 'hide' && !await confirmBox({ title: 'Hide this post?', text: 'It’s hidden from everyone but the board’s moderators, here and on userinput.app.', yes: 'Hide it', no: 'Cancel', tone: 'danger', icon: 'shield' })) return;
     await writing('mod', () => ({
       pin: () => w().pin(b.space, post), unpin: () => w().unpin(post.pinned),
       lock: () => w().lock(post), unlock: () => w().unlock(post.lock),
@@ -493,19 +494,19 @@ export function createFeedback(ui){
   async function hideReply(uri, on){
     const r = F.thread?.data?.replies.find(x => x.uri === uri);
     if (!r) return;
-    if (on && !confirm('Hide this reply? It’s hidden from everyone but the board’s moderators, here and on userinput.app.')) return;
+    if (on && !await confirmBox({ title: 'Hide this reply?', text: 'It’s hidden from everyone but the board’s moderators, here and on userinput.app.', yes: 'Hide it', no: 'Cancel', tone: 'danger', icon: 'shield' })) return;
     await writing('mod', () => on ? w().hide(F.board.space, r) : w().unhide(r.hidden), async () => { toast(on ? 'Hidden' : 'Unhidden'); await again(); });
   }
   async function ban(did, on){
     const who = nameOf(person(did));
-    if (on && !confirm(`Ban ${who} from the board? They can’t post here, and what they’ve posted is hidden from everyone but its moderators.`)) return;
+    if (on && !await confirmBox({ title: `Ban ${who} from the board?`, text: 'They can’t post here, and what they’ve posted is hidden from everyone but its moderators.', yes: 'Ban', no: 'Cancel', tone: 'danger', icon: 'shield' })) return;
     await writing('mod', () => on ? w().ban(F.board.space, did) : w().unban(F.board.bans.filter(x => x.subject === did)), async () => { toast(on ? `${who} is banned` : `${who} is unbanned`); await again(); });
   }
   async function remove(uri){
     const it = item(uri);
     if (!it) return;
     const post = !!it.live?.title;
-    if (!confirm(post ? 'Delete this post? It’s removed from your account, and from the board.' : 'Delete this reply? It’s removed from your account.')) return;
+    if (!await confirmBox({ title: post ? 'Delete this post?' : 'Delete this reply?', text: post ? 'It’s removed from your account, and from the board.' : 'It’s removed from your account.', yes: 'Delete', no: 'Keep it', tone: 'danger' })) return;
     await writing('delete', () => w().remove(it), async () => {
       toast('Deleted');
       if (post) { F.at = 0; F.thread = null; go('feedback'); load(true); } else await again();
@@ -555,7 +556,8 @@ export function createFeedback(ui){
     const um = t.closest('[data-fb-unmod]');
     if (um) {
       const m2 = F.board?.members.find(x => x.uri === um.dataset.fbUnmod);
-      if (m2 && confirm(`Take ${nameOf(person(m2.did))} off the board’s moderators? What they’ve already done stays.`)) writing('addmod', () => w().removeModerator(m2), async () => { toast('Taken off'); await load(true); });
+      if (m2) confirmBox({ title: `Take ${nameOf(person(m2.did))} off the board’s moderators?`, text: 'What they’ve already done stays.', yes: 'Take them off', no: 'Cancel', tone: 'danger' })
+        .then(yes => yes && writing('addmod', () => w().removeModerator(m2), async () => { toast('Taken off'); await load(true); }));
       return true;
     }
     return false;
