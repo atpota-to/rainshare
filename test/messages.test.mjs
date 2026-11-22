@@ -3,11 +3,14 @@
 // service behind the account's PDS. The chat service's clock is the test's.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { message, compose, newsFor, newOnBoard, standing, boundary, wants, counted, rich } from '../announcer/src/messages.js';
+import { readFileSync } from 'node:fs';
+import { message, compose, newsFor, newOnBoard, standing, boundary, wants, counted, rich, acquaintances, askWords } from '../announcer/src/messages.js';
 import { ACCOUNT, reader } from '../announcer/src/posts.js';
 import { run } from '../announcer/src/run.js';
 import * as R from '../core/records.js';
-import { SEED, TAKE, DELIVERY, PROFILE, PREFERENCES, MODERATION, SITE } from '../core/ns.js';
+import { SEED, TAKE, DELIVERY, PROFILE, PREFERENCES, MODERATION, SITE, ASKS_FROM, messagesOf } from '../core/ns.js';
+import { FROM_KEYS, FOLLOW as TANGLED_FOLLOW } from '../core/ties.js';
+import { VOUCH } from '../core/vouch.js';
 
 // A run at 16:05:30 UTC, as the service runs them, half a minute past: updates up to 16:05, and
 // the day's new asks up to 15:45.
@@ -24,9 +27,10 @@ const ref = (did, c, rkey) => ({ uri: uri(did, c, rkey), cid: 'bafy' + rkey });
 const me = SITE + '/me', ours = (text, sentAt) => ({ id: 'm' + sentAt, rev: '1', text, sentAt, sender: { did: ACCOUNT }, facets: [{ index: { byteStart: 0, byteEnd: 1 }, features: [{ $type: 'app.bsky.richtext.facet#link', uri: me }] }] });
 const theirs = (did, text, sentAt) => ({ id: 'm' + sentAt + did, rev: '1', text, sentAt, sender: { did } });
 
-let repos, convos, asked, sentMessages, chatError, clock, sendDelay;
+// Who follows whom on Bluesky, as 'follower>followed', and whether Bluesky's AppView can say.
+let repos, convos, asked, sentMessages, chatError, clock, sendDelay, follows, graphDown;
 beforeEach(() => {
-  asked = []; sentMessages = []; chatError = null; clock = NOW; sendDelay = 0;
+  asked = []; sentMessages = []; chatError = null; clock = NOW; sendDelay = 0; follows = new Set(); graphDown = false;
   const ask = (title, createdAt, more = {}) => ({ $type: SEED, title, audience: anyone, createdAt, ...more });
   repos = {
     [ALICE]: {
@@ -51,7 +55,8 @@ beforeEach(() => {
       [SEED]: { j1: ask('My own new one', '2026-11-14T12:30:00Z') },
       [TAKE]: { ja1: { seed: ref(ALICE, SEED, 'a1'), createdAt: '2026-11-14T09:00:00Z' }, jc1: { seed: ref(CAROL, SEED, 'c1'), createdAt: '2026-11-09T00:00:00Z' } },
       [DELIVERY]: { ja1d: { seed: ref(ALICE, SEED, 'a1'), url: 'https://github.com/alice/app/pull/4', createdAt: '2026-11-14T10:00:00Z' }, jb1: { seed: ref(BOB, SEED, 'b1'), url: 'https://github.com/bob/weather/pull/1', createdAt: '2026-11-09T00:00:00Z' } },
-      [PREFERENCES]: { self: { $type: PREFERENCES, notify: { updates: true, newAsks: true } } }
+      // (Ideas as well as projects: the asks here are mostly ideas, and ideas are off unless they're switched on.)
+      [PREFERENCES]: { self: { $type: PREFERENCES, notify: { updates: true, newAsks: true, ideas: true } } }
     },
     [KAI]: { [TAKE]: { ka1: { seed: ref(ALICE, SEED, 'a1'), createdAt: '2026-11-13T10:00:00Z' } }, [PREFERENCES]: { self: { notify: { newAsks: true } } } },
     [MAL]: { [TAKE]: { ma1: { seed: ref(ALICE, SEED, 'a1'), createdAt: '2026-11-14T08:00:00Z' } } },
@@ -87,7 +92,11 @@ globalThis.fetch = async (input, init = {}) => {
   if (u.host === 'relay1.us-east.bsky.network') return json({ repos: Object.keys(repos).filter(d => repos[d][q.get('collection')]).map(did => ({ did })) });
   if (u.host === 'plc.directory') { const did = decodeURIComponent(u.pathname.slice(1)); return json({ id: did, alsoKnownAs: ['at://' + handleOf(did)], service: [{ id: '#atproto_pds', serviceEndpoint: PDS }] }); }
   if (u.host === 'public.api.bsky.app' && method === 'app.bsky.actor.getProfiles') return json({ profiles: q.getAll('actors').map(did => ({ did, handle: handleOf(did), displayName: nameOf(did) })) });
-  if (u.host === 'public.api.bsky.app' && method === 'app.bsky.graph.getRelationships') return json({ relationships: q.getAll('others').map(did => ({ did })) });
+  if (u.host === 'public.api.bsky.app' && method === 'app.bsky.graph.getRelationships') {
+    const actor = q.get('actor');
+    if (graphDown && actor !== ACCOUNT) return json({ error: 'InternalServerError' }, 500);
+    return json({ relationships: q.getAll('others').map(did => ({ did, ...(follows.has(`${actor}>${did}`) ? { following: 'at://f' } : {}), ...(follows.has(`${did}>${actor}`) ? { followedBy: 'at://f' } : {}) })) });
+  }
   if (u.host !== 'pds.test') throw new Error('a host this shouldn’t ask: ' + u.href);
   if (method === 'com.atproto.repo.listRecords') return json({ records: records(q.get('repo'), q.get('collection')) });
   if (method === 'com.atproto.repo.getRecord') { const v = repos[q.get('repo')]?.[q.get('collection')]?.[q.get('rkey')]; return v ? json({ uri: uri(q.get('repo'), q.get('collection'), q.get('rkey')), value: v }) : json({ error: 'RecordNotFound' }, 400); }
@@ -317,8 +326,8 @@ test('settings keep the messages someone asked for, and drop what’s switched o
   assert.equal(R.preferences({ notify: { updates: false, newAsks: false } }, on).notify, undefined, 'switching both off takes it out');
   assert.equal(R.preferences({ notify: { updates: 'yes' } }).notify, undefined, 'only true counts');
   assert.equal(R.profile({ notify: { updates: true } }).notify, undefined, 'it’s a setting, not part of the profile');
-  assert.deepEqual(wants({ notify: { newAsks: true } }), { updates: false, newAsks: true });
-  assert.deepEqual(wants(null), { updates: false, newAsks: false });
+  assert.deepEqual(wants({ notify: { newAsks: true } }), { updates: false, newAsks: true, projects: true, ideas: false, from: 'anyone' });
+  assert.deepEqual(wants(null), { updates: false, newAsks: false, projects: true, ideas: false, from: 'anyone' });
 });
 
 test('the day’s new asks count for the day they were asked', async () => {
@@ -338,9 +347,100 @@ test('a new ask is counted unless it’s hidden, shut or someone’s on it', () 
   const seeds = [seed('n'), seed('m', { audience: { $type: `${SEED}#mutuals` } }), seed('c', { state: 'closed' }), seed('h'), seed('t')];
   const hidden = new Map([[uri(BOB, SEED, 'h'), { subject: uri(BOB, SEED, 'h'), action: 'hide', reason: 'spam' }]]);
   const takes = [{ uri: uri(KAI, TAKE, 'k'), repo: KAI, value: { seed: { uri: uri(BOB, SEED, 't') }, createdAt: '2026-11-14T11:00:00Z' } }];
-  const r = { did: ALICE, newAsks: true }, common = { seeds, takes, deliveries: [], hidden, from: TODAY - DAY, to: TODAY, now: NOW };
+  const r = { did: ALICE, newAsks: true, ideas: true }, common = { seeds, takes, deliveries: [], hidden, from: TODAY - DAY, to: TODAY, now: NOW };
   assert.deepEqual(newsFor(r, common).fresh.map(n => n.seed.rkey), ['n'], 'not one for mutuals, a closed one, a hidden one, nor one Kai’s on');
-  assert.deepEqual(newsFor({ did: BOB, newAsks: true }, common).fresh, [], 'nor anyone’s own');
+  assert.deepEqual(newsFor({ did: BOB, newAsks: true, ideas: true }, common).fresh, [], 'nor anyone’s own');
   assert.deepEqual(newsFor(r, { ...common, ourBlocks: new Set([BOB]) }).fresh, [], 'nor one from someone the account blocks');
   assert.deepEqual(newOnBoard(seeds, { ...common, from: TODAY, to: TODAY + DAY }), [], 'nor one asked before the day');
+});
+
+/* ---------- which new asks: projects and ideas, and who from ---------- */
+const project = (title, createdAt) => ({ $type: SEED, title, audience: anyone, createdAt, subject: { $type: `${SEED}#repo`, url: 'https://github.com/carol/' + title.toLowerCase().replace(/\W+/g, '-') } });
+const board = `${SITE.replace('https://', '')}/board`;
+const countLine = text => (text.match(/There(?:’s| are) [^\n]*\/board\./) || [])[0] || null;
+
+test('ideas aren’t counted until someone switches them on, even with new asks on from before there was a choice', async () => {
+  // Juniper's settings from before: new asks on, nothing said about which. Bob's “Tiny timer” is an idea.
+  repos[JUN][PREFERENCES].self.notify = { updates: true, newAsks: true };
+  repos[CAROL][SEED].p1 = project('Fix the sync', '2026-11-14T13:30:00Z');
+  await go();
+  assert.equal(countLine(sentMessages.find(m => m.to === JUN).text), `There’s a new project on the board: ${board}.`, 'Carol’s project, and not Bob’s idea');
+});
+
+test('the count says which asks it counted', () => {
+  const seed = { uri: uri(BOB, SEED, 'x'), repo: BOB, rkey: 'x', value: { title: 'A secret plan' } };
+  const fresh = n => Array.from({ length: n }, (_, i) => ({ kind: 'new', seed, by: BOB, at: i }));
+  const line = (n, what) => countLine(compose({ fresh: fresh(n), what }, new Map()).text);
+  assert.equal(line(2, { projects: true, ideas: false, from: 'anyone' }), `There are 2 new projects on the board: ${board}.`);
+  assert.equal(line(1, { projects: false, ideas: true, from: 'anyone' }), `There’s a new idea on the board: ${board}.`);
+  assert.equal(line(3, { projects: true, ideas: true, from: 'mutuals' }), `There are 3 new asks on the board from your mutuals: ${board}.`);
+  assert.equal(line(1, { projects: true, ideas: false, from: 'following' }), `There’s a new project on the board from someone you follow: ${board}.`);
+  assert.equal(line(1, { projects: true, ideas: true, from: 'vouched' }), `There’s a new ask on the board from someone your Tangled circle vouched for: ${board}.`);
+  assert.deepEqual(askWords(), ['a new ask on the board', 'new asks on the board'], 'left out, every kind, from anyone');
+  for (const [k] of ASKS_FROM) assert.match(askWords({ from: k })[1], /^new asks on the board/, k);
+  assert.equal(compose({ fresh: fresh(2), what: { projects: true, ideas: false, from: 'followers' } }, new Map()).facets.at(-2).features[0].uri, `${SITE}/board`, 'the board’s link stays, so the next run knows they’ve had the day’s');
+});
+
+test('new asks only from people someone knows, as the board’s “Who asked” has it', async () => {
+  const seeds = [BOB, CAROL, KAI].map(d => ({ uri: uri(d, SEED, 'n'), repo: d, rkey: 'n', cid: 'bafyn', value: project('New from ' + d.slice(8), '2026-11-14T10:00:00Z') }));
+  const common = { seeds, takes: [], deliveries: [], from: TODAY - DAY, to: TODAY, now: NOW };
+  const askers = [BOB, CAROL, KAI];
+  const counts = async from => {
+    const known = await acquaintances().of(JUN, askers, { circle: from === 'vouched' });
+    return newsFor({ did: JUN, newAsks: true, from }, { ...common, ...known }).fresh.map(n => n.by.slice(8));
+  };
+  // Bluesky: Juniper and Bob follow each other, and Juniper follows Kai.
+  follows = new Set([`${JUN}>${BOB}`, `${BOB}>${JUN}`, `${JUN}>${KAI}`]);
+  // Tangled: Carol follows Juniper.
+  repos[CAROL][TANGLED_FOLLOW] = { [JUN]: { subject: JUN, createdAt: '2026-11-01T00:00:00Z' } };
+  assert.deepEqual(await counts('anyone'), ['bob', 'carol', 'kai']);
+  assert.deepEqual(await counts('mutuals'), ['bob']);
+  assert.deepEqual(await counts('following'), ['bob', 'kai']);
+  assert.deepEqual(await counts('followers'), ['bob', 'carol'], 'a follow on Tangled counts');
+  assert.deepEqual(await counts('vouched'), [], 'nobody’s vouched for anyone yet');
+  // Juniper vouched for Kai on Tangled, and Kai for Carol: Carol's in Juniper's circle.
+  repos[JUN][VOUCH] = { [KAI]: { kind: 'vouch', createdAt: '2026-11-01T00:00:00Z' } };
+  repos[KAI][VOUCH] = { [CAROL]: { kind: 'vouch', createdAt: '2026-11-01T00:00:00Z' } };
+  assert.deepEqual(await counts('vouched'), ['carol', 'kai']);
+  assert.deepEqual(newsFor({ did: JUN, newAsks: true, from: 'following' }, common).fresh, [], 'with nothing read about who they know, nothing’s counted');
+});
+
+test('narrowed to people they know, the day’s count says so, and waits for Bluesky when it can’t say', async () => {
+  // Juniper only wants new asks from people she follows. Today's are Bob's idea and Carol's project; she follows Carol.
+  repos[JUN][PREFERENCES].self.notify = { updates: true, newAsks: true, ideas: true, from: 'following' };
+  repos[CAROL][SEED].p1 = project('Fix the sync', '2026-11-14T13:30:00Z');
+  follows = new Set([`${JUN}>${CAROL}`]);
+  graphDown = true;
+  const lines = [];
+  await go({ log: s => lines.push(s) });
+  const first = sentMessages.find(m => m.to === JUN);
+  assert.match(first.text, /^Updates from Rainshare:/, 'her updates still go');
+  assert.equal(countLine(first.text), null, 'but not the day’s count');
+  assert.ok(lines.some(l => /Leaving the day’s new asks for did:plc:juniper to the next run/.test(l)));
+
+  graphDown = false; sentMessages = [];
+  await go({ now: at('14T16:10:30') });
+  assert.equal(sentMessages.find(m => m.to === JUN)?.text, `There’s a new ask on the board from someone you follow: ${board}.\n\nReply STOP to stop these, or choose what you get at ${SITE.replace('https://', '')}/settings.`, 'Carol’s, and not Bob’s');
+
+  sentMessages = [];
+  await go({ now: at('14T16:20:30') });
+  assert.ok(!sentMessages.some(m => m.to === JUN), 'and only once that day');
+});
+
+test('which new asks are kept in the settings only while new asks are on', () => {
+  const all = R.preferences({ notify: { newAsks: true, projects: false, ideas: true, from: 'mutuals' } });
+  assert.deepEqual(all.notify, { newAsks: true, projects: false, ideas: true, from: 'mutuals' });
+  assert.deepEqual(R.preferences({ notify: { newAsks: true, projects: true, ideas: false, from: 'anyone' } }).notify, { newAsks: true }, 'what’s as it would be anyway is left out');
+  assert.deepEqual(R.preferences({ notify: { updates: true } }, all).notify, { updates: true, newAsks: true, projects: false, ideas: true, from: 'mutuals' }, 'changing the rest keeps them');
+  assert.equal(R.preferences({ notify: { newAsks: false } }, all).notify, undefined, 'switching new asks off takes them with it');
+  assert.equal(R.preferences({ notify: { newAsks: true, projects: false } }).notify, undefined, 'new asks of neither kind are none');
+  assert.deepEqual(R.preferences({ notify: { newAsks: true, from: 'strangers', ideas: 'yes' } }).notify, { newAsks: true }, 'only a choice there is, and only true for ideas');
+  assert.deepEqual(messagesOf({ newAsks: true, projects: false }), { updates: false, newAsks: false, projects: false, ideas: false, from: 'anyone' });
+});
+
+test('who new asks can come from is the board’s “Who asked”, and the lexicon’s', () => {
+  assert.deepEqual(ASKS_FROM.map(([k]) => k), FROM_KEYS);
+  const lex = JSON.parse(readFileSync(new URL('../lexicons/dev/rainshare/preferences.json', import.meta.url), 'utf8'));
+  assert.deepEqual(lex.defs.notify.properties.from.knownValues, FROM_KEYS);
+  assert.deepEqual(Object.keys(lex.defs.notify.properties), ['updates', 'newAsks', 'projects', 'ideas', 'from']);
 });

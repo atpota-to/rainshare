@@ -31,6 +31,16 @@ records: asks, takes, turn-ins and people's settings (`dev.rainshare.seed`, `.ta
   new asks nobody's on yet, with a link to the board written out ("There are 5 new asks on the
   board: rainshare.dev/board."). It's only a number: no titles, and nobody's name.
 
+  Only the asks someone picked in Settings are counted: projects unless they've unticked them,
+  ideas only once they've ticked them (so ideas are off for everyone to begin with, including
+  whoever had new asks on before there was a choice), and from anyone unless they've narrowed it
+  to people they know, as the board's "Who asked" does: mutuals, people they follow, people who
+  follow them (a follow on Bluesky or Tangled counts), or people their Tangled circle vouched
+  for. Narrowed, a run reads who they know from the network, only when their count is due and
+  only about the people whose asks it could count, and if Bluesky can't say, their count waits
+  for the next run. The message says what it counted: "There are 2 new projects on the board
+  from people you follow: rainshare.dev/board."
+
 It also runs when someone writes to the account (it looks at its
 conversations every minute, as Poe does, so a STOP is answered quickly), and every 15 minutes in
 case Jetstream missed something.

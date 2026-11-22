@@ -1,6 +1,6 @@
 // Building the records from what people type, so every app writes the same shapes.
 // Each builder trims, clips to the lexicon's limits and leaves out what's empty.
-import { PROFILE, SEED, TAKE, DELIVERY, COMMENT, PREFERENCES, FOLLOW, MODERATOR, ROUTES, githubLogin, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, PLANS, UNPAID, LEVELS, planKey, PLAN_NAME_MAX, RETIRED_PLANS, HARNESSES, RUNS_ON, AUDIENCES, TESTS, SIZES, OWNERS, STAGES, audienceOf } from './ns.js';
+import { PROFILE, SEED, TAKE, DELIVERY, COMMENT, PREFERENCES, FOLLOW, MODERATOR, ROUTES, githubLogin, BUDGETS, FORECAST, CIRCUMSTANCES, PRIORITIES, PLANS, UNPAID, LEVELS, planKey, PLAN_NAME_MAX, RETIRED_PLANS, HARNESSES, RUNS_ON, AUDIENCES, TESTS, SIZES, OWNERS, STAGES, audienceOf, messagesOf } from './ns.js';
 import { parseUri } from './net.js';
 import { kindOf } from './subjects.js';
 import { untilIn, MAX_DAYS } from './takes.js';
@@ -151,7 +151,9 @@ export function preferences(input = {}, prev){
   const was = prev?.send || {}, s = { ...was, ...(input.send || {}) };
   const days = Math.round(Number(s.days));
   // Messages from @rainshare.dev (../announcer/src/messages.js): only what's switched on is kept.
-  const n = { ...(prev?.notify || {}), ...(input.notify || {}) };
+  // Which new asks are kept only while new asks are on, and only where they differ from what's
+  // assumed: projects only as false, ideas only as true, and who from only when it isn't anyone.
+  const n = messagesOf({ ...(prev?.notify || {}), ...(input.notify || {}) });
   // That the terms were agreed to, which version and when (./agreement.js). A new one takes the
   // old one's place whole; otherwise what's there stays, whatever else is being changed.
   const t = [input.terms, prev?.terms].find(x => /^\d{4}-\d{2}-\d{2}$/.test(String(x?.version || '')) && iso(x?.agreedAt));
@@ -163,7 +165,13 @@ export function preferences(input = {}, prev){
       days: days >= 1 ? Math.min(days, MAX_DAYS) : undefined,
       askEachTime: typeof s.askEachTime === 'boolean' ? s.askEachTime : undefined
     }),
-    notify: prune({ updates: n.updates === true || undefined, newAsks: n.newAsks === true || undefined }),
+    notify: prune({
+      updates: n.updates || undefined,
+      newAsks: n.newAsks || undefined,
+      projects: n.newAsks && !n.projects ? false : undefined,
+      ideas: n.newAsks && n.ideas || undefined,
+      from: n.newAsks && n.from !== 'anyone' ? n.from : undefined
+    }),
     // Your GitHub username, so the Claude app opens your fork, and your pull requests are spotted.
     // Given as '' or null, it's taken out; left out of `input`, what's there stays.
     github: githubLogin('github' in input ? input.github : prev?.github) || undefined,
