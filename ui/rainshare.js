@@ -1127,8 +1127,10 @@ export function createRainshare({ root, base = '/', host }){
     // Yours, and something's come of it (work turned in, a pull request merged, the issue closed): what to do next, which is done on its page.
     const next = open && mine ? stand(it).planter : null;
     const nextNote = next?.text ? `<p class="rs-note rs-on">${lifeIco('up')}<span>${esc(next.text)}</span></p>` : '';
+    // Who asked: their name, and under it how you know them and when, beside the ways to its page and out.
+    const by = `<span class="rs-detail-by"><span class="rs-detail-name"><b>${esc(mine ? 'You' : nameOf(p))}</b>${hat(it.repo)}</span><small>${rel ? (it.space ? ico('lock') : '') + esc(rel) + ' · ' : ''}<span>${esc(ago(sq.createdAt))}</span></small></span>`;
     return `<article class="rs-detail">
-      <div class="rs-detail-top">${a('profile/' + it.repo, face(p) + `<b>${esc(mine ? 'You' : nameOf(p))}</b>`, 'rs-who')}${hat(it.repo)}<span class="rs-muted">${rel ? ' · ' + (it.space ? ico('lock') : '') + esc(rel) : ''} · ${esc(ago(sq.createdAt))}</span>
+      <div class="rs-detail-top">${a('profile/' + it.repo, face(p) + by, 'rs-who rs-detail-who')}
         <span class="rs-detail-tools">${a(page, `${ico('expand')}<span>Full page</span>`, 'rs-detail-page')}<button class="rs-sheet-close" type="button" data-rs-close-sheet aria-label="Close">${ico('close')}</button></span></div>
       <div class="rs-seed-head"><div class="rs-seed-title"><h2 tabindex="-1" data-rs-vt="title:${esc(it.uri)}">${esc(sq.title)}</h2><p class="rs-muted"><span class="rs-stage-name">${esc(whatItIs(sq).name)}</span> · ${esc(whatItIs(sq).note)}</p></div>${plantPic(pictureOf(sq), 88, { key: it.uri, vt: 'plant:' + it.uri })}</div>
       ${progressBlock(it)}

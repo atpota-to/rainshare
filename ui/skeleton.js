@@ -36,7 +36,7 @@ const askSk = () => `<div class="rs-ask">${line('56px')}${line('96%')}${line('88
 
 // The one you picked, beside the list: who, its title and plant, the ask, how it suits you (with fit on), the facts, what to do.
 export const detailSk = ({ fit = false } = {}) => `<article class="rs-detail" aria-hidden="true">
-  <div class="rs-detail-top">${face()}${line('32%')}</div>
+  <div class="rs-detail-top">${face()}<span class="rs-sk-stack">${line('34%')}${line('48%')}</span></div>
   <div class="rs-seed-head"><div class="rs-seed-title">${line('84%', 'rs-sk-h2')}${line('46%', 'rs-sk-h2')}${line('38%')}</div>${plant(88)}</div>
   ${fit ? '<i class="rs-sk rs-sk-box"></i>' : ''}
   ${askSk()}
