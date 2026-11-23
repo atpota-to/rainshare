@@ -206,7 +206,19 @@
 .rs-detail-top .rs-i{width:13px;height:13px;vertical-align:-2px;margin-right:2px}
 .rs-detail h2{font-size:clamp(24px,2.4vw,30px);font-weight:800;margin:0;overflow-wrap:anywhere}
 .rs-detail h2:focus,.rs-post h1:focus{outline:none}
-.rs-detail-tools{margin-left:auto;display:inline-flex;align-items:center;gap:8px}
+/* in the panel (and the sheet), who asked is a face beside two lines, their name and then how you
+   know them and when, so the ways to its page and out stay beside them and never wrap under */
+.rs-detail>.rs-detail-top{flex-wrap:nowrap;gap:10px}
+.rs-detail-who{flex:1;gap:10px}
+.rs-detail-who .rs-face{width:38px;height:38px;font-size:16px}
+.rs-detail-by{display:flex;flex-direction:column;gap:1px;min-width:0;line-height:1.35}
+.rs-detail-name{display:flex;align-items:center;min-width:0;font-size:15px}
+.rs-detail-name b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rs-detail-name .rs-hat{flex:none}
+.rs-detail-by small{font-size:13px;color:var(--rs-muted)}
+.rs-detail-by small>span{white-space:nowrap}
+.rs-detail>.rs-detail-top>.rs-sk-face{width:38px;height:38px}
+.rs-detail-tools{margin-left:auto;flex:none;display:inline-flex;align-items:center;gap:8px}
 .rs-detail-page{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 12px;border-radius:999px;background:var(--rs-sunk);color:var(--rs-ink);font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap}
 .rs-detail-page .rs-i{width:14px;height:14px;margin:0;vertical-align:0}
 .rs-detail-page:hover{color:var(--rs-accent-text)}
